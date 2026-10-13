@@ -1,19 +1,15 @@
-# Datos de cada PC (nunca van al repositorio)
-procesado/
-salidas/
-subtitulos/
-recetas/
-grabaciones/
-_trabajo/
-datos/
-config.local.json
-correcciones.md
+# Lista blanca: solo el código de la sala va a GitHub. Todo lo demás (procesado, salidas, subtítulos,
+# transcripciones, asignaciones, config.local.json, grabaciones…) son datos de cada PC y se quedan fuera.
+/*
+!/.gitignore
+!/*.py
+!/app.html
+!/config.json
+!/VERSION
+!/LANZADOR_MINIMO
+!/NOTAS_VERSION.md
+!/LEEME_EDITOR.md
+!/requirements-build.txt
+!/*.bat
+!/biblioteca/
 __pycache__/
-*_anterior/
-# Construcción del .exe
-build/
-dist/
-*.spec
-.claude/
-transcripciones/
-asignaciones/
