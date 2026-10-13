@@ -32,11 +32,10 @@ export default function VideosPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const [{ data: yo }, { data }] = await Promise.all([
-      supabase.from("miembros").select("nombre").eq("id", user?.id ?? "").eq("activo", true).maybeSingle(),
-      supabase.from("videos").select("*").order("codigo"),
-    ]);
-    setMiembro(yo ?? null);
+    // El acceso lo da el rol guardado en la propia cuenta de Auth (app_metadata.rol = admin | editor).
+    const rol = user?.app_metadata?.rol as string | undefined;
+    const { data } = await supabase.from("videos").select("*").order("codigo");
+    setMiembro(rol === "admin" || rol === "editor" ? { nombre: (user?.app_metadata?.nombre as string) || user?.email || "" } : null);
     const lista = (data as Video[]) ?? [];
     setVideos(lista);
     setSemana((s) => s || [...new Set(lista.map((v) => v.semana))].sort().at(-1) || "");
@@ -61,7 +60,7 @@ export default function VideosPage() {
     return (
       <main className="flex min-h-dvh items-center justify-center p-4 text-center">
         <div className="max-w-sm rounded-2xl border bg-white p-6">
-          <p className="mb-4 text-sm">Tu cuenta no tiene acceso al panel de edición. Pídele al administrador que te agregue.</p>
+          <p className="mb-4 text-sm">Tu cuenta todavía no tiene un rol en el panel de edición. Pídele al administrador que te dé acceso; luego cierra sesión y vuelve a entrar.</p>
           <form action="/salir" method="post">
             <button className="btn-sec">Cerrar sesión</button>
           </form>

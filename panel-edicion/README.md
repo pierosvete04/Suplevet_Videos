@@ -19,17 +19,19 @@ Ver `.env.example`. En Hostinger se cargan en la configuración de la app Node.j
 
 ## Usuarios
 
-1. Supabase → Authentication → Sign In / Providers → desactivar **Allow new users to sign up** (nadie se registra solo).
-2. Authentication → Users → **Add user** → correo y contraseña, marcando *Auto Confirm User*.
-3. Darle acceso (SQL Editor):
+El acceso no usa tablas: el rol vive en la propia cuenta de Supabase Auth (`app_metadata.rol` = `admin` o `editor`), que solo el servidor puede cambiar. Una cuenta sin rol no ve nada.
+
+1. Supabase → Authentication → Sign In / Providers → desactivar **Allow new users to sign up**.
+2. Authentication → Users → **Add user** → correo y contraseña, con *Auto Confirm User*.
+3. Darle el rol (SQL Editor, o pídeselo a Claude):
 
 ```sql
-insert into public.miembros (id, nombre, rol)
-select id, 'Nombre', 'admin'   -- 'admin' para el dueño, 'editor' para el editor
-from auth.users where email = 'correo@ejemplo.com';
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"rol": "editor", "nombre": "Benito"}'
+where email = 'benito.svete@suplevet.pe';
 ```
 
-Para quitar el acceso: `update public.miembros set activo = false where ...`.
+La persona tiene que cerrar sesión y volver a entrar para que el rol se aplique. Para quitar el acceso, borra `rol` o pon `"rol": "ninguno"`.
 
 ## Publicar en Hostinger (subdominio edicion.suplevet.pe)
 

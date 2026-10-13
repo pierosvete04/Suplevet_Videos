@@ -342,7 +342,8 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "archivo": archivo})
             elif u.path == "/api/semana":
                 sem = " ".join(self._cuerpo()["semana"].split())
-                if not re.fullmatch(r"[\w .-]{1,60}", sem) or sem.startswith("."):
+                sem = sem.replace("/", "／")  # Drive permite "11/10 SESIÓN"; en disco se guarda con la barra ancha
+                if not re.fullmatch(r"[\w .／-]{1,60}", sem) or sem.startswith("."):
                     raise ValueError("Nombre de semana no válido")
                 nueva = motor.S.base / sem
                 if drive.estado()["activo"] and sem not in drive.sesiones_en_drive():

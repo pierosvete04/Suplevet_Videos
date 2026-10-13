@@ -331,6 +331,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         <label>Link de la carpeta (EDICIÓN DE VIDEOS)<input id="driveLink" placeholder="https://drive.google.com/drive/folders/…"></label>
         <details><summary>Credenciales propias de Google Cloud (recomendado)</summary>
           <p class="muted" style="font-size:12px">Del proyecto «Suplevet Sala» en Google Cloud: cliente OAuth tipo «App de escritorio». Sin ellas se usan las de rclone (sirven para probar).</p>
+          <label class="btn sec peq" style="cursor:pointer;justify-self:start">Cargar archivo JSON de Google Cloud<input type="file" id="driveJson" accept=".json,application/json" hidden></label>
           <label>ID de cliente<input id="driveCid" placeholder="…apps.googleusercontent.com"></label>
           <label>Secreto del cliente<input id="driveSecret" type="password" autocomplete="off"></label>
         </details>
@@ -878,6 +879,16 @@ $("driveConectar").onclick = () => {
   if (!link) return avisar("Pega el link de la carpeta de Drive.", "err");
   avisar("Se abrirá Google en el navegador: entra con la cuenta que tiene acceso a la carpeta y acepta.");
   accionDrive("conectar", { link, client_id: $("driveCid").value, client_secret: $("driveSecret").value });
+};
+$("driveJson").onchange = async e => {
+  // El JSON que descarga Google Cloud al crear el cliente OAuth «App de escritorio»: se lee aquí mismo, no se sube a ningún lado
+  try {
+    const j = JSON.parse(await e.target.files[0].text());
+    const c = j.installed || j.web || {};
+    if (!c.client_id || !c.client_secret) throw new Error("ese archivo no tiene client_id y client_secret");
+    $("driveCid").value = c.client_id; $("driveSecret").value = c.client_secret;
+    avisar("Credenciales cargadas. Ahora pega el link de la carpeta y toca «Conectar con Google».", "ok");
+  } catch (err) { avisar("No pude leer el archivo: " + err.message, "err"); }
 };
 $("driveLista").onclick = () => accionDrive("lista");
 $("driveBajar").onclick = () => accionDrive("bajar");
