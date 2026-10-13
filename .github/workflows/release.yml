@@ -1,0 +1,69 @@
+# Al subir un tag vX.Y.Z arma la sala portable para Windows y publica el release:
+#   SalaSuplevet-vX.Y.Z.zip  (todo: .exe + app + ffmpeg)  -> instalación nueva
+#   app-vX.Y.Z.zip           (solo el código)              -> lo que baja "Actualizar" en la sala
+name: Release sala de edición
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: editor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar que VERSION coincide con el tag
+        shell: bash
+        run: |
+          test "v$(tr -d '\r\n' < VERSION)" = "${GITHUB_REF_NAME}" || { echo "VERSION no coincide con el tag ${GITHUB_REF_NAME}"; exit 1; }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller faster-whisper numpy
+
+      - name: Armar SalaSuplevet.exe
+        run: >
+          pyinstaller lanzador.py --noconfirm --onedir --console --name SalaSuplevet
+          --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime
+          --collect-all tokenizers --collect-all av --collect-all huggingface_hub
+
+      - name: Bajar ffmpeg
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_tmp
+          New-Item -ItemType Directory -Force dist/SalaSuplevet/ffmpeg | Out-Null
+          Get-ChildItem ffmpeg_tmp -Recurse -Include ffmpeg.exe,ffprobe.exe,LICENSE | Copy-Item -Destination dist/SalaSuplevet/ffmpeg
+
+      - name: Copiar el código y empaquetar
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $app = "dist/SalaSuplevet/app"
+          New-Item -ItemType Directory -Force $app | Out-Null
+          Copy-Item *.py,app.html,config.json,VERSION,LANZADOR_MINIMO,LEEME_EDITOR.md -Destination $app
+          Copy-Item biblioteca -Destination $app -Recurse
+          Remove-Item "$app/lanzador.py"
+          Compress-Archive -Path "$app/*" -DestinationPath "app-$tag.zip"
+          Compress-Archive -Path dist/SalaSuplevet -DestinationPath "SalaSuplevet-$tag.zip"
+          $min = (Get-Content LANZADOR_MINIMO -Raw).Trim()
+          (Get-Content NOTAS_VERSION.md -Raw) + "`n`nlanzador minimo: $min" | Set-Content notas.md -Encoding utf8
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            editor/app-${{ github.ref_name }}.zip
+            editor/SalaSuplevet-${{ github.ref_name }}.zip
+          body_path: editor/notas.md

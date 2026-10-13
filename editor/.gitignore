@@ -1,0 +1,17 @@
+# Datos de cada PC (nunca van al repositorio)
+procesado/
+salidas/
+subtitulos/
+recetas/
+grabaciones/
+_trabajo/
+datos/
+config.local.json
+correcciones.md
+__pycache__/
+*_anterior/
+# Construcción del .exe
+build/
+dist/
+*.spec
+.claude/

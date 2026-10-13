@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sala de Edición Suplevet</title>
+<style>
+:root {
+  --bg: #eef2f3; --surface: #fff; --ink: #14303b; --muted: #5d7681; --line: #d3dee2;
+  --body: #0f7c74; --hook: #c2620c; --cta: #5b49b5; --ok: #1d8a4e; --warn: #b4560b; --err: #c0392b;
+  --f: "Segoe UI", system-ui, sans-serif; --mono: Consolas, ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f1a1f; --surface: #17262d; --ink: #e2edf0; --muted: #91aab4; --line: #2a3f49;
+    --body: #4cc7bb; --hook: #f19a4b; --cta: #a99bf3; --ok: #4fc584; --warn: #f0a25a; --err: #f07a6a; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f); }
+header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+h1 { font-size: 17px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+h3 { font-size: 13px; margin: 0 0 6px; }
+.muted { color: var(--muted); }
+.fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+select, input, textarea { font: 14px var(--f); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+textarea { width: 100%; resize: vertical; }
+.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); font: 600 13px var(--f); cursor: pointer; white-space: nowrap; }
+.btn.sec { background: transparent; color: var(--ink); }
+.btn.peq { padding: 5px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: wait; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--body); outline-offset: 2px; }
+nav { display: flex; gap: 4px; padding: 8px 16px 0; overflow-x: auto; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: var(--alto-header, 56px); z-index: 4; }
+nav button { border: 0; background: none; padding: 8px 12px; border-bottom: 3px solid transparent; font: 600 13px var(--f); color: var(--muted); cursor: pointer; white-space: nowrap; }
+nav button[aria-selected="true"] { color: var(--ink); border-color: var(--body); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); }
+.pill.warn { color: var(--warn); border-color: var(--warn); }
+.pill.ok { color: var(--ok); border-color: var(--ok); }
+main { padding: 16px; max-width: 1500px; margin: 0 auto; }
+section[hidden] { display: none; }
+.caja { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
+#trabajo { font-size: 13px; max-width: 420px; }
+#trabajo.err { color: var(--err); } #trabajo.ok { color: var(--ok); }
+.barra { height: 3px; background: var(--body); animation: carga 1.2s ease-in-out infinite; transform-origin: left; }
+@keyframes carga { 0% { transform: scaleX(.05) } 50% { transform: scaleX(.7) } 100% { transform: scaleX(.05) translateX(1400%) } }
+
+/* Videos */
+.grid-portadas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.tarjeta { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); cursor: pointer; padding: 0; text-align: left; color: var(--ink); font: inherit; }
+.tarjeta .img { aspect-ratio: 9/16; background: #000 center/cover no-repeat; position: relative; }
+.tarjeta .img span { position: absolute; inset: auto 0 0 0; padding: 6px 8px; font: 700 11px var(--mono); color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.8)); }
+.tarjeta .pie { padding: 6px 8px; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; font-size: 11px; }
+.vacia { aspect-ratio: 9/16; display: grid; place-items: center; color: #9bb; font-size: 12px; text-align: center; padding: 10px; }
+
+dialog { border: 0; border-radius: 14px; padding: 0; width: min(1100px, 96vw); max-height: 94vh; background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: rgba(0,0,0,.55); }
+.dlg-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.dlg-cuerpo { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 260px) minmax(0, 1fr); gap: 16px; padding: 16px; overflow: auto; }
+.dlg-cuerpo video { display: block; width: 100%; max-width: 300px; max-height: 70vh; margin: 0 auto; border-radius: 10px; background: #000; aspect-ratio: 9/16; }
+.redes button { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+.redes button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.telefono { width: 100%; max-width: 260px; aspect-ratio: 9/16; border-radius: 26px; border: 7px solid #1d1d1f; background: #000 center/cover no-repeat; position: relative; overflow: hidden; color: #fff; margin-top: 8px; }
+.telefono .tapa { position: absolute; inset: 0; background: linear-gradient(transparent 55%, rgba(0,0,0,.75)); }
+.telefono .lado { position: absolute; right: 8px; bottom: 80px; display: grid; gap: 14px; font-size: 18px; text-align: center; }
+.telefono .txt { position: absolute; left: 10px; right: 46px; bottom: 12px; font-size: 11.5px; line-height: 1.35; text-shadow: 0 1px 2px #000; }
+.telefono .txt b { font-size: 12px; }
+.telefono .arriba { position: absolute; top: 10px; left: 12px; font: 700 13px var(--f); }
+.campo { display: grid; gap: 4px; margin-bottom: 10px; }
+.campo label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.cuenta { font-size: 11px; color: var(--muted); text-align: right; }
+details { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+
+/* Piezas */
+.piezas-layout { display: grid; grid-template-columns: 190px minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.grupo { margin-bottom: 12px; }
+.grupo h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.pieza { display: flex; justify-content: space-between; width: 100%; text-align: left; padding: 7px 10px; margin-bottom: 4px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 13px var(--mono); cursor: pointer; }
+.pieza[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); font-weight: 700; }
+.t-hook { border-left: 4px solid var(--hook); } .t-cuerpo { border-left: 4px solid var(--body); } .t-cta { border-left: 4px solid var(--cta); }
+.visor { position: relative; aspect-ratio: 9/16; width: 100%; max-width: 340px; max-height: 72vh; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; container-type: inline-size; }
+.visor video.base { width: 100%; height: 100%; object-fit: cover; }
+.visor .broll { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+.visor .broll.ventana { inset: 17.2% 10.2% auto; width: 79.6%; height: auto; aspect-ratio: 1; border: 2px solid #fff; }
+.visor .sub { position: absolute; left: 6%; right: 6%; text-align: center; font: 900 7.6cqi "Arial Black", var(--f); color: #fff; text-transform: uppercase;
+  -webkit-text-stroke: .6cqi #000; paint-order: stroke fill; text-shadow: 0 .4cqi .6cqi rgba(0,0,0,.6); pointer-events: none; }
+.visor .sub.normal { bottom: 29%; } .visor .sub.arriba { top: 15.6%; }
+.visor .sub.centro_grande, .visor .sub.sobre_imagen, .visor .sub.palabra_sola { top: 50%; transform: translateY(-50%); }
+.visor .sub.centro_grande { font-size: 10.2cqi; } .visor .sub.sobre_imagen { font-size: 9cqi; } .visor .sub.palabra_sola { font-size: 15cqi; }
+.visor .sub .act { color: #FFE14D; } .visor .sub .res { color: #4DE1FF; }
+.tabs-mini { display: flex; gap: 6px; margin-bottom: 10px; }
+.editor { display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+.linea { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: center; }
+.linea button { font: 12px var(--mono); padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
+.linea input { width: 100%; }
+.linea input.cambiado { border-color: var(--warn); }
+.linea.activa button { color: var(--ink); border-color: var(--ink); }
+.marca { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.marca label { display: grid; gap: 2px; font-size: 11px; color: var(--muted); }
+.marca select, .marca input { padding: 5px 6px; font-size: 12px; background: var(--surface); }
+.marca.perdida { border-color: var(--err); }
+
+/* Faltantes */
+.grid-assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.asset { display: grid; gap: 8px; }
+.asset pre { margin: 0; font: 11.5px/1.45 var(--mono); white-space: pre-wrap; background: var(--bg); border-radius: 8px; padding: 8px; max-height: 180px; overflow: auto; }
+.soltar { border: 2px dashed var(--line); border-radius: 10px; padding: 12px; text-align: center; font-size: 12px; color: var(--muted); cursor: pointer; display: grid; gap: 6px; place-items: center; }
+.soltar.encima { border-color: var(--body); color: var(--body); }
+.soltar img, .soltar video { max-height: 140px; max-width: 100%; border-radius: 6px; }
+.soltar input { display: none; }
+
+/* Publicar */
+.dias { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.dia .mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; }
+.dia .mini div { aspect-ratio: 9/16; border-radius: 6px; background: #000 center/cover; position: relative; }
+.dia .mini span { position: absolute; bottom: 0; left: 0; right: 0; font: 700 9px var(--mono); color: #fff; background: rgba(0,0,0,.6); padding: 2px 3px; }
+
+@media (max-width: 1100px) {
+  .piezas-layout { grid-template-columns: 170px minmax(0, 1fr); }
+  .piezas-layout > :last-child { grid-column: 1 / -1; }
+  .dlg-cuerpo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .dlg-cuerpo > :last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 680px) {
+  main { padding: 10px; }
+  .piezas-layout, .dlg-cuerpo { grid-template-columns: 1fr; }
+  .piezas-layout > :first-child { display: flex; overflow-x: auto; gap: 6px; }
+  .piezas-layout .grupo { display: flex; gap: 4px; margin: 0; align-items: center; }
+  .piezas-layout .grupo h3 { display: none; }
+  .pieza { width: auto; margin: 0; }
+  .visor { max-width: 300px; margin: 0 auto; }
+  .grid-portadas { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .telefono { margin: 8px auto 0; }
+  header { position: static; }
+  header .fila { width: 100%; }
+  header .fila select { flex: 1; }
+  #carpeta { display: none; }
+  nav { top: 0; }
+  .grid-portadas { align-items: start; }
+}
+</style>
+</head>
+<body>
+<header id="cab">
+  <div><h1>Sala de edición <span class="muted" id="prefijo"></span></h1>
+    <span class="muted" id="carpeta" style="font-size:12px"></span></div>
+  <div class="fila">
+    <label class="muted" for="semana" style="font-size:12px">Semana</label>
+    <select id="semana"></select>
+    <button class="btn" id="todo">Procesar y armar semana</button>
+  </div>
+  <div id="avisoVersion" hidden style="width:100%;display:none;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--body) 14%,var(--surface));border:1px solid var(--body)">
+    <span><b>Hay una versión nueva de la sala: <span id="vNueva"></span></b> <span class="muted" id="vActual"></span></span>
+    <span class="fila"><button class="btn sec peq" id="vNotas">Qué cambia</button><button class="btn peq" id="vActualizar">Actualizar ahora</button></span>
+  </div>
+  <div style="width:100%" id="estadoTrabajo" hidden><div class="barra"></div><span id="trabajo" role="status"></span></div>
+</header>
+<nav role="tablist" aria-label="Secciones">
+  <button role="tab" data-tab="videos" aria-selected="true">Videos <span class="pill" id="nVideos"></span></button>
+  <button role="tab" data-tab="piezas" aria-selected="false">Piezas y subtítulos</button>
+  <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
+  <button role="tab" data-tab="publicar" aria-selected="false">Publicar</button>
+  <button role="tab" data-tab="notas" aria-selected="false">Notas para Claude</button>
+</nav>
+<main>
+  <p id="aviso" role="status" class="muted" style="margin:0 0 10px"></p>
+
+  <section data-panel="videos">
+    <div class="fila" style="justify-content:space-between;margin-bottom:12px">
+      <input id="buscar" type="search" placeholder="Buscar: C1, H2, CTA-A…" aria-label="Buscar videos" style="max-width:260px">
+      <button class="btn sec peq" id="portadas">Rehacer portadas</button>
+    </div>
+    <div class="grid-portadas" id="videos"></div>
+  </section>
+
+  <section data-panel="piezas" hidden>
+    <div class="piezas-layout">
+      <div class="caja" id="piezas"></div>
+      <div class="caja">
+        <h2 id="tituloPieza">Pieza</h2>
+        <div class="visor" id="visor">
+          <video class="base" id="vPieza" playsinline preload="metadata"></video>
+          <img class="broll" id="brollImg" alt="">
+          <video class="broll" id="brollVid" muted playsinline></video>
+          <div class="sub normal" id="subVivo"></div>
+        </div>
+        <div class="fila" style="margin-top:8px">
+          <button class="btn sec peq" id="play">▶ Reproducir</button>
+          <span class="muted" style="font-size:12px">Vista previa en vivo: los cambios se ven sin renderizar.</span>
+        </div>
+      </div>
+      <div class="caja">
+        <div class="tabs-mini redes">
+          <button aria-pressed="true" data-sub="lineas">Subtítulos</button>
+          <button aria-pressed="false" data-sub="marcas">Marcas (imágenes, estilo, sonido)</button>
+        </div>
+        <div id="panelLineas">
+          <p class="muted" style="margin:0 0 6px">Toca el tiempo para escuchar. Escribe la corrección.</p>
+          <div class="editor" id="lineas"></div>
+        </div>
+        <div id="panelMarcas" hidden>
+          <p class="muted" style="margin:0 0 6px">Cada marca dice qué pasa en una palabra: estilo del subtítulo, imagen o clip, y sonido.</p>
+          <div class="editor" id="marcas"></div>
+          <button class="btn sec peq" id="nuevaMarca" style="margin-top:8px">+ Agregar marca</button>
+        </div>
+        <div class="fila" style="margin-top:12px">
+          <button class="btn" id="guardarArmar">Guardar y re-armar sus videos</button>
+          <button class="btn sec" id="guardar">Solo guardar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-panel="faltan" hidden>
+    <div class="caja" style="margin-bottom:14px">
+      <h2>Piezas por grabar</h2>
+      <p class="muted" style="margin:0 0 8px">Arrastra el video grabado encima de su nombre; se guarda con el nombre correcto.</p>
+      <div class="grid-assets" id="faltanPiezas"></div>
+    </div>
+    <div class="caja">
+      <h2>Imágenes y clips de Google Flow</h2>
+      <p class="muted" style="margin:0 0 8px">Copia el prompt, genéralo en Flow, descárgalo y arrástralo a su cuadro. No hace falta renombrarlo.</p>
+      <div class="grid-assets" id="assets"></div>
+    </div>
+  </section>
+
+  <section data-panel="publicar" hidden>
+    <div class="caja" style="margin-bottom:14px">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Calendario de la semana</h2>
+          <span class="muted" style="font-size:12px">Exportar copia cada video con su portada y copy a <code id="rutaListos"></code></span></div>
+        <div class="fila">
+          <button class="btn" id="exportar">Exportar por día</button>
+          <button class="btn sec" id="subirPanel">Subir al panel</button>
+        </div>
+      </div>
+    </div>
+    <div class="dias" id="dias"></div>
+  </section>
+
+  <section data-panel="notas" hidden>
+    <div class="caja">
+      <h2>Notas para Claude</h2>
+      <p class="muted" style="margin:0 0 6px">Cambios que no son de subtítulos ni marcas: música, efectos, estilo… Claude los lee desde <code>correcciones.md</code>.</p>
+      <textarea id="notas" rows="10" placeholder="Ej.: S02-C1-H2-CTA-A: el impacto del inicio suena muy fuerte."></textarea>
+      <div class="fila" style="margin-top:8px"><button class="btn sec" id="guardarNotas">Guardar notas</button></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlgTitulo">
+  <div class="dlg-cab"><h2 id="dlgTitulo" style="margin:0"></h2>
+    <div class="fila"><button class="btn sec peq" id="rearmarUno">Re-armar este video</button>
+      <button class="btn sec peq" id="cerrar" aria-label="Cerrar">✕</button></div></div>
+  <div class="dlg-cuerpo">
+    <div><video id="dlgVideo" controls playsinline preload="metadata"></video>
+      <a id="dlgPortada" class="muted" style="font-size:12px" target="_blank">Abrir portada</a></div>
+    <div>
+      <div class="redes fila" id="redes">
+        <button data-red="instagram" aria-pressed="true">Instagram</button>
+        <button data-red="tiktok" aria-pressed="false">TikTok</button>
+        <button data-red="youtube" aria-pressed="false">Shorts</button>
+      </div>
+      <div class="telefono" id="tel"><div class="tapa"></div><div class="arriba" id="telArriba"></div>
+        <div class="lado"><span>♡</span><span>💬</span><span>➤</span></div><div class="txt" id="telTxt"></div></div>
+    </div>
+    <div>
+      <div class="campo"><label for="cInstagram">Copy Instagram</label><textarea id="cInstagram" rows="6"></textarea><span class="cuenta" data-de="cInstagram"></span></div>
+      <div class="campo"><label for="cTiktok">Copy TikTok</label><textarea id="cTiktok" rows="5"></textarea><span class="cuenta" data-de="cTiktok"></span></div>
+      <div class="campo"><label for="cYtTitulo">Título YouTube Shorts</label><input id="cYtTitulo" maxlength="100"><span class="cuenta" data-de="cYtTitulo"></span></div>
+      <div class="campo"><label for="cYoutube">Descripción YouTube</label><textarea id="cYoutube" rows="4"></textarea></div>
+      <div class="fila"><button class="btn" id="guardarCopy">Guardar copy</button>
+        <button class="btn sec peq" id="copiarCopy">Copiar copy de esta red</button></div>
+      <details><summary>Qué hizo el editor automático</summary><div id="dlgReceta"></div></details>
+    </div>
+  </div>
+</dialog>
+
+<script>
+let E = null, sel = null, actual = null, red = "instagram", subTab = "lineas", marcasTmp = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = t => Number(t).toFixed(2) + " s";
+const avisar = (txt, cls = "muted") => { const a = $("aviso"); a.textContent = txt; a.className = cls; };
+const norm = w => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ]/g, "");
+const post = async (url, body, raw) => {
+  const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ? body : JSON.stringify(body || {}) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || "Error"); return j;
+};
+
+async function cargar() {
+  E = await (await fetch("/api/estado")).json();
+  $("prefijo").textContent = `· ${E.semana}`;
+  document.title = `Sala de Edición Suplevet v${E.version}`;
+  $("carpeta").textContent = E.carpeta;
+  $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva semana…</option>`;
+  $("notas").value = E.notas;
+  $("rutaListos").textContent = E.listos;
+  $("subirPanel").hidden = !E.panel;
+  if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas[0]?.nombre;
+  pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias();
+  if (!E.hay_produccion) avisar("Esta semana no tiene produccion.json: no habrá marcas, copies ni portadas con título. Pídele a Claude el guion de la semana.", "muted");
+  vigilar(E.trabajo);
+}
+
+// ---------- Videos ----------
+function pintarVideos() {
+  const q = $("buscar").value.trim().toLowerCase();
+  const lista = E.salidas.filter(s => !q || s.archivo.toLowerCase().includes(q));
+  $("nVideos").textContent = `${E.salidas.filter(s => s.existe).length}/${E.salidas.length}`;
+  $("videos").innerHTML = lista.map(s => {
+    const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
+    return `<button class="tarjeta" data-cod="${esc(s.codigo)}">
+      ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.archivo)}</span></div>`
+        : `<div class="vacia">${esc(s.archivo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
+      <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "listo"}</span>` : `<span class="pill">pendiente</span>`}
+        ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}</div></button>`;
+  }).join("") || `<p class="muted">Todavía no hay piezas en esta semana. Sube las grabaciones en Faltantes o en la carpeta de Drive.</p>`;
+}
+
+function abrirVideo(cod) {
+  actual = E.salidas.find(s => s.codigo === cod);
+  if (!actual) return;
+  $("dlgTitulo").textContent = actual.archivo;
+  const v = $("dlgVideo"); v.src = actual.video || ""; v.poster = actual.portada || "";
+  $("dlgPortada").href = actual.portada || "#"; $("dlgPortada").hidden = !actual.portada;
+  const c = actual.copy || {};
+  $("cInstagram").value = c.instagram || ""; $("cTiktok").value = c.tiktok || "";
+  $("cYtTitulo").value = c.youtube_titulo || ""; $("cYoutube").value = c.youtube || "";
+  const r = actual.receta;
+  $("dlgReceta").innerHTML = r ? `
+    ${r.faltan_assets.length ? `<p class="pill warn">Faltan: ${r.faltan_assets.map(esc).join(", ")}</p>` : ""}
+    ${r.marcas_sin_encontrar.length ? `<p class="pill warn">Palabras no encontradas: ${r.marcas_sin_encontrar.map(esc).join(", ")}</p>` : ""}
+    <p class="muted" style="font-size:12px;margin:6px 0 0">Música: ${esc(r.musica || "ninguna")} · cortes en ${r.cortes.map(fmt).join(", ")}</p>
+    <ul class="efectos">${r.imagenes.map(i => `<li>${fmt(i.t)} · imagen ${esc(i.asset)} (${i.dur} s, ${esc(i.modo)})</li>`).join("")}
+    ${r.efectos.map(e => `<li>${fmt(e.t)} · ${esc(e.sfx)} — ${esc(e.motivo)}</li>`).join("")}</ul>` : `<p class="muted">Aún no armado.</p>`;
+  pintarTelefono(); contar();
+  $("dlg").showModal();
+}
+
+const LIM = { instagram: 125, tiktok: 100, youtube: 0 };
+function pintarTelefono() {
+  document.querySelectorAll("#redes button").forEach(b => b.setAttribute("aria-pressed", b.dataset.red === red));
+  $("tel").style.backgroundImage = actual?.portada ? `url('${actual.portada}')` : "none";
+  let html = "";
+  if (red === "youtube") {
+    html = `<b>${esc($("cYtTitulo").value)}</b><br><span style="opacity:.8">@Suplevet · Suscribirse</span>`;
+    $("telArriba").textContent = "Shorts";
+  } else {
+    const t = red === "instagram" ? $("cInstagram").value : $("cTiktok").value;
+    const corto = t.length > LIM[red] ? esc(t.slice(0, LIM[red]).trim()) + `… <span style="opacity:.7">más</span>` : esc(t);
+    html = `<b>${red === "instagram" ? "suplevet.pe" : "@suplevet"}</b><br>${corto.replace(/\n/g, " ")}`;
+    $("telArriba").textContent = red === "instagram" ? "Reels" : "Para ti";
+  }
+  $("telTxt").innerHTML = html;
+}
+function contar() {
+  document.querySelectorAll(".cuenta").forEach(s => { s.textContent = `${$(s.dataset.de).value.length} caracteres`; });
+}
+
+// ---------- Piezas ----------
+function pintarPiezas() {
+  const grupos = { hook: "Hooks", cuerpo: "Cuerpos", cta: "CTAs" };
+  $("piezas").innerHTML = Object.entries(grupos).map(([t, nom]) => {
+    const ps = E.piezas.filter(p => p.tipo === t);
+    return `<div class="grupo"><h3>${nom} (${ps.length})</h3>${ps.map(p =>
+      `<button class="pieza t-${t}" data-p="${esc(p.nombre)}" aria-pressed="${p.nombre === sel}">${esc(p.nombre)}
+        ${p.marcas.length ? `<span class="pill">${p.marcas.length}</span>` : ""}</button>`).join("")}</div>`;
+  }).join("") || `<p class="muted">Sin piezas.</p>`;
+}
+
+function piezaSel() { return E.piezas.find(x => x.nombre === sel); }
+
+function pintarPieza() {
+  const p = piezaSel();
+  if (!p) { $("tituloPieza").textContent = "Pieza"; $("lineas").innerHTML = ""; $("marcas").innerHTML = ""; return; }
+  $("tituloPieza").textContent = `${p.nombre} · ${p.tipo}${p.info.tipo && p.tipo === "hook" ? " · " + p.info.tipo : ""}`;
+  const v = $("vPieza");
+  if (!v.src.includes(p.video.split("?")[0])) v.src = p.video;
+  $("lineas").innerHTML = p.lineas.map((l, i) =>
+    `<div class="linea" data-i="${i}"><button type="button" data-t="${l.s}">${fmt(l.s)}</button>
+     <input id="ln-${i}" value="${esc(l.texto)}" data-orig="${esc(l.texto)}" aria-label="Subtítulo de ${fmt(l.s)} a ${fmt(l.e)}"></div>`).join("")
+    || `<p class="muted">${p.procesada ? "Sin subtítulos." : "Esta pieza aún no se procesa. Usa «Procesar y armar semana»."}</p>`;
+  marcasTmp = JSON.parse(JSON.stringify(p.marcas));
+  pintarMarcas();
+}
+
+function palabrasDe(p) {
+  // [{clave, palabra, n, t}] para el selector de palabra de una marca
+  const out = [], vistos = {};
+  p.lineas.forEach(l => l.palabras.forEach(w => {
+    const k = norm(w.w); if (!k) return;
+    vistos[k] = (vistos[k] || 0) + 1;
+    out.push({ palabra: w.w.replace(/[.,;:!?¿¡"]/g, ""), n: vistos[k], t: w.s, k });
+  }));
+  return out;
+}
+
+function ubicar(p, palabra, n = 1) {
+  const obj = palabra.split(/\s+/).map(norm).filter(Boolean);
+  if (!obj.length) return null;
+  const plano = [];
+  p.lineas.forEach((l, li) => l.palabras.forEach((w, wi) => plano.push({ li, wi, k: norm(w.w), t: w.s })));
+  let vistos = 0;
+  for (let k = 0; k + obj.length <= plano.length; k++) {
+    if (obj.every((o, j) => plano[k + j].k === o) && ++vistos === Math.max(1, n || 1)) return plano[k];
+  }
+  return null;
+}
+
+function pintarMarcas() {
+  const p = piezaSel(); if (!p) return;
+  const pals = palabrasDe(p);
+  const assets = [...new Set([...E.assets.map(a => a.id), ...E.checklist.assets.map(a => a.id)])];
+  const opt = (vals, v) => vals.map(([val, txt]) => `<option value="${esc(val)}" ${String(v ?? "") === String(val) ? "selected" : ""}>${esc(txt)}</option>`).join("");
+  $("marcas").innerHTML = marcasTmp.map((m, i) => {
+    const pos = ubicar(p, m.palabra || "", m.n);
+    const clave = `${m.palabra}|${m.n || 1}`;
+    const listaPal = pals.map(w => [`${w.palabra}|${w.n}`, `${w.palabra}${w.n > 1 ? " #" + w.n : ""} (${w.t.toFixed(1)} s)`]);
+    if (!pos && m.palabra) listaPal.unshift([clave, `⚠ «${m.palabra}» no está en el audio`]);
+    return `<div class="marca ${pos ? "" : "perdida"}" data-i="${i}">
+      <label>Palabra<select data-k="palabra">${opt(listaPal, clave)}</select></label>
+      <label>Subtítulo<select data-k="sub">${opt([["", "—"], ...E.estilos.map(s => [s, s.replace("_", " ")])], m.sub)}</select></label>
+      <label>Imagen o clip<select data-k="asset">${opt([["", "—"], ...assets.map(a => [a, a])], m.asset)}</select></label>
+      <label>Duración (s)<input data-k="dur" type="number" min="0.5" max="6" step="0.1" value="${m.dur ?? 1.5}"></label>
+      <label>Modo<select data-k="modo">${opt([["completa", "pantalla completa"], ["ventana", "ventana"]], m.modo || "completa")}</select></label>
+      <label>Movimiento<select data-k="mov">${opt([["zoom_in", "zoom in"], ["zoom_out", "zoom out"], ["fijo", "fijo"]], m.mov || "zoom_in")}</select></label>
+      <label>Sonido<select data-k="sfx">${opt([["", "automático"], ["corte_silencio", "corte de silencio"], ...E.sfx.map(s => [s, s.replace("_", " ")])], m.sfx)}</select></label>
+      <label>&nbsp;<button class="btn sec peq" data-borrar="${i}">Quitar</button></label></div>`;
+  }).join("") || `<p class="muted">Sin marcas. Agrega una para poner una imagen, cambiar el subtítulo o un sonido en una palabra.</p>`;
+}
+
+function leerMarcas() {
+  document.querySelectorAll("#marcas .marca").forEach(d => {
+    const m = marcasTmp[d.dataset.i];
+    d.querySelectorAll("[data-k]").forEach(el => {
+      const k = el.dataset.k, v = el.value;
+      if (k === "palabra") { const [w, n] = v.split("|"); m.palabra = w; m.n = Number(n) || 1; }
+      else if (k === "dur") { if (m.asset) m.dur = Number(v); else delete m.dur; }
+      else if (k === "modo" || k === "mov") { if (m.asset) m[k] = v; else delete m[k]; }
+      else if (v) m[k] = v; else delete m[k];
+    });
+  });
+}
+
+// Vista previa en vivo (subtítulo con estilo + imagen) sobre la pieza
+const urlAsset = id => E.assets.find(a => a.id.toLowerCase() === String(id).toLowerCase());
+function vivo() {
+  const p = piezaSel(); if (!p) return;
+  const t = $("vPieza").currentTime;
+  document.querySelectorAll(".linea").forEach(d => {
+    const l = p.lineas[d.dataset.i]; d.classList.toggle("activa", t >= l.s && t < l.e + 0.05);
+  });
+  const marcas = subTab === "marcas" ? marcasTmp : p.marcas;
+  const res = marcas.map(m => ({ m, pos: ubicar(p, m.palabra || "", m.n) })).filter(x => x.pos);
+  // imagen activa
+  let broll = null;
+  for (const { m, pos } of res) if (m.asset && t >= pos.t - .05 && t < pos.t - .05 + (m.dur || 1.5)) broll = { m, a: urlAsset(m.asset) };
+  const img = $("brollImg"), bv = $("brollVid");
+  img.style.display = bv.style.display = "none";
+  if (broll?.a) {
+    const el = broll.a.es_video ? bv : img;
+    if (el.dataset.src !== broll.a.url) { el.src = broll.a.url; el.dataset.src = broll.a.url; if (broll.a.es_video) bv.play().catch(() => {}); }
+    el.className = "broll" + (broll.m.modo === "ventana" ? " ventana" : "");
+    el.style.display = "block";
+  }
+  // subtítulo
+  const li = p.lineas.findIndex((l, i) => t >= l.s && t < (p.lineas[i + 1]?.s - l.e < .4 ? p.lineas[i + 1].s : l.e + .05));
+  const sub = $("subVivo");
+  if (li < 0) { sub.innerHTML = ""; return; }
+  const l = p.lineas[li];
+  let wi = l.palabras.findIndex((w, i) => t >= (i ? w.s : l.s) && t < (l.palabras[i + 1]?.s ?? 99));
+  if (wi < 0) wi = l.palabras.length - 1;
+  let estilo = null; const solas = new Set(), res2 = new Set();
+  res.forEach(({ m, pos }) => {
+    if (pos.li !== li) return;
+    if (["normal", "centro_grande", "arriba"].includes(m.sub)) estilo = m.sub;
+    if (m.sub === "palabra_sola") solas.add(pos.wi);
+    if (m.sub === "resaltado") res2.add(pos.wi);
+  });
+  if (!estilo) estilo = broll?.a && broll.m.modo !== "ventana" ? "sobre_imagen" : "normal";
+  if (solas.has(wi)) { sub.className = "sub palabra_sola"; sub.innerHTML = `<span class="act">${esc(l.palabras[wi].w)}</span>`; return; }
+  sub.className = "sub " + estilo;
+  sub.innerHTML = l.palabras.map((w, i) => `<span class="${i === wi ? "act" : res2.has(i) ? "res" : ""}">${esc(w.w)}</span>`).join(" ");
+}
+function bucle() { vivo(); if (!$("vPieza").paused) requestAnimationFrame(bucle); }
+
+function lineasEditadas() {
+  const p = piezaSel();
+  return p.lineas.map((l, i) => ({ texto: $(`ln-${i}`).value, s: l.s, e: l.e }));
+}
+
+async function guardar(armar) {
+  const p = piezaSel(); if (!p) return;
+  try {
+    avisar("Guardando…");
+    if (p.lineas.length) await post(`/api/subtitulos?pieza=${encodeURIComponent(sel)}`, { lineas: lineasEditadas() });
+    leerMarcas();
+    await post(`/api/marcas?pieza=${encodeURIComponent(sel)}`, { marcas: marcasTmp });
+    if (armar) { await post("/api/trabajo", { accion: "armar", pieza: sel }); avisar("Re-armando los videos que usan " + sel + "…"); }
+    else avisar("Guardado.", "ok");
+    await cargar();
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+}
+
+// ---------- Faltantes ----------
+function zona(destino, nombre, actualUrl, esVideo, acepta) {
+  return `<label class="soltar" data-destino="${destino}" data-nombre="${esc(nombre)}">
+    ${actualUrl ? (esVideo ? `<video src="${actualUrl}" muted></video>` : `<img src="${actualUrl}" alt="${esc(nombre)}">`) : ""}
+    <span>${actualUrl ? "Listo · arrastra otro para reemplazar" : "Arrastra aquí o toca para elegir"}</span>
+    <input type="file" accept="${acepta}"></label>`;
+}
+function pintarFaltan() {
+  const ch = E.checklist;
+  const faltaAssets = ch.assets.filter(a => !a.listo).length;
+  const total = ch.piezas_faltan.length + faltaAssets;
+  $("nFaltan").textContent = total || "✓"; $("nFaltan").className = "pill " + (total ? "warn" : "ok");
+  const carpeta = n => /_H\d/.test(n) ? "hooks" : /CTA/i.test(n) ? "ctas" : "cuerpos";
+  $("faltanPiezas").innerHTML = ch.piezas_faltan.map(n => `<div class="caja asset"><h3><code>${esc(n)}</code> · ${carpeta(n)}</h3>
+      <p class="muted" style="margin:0;font-size:12px">${esc(E.piezas.find(p => p.nombre === n)?.info?.texto || "")}</p>
+      ${zona(carpeta(n), n, null, true, "video/*")}</div>`).join("") || `<p class="muted">Todas las piezas del guion están grabadas.</p>`;
+  $("assets").innerHTML = ch.assets.map(a => {
+    const ya = E.assets.find(x => x.id.toLowerCase() === a.id.toLowerCase());
+    const prompt = JSON.stringify(a.flow || {}, null, 2);
+    return `<div class="caja asset">
+      <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(a.id)}</code></h3>
+        <span class="pill ${a.listo ? "ok" : "warn"}">${a.listo ? "listo" : "falta"}</span></div>
+      <span class="muted" style="font-size:12px">${esc(a.tipo)} · ${esc(a.pieza || "")} en «${esc(a.palabra || "")}»</span>
+      <pre>${esc(prompt)}</pre>
+      <div class="fila"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button>
+        <button class="btn sec peq" data-copiar="${esc(prompt)}">Copiar JSON</button></div>
+      ${zona("assets", a.id, ya?.url, ya?.es_video, a.tipo === "clip" ? "video/*" : "image/*,video/*")}</div>`;
+  }).join("") || `<p class="muted">El guion de esta semana no pide imágenes ni clips.</p>`;
+}
+
+async function subir(lbl, file) {
+  if (!file) return;
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  lbl.querySelector("span").textContent = `Subiendo ${file.name}…`;
+  try {
+    await post(`/api/subir?destino=${lbl.dataset.destino}&nombre=${encodeURIComponent(lbl.dataset.nombre)}&ext=${ext}`, file, true);
+    avisar(`${lbl.dataset.nombre} guardado.`, "ok");
+    await cargar();
+  } catch (e) { avisar("Error al subir: " + e.message, "err"); lbl.querySelector("span").textContent = "Error, intenta de nuevo"; }
+}
+
+// ---------- Publicar ----------
+function pintarDias() {
+  const por = Object.fromEntries(E.salidas.map(s => [s.codigo, s]));
+  $("dias").innerHTML = Object.entries(E.calendario).map(([dia, cods]) => `<div class="caja dia">
+    <h3>${esc(dia.replace("_", " "))} <span class="muted">· ${cods.length} videos</span></h3>
+    <div class="mini">${cods.map(c => { const s = por[c]; return `<div role="button" tabindex="0" data-cod="${esc(c)}" style="${s?.portada ? `background-image:url('${s.portada}')` : ""}"><span>${esc(c)}</span></div>`; }).join("")}</div></div>`).join("")
+    || `<p class="muted">Sin calendario todavía.</p>`;
+}
+
+// ---------- Trabajo en segundo plano ----------
+let vigilando = null;
+function vigilar(t) {
+  const caja = $("estadoTrabajo");
+  caja.hidden = !t.activo;
+  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "portadas"].forEach(id => $(id).disabled = t.activo);
+  $("trabajo").textContent = t.mensaje || "";
+  if (t.activo && !vigilando) {
+    vigilando = setInterval(async () => {
+      const j = await (await fetch("/api/trabajo")).json();
+      $("trabajo").textContent = j.mensaje;
+      if (!j.activo) {
+        clearInterval(vigilando); vigilando = null;
+        await cargar();
+        avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || ""), j.error ? "err" : "ok");
+      }
+    }, 1000);
+  }
+}
+async function trabajo(accion, pieza) {
+  try { await post("/api/trabajo", { accion, pieza }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+}
+
+// ---------- Eventos ----------
+document.addEventListener("click", e => {
+  const tab = e.target.closest("nav button");
+  if (tab) {
+    document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
+    document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
+    return;
+  }
+  const card = e.target.closest("[data-cod]");
+  if (card) return abrirVideo(card.dataset.cod);
+  const pz = e.target.closest(".pieza");
+  if (pz) { sel = pz.dataset.p; pintarPiezas(); pintarPieza(); return; }
+  const t = e.target.closest(".linea button");
+  if (t) { const v = $("vPieza"); v.currentTime = Number(t.dataset.t); v.play(); bucle(); return; }
+  const rb = e.target.closest("#redes button");
+  if (rb) { red = rb.dataset.red; pintarTelefono(); return; }
+  const st = e.target.closest("[data-sub]");
+  if (st) {
+    if (subTab === "marcas") leerMarcas();
+    subTab = st.dataset.sub;
+    document.querySelectorAll("[data-sub]").forEach(b => b.setAttribute("aria-pressed", b === st));
+    $("panelLineas").hidden = subTab !== "lineas"; $("panelMarcas").hidden = subTab !== "marcas";
+    return;
+  }
+  const br = e.target.closest("[data-borrar]");
+  if (br) { e.preventDefault(); leerMarcas(); marcasTmp.splice(Number(br.dataset.borrar), 1); pintarMarcas(); vivo(); return; }
+  const cp = e.target.closest("[data-copiar]");
+  if (cp) { navigator.clipboard.writeText(cp.dataset.copiar); avisar("Copiado.", "ok"); }
+});
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches(".mini [data-cod]")) { e.preventDefault(); abrirVideo(e.target.dataset.cod); }
+});
+document.addEventListener("input", e => {
+  if (e.target.matches(".linea input")) e.target.classList.toggle("cambiado", e.target.value !== e.target.dataset.orig);
+  if (e.target.closest("#dlg")) { pintarTelefono(); contar(); }
+  if (e.target.id === "buscar") pintarVideos();
+});
+document.addEventListener("change", e => {
+  if (e.target.closest("#marcas")) { leerMarcas(); pintarMarcas(); vivo(); }
+  if (e.target.matches(".soltar input")) subir(e.target.closest(".soltar"), e.target.files[0]);
+});
+["dragover", "dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => {
+  const z = e.target.closest?.(".soltar");
+  if (!z) { if (ev !== "dragleave") e.preventDefault(); return; }
+  e.preventDefault();
+  z.classList.toggle("encima", ev === "dragover");
+  if (ev === "drop") subir(z, e.dataTransfer.files[0]);
+}));
+$("vPieza").addEventListener("timeupdate", vivo);
+$("vPieza").addEventListener("play", bucle);
+$("vPieza").addEventListener("seeked", vivo);
+$("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play() : v.pause(); };
+$("vPieza").addEventListener("play", () => $("play").textContent = "❚❚ Pausa");
+$("vPieza").addEventListener("pause", () => $("play").textContent = "▶ Reproducir");
+$("nuevaMarca").onclick = () => {
+  leerMarcas();
+  const p = piezaSel(); const w = p ? palabrasDe(p)[0] : null;
+  marcasTmp.push({ palabra: w?.palabra || "", n: 1, sub: "centro_grande" }); pintarMarcas();
+};
+$("guardar").onclick = () => guardar(false);
+$("guardarArmar").onclick = () => guardar(true);
+$("todo").onclick = () => trabajo("todo");
+$("exportar").onclick = () => trabajo("exportar");
+$("subirPanel").onclick = () => trabajo("panel");
+$("portadas").onclick = () => trabajo("portadas");
+$("rearmarUno").onclick = () => { if (actual) { trabajo("uno", actual.codigo); $("dlg").close(); } };
+$("cerrar").onclick = () => $("dlg").close();
+$("dlg").addEventListener("close", () => $("dlgVideo").pause());
+$("guardarCopy").onclick = async () => {
+  try {
+    await post(`/api/copy?codigo=${encodeURIComponent(actual.codigo)}`, {
+      instagram: $("cInstagram").value, tiktok: $("cTiktok").value, youtube_titulo: $("cYtTitulo").value, youtube: $("cYoutube").value });
+    avisar("Copy guardado.", "ok"); await cargar();
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+};
+$("copiarCopy").onclick = () => {
+  const t = red === "youtube" ? $("cYtTitulo").value + "\n\n" + $("cYoutube").value : red === "tiktok" ? $("cTiktok").value : $("cInstagram").value;
+  navigator.clipboard.writeText(t); avisar("Copy copiado.", "ok");
+};
+$("semana").onchange = async e => {
+  let s = e.target.value;
+  if (s === "__nueva") { s = prompt("Nombre de la semana (ej. SEMANA_03):", "SEMANA_"); if (!s) return cargar(); }
+  try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+$("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
+// ---------- Actualizaciones ----------
+let infoVersion = null;
+async function revisarVersion() {
+  try {
+    infoVersion = await (await fetch("/api/version")).json();
+    const hay = !!infoVersion.nueva && infoVersion.portable;
+    $("avisoVersion").hidden = !hay;
+    $("avisoVersion").style.display = hay ? "flex" : "none";
+    if (hay) { $("vNueva").textContent = "v" + infoVersion.nueva; $("vActual").textContent = "(tienes v" + infoVersion.actual + ")"; }
+  } catch (e) {}
+}
+$("vNotas").onclick = () => alert(infoVersion?.notas || "Sin notas.");
+$("vActualizar").onclick = async () => {
+  if (infoVersion?.requiere_completa) { window.open(infoVersion.url_completa, "_blank"); return avisar("Esta versión se instala bajando la sala completa: descomprímela encima de la carpeta actual.", "muted"); }
+  $("vActualizar").disabled = true; avisar("Descargando la versión nueva… la sala se reinicia sola.");
+  try {
+    const r = await post("/api/actualizar");
+    avisar(`Actualizado a v${r.version}. Reiniciando…`, "ok");
+    const esperar = async () => { try { const v = await (await fetch("/api/version?forzar")).json(); if (v.actual === r.version) return location.reload(); } catch (e) {} setTimeout(esperar, 1500); };
+    setTimeout(esperar, 2500);
+  } catch (e) { avisar("No se pudo actualizar: " + e.message, "err"); $("vActualizar").disabled = false; }
+};
+revisarVersion(); setInterval(revisarVersion, 3600 * 1000);
+new ResizeObserver(() => document.documentElement.style.setProperty("--alto-header", $("cab").offsetHeight + "px")).observe($("cab"));
+cargar();
+</script>
+</body>
+</html>

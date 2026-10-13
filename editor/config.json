@@ -1,0 +1,61 @@
+{
+  "semana": "SEMANA_00_PRUEBA",
+  "carpeta_trabajo": "",
+  "cta_organico": "CTA-O",
+  "subtitulos": {
+    "mayusculas": true,
+    "max_palabras_por_linea": 3,
+    "fuente": "Arial Black",
+    "tamano": 82,
+    "color_activo": "#FFE14D",
+    "color_resaltado": "#4DE1FF",
+    "altura_desde_abajo": 560,
+    "altura_desde_arriba": 300
+  },
+  "palabras_clave": ["error", "suplevet", "whatsapp", "muscular", "calostro", "lactoferrina", "senior", "tarde", "flaco", "ficha", "defensas", "músculo", "músculos", "panza", "piel"],
+  "sonidos": {
+    "volumen_sfx": 0.7,
+    "separacion_minima": 1.5,
+    "volumen_por_categoria": {"riser": 0.8, "pop": 0.8, "tecleo": 0.9, "glitch": 0.6},
+    "arranque_por_tipo": {
+      "promesa": ["impacto", "brillo"],
+      "pregunta": ["tension"],
+      "numero": ["impacto"],
+      "contra": ["scratch"],
+      "contralocomun": ["scratch"],
+      "producto": ["brillo", "impacto"],
+      "productoenmano": ["brillo", "impacto"],
+      "default": ["impacto"]
+    },
+    "cta_por_tipo": {"anuncio": "notificacion", "organico": "tecleo"},
+    "respaldo": {
+      "whoosh_inverso": ["whoosh"],
+      "zoom": ["whoosh"],
+      "tension": ["impacto"],
+      "scratch": ["glitch", "impacto"],
+      "impacto": ["pop"],
+      "brillo": ["ding", "pop"],
+      "ding": ["pop"],
+      "glitch": ["pop"]
+    }
+  },
+  "musica": {
+    "volumen": 0.22,
+    "rotar_pistas": true
+  },
+  "portada": {
+    "segundo": 0.5,
+    "oscurecer": 0.35,
+    "tamano": 128,
+    "marca": "SUPLEVET",
+    "margen_marca": 420
+  },
+  "transcripcion": {
+    "modelo": "small",
+    "vocabulario": "Suplevet, WhatsApp, calostro, lactoferrina, veterinario, paciente senior, DHA, EPA"
+  },
+  "panel": {
+    "url": "",
+    "token": ""
+  }
+}

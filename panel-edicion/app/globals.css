@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-fondo text-slate-900 antialiased; }
+:focus-visible { outline: 2px solid #253C61; outline-offset: 2px; }
+.campo { @apply h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm; }
+textarea.campo { @apply h-auto py-2; }
+.btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50; }
+.btn-sec { @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50; }

@@ -1,0 +1,8 @@
+# El repositorio solo lleva la sala de edición y el panel. Guiones, análisis y documentos se quedan fuera (van a Drive).
+/*
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/editor/
+!/panel-edicion/
+!/README.md
