@@ -67,9 +67,13 @@ def estado():
     checklist = motor.checklist()
     for c in checklist["sin_asignar"]:
         c["video"] = url_media(motor.S.grab / c["rel"])
+    for m in checklist["musica"]:
+        f = motor.buscar_musica(m["id"])
+        m["url"] = url_media(f) if f else None
+    musica_ids = [m["id"] for m in checklist["musica"]]
     return {"version": motor.VERSION, "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
-            "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
+            "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
             "calendario": motor.calendario(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
@@ -199,9 +203,10 @@ class H(BaseHTTPRequestHandler):
         destino = q["destino"][0]
         nombre = q["nombre"][0]
         ext = "." + q["ext"][0].lower().lstrip(".")
-        carpetas = {"assets": motor.S.assets, "hooks": motor.S.carpeta("hook"),
+        carpetas = {"assets": motor.S.assets, "musica": motor.S.musica, "hooks": motor.S.carpeta("hook"),
                     "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}
-        if destino not in carpetas or not NOMBRE_OK.match(nombre) or ext not in motor.EXT_IMG | motor.EXT_VID:
+        permitidas = motor.EXT_AUDIO if destino == "musica" else motor.EXT_IMG | motor.EXT_VID
+        if destino not in carpetas or not NOMBRE_OK.match(nombre) or ext not in permitidas:
             raise ValueError("Archivo o nombre no válido")
         carpeta = carpetas[destino]
         carpeta.mkdir(parents=True, exist_ok=True)

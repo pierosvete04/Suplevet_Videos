@@ -99,6 +99,7 @@ class Rutas:
         self.assets = _primera(self.grab, ["Flow", "assets"])
         self.listos = _primera(self.grab, ["V.FINALES", "VIDEOS FINALES", "listos"])
         self.guion = _primera(self.grab, ["Guion", "1_guion"])
+        self.musica = _primera(self.grab, ["Musica", "Música", "musica"])
         self.asignaciones = self.grab / "asignaciones.json"
         self.proc = DATOS / "procesado" / semana      # local: pesado, no se sincroniza
         self.subs = DATOS / "subtitulos" / semana
@@ -781,6 +782,53 @@ def planear_sonidos(combo, offs, total, subs, marcas):
     return sorted(elegidos, key=lambda e: e["t"]), silencios
 
 
+def info_musica(mid):
+    return next((m for m in produccion().get("musica", []) if m.get("id", "").lower() == str(mid).lower()), {})
+
+
+def buscar_musica(mid):
+    """Pista de Suno por id: carpeta Musica de la sesión, luego la carpeta de música general."""
+    for d in (S.musica, CONFIG.get("carpeta_musica"), BIBLIO / "musica"):
+        if d and Path(d).is_dir():
+            for f in Path(d).iterdir():
+                if f.stem.lower() == str(mid).lower() and f.suffix.lower() in EXT_AUDIO:
+                    return f
+    return None
+
+
+def planear_musica(combo, offs, total, marcas, n_musica=0):
+    """Tramos de música [{id, archivo, t0, t1, desde}]. Una pista por video (la del cuerpo); solo cambia donde
+    el guion lo pide: el hook o el CTA con su propia pista, o una marca {"palabra", "musica"}."""
+    hook, cuerpo, cta = combo["hook"], combo["cuerpo"], combo["cta"]
+    base = (produccion().get("videos", {}).get(combo["codigo"], {}).get("musica")
+            or info_pieza(cuerpo).get("musica") or produccion().get("musica_por_defecto"))
+    cambios = [(0.0, info_pieza(hook).get("musica") or base)]
+    if base:
+        cambios.append((offs[1], base))
+    if info_pieza(cta).get("musica"):
+        cambios.append((offs[2], info_pieza(cta)["musica"]))
+    for off, ms in zip(offs, marcas):
+        cambios += [(off + m["t"], m["musica"]) for m in ms if m.get("musica")]
+    cambios.sort(key=lambda x: x[0])
+    tramos, faltan = [], []
+    rotacion = pistas_musica()
+    for t0, mid in cambios:
+        if tramos and tramos[-1]["id"] == mid:
+            continue
+        archivo = buscar_musica(mid) if mid else None
+        if mid and not archivo:
+            faltan.append(mid)
+        if not archivo and rotacion:  # sin la pista de Suno todavía: una de la carpeta general para no dejarlo mudo
+            archivo = rotacion[n_musica % len(rotacion)]
+        if not archivo:
+            continue
+        if tramos:
+            tramos[-1]["t1"] = t0
+        tramos.append({"id": mid, "archivo": archivo, "t0": t0, "t1": total,
+                       "desde": float(info_musica(mid).get("desde", 0)) if mid else 0.0})
+    return [t for t in tramos if t["t1"] - t["t0"] > 0.3], sorted(set(faltan))
+
+
 def pistas_musica():
     for d in (CONFIG.get("carpeta_musica"), BIBLIO / "musica", BIBLIO_BASE / "musica"):
         if d and _audios(Path(d)):
@@ -900,17 +948,17 @@ def armar_uno(combo, n_musica=0):
     escribir_ass(list(zip(offs, subs, marcas)), trabajo / "subs.ass", tapas)
 
     eventos, silencios = planear_sonidos(combo, offs, total, subs, marcas)
-    musica = pistas_musica()
-    pista = musica[n_musica % len(musica)] if musica else None
+    tramos, faltan_musica = planear_musica(combo, offs, total, marcas, n_musica)
 
     cmd = [FFMPEG, "-hide_banner", "-y"]
     for a in archivos:
         cmd += ["-i", str(a)]
     idx = 3
-    i_mus = None
-    if pista:
-        cmd += ["-stream_loop", "-1", "-i", str(pista)]
-        i_mus, idx = idx, idx + 1
+    i_mus = []
+    for tr in tramos:
+        cmd += ["-stream_loop", "-1", "-i", str(tr["archivo"])]
+        i_mus.append(idx)
+        idx += 1
     f = ["[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[vc][ac]"]
     v_prev = "vc"
     for ov in overlays:
@@ -925,11 +973,21 @@ def armar_uno(combo, n_musica=0):
         idx += 1
     f.append(f"[{v_prev}]subtitles=subs.ass[v]")
     mezcla = []
-    if pista:
+    if tramos:
         f.append("[ac]asplit=2[voz][sc]")
+        cruce = 0.4  # segundos de fundido cuando cambia la música
+        for k, (tr, i) in enumerate(zip(tramos, i_mus)):
+            largo = tr["t1"] - tr["t0"] + (cruce if k < len(tramos) - 1 else 0)
+            ms = int(tr["t0"] * 1000)
+            f.append(f"[{i}:a]atrim=start={tr['desde']:.2f}:duration={largo:.2f},asetpts=N/SR/TB,"
+                     f"aformat=sample_rates=48000:channel_layouts=stereo,"
+                     f"afade=t=in:st=0:d={0.05 if k == 0 else cruce},afade=t=out:st={max(0, largo - cruce):.2f}:d={cruce},"
+                     f"adelay={ms}|{ms}[mt{k}]")
+        juntar = "".join(f"[mt{k}]" for k in range(len(tramos)))
+        f.append(f"{juntar}amix=inputs={len(tramos)}:normalize=0:duration=longest,atrim=0:{total:.2f}[mraw]"
+                 if len(tramos) > 1 else f"[mt0]atrim=0:{total:.2f}[mraw]")
         mute = "".join(f",volume=0:enable='between(t,{a:.2f},{b:.2f})'" for a, b in silencios)
-        f.append(f"[{i_mus}:a]atrim=0:{total:.2f},asetpts=N/SR/TB,aformat=sample_rates=48000:channel_layouts=stereo,"
-                 f"volume={CONFIG['musica']['volumen']}{mute}[m0]")
+        f.append(f"[mraw]volume={CONFIG['musica']['volumen']}{mute}[m0]")
         f.append("[m0][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[mus]")
         mezcla += ["[voz]", "[mus]"]
     else:
@@ -953,7 +1011,8 @@ def armar_uno(combo, n_musica=0):
     hacer_portada(combo)
 
     receta = {**combo, "duracion": round(total, 2), "cortes": [round(o, 2) for o in offs[1:]],
-              "musica": pista.name if pista else None,
+              "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos) or None,
+              "faltan_musica": faltan_musica,
               "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "t": e["t"], "motivo": e["motivo"]} for e in eventos],
               "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "dur": round(o["dur"], 2), "modo": o["modo"]} for o in overlays],
               "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
@@ -1072,10 +1131,12 @@ def checklist():
     for a in p.get("assets", []):
         f = buscar_asset(a["id"])
         assets.append({**a, "listo": bool(f), "archivo_actual": f.name if f else None})
+    musica = [{**m, "listo": bool(buscar_musica(m["id"])), "archivo_actual": (buscar_musica(m["id"]) or Path("")).name or None}
+              for m in produccion().get("musica", []) if m.get("id")]
     sug = sugerencias()
     sin = [{"rel": c["rel"], "nombre": c["ruta"].name, "carpeta": c["tipo_carpeta"], **sug.get(c["rel"], {})}
            for c in clips_sin_asignar()]
-    return {"piezas_faltan": falta_piezas, "assets": assets, "sin_asignar": sin}
+    return {"piezas_faltan": falta_piezas, "assets": assets, "sin_asignar": sin, "musica": musica}
 
 
 if __name__ == "__main__":

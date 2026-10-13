@@ -1,6 +1,4 @@
-Trabaja con la carpeta del equipo en Google Drive (EDICIÓN DE VIDEOS):
-- Sesiones "DD MM SESIÓN" con Clips/Hooks, Clips/Cuerpo y Clips/CTA; los videos terminados van a V.FINALES.
-- El cuerpo grabado en partes (1.MOV, 2.MOV…) se une solo, quitando los silencios de cada parte.
-- Clips con nombre de cámara (IMG_1016.MOV): la sala los escucha y sugiere qué pieza son; también "Numerar hooks en orden".
-- Usa la librería SOUND FX del equipo por categorías (impacto, whoosh, pop, riser, ding…) y recorta los efectos largos.
-- Portada sin guion: toma la primera idea del hook, sin el saludo.
+Música de Suno:
+- El guion trae un prompt de Suno por pista (estilo, excluir, título) y la sala los muestra en Faltantes → "Música de Suno" para copiar y arrastrar el MP3.
+- Una pista por cuerpo; solo cambia donde el guion lo pide (hook, CTA o una palabra), con fundido.
+- En el editor de marcas: "Música desde aquí" para cambiar la pista en una palabra.
