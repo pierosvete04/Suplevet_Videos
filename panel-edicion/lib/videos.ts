@@ -38,14 +38,32 @@ export interface Video {
   enlaces: Partial<Record<RedSocial, string>>;
   metricas: MetricasVideo;
   notas: string | null;
+  carpeta_id: string | null;
+  orden: number;
+  origen: "sala" | "importado";
   updated_at: string;
 }
 
+export type ColorCarpeta = "navy" | "sky" | "orange" | "gray";
+export interface Carpeta {
+  id: string;
+  nombre: string;
+  color: ColorCarpeta;
+  orden: number;
+}
+
+export const COLORES_CARPETA: Record<ColorCarpeta, { fondo: string; texto: string; nombre: string }> = {
+  navy: { fondo: "bg-navy", texto: "text-white", nombre: "Azul" },
+  sky: { fondo: "bg-sky", texto: "text-navy", nombre: "Celeste" },
+  orange: { fondo: "bg-naranja", texto: "text-navy", nombre: "Naranja" },
+  gray: { fondo: "bg-gris", texto: "text-navy", nombre: "Gris" },
+};
+
 export const ESTADOS: { valor: EstadoVideo; etiqueta: string; clase: string }[] = [
-  { valor: "borrador", etiqueta: "Borrador", clase: "bg-slate-200 text-slate-700" },
-  { valor: "aprobado", etiqueta: "Aprobado", clase: "bg-blue-100 text-blue-800" },
-  { valor: "publicado", etiqueta: "Publicado", clase: "bg-green-100 text-green-800" },
-  { valor: "descartado", etiqueta: "Descartado", clase: "bg-red-100 text-red-800" },
+  { valor: "borrador", etiqueta: "Borrador", clase: "bg-gris text-navy" },
+  { valor: "aprobado", etiqueta: "Aprobado", clase: "bg-sky text-navy" },
+  { valor: "publicado", etiqueta: "Publicado", clase: "bg-navy text-white" },
+  { valor: "descartado", etiqueta: "Descartado", clase: "bg-naranja/20 text-naranja-tinta" },
 ];
 
 export const REDES: { valor: RedSocial; etiqueta: string }[] = [

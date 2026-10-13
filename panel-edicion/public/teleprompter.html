@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Teleprompter Suplevet</title>
+<style>
+:root { --bg: #000; --ink: #fff; --muted: #8a9aa3; --dicho: #5f6d75; --actual: #99D3DA; --linea: #24333a; --acento: #EA8C43; --f: "Segoe UI", system-ui, -apple-system, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--f); -webkit-text-size-adjust: 100%; }
+body { display: grid; grid-template-rows: auto 1fr auto; }
+header, footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #0b1216; border-bottom: 1px solid var(--linea); }
+footer { border-top: 1px solid var(--linea); border-bottom: 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+button, select { font: 600 15px var(--f); color: var(--ink); background: #16232a; border: 1px solid #2c3f48; border-radius: 10px; padding: 10px 14px; min-height: 44px; }
+button[aria-pressed="true"] { background: var(--actual); color: #10252c; border-color: var(--actual); }
+button.grande { background: var(--acento); border-color: var(--acento); color: #1d1004; }
+label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+input[type=range] { width: 110px; }
+#titulo { font-weight: 700; margin-right: auto; }
+#estado { color: var(--muted); font-size: 14px; }
+#escena { overflow-y: auto; padding: 30vh 6vw 60vh; scroll-behavior: smooth; }
+#escena.espejo { transform: scaleX(-1); }
+.pieza { margin: 0 0 2.2em; }
+.pieza h2 { font-size: .38em; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4em; display: flex; gap: .6em; align-items: center; }
+.pieza h2 .hecho { color: var(--actual); }
+.pieza p { margin: 0; line-height: 1.3; font-weight: 700; }
+.pieza.otra p { color: #4c5a61; }
+.w { transition: color .15s; }
+.w.dicho { color: var(--dicho); }
+.w.actual { color: var(--actual); }
+.parte { display: inline; }
+.parte + .parte::before { content: " ⏎ "; color: var(--acento); font-size: .6em; vertical-align: middle; }
+#guia { position: fixed; left: 0; right: 0; top: 34vh; border-top: 2px dashed rgba(234,140,67,.35); pointer-events: none; }
+#aviso { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #16232a; border: 1px solid #2c3f48; padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 90vw; display: none; }
+.pin { display: grid; place-items: center; height: 100vh; }
+.pin form { display: grid; gap: 10px; width: min(320px, 90vw); }
+.pin input { font: 700 28px var(--f); text-align: center; padding: 12px; border-radius: 12px; border: 1px solid #2c3f48; background: #16232a; color: var(--ink); letter-spacing: .3em; }
+@media (max-width: 700px) { header label.opc { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <a href="/creador" style="color:var(--muted);text-decoration:none;font-size:14px">← Creador</a><span id="titulo">Teleprompter</span>
+  <select id="sesion" aria-label="Sesión"></select>
+  <select id="filtro" aria-label="Qué mostrar">
+    <option value="todo">Todo en orden de grabación</option>
+    <option value="cuerpo">Solo cuerpos</option>
+    <option value="hook">Solo hooks</option>
+    <option value="cta">Solo CTAs</option>
+  </select>
+  <label class="opc">Tamaño <input type="range" id="tam" min="28" max="110" value="56"></label>
+  <button id="espejo" aria-pressed="false" title="Para vidrio de teleprompter">Espejo</button>
+</header>
+<main id="escena" aria-live="polite"></main>
+<div id="guia" aria-hidden="true"></div>
+<footer>
+  <button id="voz" class="grande" aria-pressed="false">🎙 Seguir mi voz</button>
+  <button id="auto" aria-pressed="false">▶ Desplazar solo</button>
+  <label>Velocidad <input type="range" id="vel" min="10" max="140" value="45"></label>
+  <button id="anterior">◀ Anterior</button>
+  <button id="siguiente">Siguiente ▶</button>
+  <button id="hecha">✓ Toma buena</button>
+  <span id="estado"></span>
+</footer>
+<div id="aviso" role="status"></div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = w => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ]/g, "");
+const guardar = (k, v) => { try { localStorage.setItem("tp_" + k, JSON.stringify(v)); } catch (e) {} };
+const leer = (k, d) => { try { const v = localStorage.getItem("tp_" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const API = window.TELEPROMPTER_API || "/api/teleprompter";
+let datos = null, piezas = [], actual = 0, palabraActual = 0, rec = null, escuchando = false, autoTimer = null;
+
+function avisar(t, ms = 3500) { const a = $("aviso"); a.textContent = t; a.style.display = "block"; clearTimeout(a._t); a._t = setTimeout(() => a.style.display = "none", ms); }
+
+async function cargar(sesion) {
+  const r = await fetch(API + (sesion ? "?sesion=" + encodeURIComponent(sesion) : ""), { credentials: "same-origin" });
+  if (r.status === 401) return pedirPin();
+  datos = await r.json();
+  $("sesion").innerHTML = (datos.sesiones || []).map(s => `<option ${s === datos.sesion ? "selected" : ""}>${esc(s)}</option>`).join("");
+  $("titulo").textContent = datos.sesion || "Teleprompter";
+  pintar();
+}
+
+function pintar() {
+  const f = $("filtro").value;
+  const hechas = leer("hechas_" + datos.sesion, {});
+  piezas = (datos.piezas || []).filter(p => f === "todo" || p.tipo === f);
+  $("escena").innerHTML = piezas.length ? piezas.map((p, i) => {
+    let n = 0;
+    const partes = (p.partes && p.partes.length ? p.partes : [p.texto]).map(t =>
+      `<span class="parte">${t.split(/\s+/).filter(Boolean).map(w => `<span class="w" data-i="${n++}">${esc(w)}</span>`).join(" ")}</span>`).join("");
+    return `<section class="pieza" id="p${i}" data-i="${i}"><h2>${esc(p.nombre)} · ${esc(p.tipo)}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""} ${hechas[p.nombre] ? '<span class="hecho">✓ toma buena</span>' : ""}</h2><p>${partes}</p></section>`;
+  }).join("") : `<p style="font-size:.5em;color:var(--muted)">Esta sesión no tiene guion todavía. Pídele a Claude el guion de la sesión.</p>`;
+  irA(Math.min(actual, Math.max(0, piezas.length - 1)), false);
+}
+
+function irA(i, scroll = true) {
+  actual = Math.max(0, Math.min(i, piezas.length - 1));
+  palabraActual = 0;
+  document.querySelectorAll(".pieza").forEach(s => s.classList.toggle("otra", Number(s.dataset.i) !== actual));
+  document.querySelectorAll(`#p${actual} .w`).forEach(w => w.classList.remove("dicho", "actual"));
+  $("estado").textContent = piezas.length ? `${actual + 1} / ${piezas.length}` : "";
+  if (scroll) centrar(document.getElementById("p" + actual));
+}
+
+function centrar(el) {
+  if (!el) return;
+  const esc = $("escena");
+  esc.scrollTop = el.offsetTop - esc.clientHeight * 0.3;
+}
+
+// ---------- Seguir la voz ----------
+function marcar(hasta) {
+  const ws = document.querySelectorAll(`#p${actual} .w`);
+  ws.forEach((w, k) => { w.classList.toggle("dicho", k < hasta); w.classList.toggle("actual", k === hasta); });
+  if (ws[hasta]) centrar(ws[hasta]);
+  palabraActual = hasta;
+  if (hasta >= ws.length - 1 && ws.length) {
+    setTimeout(() => { if (palabraActual >= ws.length - 1) { avisar("Pieza terminada"); irA(actual + 1); } }, 1200);
+  }
+}
+
+function avanzarCon(texto) {
+  // Busca las palabras dichas en lo que sigue del guion (tolera palabras cambiadas o saltadas)
+  const ws = [...document.querySelectorAll(`#p${actual} .w`)].map(w => norm(w.textContent));
+  const dichas = texto.split(/\s+/).map(norm).filter(Boolean).slice(-6);
+  let mejor = palabraActual;
+  for (const d of dichas) {
+    for (let k = palabraActual; k < Math.min(ws.length, palabraActual + 12); k++) {
+      if (ws[k] === d || (d.length > 3 && ws[k].startsWith(d.slice(0, 4)))) { mejor = Math.max(mejor, k + 1); break; }
+    }
+  }
+  if (mejor !== palabraActual) marcar(Math.min(mejor, ws.length - 1));
+}
+
+function iniciarVoz() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return avisar("Este navegador no reconoce voz. Usa Chrome en la PC o el teleprompter del panel (https) en el iPad.", 6000);
+  if (!window.isSecureContext) return avisar("El micrófono necesita conexión segura (https). Aquí usa «Desplazar solo».", 6000);
+  rec = new SR();
+  rec.lang = "es-PE"; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => { let t = ""; for (let i = e.resultIndex; i < e.results.length; i++) t += " " + e.results[i][0].transcript; avanzarCon(t); };
+  rec.onerror = e => { if (e.error === "not-allowed") { avisar("Permite el micrófono para seguir tu voz."); pararVoz(); } };
+  rec.onend = () => { if (escuchando) try { rec.start(); } catch (e) {} };
+  escuchando = true; rec.start();
+  $("voz").setAttribute("aria-pressed", "true"); $("voz").textContent = "🎙 Escuchando…";
+}
+function pararVoz() { escuchando = false; try { rec && rec.stop(); } catch (e) {} $("voz").setAttribute("aria-pressed", "false"); $("voz").textContent = "🎙 Seguir mi voz"; }
+
+// ---------- Desplazamiento automático ----------
+function auto(on) {
+  clearInterval(autoTimer);
+  $("auto").setAttribute("aria-pressed", String(on));
+  $("auto").textContent = on ? "❚❚ Pausar" : "▶ Desplazar solo";
+  if (on) autoTimer = setInterval(() => { $("escena").scrollTop += Number($("vel").value) / 30; }, 33);
+}
+
+// ---------- PIN (desde la tablet por WiFi) ----------
+function pedirPin() {
+  document.body.innerHTML = `<div class="pin"><form id="f"><b style="text-align:center">Teleprompter Suplevet</b>
+    <span style="color:var(--muted);text-align:center;font-size:14px">Escribe el PIN que aparece en la sala de edición</span>
+    <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+    <button class="grande">Entrar</button><span id="err" style="color:#f07a6a;text-align:center"></span></form></div>`;
+  document.getElementById("f").onsubmit = async e => {
+    e.preventDefault();
+    const v = document.getElementById("pin").value.trim();
+    if (!v) { document.getElementById("err").textContent = "Escribe el PIN."; return; }
+    const r = await fetch("/entrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: v }) });
+    if (r.ok) location.reload(); else document.getElementById("err").textContent = "PIN incorrecto.";
+  };
+}
+
+// ---------- Controles ----------
+$("tam").oninput = e => { $("escena").style.fontSize = e.target.value + "px"; guardar("tam", e.target.value); };
+$("espejo").onclick = () => { const on = !$("escena").classList.contains("espejo"); $("escena").classList.toggle("espejo", on); $("espejo").setAttribute("aria-pressed", on); guardar("espejo", on); };
+$("voz").onclick = () => escuchando ? pararVoz() : iniciarVoz();
+$("auto").onclick = () => auto($("auto").getAttribute("aria-pressed") !== "true");
+$("vel").oninput = e => guardar("vel", e.target.value);
+$("anterior").onclick = () => irA(actual - 1);
+$("siguiente").onclick = () => irA(actual + 1);
+$("hecha").onclick = () => { const p = piezas[actual]; if (!p) return; const h = leer("hechas_" + datos.sesion, {}); h[p.nombre] = true; guardar("hechas_" + datos.sesion, h); avisar(`${p.nombre}: toma buena ✓`); pintar(); irA(actual + 1); };
+$("filtro").onchange = () => { actual = 0; pintar(); };
+$("sesion").onchange = e => { actual = 0; cargar(e.target.value); };
+$("escena").addEventListener("click", e => { const s = e.target.closest(".pieza"); if (s && Number(s.dataset.i) !== actual) irA(Number(s.dataset.i)); });
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") irA(actual + 1);
+  if (e.key === "ArrowLeft" || e.key === "PageUp") irA(actual - 1);
+  if (e.key === " ") { e.preventDefault(); auto($("auto").getAttribute("aria-pressed") !== "true"); }
+});
+$("tam").value = leer("tam", 56); $("escena").style.fontSize = $("tam").value + "px";
+$("vel").value = leer("vel", 45);
+if (leer("espejo", false)) $("espejo").click();
+cargar(new URLSearchParams(location.search).get("sesion") || undefined);
+</script>
+</body>
+</html>

@@ -9,7 +9,10 @@ Se configura en config.local.json -> "panel": {"url": "https://edicion.suplevet.
 El token es el CONTENIDO_TOKEN del panel; no lo pegues en ningún otro lado.
 """
 import json
+import re
+import tempfile
 import urllib.request
+from pathlib import Path
 
 import motor
 
@@ -32,11 +35,77 @@ def _put(url, ruta, tipo, cache):
             raise RuntimeError(f"R2 respondió {r.status} al subir {ruta.name}")
 
 
+def subir_guion(avance=print):
+    """Sube el guion de la sesión (produccion.json) al panel: Creador, Música y teleprompter."""
+    prod = motor.produccion()
+    if not prod.get("piezas"):
+        return False
+    _post("/api/contenido/guion", {"sesion": motor.S.semana, "datos": prod})
+    avance(f"Guion de «{motor.S.semana}» subido al panel")
+    return True
+
+
+def _subir_archivos(sesion, video, portada):
+    archivos = [{"nombre": video.name, "tipo": "video/mp4"}]
+    if portada and portada.exists():
+        archivos.append({"nombre": portada.name, "tipo": "image/jpeg"})
+    prep = _post("/api/contenido/preparar", {"semana": re.sub(r"[^A-Za-z0-9_-]", "_", sesion)[:40], "archivos": archivos})
+    urls, keys = {}, []
+    for sub in prep["subidas"]:
+        _put(sub["uploadUrl"], video if sub["nombre"] == video.name else portada, sub["tipo"], sub["cacheControl"])
+        urls[sub["nombre"]] = sub["publicUrl"]
+        keys.append(sub["key"])
+    return urls.get(video.name), urls.get(portada.name) if portada else None, keys
+
+
+def importar_finales(avance=print):
+    """Trae al panel los videos que ya están en V.FINALES (o VIDEOS FINALES) de cada sesión de Drive.
+    Cada uno entra como «importado», con una portada sacada del segundo 1 y el nombre del archivo como código."""
+    import drive
+    if not drive.estado()["activo"]:
+        raise RuntimeError("Conecta la sala con Google Drive primero (Ajustes y notas → Google Drive)")
+    total = 0
+    for sesion in drive.actualizar_lista():
+        for carpeta in ("V.FINALES", "VIDEOS FINALES"):
+            try:
+                lista = json.loads(drive._rc("lsjson", f"{drive.REMOTO}:{sesion}/{carpeta}", "--files-only", timeout=60) or "[]")
+            except RuntimeError:
+                continue
+            for f in lista:
+                if not f["Name"].lower().endswith((".mp4", ".mov")):
+                    continue
+                codigo = re.sub(r"[^A-Za-z0-9_-]+", "-", f"{sesion.split()[0]}-{Path(f['Name']).stem}").strip("-")[:80]
+                avance(f"Importando {sesion} / {f['Name']}")
+                with tempfile.TemporaryDirectory() as tmp:
+                    local = Path(tmp) / (codigo + Path(f["Name"]).suffix.lower())
+                    drive._rc("copyto", f"{drive.REMOTO}:{sesion}/{carpeta}/{f['Name']}", local, timeout=1800)
+                    video = local
+                    if local.suffix != ".mp4":  # el panel solo reproduce mp4
+                        video = local.with_suffix(".mp4")
+                        motor.run([motor.FFMPEG, "-hide_banner", "-y", "-i", str(local), "-c:v", "libx264", "-preset", "veryfast",
+                                   "-crf", "21", "-c:a", "aac", "-movflags", "+faststart", str(video)])
+                    portada = Path(tmp) / f"{codigo}.jpg"
+                    motor.run([motor.FFMPEG, "-hide_banner", "-y", "-ss", "1", "-i", str(video), "-frames:v", "1",
+                               "-vf", "scale=1080:-2", "-q:v", "3", str(portada)])
+                    video_url, portada_url, keys = _subir_archivos(sesion, video, portada)
+                    _post("/api/contenido/registrar", {"videos": [{
+                        "semana": sesion, "codigo": codigo, "video_url": video_url, "portada_url": portada_url,
+                        "r2_keys": keys, "origen": "importado", "duracion": round(motor.duracion(video), 2),
+                        "titulo_portada": Path(f["Name"]).stem, "copy": {},
+                    }]})
+                    total += 1
+    return total
+
+
 def subir_semana(avance=print):
     cfg = motor.CONFIG.get("panel", {})
     if not cfg.get("url") or not cfg.get("token"):
         raise RuntimeError("Falta configurar el panel (url y token) en config.json")
     S = motor.S
+    try:
+        subir_guion(avance)
+    except Exception as e:
+        avance(f"No se pudo subir el guion: {e}")
     dia_de = {cod: dia for dia, cods in motor.calendario().items() for cod in cods}
     combos = [c for c in motor.combinaciones() if (S.salida / f"{c['archivo']}.mp4").exists()]
     subidos = 0

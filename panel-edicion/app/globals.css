@@ -2,9 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-body { @apply bg-fondo text-slate-900 antialiased; }
-:focus-visible { outline: 2px solid #253C61; outline-offset: 2px; }
-.campo { @apply h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm; }
-textarea.campo { @apply h-auto py-2; }
-.btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50; }
-.btn-sec { @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50; }
+@layer base {
+  body { @apply bg-gris text-navy antialiased; }
+  :focus-visible { outline: 3px solid #EA8C43; outline-offset: 2px; border-radius: 6px; }
+  h1, h2, h3 { @apply font-impacto tracking-wide; }
+}
+
+@layer components {
+  .campo { @apply h-11 w-full rounded-xl border border-navy/15 bg-white px-3 text-sm text-navy placeholder:text-navy/40 transition-colors focus:border-navy/40; }
+  textarea.campo { @apply h-auto py-2.5 leading-relaxed; }
+  .btn { @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-navy px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-navy-hondo active:scale-[.98] disabled:cursor-wait disabled:opacity-50; }
+  .btn-acento { @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-naranja px-4 text-sm font-bold text-navy transition-all duration-200 hover:bg-naranja-hondo hover:text-white active:scale-[.98]; }
+  .btn-sec { @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-navy/15 bg-white px-3.5 text-sm font-medium text-navy transition-all duration-200 hover:border-navy/30 hover:bg-sky-suave active:scale-[.98]; }
+  .pastilla { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold; }
+  .tarjeta { @apply rounded-2xl bg-white shadow-tarjeta; }
+  .chip { @apply inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-all duration-200; }
+  .chip[aria-pressed="true"] { @apply border-navy bg-navy text-white; }
+  .chip[aria-pressed="false"] { @apply border-navy/15 bg-white text-navy hover:border-navy/35; }
+  .etiqueta { @apply font-impacto text-[13px] tracking-[.12em] text-naranja-tinta; }
+}
+
+/* La colina orgánica: curva blanca convexa que separa el azul del contenido (elemento firma de la marca) */
+.colina { clip-path: ellipse(62% 100% at 50% 100%); }
+
+/* Entradas en cascada: cada tarjeta usa style={{"--i": n}} */
+.cascada > * { animation: aparecer .42s cubic-bezier(.2,.8,.2,1.15) both; animation-delay: calc(min(var(--i, 0), 18) * 45ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

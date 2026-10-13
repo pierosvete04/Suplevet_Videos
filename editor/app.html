@@ -316,6 +316,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         <div class="fila">
           <button class="btn" id="exportar">Exportar por día</button>
           <button class="btn sec" id="subirPanel">Subir al panel</button>
+          <button class="btn sec" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes</button>
         </div>
       </div>
     </div>
@@ -410,6 +411,7 @@ async function cargar() {
   pintarDrive();
   $("rutaListos").textContent = E.listos;
   $("subirPanel").hidden = !E.panel;
+  $("importarFinales").hidden = !E.panel || !(E.drive || {}).activo;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas[0]?.nombre;
   pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias();
   if (!E.hay_produccion) avisar("Esta sesión no tiene guion (Guion/produccion.json): se arma igual, pero sin marcas, copies ni título de portada. Pídele a Claude el guion.", "muted");
@@ -841,6 +843,7 @@ $("aceptarSug").onclick = async () => {
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("subirPanel").onclick = () => trabajo("panel");
+$("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
 $("portadas").onclick = () => trabajo("portadas");
 $("rearmarUno").onclick = () => { if (actual) { trabajo("uno", actual.codigo); $("dlg").close(); } };
 $("cerrar").onclick = () => $("dlg").close();

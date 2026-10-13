@@ -23,6 +23,7 @@ const videoSchema = z.object({
   video_url: z.string().url().max(500),
   portada_url: z.string().url().max(500).nullish(),
   r2_keys: z.array(z.string().max(300)).max(4),
+  origen: z.enum(["sala", "importado"]).optional(),
   copy: z
     .object({ instagram: texto(2200), tiktok: texto(4000), youtube_titulo: texto(100), youtube: texto(5000) })
     .partial(),

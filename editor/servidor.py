@@ -153,6 +153,9 @@ def lanzar(accion, pieza=None, extra=None):
                     if drive.estado()["activo"]:
                         drive.subir(motor.S.semana, [motor.S.listos.name], avance=avance)
                         avance(f"Exportados y subidos a Drive ({motor.S.listos.name}): {len(hechos)} videos")
+                if accion == "importar":
+                    n = panel.importar_finales(avance=avance)
+                    avance(f"Importados {n} videos finales al panel")
                 if accion == "panel":
                     n = panel.subir_semana(avance=avance)
                     avance(f"Subidos {n} videos al panel")

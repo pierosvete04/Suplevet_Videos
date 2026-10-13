@@ -5,7 +5,7 @@ import { Copy, Download, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { VistaTelefono } from "@/components/VistaTelefono";
-import { ESTADOS, REDES, type CopyVideo, type EstadoVideo, type MetricasVideo, type RedSocial, type Video } from "@/lib/videos";
+import { ESTADOS, REDES, type Carpeta, type CopyVideo, type EstadoVideo, type MetricasVideo, type RedSocial, type Video } from "@/lib/videos";
 
 const CAMPOS_METRICAS: { clave: keyof MetricasVideo; etiqueta: string }[] = [
   { clave: "vistas", etiqueta: "Vistas" },
@@ -26,9 +26,12 @@ export function VideoDetalle({ video, onClose, onSaved }: { video: Video; onClos
   const [metricas, setMetricas] = useState<MetricasVideo>(video.metricas ?? {});
   const [notas, setNotas] = useState(video.notas ?? "");
   const [guardando, setGuardando] = useState(false);
+  const [carpeta, setCarpeta] = useState(video.carpeta_id ?? "");
+  const [carpetas, setCarpetas] = useState<Carpeta[]>([]);
 
   useEffect(() => {
     dialogo.current?.showModal();
+    createClient().from("carpetas").select("*").order("orden").then(({ data }) => setCarpetas((data as Carpeta[]) ?? []));
   }, []);
 
   async function guardar() {
@@ -46,6 +49,7 @@ export function VideoDetalle({ video, onClose, onSaved }: { video: Video; onClos
         enlaces,
         metricas,
         notas: notas.trim() || null,
+        carpeta_id: carpeta || null,
         actualizado_por: user?.id ?? null,
         updated_at: new Date().toISOString(),
       })
@@ -67,10 +71,10 @@ export function VideoDetalle({ video, onClose, onSaved }: { video: Video; onClos
       ref={dialogo}
       onClose={onClose}
       aria-labelledby="titulo-video"
-      className="m-auto max-h-[94dvh] w-[min(1150px,96vw)] rounded-2xl p-0 backdrop:bg-black/60"
+      className="m-auto max-h-[94dvh] w-[min(1150px,96vw)] rounded-3xl p-0 text-navy shadow-alzada backdrop:bg-navy-hondo/70 backdrop:backdrop-blur-sm open:animate-aparecer"
     >
       <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-white px-4 py-3">
-        <h2 id="titulo-video" className="font-mono text-sm font-bold sm:text-base">
+        <h2 id="titulo-video" className="text-2xl tracking-wider">
           {video.codigo}
         </h2>
         <button type="button" className="btn-sec" onClick={() => dialogo.current?.close()} aria-label="Cerrar">
@@ -119,7 +123,7 @@ export function VideoDetalle({ video, onClose, onSaved }: { video: Video; onClos
                 type="button"
                 aria-pressed={red === r.valor}
                 onClick={() => setRed(r.valor)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${red === r.valor ? "border-navy bg-navy text-white" : "bg-white"}`}
+                className="chip"
               >
                 {r.etiqueta}
               </button>
@@ -157,6 +161,17 @@ export function VideoDetalle({ video, onClose, onSaved }: { video: Video; onClos
               </select>
             </label>
           </div>
+          <label className="grid gap-1 text-sm font-medium">
+            Carpeta
+            <select className="campo font-normal" value={carpeta} onChange={(e) => setCarpeta(e.target.value)}>
+              <option value="">Sin carpeta (solo su sesión)</option>
+              {carpetas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="grid gap-1 text-sm font-medium">
             Descripción YouTube
             <textarea rows={3} className="campo font-normal" value={copy.youtube ?? ""} onChange={(e) => setCopy({ ...copy, youtube: e.target.value })} />
