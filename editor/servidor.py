@@ -274,6 +274,8 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(b)
+        elif u.path == "/api/guion":
+            self._json(motor.revision_guion())
         elif u.path == "/api/estructura":
             try:
                 e = motor.estructura(parse_qs(u.query)["codigo"][0])

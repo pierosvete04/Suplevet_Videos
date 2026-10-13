@@ -1,7 +1,8 @@
-Drive por enlace, editor de cada video y trabajo en volumen:
-- Google Drive se conecta con el link de la carpeta (Ajustes y notas → Google Drive), sin Google Drive para escritorio. La sala baja la sesión que abres y sube sola lo que produce.
-- Cada video muestra su nombre (hook, tipo y título de portada).
-- Al abrir un video: su estructura (hook → frases del cuerpo → CTA). Puedes cambiar el hook, cuerpo o CTA, apagar frases para acortarlo y recortar inicio o final; se guarda como versión nueva sin tocar el original.
-- Casillas para seleccionar varios videos: «Armar seleccionados» y «Exportar seleccionados».
-- Mientras trabaja, una rueda en la esquina avisa qué está haciendo, sin mover la pantalla.
-- «Subir finales existentes»: trae al panel los videos que ya están en V.FINALES de Drive.
+Editor tipo CapCut, portadas y guion:
+- Editor del video: línea de tiempo con bloques (hook, frases, CTA) que se recortan arrastrando sus bordes, pista de subtítulos para corregir el texto, zoom por bloque (acercar, alejar o «punch») y vista previa sin armar.
+- Portadas a color con el logo de Suplevet; cada una se edita en su video: momento, título y posición. Se quitó «Rehacer portadas».
+- Plantilla y altura del subtítulo por video; la altura también se mueve desde Plantillas.
+- Pestaña Guion: cada pieza con su clip y lo que realmente se dijo (tachado = no se dijo, resaltado = se agregó).
+- Hooks grabados en partes (Hooks/1-1.MOV, 1-2.MOV).
+- Sonidos por situación (ingresos → caja registradora, ficha → papel, cucharada → líquido…). Guía en GUIA_SONIDOS.md.
+- Re-armar un video avisa cuando termina y lo vuelve a abrir actualizado. Los recortes ahora son exactos.

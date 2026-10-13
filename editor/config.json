@@ -110,7 +110,20 @@
       "whoosh": 1.2,
       "whoosh_inverso": 1.2,
       "pop": 0.8,
-      "ding": 1.2
+      "ding": 1.2,
+      "dinero": 1.2,
+      "datos": 1.4,
+      "error": 0.9,
+      "papel": 0.9,
+      "liquido": 1.0,
+      "reloj": 1.6,
+      "aplausos": 2.0,
+      "electrico": 0.8,
+      "boing": 0.8,
+      "golpe_texto": 0.9,
+      "riser_largo": 3.0,
+      "drama": 1.6,
+      "camara": 0.7
     }
   },
   "musica": {
@@ -185,6 +198,52 @@
     ],
     "camara": [
       "FX COMMON/Efectos de Sonido_Edwin Arenas/07-CAMARA"
+    ],
+    "dinero": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/13-DINERO/Cash Register (Kaching) - Sound Effect (HD)(MP3_160K).mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/13-DINERO/Money-1.mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/13-DINERO/Money-2.MP3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/27-MONEDA/Cash Register.mp3"
+    ],
+    "datos": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/12-DATA"
+    ],
+    "error": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/16-ERROR/sound1.wav",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/16-ERROR/sound2.wav",
+      "FX CARTOON 2/Cartoon Fail"
+    ],
+    "papel": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/28-PAPEL/Paper Flip 01.wav",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/28-PAPEL/Paper Flip 02.wav",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/28-PAPEL/Paper.mp3"
+    ],
+    "liquido": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/24-LIQUIDO"
+    ],
+    "reloj": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/02-ALARMA/Clock Ticking Sound Effect(MP3_160K).mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/02-ALARMA/clock-fast-ticking-SBA-300419272.mp3"
+    ],
+    "aplausos": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/19-EXTRAS/Aplausos.mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/19-EXTRAS/Crowd Cheer.mp3"
+    ],
+    "electrico": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/15-ELECTRICO"
+    ],
+    "boing": [
+      "FX CARTOON 2/Boing Sounds",
+      "FX CARTOON 2/Toing Sounds"
+    ],
+    "golpe_texto": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/26-METAL SLICE"
+    ],
+    "riser_largo": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/09-CINEMATICA RISER"
+    ],
+    "drama": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/34-TERROS Y DRAMA"
     ]
   },
   "plantillas_sub": {
@@ -291,5 +350,91 @@
       "color_resaltado": "#99D3DA",
       "resaltador": {}
     }
+  },
+  "sfx_palabras": {
+    "dinero": [
+      "ingresos",
+      "venta",
+      "ventas",
+      "ganancia",
+      "ganancias",
+      "precio",
+      "dinero",
+      "negocio",
+      "vender",
+      "rentable",
+      "cobrar",
+      "soles"
+    ],
+    "datos": [
+      "estudio",
+      "estudios",
+      "porcentaje",
+      "por ciento",
+      "comprobado",
+      "ciencia",
+      "científico",
+      "investigación",
+      "dato"
+    ],
+    "error": [
+      "error",
+      "errores",
+      "mito",
+      "falso",
+      "nunca",
+      "incorrecto"
+    ],
+    "papel": [
+      "ficha",
+      "ficha técnica",
+      "receta",
+      "documento",
+      "información",
+      "folleto"
+    ],
+    "liquido": [
+      "cucharada",
+      "comida",
+      "agua",
+      "mezcla",
+      "mezclas",
+      "plato"
+    ],
+    "reloj": [
+      "tiempo",
+      "tarde",
+      "años",
+      "edad",
+      "días",
+      "semanas",
+      "rápido",
+      "pronto"
+    ],
+    "electrico": [
+      "energía",
+      "vitalidad",
+      "fuerza",
+      "activo"
+    ],
+    "camara": [
+      "foto",
+      "mira",
+      "fíjate",
+      "observa"
+    ]
+  },
+  "sfx_palabras_solo_duenos": {
+    "boing": [
+      "salta",
+      "juega",
+      "corre",
+      "feliz"
+    ],
+    "aplausos": [
+      "resultado",
+      "resultados",
+      "lo logramos"
+    ]
   }
 }

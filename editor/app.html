@@ -163,6 +163,10 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-s:hover, .ev-s.sel { border-color: var(--ink); }
 .ev-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; background: #EA8C43; pointer-events: none; z-index: 3; }
 @media (max-width: 680px) { .ev-arriba { grid-template-columns: 1fr; } .ev-visor { max-width: 240px; margin: 0 auto; } }
+.g-falta { text-decoration: line-through; color: var(--err); }
+.g-extra { background: color-mix(in srgb, var(--warn) 22%, transparent); border-radius: 4px; padding: 0 2px; }
+.g-pieza { display: grid; gap: 8px; }
+.g-pieza .texto { font-size: 14px; line-height: 1.6; }
 /* Plantillas */
 .plant-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 14px; align-items: start; }
 .plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
@@ -227,6 +231,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 </header>
 <nav role="tablist" aria-label="Secciones">
   <button role="tab" data-tab="videos" aria-selected="true">Videos <span class="pill" id="nVideos"></span></button>
+  <button role="tab" data-tab="guion" aria-selected="false">Guion</button>
   <button role="tab" data-tab="piezas" aria-selected="false">Piezas y subtítulos</button>
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
@@ -242,6 +247,18 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 
     </div>
     <div class="grid-portadas" id="videos"></div>
+  </section>
+
+  <section data-panel="guion" hidden>
+    <div class="caja" style="margin-bottom:14px">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Guion de la sesión</h2>
+          <span class="muted" style="font-size:12px">Cada pieza del guion, el clip que la cubre y lo que realmente se dijo. <span class="g-falta">tachado</span> = no se dijo · <span class="g-extra">resaltado</span> = se agregó.</span></div>
+        <a class="btn sec" href="/teleprompter" target="_blank" style="text-decoration:none">Abrir teleprompter</a>
+      </div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Para que Claude revise si se siguió el guion y reacomode sonidos, música y estilos sobre lo que se dijo, dile en el chat: <b>«ya subí los clips de esta sesión»</b>.</p>
+    </div>
+    <div id="guionLista" class="grid-assets" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
   </section>
 
   <section data-panel="piezas" hidden>
@@ -877,6 +894,7 @@ document.addEventListener("click", e => {
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
     if (tab.dataset.tab === "plantillas") pintarPlantillas();
+    if (tab.dataset.tab === "guion") pintarGuion();
     return;
   }
   const card = e.target.closest("[data-cod]");
@@ -1358,6 +1376,35 @@ $("evBorrar").onclick = async () => {
   await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar(); avisar("Versión borrada.", "ok");
 };
 $("dlg").addEventListener("close", pararEditor);
+
+// ---------- Guion ----------
+async function pintarGuion() {
+  const g = await (await fetch("/api/guion")).json();
+  const sinAsignar = E.checklist.sin_asignar || [];
+  if (!g.hay_guion) { $("guionLista").innerHTML = `<div class="caja"><p class="muted">Esta sesión todavía no tiene guion. Pídele a Claude el guion (con sus prompts de Flow y de música) y aparece aquí.</p></div>`; return; }
+  const etq = { cuerpo: "Cuerpo", hook: "Hook", cta: "CTA" };
+  $("guionLista").innerHTML = g.piezas.map(p => {
+    const estado = !p.clips.length ? `<span class="pill warn">sin clip</span>`
+      : !p.procesada ? `<span class="pill">sin procesar</span>`
+      : `<span class="pill ${p.parecido >= .9 ? "ok" : p.parecido >= .7 ? "" : "warn"}">${Math.round((p.parecido || 0) * 100)}% igual al guion</span>`;
+    const texto = p.procesada && p.diff.length
+      ? p.diff.map(d => d.t === "igual" ? esc(d.texto) : `<span class="g-${d.t}">${esc(d.texto)}</span>`).join(" ")
+      : p.partes.length > 1 ? p.partes.map((f, k) => `<b>${k + 1}.</b> ${esc(f)}`).join("<br>") : esc(p.texto);
+    return `<div class="caja g-pieza">
+      <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span></h3>${estado}</div>
+      <div class="texto">${texto}</div>
+      <div class="muted" style="font-size:12px">${p.clips.length ? "Clip: " + p.clips.map(c => esc(c.split("/").pop())).join(" + ") : "Ningún clip asignado todavía."}</div>
+      ${sinAsignar.length ? `<div class="fila"><select data-guion-clip="${esc(p.nombre)}" style="flex:1"><option value="">Asignar un clip a ${esc(p.nombre)}…</option>
+        ${sinAsignar.map(c => `<option value="${esc(c.rel)}">${esc(c.nombre)}${c.pieza ? ` (sugerido: ${esc(c.pieza)})` : ""}</option>`).join("")}</select></div>` : ""}
+    </div>`;
+  }).join("");
+}
+document.addEventListener("change", async e => {
+  const s = e.target.closest("[data-guion-clip]");
+  if (!s || !s.value) return;
+  try { await post("/api/asignar", { rel: s.value, pieza: s.dataset.guionClip }); avisar(`Clip asignado a ${s.dataset.guionClip}. Procésalo con «Procesar y armar semana» para compararlo.`, "ok"); await cargar(); pintarGuion(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
 
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;

@@ -573,6 +573,37 @@ def aplicar_plan(plan):
     return perdidas
 
 
+# ---------- Revisión del guion contra lo grabado ----------
+
+def revision_guion():
+    """Por pieza del guion: qué clip(s) la cubren y, si ya se procesó, lo dicho comparado palabra por palabra."""
+    import difflib
+    prod = produccion()
+    ps = {p["nombre"]: p for p in piezas()}
+    out = []
+    for g in guion_para_grabar():
+        nombre = g["nombre"]
+        p = ps.get(nombre)
+        fila = {"nombre": nombre, "tipo": g["tipo"], "tipo_hook": g.get("tipo_hook"), "texto": g["texto"], "partes": g["partes"],
+                "clips": p["rels"] if p else [], "procesada": bool(p and (S.subs / f"{nombre}.json").exists()),
+                "diff": [], "parecido": None}
+        if fila["procesada"]:
+            dicho = [w["w"] for ln in leer_subs(nombre)["lineas"] for w in ln["palabras"]]
+            guion = g["texto"].split()
+            a, b = [norm(x) for x in guion], [norm(x) for x in dicho]
+            for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+                if op == "equal":
+                    fila["diff"].append({"t": "igual", "texto": " ".join(dicho[j1:j2])})
+                else:
+                    if i2 > i1:
+                        fila["diff"].append({"t": "falta", "texto": " ".join(guion[i1:i2])})
+                    if j2 > j1:
+                        fila["diff"].append({"t": "extra", "texto": " ".join(dicho[j1:j2])})
+            fila["parecido"] = round(difflib.SequenceMatcher(None, a, b).ratio(), 2) if a and b else None
+        out.append(fila)
+    return {"hay_guion": bool(prod.get("piezas")), "piezas": out}
+
+
 # ---------- Teleprompter ----------
 
 def guion_para_grabar(semana=None):
@@ -1179,6 +1210,19 @@ def planear_sonidos(combo, offs, total, subs, marcas):
                 add("whoosh", t - 0.15, 2, f"entra {m['asset']}")
             if m.get("sub") in ("centro_grande", "palabra_sola") and not m.get("sfx"):
                 add("impacto", t, 2, f"subtítulo grande «{m['palabra']}»")
+    # Situaciones: si se dice una palabra de la lista, su sonido (ingresos → caja registradora, ficha → papel…)
+    situaciones = dict(CONFIG.get("sfx_palabras", {}))
+    if produccion().get("publico") in ("duenos", "dueños"):
+        situaciones.update(CONFIG.get("sfx_palabras_solo_duenos", {}))
+    frases = {cat: [[norm(w) for w in f.split()] for f in fr] for cat, fr in situaciones.items()}
+    for (off, lineas) in zip(offs, subs):
+        pal = [p for ln in lineas for p in ln["palabras"]]
+        normas = [norm(p["w"]) for p in pal]
+        for cat, lista in frases.items():
+            for f in lista:
+                for k in range(len(normas) - len(f) + 1):
+                    if normas[k:k + len(f)] == f:
+                        add(cat, off + pal[k]["s"], 2, f"situación «{' '.join(p['w'] for p in pal[k:k + len(f)])}»")
     # Automáticos por palabra: producto, números, palabras clave
     marca_vista = False
     for (off, lineas), nombre in zip(zip(offs, subs), (hook, cuerpo, cta)):
