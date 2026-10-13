@@ -71,7 +71,10 @@ def estado():
         f = S.salida / f"{c['archivo']}.mp4"
         por = S.portadas / f"{c['archivo']}.jpg"
         r = S.recetas / f"{c['codigo']}.json"
-        salidas.append({**c, "existe": f.exists(), "video": url_media(f) if f.exists() else None,
+        info_hook = motor.info_pieza(c["hook"])
+        v = c.get("version") or {}
+        etiqueta = v.get("nombre") or f"Hook {c['hook'].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") else "")
+        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(), "video": url_media(f) if f.exists() else None,
                         "portada": url_media(por) if por.exists() else None,
                         "titulo_portada": motor.texto_portada(c) if (S.proc / f"{c['hook']}.mp4").exists() or prod else "",
                         "receta": json.loads(r.read_text(encoding="utf-8")) if r.exists() else None,
@@ -131,6 +134,17 @@ def lanzar(accion, pieza=None, extra=None):
                     motor.procesar(avance=avance)
                 if accion in ("todo", "armar"):
                     motor.armar(pieza, avance=avance)
+                if accion == "armar_sel":
+                    motor.armar(avance=avance, codigos=extra["codigos"])
+                if accion == "exportar_sel":
+                    faltan = [c for c in motor.combinaciones() if c["codigo"] in extra["codigos"]
+                              and not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
+                    if faltan:
+                        motor.armar(avance=avance, codigos=[c["codigo"] for c in faltan])
+                    hechos = motor.exportar(avance=avance, codigos=extra["codigos"])
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.semana, [motor.S.listos.name], avance=avance)
+                    avance(f"Exportados {len(hechos)} videos a {motor.S.listos.name}")
                 if accion == "conectar":
                     drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
                 if accion == "bajar":
@@ -241,6 +255,11 @@ class H(BaseHTTPRequestHandler):
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
+        elif u.path == "/api/estructura":
+            try:
+                self._json(motor.estructura(parse_qs(u.query)["codigo"][0]))
+            except Exception as e:
+                self._json({"error": str(e)}, 400)
         elif u.path == "/api/version":
             self._json(actualizador.revisar(forzar="forzar" in u.query))
         elif u.path.startswith("/media/"):
@@ -392,6 +411,19 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("Ese archivo no es una fuente que la sala pueda leer")
                 fuentes.cargar.cache_clear()
                 self._json({"ok": True, "archivo": nombre})
+            elif u.path == "/api/version":
+                b = self._cuerpo()
+                if b.get("borrar"):
+                    motor.borrar_version(b["borrar"])
+                    return self._json({"ok": True})
+                vid = motor.guardar_version(b, b.get("id") or None)
+                if b.get("armar"):
+                    lanzar("uno", vid)
+                self._json({"ok": True, "codigo": vid})
+            elif u.path == "/api/trabajo_sel":
+                b = self._cuerpo()
+                lanzar(b["accion"], extra={"codigos": b["codigos"]})
+                self._json({"ok": True})
             elif u.path == "/api/asignar":
                 b = self._cuerpo()
                 motor.guardar_asignacion(b["rel"], b.get("pieza") or "")

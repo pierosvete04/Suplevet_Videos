@@ -114,6 +114,28 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .visor .sub.sublinea { -webkit-text-stroke: 0; text-shadow: none; text-transform: none; }
 .visor .sub.sublinea.normal { top: auto; bottom: 29%; transform: none; }
 .visor .sub.sublinea.arriba { top: 15.6%; transform: none; }
+/* Trabajo en curso: rueda flotante que no mueve nada de la pantalla */
+#estadoTrabajo { position: fixed; right: 16px; bottom: 16px; z-index: 20; display: flex; align-items: center; gap: 10px; max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 14px; border-radius: 999px; background: var(--ink); color: var(--surface); font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+#estadoTrabajo[hidden] { display: none; }
+#estadoTrabajo #trabajo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rueda { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 3px solid rgba(255,255,255,.25); border-top-color: #99D3DA; animation: girar .8s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rueda { animation-duration: 2.4s; } }
+#barraSel { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 19; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+#barraSel[hidden] { display: none; }
+.tarjeta .sel { position: absolute; top: 6px; left: 6px; z-index: 2; width: 26px; height: 26px; accent-color: var(--body); cursor: pointer; }
+.tarjeta .nombre { padding: 6px 8px 0; font-size: 12px; font-weight: 600; line-height: 1.3; }
+.tarjeta.elegida { outline: 3px solid var(--body); }
+/* Editor de un video */
+.linea-tiempo { display: flex; gap: 3px; height: 54px; border-radius: 10px; overflow: hidden; margin: 6px 0 4px; }
+.bloque { position: relative; display: flex; align-items: flex-end; padding: 4px 6px; font: 700 11px var(--f); color: #fff; min-width: 22px; cursor: pointer; border: 0; text-align: left; overflow: hidden; }
+.bloque.h { background: var(--hook); } .bloque.c { background: var(--body); } .bloque.t { background: var(--cta); }
+.bloque.fuera { background: repeating-linear-gradient(45deg, #9aa, #9aa 6px, #b6c2c6 6px, #b6c2c6 12px); color: #233; text-decoration: line-through; }
+.frases { display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
+.frase { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--bg); }
+.frase.fuera { opacity: .5; text-decoration: line-through; }
 /* Plantillas */
 .plant-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 14px; align-items: start; }
 .plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
@@ -174,7 +196,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
     <span><b>Hay una versión nueva de la sala: <span id="vNueva"></span></b> <span class="muted" id="vActual"></span></span>
     <span class="fila"><button class="btn sec peq" id="vNotas">Qué cambia</button><button class="btn peq" id="vActualizar">Actualizar ahora</button></span>
   </div>
-  <div style="width:100%" id="estadoTrabajo" hidden><div class="barra"></div><span id="trabajo" role="status"></span></div>
+
 </header>
 <nav role="tablist" aria-label="Secciones">
   <button role="tab" data-tab="videos" aria-selected="true">Videos <span class="pill" id="nVideos"></span></button>
@@ -359,6 +381,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   </section>
 </main>
 
+<div id="estadoTrabajo" hidden role="status" aria-live="polite"><span class="rueda" aria-hidden="true"></span><span id="trabajo"></span></div>
+<div id="barraSel" hidden><span id="nSel"></span>
+  <button class="btn peq" id="selArmar">Armar seleccionados</button>
+  <button class="btn sec peq" id="selExportar">Exportar seleccionados</button>
+  <button class="btn sec peq" id="selLimpiar">Quitar selección</button></div>
 <dialog id="dlg" aria-labelledby="dlgTitulo">
   <div class="dlg-cab"><h2 id="dlgTitulo" style="margin:0"></h2>
     <div class="fila"><button class="btn sec peq" id="rearmarUno">Re-armar este video</button>
@@ -383,6 +410,28 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
       <div class="fila"><button class="btn" id="guardarCopy">Guardar copy</button>
         <button class="btn sec peq" id="copiarCopy">Copiar copy de esta red</button></div>
       <details><summary>Qué hizo el editor automático</summary><div id="dlgReceta"></div></details>
+    </div>
+    <div class="caja" style="grid-column:1/-1" id="editorVideo">
+      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Estructura del video</h2>
+        <span class="muted" id="evDur"></span></div>
+      <p class="muted" style="margin:4px 0 0;font-size:12px">Cambia el hook, el cuerpo o el CTA, apaga frases del cuerpo para acortarlo y recorta el inicio o el final. Se guarda como una versión nueva; el original no se toca.</p>
+      <div class="linea-tiempo" id="evLinea"></div>
+      <div class="dos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px">
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">Hook<select id="evHook"></select></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">Cuerpo<select id="evCuerpo"></select></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">CTA<select id="evCta"></select></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">Recortar inicio (s)<input id="evIni" type="number" min="0" max="5" step="0.1" value="0"></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">Recortar final (s)<input id="evFin" type="number" min="0" max="5" step="0.1" value="0"></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">Nombre de la versión<input id="evNombre" placeholder="Ej.: corta 25 s"></label>
+      </div>
+      <h3 style="margin:10px 0 4px">Frases del cuerpo <span class="muted" style="font-weight:400">(desmarca las que quieras quitar)</span></h3>
+      <div class="frases" id="evFrases"></div>
+      <div class="fila" style="margin-top:10px">
+        <button class="btn" id="evArmar">Guardar versión y armarla</button>
+        <button class="btn sec" id="evGuardar">Solo guardar</button>
+        <button class="btn sec" id="evExportar">Exportar este video</button>
+        <button class="btn sec" id="evBorrar" hidden>Borrar esta versión</button>
+      </div>
     </div>
   </div>
 </dialog>
@@ -425,10 +474,12 @@ function pintarVideos() {
   $("nVideos").textContent = `${E.salidas.filter(s => s.existe).length}/${E.salidas.length}`;
   $("videos").innerHTML = lista.map(s => {
     const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
-    return `<button class="tarjeta" data-cod="${esc(s.codigo)}">
+    return `<button class="tarjeta ${elegidos.has(s.codigo) ? "elegida" : ""}" data-cod="${esc(s.codigo)}" style="position:relative">
+      <input type="checkbox" class="sel" data-sel="${esc(s.codigo)}" ${elegidos.has(s.codigo) ? "checked" : ""} aria-label="Seleccionar ${esc(s.archivo)}" onclick="event.stopPropagation()">
       ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.archivo)}</span></div>`
         : `<div class="vacia">${esc(s.archivo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
-      <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "listo"}</span>` : `<span class="pill">pendiente</span>`}
+      <div class="nombre">${esc(s.etiqueta)}${s.es_version ? ' <span class="pill">versión</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
+      <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "listo"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">sin armar</span>`}
         ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}</div></button>`;
   }).join("") || `<p class="muted">Todavía no hay piezas en esta semana. Sube las grabaciones en Faltantes o en la carpeta de Drive.</p>`;
 }
@@ -451,6 +502,7 @@ function abrirVideo(cod) {
     ${r.efectos.map(e => `<li>${fmt(e.t)} · ${esc(e.sfx)} — ${esc(e.motivo)}</li>`).join("")}</ul>` : `<p class="muted">Aún no armado.</p>`;
   pintarTelefono(); contar();
   $("dlg").showModal();
+  cargarEstructura(actual.codigo);
 }
 
 const LIM = { instagram: 125, tiktok: 100, youtube: 0 };
@@ -719,6 +771,7 @@ let vigilando = null;
 function vigilar(t) {
   const caja = $("estadoTrabajo");
   caja.hidden = !t.activo;
+  $("barraSel").style.bottom = t.activo ? "72px" : "16px";
   ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "portadas", "escuchar"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   if (t.activo && !vigilando) {
@@ -908,6 +961,89 @@ $("redBoton").onclick = async () => {
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
+// ---------- Selección múltiple ----------
+const elegidos = new Set();
+function pintarSeleccion() {
+  $("barraSel").hidden = !elegidos.size;
+  $("nSel").textContent = `${elegidos.size} seleccionado${elegidos.size === 1 ? "" : "s"}`;
+}
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-sel]");
+  if (!c) return;
+  c.checked ? elegidos.add(c.dataset.sel) : elegidos.delete(c.dataset.sel);
+  c.closest(".tarjeta").classList.toggle("elegida", c.checked);
+  pintarSeleccion();
+});
+async function trabajoSel(accion) {
+  try { await post("/api/trabajo_sel", { accion, codigos: [...elegidos] }); vigilar(await (await fetch("/api/trabajo")).json()); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+}
+$("selArmar").onclick = () => trabajoSel("armar_sel");
+$("selExportar").onclick = () => trabajoSel("exportar_sel");
+$("selLimpiar").onclick = () => { elegidos.clear(); pintarVideos(); pintarSeleccion(); };
+
+// ---------- Editor de un video ----------
+let est = null;
+async function cargarEstructura(codigo) {
+  $("evLinea").innerHTML = `<span class="muted" style="padding:16px">Cargando estructura…</span>`;
+  est = await (await fetch(`/api/estructura?codigo=${encodeURIComponent(codigo)}`)).json();
+  if (est.error) { $("evLinea").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
+  const opt = (lista, v) => lista.map(n => `<option ${n === v ? "selected" : ""}>${esc(n)}</option>`).join("");
+  $("evHook").innerHTML = opt(est.opciones.hook, est.hook.nombre);
+  $("evCuerpo").innerHTML = opt(est.opciones.cuerpo, est.cuerpo.nombre);
+  $("evCta").innerHTML = opt(est.opciones.cta, est.cta.nombre);
+  $("evIni").value = est.recorte_inicio || 0; $("evFin").value = est.recorte_fin || 0; $("evNombre").value = est.nombre || "";
+  $("evBorrar").hidden = est.base;
+  $("evFrases").innerHTML = est.cuerpo.partes.map(p => `<label class="frase ${est.quitar.includes(p.i) ? "fuera" : ""}">
+      <input type="checkbox" data-frase="${p.i}" ${est.quitar.includes(p.i) ? "" : "checked"}>
+      <span>${esc(p.texto)}</span><span class="muted">${(p.fin - p.ini).toFixed(1)} s</span></label>`).join("");
+  pintarTimeline();
+}
+function quitadas() { return [...document.querySelectorAll("[data-frase]")].filter(c => !c.checked).map(c => Number(c.dataset.frase)); }
+function pintarTimeline() {
+  if (!est || est.error) return;
+  const q = quitadas();
+  const bloques = [{ k: "h", t: est.hook.nombre, d: est.hook.dur || 0 },
+    ...est.cuerpo.partes.map(p => ({ k: "c", t: `${est.cuerpo.nombre}·${p.i + 1}`, d: p.fin - p.ini, fuera: q.includes(p.i), i: p.i })),
+    { k: "t", t: est.cta.nombre, d: est.cta.dur || 0 }];
+  const total = bloques.reduce((a, b) => a + b.d, 0);
+  const queda = bloques.filter(b => !b.fuera).reduce((a, b) => a + b.d, 0) - Number($("evIni").value || 0) - Number($("evFin").value || 0);
+  $("evLinea").innerHTML = bloques.map(b => `<button type="button" class="bloque ${b.k} ${b.fuera ? "fuera" : ""}" style="flex:${Math.max(b.d, .3)}"
+      ${b.i !== undefined ? `data-bloque="${b.i}"` : ""} title="${esc(b.t)} · ${b.d.toFixed(1)} s">${esc(b.t)}</button>`).join("");
+  $("evDur").textContent = `${queda.toFixed(1)} s${queda < total - .05 ? ` (antes ${total.toFixed(1)} s)` : ""}`;
+  document.querySelectorAll(".frase").forEach(l => l.classList.toggle("fuera", !l.querySelector("input").checked));
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-bloque]");
+  if (!b) return;
+  const c = document.querySelector(`[data-frase="${b.dataset.bloque}"]`);
+  c.checked = !c.checked; pintarTimeline();
+});
+document.addEventListener("input", e => { if (e.target.closest("#editorVideo")) pintarTimeline(); });
+["evHook", "evCuerpo", "evCta"].forEach(id => $(id).addEventListener("change", async () => {
+  // cambiar de cuerpo cambia sus frases: se recarga la estructura de esa combinación
+  if (id === "evCuerpo") { const c = E.salidas.find(s => s.cuerpo === $("evCuerpo").value); if (c) await cargarEstructura(c.codigo); }
+  pintarTimeline();
+}));
+async function guardarVersion(armar) {
+  const datos = { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: quitadas(),
+    recorte_inicio: Number($("evIni").value || 0), recorte_fin: Number($("evFin").value || 0), nombre: $("evNombre").value,
+    id: est && !est.base ? est.codigo : null, armar };
+  try {
+    const r = await post("/api/version", datos);
+    avisar(armar ? `Armando la versión ${r.codigo}…` : `Versión ${r.codigo} guardada.`, "ok");
+    $("dlg").close(); await cargar();
+    if (armar) vigilar(await (await fetch("/api/trabajo")).json());
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+}
+$("evArmar").onclick = () => guardarVersion(true);
+$("evGuardar").onclick = () => guardarVersion(false);
+$("evExportar").onclick = async () => { if (!actual) return; elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
+$("evBorrar").onclick = async () => {
+  if (!est || est.base || !confirm(`¿Borrar la versión ${est.codigo}?`)) return;
+  await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar(); avisar("Versión borrada.", "ok");
+};
+
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;
 const MUESTRA = ["LA", "RECUPERACIÓN", "PASA", "EN", "CASA"];

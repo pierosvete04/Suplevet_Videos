@@ -11,7 +11,8 @@ import { tokenValido } from "@/lib/token";
 // para no llenar los 10 GB gratis.
 const texto = (max: number) => z.string().max(max).nullish();
 const videoSchema = z.object({
-  semana: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+  // Nombre de la sesión tal como está en Drive ("11/10 SESIÓN" llega como "11／10 SESIÓN")
+  semana: z.string().min(1).max(60).regex(/^[\p{L}\p{N} _.\-／/]+$/u),
   codigo: z.string().regex(/^[A-Za-z0-9_-]{1,80}$/),
   hook: texto(40),
   cuerpo: texto(40),

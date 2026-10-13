@@ -391,6 +391,8 @@ def procesar(forzar_subs=False, avance=print):
         firma = S.proc / f"{p['nombre']}.partes.json"
         lista = [str(x) for x in p["partes"]]
         vieja = json.loads(firma.read_text(encoding="utf-8")) if firma.exists() else None
+        if isinstance(vieja, dict):
+            vieja = vieja.get("partes")
         if (not dest.exists() or vieja != lista
                 or dest.stat().st_mtime < max(x.stat().st_mtime for x in p["partes"])):
             avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
@@ -403,13 +405,14 @@ def procesar(forzar_subs=False, avance=print):
                      "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2",
                      "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", str(t)])
                 trozos.append(t)
+            duraciones = [round(duracion(t), 3) for t in trozos]
             if len(trozos) > 1:
                 lst = S.proc / f"_{p['nombre']}.txt"
                 lst.write_text("".join(f"file '{t.name}'\n" for t in trozos), encoding="utf-8")
                 run([FFMPEG, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", lst.name, "-c", "copy", dest.name], cwd=S.proc)
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
-            firma.write_text(json.dumps(lista, ensure_ascii=False), encoding="utf-8")
+            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones}, ensure_ascii=False), encoding="utf-8")
             (S.subs / f"{p['nombre']}.json").unlink(missing_ok=True) if vieja is not None and vieja != lista else None
         sub = S.subs / f"{p['nombre']}.json"
         if forzar_subs or not sub.exists():
@@ -671,6 +674,122 @@ def combinaciones():
             for cta in propios:
                 codigo = f"{c}-{h.split('_')[1]}-{cta.split('_')[-1]}"
                 yield {"codigo": codigo, "archivo": f"{S.prefijo}-{codigo}", "hook": h, "cuerpo": c, "cta": cta}
+    nombres = {p["nombre"] for p in ps}
+    for vid, v in leer_versiones().items():
+        if {v.get("hook"), v.get("cuerpo"), v.get("cta")} <= nombres:
+            yield {"codigo": vid, "archivo": f"{S.prefijo}-{vid}", "hook": v["hook"], "cuerpo": v["cuerpo"], "cta": v["cta"],
+                   "version": v}
+
+
+# ---------- Versiones editadas (otra combinación, frases quitadas, recortes) ----------
+
+def _versiones_path():
+    return S.subs / "_versiones.json"
+
+
+def leer_versiones():
+    try:
+        return json.loads(_versiones_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def guardar_version(datos, vid=None):
+    """Crea o actualiza una versión. Devuelve su código (C1-H2-CTA-v2)."""
+    vs = leer_versiones()
+    base = f"{datos['cuerpo']}-{datos['hook'].split('_')[-1]}-{datos['cta'].split('_')[-1]}"
+    if not vid:
+        n = 1
+        while f"{base}-v{n}" in vs:
+            n += 1
+        vid = f"{base}-v{n}"
+    vs[vid] = {"hook": datos["hook"], "cuerpo": datos["cuerpo"], "cta": datos["cta"],
+               "quitar": sorted({int(i) for i in datos.get("quitar", [])}),
+               "recorte_inicio": max(0.0, float(datos.get("recorte_inicio") or 0)),
+               "recorte_fin": max(0.0, float(datos.get("recorte_fin") or 0)), "nombre": (datos.get("nombre") or "").strip()[:60]}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
+    return vid
+
+
+def borrar_version(vid):
+    vs = leer_versiones()
+    if vs.pop(vid, None) is not None:
+        _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
+        for f in (S.salida / f"{S.prefijo}-{vid}.mp4", S.portadas / f"{S.prefijo}-{vid}.jpg", S.recetas / f"{vid}.json"):
+            f.unlink(missing_ok=True)
+
+
+def partes_de(nombre):
+    """Frases de una pieza procesada con su inicio y fin (en segundos de esa pieza).
+    Si se grabó en partes, son las partes; si no, se separa por frases usando la transcripción."""
+    lineas = leer_subs(nombre)["lineas"]
+    palabras = [w for ln in lineas for w in ln["palabras"]]
+    firma = S.proc / f"{nombre}.partes.json"
+    try:
+        dur = json.loads(firma.read_text(encoding="utf-8")).get("duraciones")
+    except (FileNotFoundError, ValueError, AttributeError):
+        dur = None
+    tramos = []
+    if dur and len(dur) > 1:
+        t = 0.0
+        for d in dur:
+            tramos.append((t, t + d))
+            t += d
+    else:  # por frases: corta donde termina una oración
+        ini = 0.0
+        for k, w in enumerate(palabras):
+            if w["w"][-1:] in ".?!" or k == len(palabras) - 1:
+                fin = palabras[k + 1]["s"] if k + 1 < len(palabras) else (duracion(S.proc / f"{nombre}.mp4") if (S.proc / f"{nombre}.mp4").exists() else w["e"])
+                tramos.append((ini, fin))
+                ini = fin
+    out = []
+    for i, (a, b) in enumerate(tramos):
+        texto = " ".join(w["w"] for w in palabras if a - 0.05 <= w["s"] < b - 0.05)
+        out.append({"i": i, "ini": round(a, 2), "fin": round(b, 2), "texto": texto})
+    return out
+
+
+def estructura(codigo):
+    """Lo que necesita el editor de un video: sus piezas, las frases del cuerpo y las opciones para cambiarlas."""
+    c = next((x for x in combinaciones() if x["codigo"] == codigo), None)
+    if not c:
+        raise ValueError("Ese video no existe en esta sesión")
+    ps = piezas()
+
+    def bloque(nombre):
+        f = S.proc / f"{nombre}.mp4"
+        return {"nombre": nombre, "dur": round(duracion(f), 2) if f.exists() else None,
+                "texto": " ".join(l["texto"] for l in leer_subs(nombre)["lineas"])}
+
+    v = c.get("version") or {}
+    return {"codigo": codigo, "base": not c.get("version"), "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
+            "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
+            "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""),
+            "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
+
+
+def _rangos_a_quitar(combo, offs, total):
+    v = combo.get("version") or {}
+    rangos = []
+    if v.get("quitar"):
+        partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
+        rangos += [(offs[1] + partes[i]["ini"], offs[1] + partes[i]["fin"]) for i in v["quitar"] if i in partes]
+    if v.get("recorte_inicio"):
+        rangos.append((0.0, min(float(v["recorte_inicio"]), total - 1)))
+    if v.get("recorte_fin"):
+        rangos.append((max(0.0, total - float(v["recorte_fin"])), total))
+    return sorted(rangos)
+
+
+def _quitar_tramos(video, rangos):
+    """Saca del video ya armado los tramos indicados (frases quitadas, recortes); voz, música y subtítulos van juntos."""
+    expr = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in rangos)
+    tmp = video.with_name(video.stem + "_corto.mp4")
+    run([FFMPEG, "-hide_banner", "-y", "-i", str(video),
+         "-vf", f"select='not({expr})',setpts=N/FRAME_RATE/TB", "-af", f"aselect='not({expr})',asetpts=N/SR/TB",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(tmp)])
+    tmp.replace(video)
 
 
 def t_ass(t):
@@ -1196,6 +1315,10 @@ def armar_uno(combo, n_musica=0):
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
             "-movflags", "+faststart", str(salida)]
     run(cmd, cwd=trabajo)
+    rangos = _rangos_a_quitar(combo, offs, total)
+    if rangos:
+        _quitar_tramos(salida, rangos)
+        total = duracion(salida)
     hacer_portada(combo)
 
     receta = {**combo, "duracion": round(total, 2), "cortes": [round(o, 2) for o in offs[1:]],
@@ -1208,9 +1331,10 @@ def armar_uno(combo, n_musica=0):
     return receta
 
 
-def armar(pieza=None, avance=print):
+def armar(pieza=None, avance=print, codigos=None):
     hechos = []
-    todos = [c for c in combinaciones() if not pieza or pieza in (c["hook"], c["cuerpo"], c["cta"])]
+    todos = [c for c in combinaciones() if (not pieza or pieza in (c["hook"], c["cuerpo"], c["cta"]))
+             and (codigos is None or c["codigo"] in codigos)]
     for n, combo in enumerate(todos):
         avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)})")
         r = armar_uno(combo, n if CONFIG["musica"]["rotar_pistas"] else 0)
@@ -1281,12 +1405,14 @@ def calendario():
     return out
 
 
-def exportar(avance=print):
-    """Copia a listos/DIA_X: video, portada y copy.txt de cada publicación del calendario."""
+def exportar(avance=print, codigos=None):
+    """Copia a V.FINALES (listos): video, portada y copy.txt. Sin `codigos`, por días según el calendario (DIA_X);
+    con `codigos`, solo esos videos y directo en la carpeta de finales."""
     por_codigo = {c["codigo"]: c for c in combinaciones()}
     hechos = []
-    for dia, codigos in calendario().items():
-        destino = S.listos / dia
+    plan = {"": list(codigos)} if codigos else calendario()
+    for dia, codigos in plan.items():
+        destino = S.listos / dia if dia else S.listos
         destino.mkdir(parents=True, exist_ok=True)
         for cod in codigos:
             c = por_codigo.get(cod)

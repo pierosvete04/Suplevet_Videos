@@ -1,5 +1,7 @@
-Subtítulos, teleprompter y música:
-- Plantillas de subtítulos con fuentes (Montserrat, Poppins, Anton, Bebas Neue, Archivo Black, Lilita One) y resaltador de color Suplevet (caja celeste o naranja en la palabra que se dice o en las palabras clave). Pestaña "Plantillas": elige la predeterminada, duplica y edita con vista previa, y agrega tus propias fuentes .ttf.
-- Teleprompter (botón arriba): guion en orden de grabación, letra grande, modo espejo, desplazamiento automático y "Seguir mi voz" (en la PC). Para la tablet: Notas → "Activar acceso por WiFi" (con PIN).
-- Música genérica: prompts para Google Flow Music (o Suno) en Faltantes → Música.
-- Comandos para que Claude dirija la edición después de grabar (dossier y plan sobre las palabras reales).
+Drive por enlace, editor de cada video y trabajo en volumen:
+- Google Drive se conecta con el link de la carpeta (Ajustes y notas → Google Drive), sin Google Drive para escritorio. La sala baja la sesión que abres y sube sola lo que produce.
+- Cada video muestra su nombre (hook, tipo y título de portada).
+- Al abrir un video: su estructura (hook → frases del cuerpo → CTA). Puedes cambiar el hook, cuerpo o CTA, apagar frases para acortarlo y recortar inicio o final; se guarda como versión nueva sin tocar el original.
+- Casillas para seleccionar varios videos: «Armar seleccionados» y «Exportar seleccionados».
+- Mientras trabaja, una rueda en la esquina avisa qué está haciendo, sin mover la pantalla.
+- «Subir finales existentes»: trae al panel los videos que ya están en V.FINALES de Drive.
