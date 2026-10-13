@@ -26,7 +26,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"  # la misma versión con la que se probó el .exe en la PC del dueño
 
       - name: Instalar dependencias
         run: |
@@ -39,7 +39,8 @@ jobs:
           set -o pipefail
           pyinstaller lanzador.py --noconfirm --onedir --console --name SalaSuplevet             --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime             --collect-all tokenizers --collect-all av --collect-all huggingface_hub 2>&1 | tee pyinstaller.log || {
             # El registro de Actions no es público: el error se publica como anotación para poder leerlo.
-            tail -n 25 pyinstaller.log | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+            # GitHub solo muestra 10 anotaciones por paso: se publican las líneas con el error real.
+            grep -inE "error|failed|no module|exception" pyinstaller.log | grep -v "^.*Traceback" | tail -n 9 | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
             exit 1
           }
 
