@@ -61,8 +61,9 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $app = "dist/SalaSuplevet/app"
           New-Item -ItemType Directory -Force $app | Out-Null
-          Copy-Item *.py,app.html,config.json,VERSION,LANZADOR_MINIMO,LEEME_EDITOR.md -Destination $app
+          Copy-Item *.py,app.html,teleprompter.html,config.json,VERSION,LANZADOR_MINIMO,LEEME_EDITOR.md -Destination $app
           Copy-Item biblioteca -Destination $app -Recurse
+          Copy-Item fuentes -Destination $app -Recurse
           Remove-Item "$app/lanzador.py"
           Compress-Archive -Path "$app/*" -DestinationPath "app-$tag.zip"
           Compress-Archive -Path dist/SalaSuplevet -DestinationPath "SalaSuplevet-$tag.zip"

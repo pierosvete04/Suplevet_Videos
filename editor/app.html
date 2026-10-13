@@ -111,12 +111,30 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .soltar img, .soltar video { max-height: 140px; max-width: 100%; border-radius: 6px; }
 .soltar input { display: none; }
 
+.visor .sub.sublinea { -webkit-text-stroke: 0; text-shadow: none; text-transform: none; }
+.visor .sub.sublinea.normal { top: auto; bottom: 29%; transform: none; }
+.visor .sub.sublinea.arriba { top: 15.6%; transform: none; }
+/* Plantillas */
+.plant-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 14px; align-items: start; }
+.plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.plant { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 8px; display: grid; gap: 6px; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.plant[aria-pressed="true"] { outline: 2px solid var(--body); }
+.muestra { position: relative; aspect-ratio: 16/10; border-radius: 8px; overflow: hidden; background: #22313a center/cover; container-type: inline-size; }
+.sublinea { position: absolute; left: 2%; right: 2%; top: 50%; transform: translateY(-50%); display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: .3em; white-space: nowrap; }
+.sublinea span { position: relative; display: inline-block; flex-shrink: 0; line-height: 1.05; paint-order: stroke fill; }
+.sublinea span.caja { padding: .02em .16em; border-radius: .22em; }
+.form-plant { display: grid; gap: 8px; }
+.form-plant label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.form-plant .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.form-plant input[type=color] { height: 34px; padding: 2px; }
+
 /* Publicar */
 .dias { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .dia .mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; }
 .dia .mini div { aspect-ratio: 9/16; border-radius: 6px; background: #000 center/cover; position: relative; }
 .dia .mini span { position: absolute; bottom: 0; left: 0; right: 0; font: 700 9px var(--mono); color: #fff; background: rgba(0,0,0,.6); padding: 2px 3px; }
 
+@media (max-width: 900px) { .plant-layout { grid-template-columns: 1fr; } }
 @media (max-width: 1100px) {
   .piezas-layout { grid-template-columns: 170px minmax(0, 1fr); }
   .piezas-layout > :last-child { grid-column: 1 / -1; }
@@ -149,6 +167,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <div class="fila">
     <label class="muted" for="semana" style="font-size:12px">Sesión</label>
     <select id="semana"></select>
+    <a class="btn sec" href="/teleprompter" target="_blank" style="text-decoration:none">Teleprompter</a>
     <button class="btn" id="todo">Procesar y armar semana</button>
   </div>
   <div id="avisoVersion" hidden style="width:100%;display:none;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--body) 14%,var(--surface));border:1px solid var(--body)">
@@ -161,6 +180,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <button role="tab" data-tab="videos" aria-selected="true">Videos <span class="pill" id="nVideos"></span></button>
   <button role="tab" data-tab="piezas" aria-selected="false">Piezas y subtítulos</button>
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
+  <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
   <button role="tab" data-tab="publicar" aria-selected="false">Publicar</button>
   <button role="tab" data-tab="notas" aria-selected="false">Notas para Claude</button>
 </nav>
@@ -234,14 +254,57 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
       <div class="grid-assets" id="faltanPiezas"></div>
     </div>
     <div class="caja" style="margin-bottom:14px" id="cajaMusica">
-      <h2>Música de Suno</h2>
-      <p class="muted" style="margin:0 0 8px">Una pista por cuerpo; cambia solo donde el guion lo pide. En Suno: modo Custom, Instrumental activado, pega el estilo y el título. Descarga el MP3 y arrástralo a su cuadro.</p>
+      <h2>Música</h2>
+      <p class="muted" style="margin:0 0 8px">Una pista por cuerpo; cambia solo donde el guion lo pide. Genérala en Google Flow Music (o Suno) con el prompt, siempre instrumental. Descárgala y arrástrala a su cuadro: no hace falta renombrarla.</p>
       <div class="grid-assets" id="musicas"></div>
     </div>
     <div class="caja">
       <h2>Imágenes y clips de Google Flow</h2>
       <p class="muted" style="margin:0 0 8px">Copia el prompt, genéralo en Flow, descárgalo y arrástralo a su cuadro. No hace falta renombrarlo.</p>
       <div class="grid-assets" id="assets"></div>
+    </div>
+  </section>
+
+  <section data-panel="plantillas" hidden>
+    <div class="plant-layout">
+      <div class="caja">
+        <div class="fila" style="justify-content:space-between;margin-bottom:8px">
+          <div><h2 style="margin:0">Plantillas de subtítulos</h2>
+            <span class="muted" style="font-size:12px" id="plantInfo"></span></div>
+          <label class="btn sec peq" style="cursor:pointer">+ Agregar fuente (.ttf)<input type="file" id="subirFuente" accept=".ttf,.otf" hidden></label>
+        </div>
+        <div class="plant-lista" id="plantLista"></div>
+      </div>
+      <div class="caja">
+        <h2 id="plantTitulo" style="margin-bottom:6px">Plantilla</h2>
+        <div class="muestra" id="plantMuestra" style="aspect-ratio:9/12"><div class="sublinea" id="plantLinea"></div></div>
+        <div class="fila" style="margin:8px 0">
+          <button class="btn peq" id="plantPredet">Usar como predeterminada</button>
+          <button class="btn sec peq" id="plantDuplicar">Duplicar y editar</button>
+          <button class="btn sec peq" id="plantBorrar">Borrar</button>
+        </div>
+        <form class="form-plant" id="plantForm" onsubmit="return false">
+          <label>Nombre<input data-p="nombre"></label>
+          <label>Fuente<select data-p="fuente" id="plantFuente"></select></label>
+          <div class="dos"><label>Tamaño<input type="number" min="40" max="160" data-p="tamano"></label>
+            <label>Mayúsculas<select data-p="mayusculas"><option value="true">Sí</option><option value="false">No</option></select></label></div>
+          <div class="dos"><label>Color del texto<input type="color" data-p="color_texto"></label>
+            <label>Color del borde<input type="color" data-p="color_borde"></label></div>
+          <div class="dos"><label>Grosor del borde<input type="number" min="0" max="14" data-p="borde"></label>
+            <label>Sombra<input type="number" min="0" max="8" data-p="sombra"></label></div>
+          <div class="dos"><label>Palabra que se dice (color)<input type="color" data-p="color_activo"></label>
+            <label>Cuánto crece (%)<input type="number" min="100" max="130" data-p="escala_activa"></label></div>
+          <label>Resaltador (caja de color)<select data-p="resaltador.modo">
+            <option value="">Sin caja</option><option value="activa">En la palabra que se dice</option>
+            <option value="clave">Solo en palabras clave</option><option value="ambas">Las dos</option></select></label>
+          <div class="dos"><label>Color de la caja<input type="color" data-p="resaltador.color"></label>
+            <label>Texto dentro de la caja<input type="color" data-p="resaltador.texto"></label></div>
+          <div class="dos"><label>Redondeo<input type="number" step="0.02" min="0" max="0.5" data-p="resaltador.radio"></label>
+            <label>Palabras clave sin caja (color)<input type="color" data-p="color_resaltado"></label></div>
+          <p class="muted" style="font-size:12px;margin:0" id="plantAviso"></p>
+          <button class="btn" id="plantGuardar">Guardar plantilla</button>
+        </form>
+      </div>
     </div>
   </section>
 
@@ -260,6 +323,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   </section>
 
   <section data-panel="notas" hidden>
+    <div class="caja" style="margin-bottom:14px">
+      <h2>Teleprompter en la tablet</h2>
+      <p class="muted" style="margin:0 0 8px">Con la tablet en el mismo WiFi que esta PC. Desde la red solo se abre el teleprompter, con PIN; el resto de la sala sigue cerrado.</p>
+      <div class="fila"><button class="btn sec" id="redBoton"></button><span id="redInfo" class="muted"></span></div>
+    </div>
     <div class="caja">
       <h2>Notas para Claude</h2>
       <p class="muted" style="margin:0 0 6px">Cambios que no son de subtítulos ni marcas: música, efectos, estilo… Claude los lee desde <code>correcciones.md</code>.</p>
@@ -311,11 +379,13 @@ const post = async (url, body, raw) => {
 
 async function cargar() {
   E = await (await fetch("/api/estado")).json();
+  cargarFuentesCSS();
   $("prefijo").textContent = `· ${E.semana}`;
   document.title = `Sala de Edición Suplevet v${E.version}`;
   $("carpeta").textContent = E.carpeta;
   $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva sesión…</option>`;
   $("notas").value = E.notas;
+  pintarRed();
   $("rutaListos").textContent = E.listos;
   $("subirPanel").hidden = !E.panel;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas[0]?.nombre;
@@ -501,9 +571,13 @@ function vivo() {
     if (m.sub === "resaltado") res2.add(pos.wi);
   });
   if (!estilo) estilo = broll?.a && broll.m.modo !== "ventana" ? "sobre_imagen" : "normal";
-  if (solas.has(wi)) { sub.className = "sub palabra_sola"; sub.innerHTML = `<span class="act">${esc(l.palabras[wi].w)}</span>`; return; }
-  sub.className = "sub " + estilo;
-  sub.innerHTML = l.palabras.map((w, i) => `<span class="${i === wi ? "act" : res2.has(i) ? "res" : ""}">${esc(w.w)}</span>`).join(" ");
+  const pl = E.plantillas[E.plantilla];
+  const ancho = $("visor").clientWidth || 300;
+  const claves = new Set(l.palabras.map((w, i) => (res2.has(i) || (E.claves || []).includes(norm(w.w))) ? i : -1).filter(i => i >= 0));
+  if (solas.has(wi)) { sub.className = "sub palabra_sola sublinea"; pintarLinea(sub, [l.palabras[wi].w], 0, new Set(), { ...pl, tamano: pl.tamano * 2 }, ancho); return; }
+  sub.className = "sub sublinea " + estilo;
+  const escala = { centro_grande: 1.35, sobre_imagen: 1.2 }[estilo] || 1;
+  pintarLinea(sub, l.palabras.map(w => w.w), wi, claves, { ...pl, tamano: pl.tamano * escala }, ancho);
 }
 function bucle() { vivo(); if (!$("vPieza").paused) requestAnimationFrame(bucle); }
 
@@ -556,18 +630,17 @@ function pintarMusica() {
   const lista = E.checklist.musica || [];
   $("cajaMusica").hidden = !lista.length;
   $("musicas").innerHTML = lista.map(m => {
-    const su = m.suno || {};
+    const pr = m.prompt || m.suno || {};
+    const campos = Object.entries(pr).filter(([k, v]) => typeof v === "string" && !["herramienta", "modo"].includes(k));
     return `<div class="caja asset">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(m.id)}</code></h3>
         <span class="pill ${m.listo ? "ok" : "warn"}">${m.listo ? "lista" : "falta"}</span></div>
-      <span class="muted" style="font-size:12px">${esc(m.uso || "")}</span>
-      <pre>${esc(JSON.stringify(su, null, 2))}</pre>
-      <div class="fila"><button class="btn sec peq" data-copiar="${esc(su.estilo || "")}">Copiar estilo</button>
-        <button class="btn sec peq" data-copiar="${esc(su.excluir || "")}">Copiar excluir</button>
-        <button class="btn sec peq" data-copiar="${esc(su.titulo || m.id)}">Copiar título</button></div>
+      <span class="muted" style="font-size:12px">${esc(pr.herramienta || (m.suno ? "Suno" : "Google Flow Music"))} · ${esc(m.uso || "")}</span>
+      <pre>${esc(JSON.stringify(pr, null, 2))}</pre>
+      <div class="fila">${campos.map(([k, v]) => `<button class="btn sec peq" data-copiar="${esc(v)}">Copiar ${esc(k.replace("_", " "))}</button>`).join("")}</div>
       ${m.url ? `<audio controls preload="none" src="${m.url}" style="width:100%"></audio>` : ""}
       <label class="soltar" data-destino="musica" data-nombre="${esc(m.id)}">
-        <span>${m.listo ? "Lista · arrastra otra para reemplazar" : "Arrastra aquí el MP3 de Suno"}</span>
+        <span>${m.listo ? "Lista · arrastra otra para reemplazar" : "Arrastra aquí el audio descargado"}</span>
         <input type="file" accept="audio/*"></label></div>`;
   }).join("");
 }
@@ -647,6 +720,7 @@ document.addEventListener("click", e => {
   if (tab) {
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
+    if (tab.dataset.tab === "plantillas") pintarPlantillas();
     return;
   }
   const card = e.target.closest("[data-cod]");
@@ -677,6 +751,10 @@ document.addEventListener("click", e => {
   }
   const cp = e.target.closest("[data-copiar]");
   if (cp) { navigator.clipboard.writeText(cp.dataset.copiar); avisar("Copiado.", "ok"); }
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-plant]");
+  if (b) elegirPlantilla(b.dataset.plant);
 });
 document.addEventListener("keydown", e => {
   if ((e.key === "Enter" || e.key === " ") && e.target.matches(".mini [data-cod]")) { e.preventDefault(); abrirVideo(e.target.dataset.cod); }
@@ -712,6 +790,21 @@ $("guardar").onclick = () => guardar(false);
 $("guardarArmar").onclick = () => guardar(true);
 $("todo").onclick = () => trabajo("todo");
 $("exportar").onclick = () => trabajo("exportar");
+$("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMuestra(); });
+$("plantPredet").onclick = async () => { try { await guardarPlantilla(plantSel, null, true); avisar("Plantilla predeterminada guardada. Re-arma los videos para aplicarla.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantDuplicar").onclick = async () => {
+  const nombre = prompt("Nombre de la nueva plantilla:", (E.plantillas[plantSel].nombre || plantSel) + " (mía)");
+  if (!nombre) return;
+  const id = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
+  try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(E.plantillas[plantSel])), nombre, descripcion: "Plantilla propia" }); avisar("Plantilla creada: edítala a la derecha.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
+};
+$("plantGuardar").onclick = async () => { leerFormPlantilla(); try { await guardarPlantilla(plantSel, plantEdit); avisar("Plantilla guardada.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantBorrar").onclick = async () => { if (!confirm("¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); plantSel = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("subirFuente").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}`, f, true); avisar(`Fuente ${f.name} agregada.`, "ok"); await cargar(); pintarPlantillas(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+};
 $("escuchar").onclick = () => trabajo("escuchar");
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
@@ -746,7 +839,93 @@ $("semana").onchange = async e => {
   if (s === "__nueva") { s = prompt("Nombre de la sesión (día y mes de grabación):", new Date().toLocaleDateString("es-PE", { day: "numeric", month: "numeric" }).replace("/", " ") + " SESIÓN"); if (!s) return cargar(); }
   try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
 };
+function pintarRed() {
+  const r = E.red || {};
+  $("redBoton").textContent = r.activa ? "Desactivar acceso por WiFi" : "Activar acceso por WiFi";
+  $("redInfo").innerHTML = r.activa ? `En la tablet abre <b>${esc(r.url)}</b> · PIN <b>${esc(r.pin)}</b>` : "Desactivado.";
+}
+$("redBoton").onclick = async () => {
+  try { const r = await post("/api/red", { activa: !(E.red || {}).activa }); E.red = r; pintarRed();
+    avisar("Listo. Cierra y vuelve a abrir la sala para aplicarlo (si Windows pregunta por el firewall, permite «Redes privadas»).", "ok"); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+};
 $("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
+// ---------- Plantillas de subtítulos ----------
+let plantSel = null, plantEdit = null, plantTimer = null;
+const MUESTRA = ["LA", "RECUPERACIÓN", "PASA", "EN", "CASA"];
+const CLAVES_MUESTRA = new Set([1]);
+function cargarFuentesCSS() {
+  let st = document.getElementById("ffaces");
+  if (!st) { st = document.createElement("style"); st.id = "ffaces"; document.head.appendChild(st); }
+  st.textContent = (E.fuentes || []).map(f => `@font-face{font-family:"F_${f.archivo}";src:url("/fuentes/${encodeURIComponent(f.archivo)}");font-display:block}`).join("\n");
+}
+// Dibuja una línea de subtítulo con la plantilla, en un contenedor de ancho `ancho` px (1080 = video completo)
+function pintarLinea(el, palabras, activa, claves, pl, ancho) {
+  const k = ancho / 1080, res = pl.resaltador || {}, modo = res.modo || "";
+  el.style.fontFamily = `"F_${pl.fuente}", "Arial Black", sans-serif`;
+  el.style.fontSize = (pl.tamano * k) + "px";
+  el.innerHTML = palabras.map((w, j) => {
+    const caja = (modo === "activa" || modo === "ambas") && j === activa || (modo === "clave" || modo === "ambas") && claves.has(j);
+    const color = caja ? res.texto : j === activa ? pl.color_activo : claves.has(j) ? (pl.color_resaltado || "#99D3DA") : pl.color_texto;
+    const escala = j === activa ? (pl.escala_activa || 108) / 100 : 1;
+    const borde = caja ? 0 : (pl.borde || 0) * k * 2;
+    const sombra = caja || !pl.sombra ? "none" : `0 ${pl.sombra * k}px ${pl.sombra * k}px rgba(0,0,0,.6)`;
+    return `<span class="${caja ? "caja" : ""}" style="color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio || .22)}em` : ""}">${esc(pl.mayusculas === false ? w.toLowerCase() : w)}</span>`;
+  }).join("");
+  // igual que en el video: si la línea no entra, se achica entera
+  const disponible = el.clientWidth;
+  if (disponible && el.scrollWidth > disponible) el.style.fontSize = (pl.tamano * k * disponible / el.scrollWidth) + "px";
+}
+function pintarPlantillas() {
+  cargarFuentesCSS();
+  const ids = Object.keys(E.plantillas);
+  if (!plantSel || !E.plantillas[plantSel]) plantSel = E.plantilla;
+  $("plantInfo").textContent = E.plantilla_del_guion ? `Esta sesión usa «${E.plantillas[E.plantilla_del_guion]?.nombre}» porque lo pide su guion.` : `Predeterminada: ${E.plantillas[E.plantilla_predeterminada]?.nombre || E.plantillas[E.plantilla]?.nombre}`;
+  const fondo = E.fondo;
+  $("plantLista").innerHTML = ids.map(id => { const pl = E.plantillas[id]; return `<button class="plant" data-plant="${id}" aria-pressed="${id === plantSel}">
+      <div class="muestra" style="${fondo ? `background-image:url('${fondo}')` : ""}"><div class="sublinea" data-linea="${id}"></div></div>
+      <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">predeterminada</span>' : ""} ${E.propias.includes(id) ? '<span class="pill">propia</span>' : ""}</b>
+      <span class="muted" style="font-size:11px">${esc(pl.descripcion || "")}</span></button>`; }).join("");
+  ids.forEach(id => { const el = document.querySelector(`[data-linea="${id}"]`); pintarLinea(el, ["LA", "RECUPERACIÓN", "PASA"], 1, new Set([1]), E.plantillas[id], el.parentElement.clientWidth || 200); });
+  $("plantFuente").innerHTML = E.fuentes.map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}${f.propia ? " (propia)" : ""}</option>`).join("");
+  if ($("plantMuestra").style.backgroundImage === "" && fondo) $("plantMuestra").style.backgroundImage = `url('${fondo}')`;
+  elegirPlantilla(plantSel);
+}
+function elegirPlantilla(id) {
+  plantSel = id; plantEdit = JSON.parse(JSON.stringify(E.plantillas[id]));
+  document.querySelectorAll(".plant").forEach(b => b.setAttribute("aria-pressed", b.dataset.plant === id));
+  const fabrica = !E.propias.includes(id);
+  $("plantTitulo").textContent = plantEdit.nombre || id;
+  document.querySelectorAll("#plantForm [data-p]").forEach(el => {
+    const [a, b] = el.dataset.p.split(".");
+    const v = b ? (plantEdit[a] || {})[b] : plantEdit[a];
+    el.value = v === undefined || v === null ? (el.type === "color" ? "#000000" : "") : String(v);
+    el.disabled = fabrica;
+  });
+  $("plantGuardar").hidden = fabrica; $("plantBorrar").hidden = fabrica;
+  $("plantAviso").textContent = fabrica ? "Plantilla de fábrica: para cambiarla, «Duplicar y editar»." : "";
+  animarMuestra();
+}
+function leerFormPlantilla() {
+  document.querySelectorAll("#plantForm [data-p]").forEach(el => {
+    const [a, b] = el.dataset.p.split(".");
+    let v = el.value;
+    if (el.type === "number") v = Number(v);
+    if (a === "mayusculas") v = v === "true";
+    if (b) { plantEdit[a] = plantEdit[a] || {}; plantEdit[a][b] = v; } else plantEdit[a] = v;
+  });
+}
+function animarMuestra() {
+  clearInterval(plantTimer);
+  let i = 0;
+  const pintar = () => { const el = $("plantLinea"); pintarLinea(el, MUESTRA.slice(0, 3), i % 3, CLAVES_MUESTRA, plantEdit, $("plantMuestra").clientWidth || 300); i++; };
+  pintar(); plantTimer = setInterval(pintar, 650);
+}
+async function guardarPlantilla(id, datos, predeterminada) {
+  await post("/api/plantilla", { id, datos, predeterminada });
+  await cargar(); plantSel = id; pintarPlantillas();
+}
+
 // ---------- Actualizaciones ----------
 let infoVersion = null;
 async function revisarVersion() {

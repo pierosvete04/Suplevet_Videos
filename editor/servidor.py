@@ -18,6 +18,24 @@ import motor
 import panel
 
 PUERTO = 8765
+# Desde otra PC o la tablet (por WiFi) solo se puede abrir el teleprompter, y con PIN.
+ABIERTO_A_LA_RED = {"/teleprompter", "/api/teleprompter", "/entrar"}
+
+
+def ip_local():
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+
+
+def red():
+    r = motor.CONFIG.get("red_local", {})
+    return {"activa": bool(r.get("activa")), "pin": r.get("pin", ""),
+            "url": f"http://{ip_local()}:{PUERTO}/teleprompter" if r.get("activa") else None}
 TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "fin": None, "log": []}
 candado = threading.Lock()
 
@@ -71,7 +89,22 @@ def estado():
         f = motor.buscar_musica(m["id"])
         m["url"] = url_media(f) if f else None
     musica_ids = [m["id"] for m in checklist["musica"]]
-    return {"version": motor.VERSION, "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
+    import fuentes
+    fondo = S.proc / "_fondo.jpg"  # un cuadro limpio (sin portada) para previsualizar plantillas
+    if not fondo.exists():
+        base = next((S.proc / f"{p['nombre']}.mp4" for p in motor.piezas() if (S.proc / f"{p['nombre']}.mp4").exists()), None)
+        if base:
+            try:
+                motor.run([motor.FFMPEG, "-hide_banner", "-y", "-ss", "1", "-i", str(base), "-frames:v", "1",
+                           "-vf", "scale=540:-2", "-q:v", "4", str(fondo)])
+            except Exception:
+                pass
+    return {"version": motor.VERSION, "red": red(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
+            "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
+            "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
+            "propias": list(motor.CONFIG.get("plantillas_propias", {})),
+            "claves": [motor.norm(x) for x in motor.CONFIG["palabras_clave"]],
+            "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
             "calendario": motor.calendario(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
@@ -141,9 +174,45 @@ class H(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(n) or b"{}")
 
+    def _local(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
+    def _pin_ok(self):
+        from http.cookies import SimpleCookie
+        c = SimpleCookie(self.headers.get("Cookie") or "")
+        pin = red()["pin"]
+        return bool(pin) and "sala_pin" in c and c["sala_pin"].value == pin
+
+    def _permitido(self, ruta):
+        if self._local():
+            return True
+        if ruta not in ABIERTO_A_LA_RED:
+            self.send_error(403)
+            return False
+        if ruta == "/api/teleprompter" and not self._pin_ok():
+            self._json({"error": "PIN"}, 401)
+            return False
+        return True
+
     def do_GET(self):
         u = urlparse(self.path)
-        if u.path == "/":
+        if not self._permitido(u.path):
+            return
+        if u.path == "/teleprompter":
+            b = (motor.RAIZ / "teleprompter.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(b)))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(b)
+        elif u.path == "/api/teleprompter":
+            q = parse_qs(u.query)
+            sesion = (q.get("sesion") or [motor.S.semana])[0]
+            if sesion not in motor.semanas_disponibles():
+                sesion = motor.S.semana
+            self._json({"sesion": sesion, "sesiones": motor.semanas_disponibles(), "piezas": motor.guion_para_grabar(sesion)})
+        elif u.path == "/":
             b = (motor.RAIZ / "app.html").read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -159,6 +228,9 @@ class H(BaseHTTPRequestHandler):
             self._json(actualizador.revisar(forzar="forzar" in u.query))
         elif u.path.startswith("/media/"):
             self._archivo(motor.DATOS, unquote(u.path[len("/media/"):]))
+        elif u.path.startswith("/fuentes/"):
+            import fuentes
+            self._archivo(fuentes.ruta(unquote(u.path[len("/fuentes/"):])).parent, unquote(u.path[len("/fuentes/"):]))
         elif u.path.startswith("/grab/"):
             self._archivo(motor.S.grab, unquote(u.path[len("/grab/"):]))
         else:
@@ -226,7 +298,28 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         q = parse_qs(u.query)
+        if not self._permitido(u.path):
+            return
         try:
+            if u.path == "/entrar":
+                pin = str(self._cuerpo().get("pin", ""))
+                if not red()["pin"] or pin != red()["pin"]:
+                    time.sleep(1)  # frena intentos a ciegas
+                    return self._json({"ok": False}, 403)
+                b = b'{"ok": true}'
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Set-Cookie", f"sala_pin={pin}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000")
+                self.send_header("Content-Length", str(len(b)))
+                self.end_headers()
+                self.wfile.write(b)
+                return
+            if u.path == "/api/red":
+                activa = bool(self._cuerpo().get("activa"))
+                import secrets
+                actual = motor.CONFIG.get("red_local", {})
+                motor.guardar_config({"red_local": {"activa": activa, "pin": actual.get("pin") or f"{secrets.randbelow(9000) + 1000}"}})
+                return self._json({"ok": True, **red(), "reiniciar": True})
             if u.path == "/api/subir":
                 self._json({"ok": True, "archivo": self._subir(q)})
             elif u.path == "/api/semana":
@@ -243,6 +336,36 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/subtitulos":
                 motor.guardar_lineas_editadas(q["pieza"][0], self._cuerpo()["lineas"])
                 self._json({"ok": True})
+            elif u.path == "/api/plantilla":
+                b = self._cuerpo()
+                pid = b["id"]
+                if not re.fullmatch(r"[a-z0-9_]{1,40}", pid):
+                    raise ValueError("Id de plantilla no válido")
+                if b.get("borrar"):
+                    propias = {k: v for k, v in motor.CONFIG.get("plantillas_propias", {}).items() if k != pid}
+                    motor.guardar_config({"plantillas_propias": propias})
+                if b.get("datos"):
+                    if pid in motor.CONFIG.get("plantillas_sub", {}):
+                        raise ValueError("Las plantillas de fábrica no se editan: duplícala y edita la copia")
+                    motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: b["datos"]}})
+                if b.get("predeterminada"):
+                    motor.guardar_config({"plantilla_activa": pid})
+                self._json({"ok": True})
+            elif u.path == "/api/fuente":
+                import fuentes
+                nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])
+                if not nombre.lower().endswith((".ttf", ".otf")):
+                    raise ValueError("Sube un archivo .ttf u .otf")
+                fuentes.PROPIAS.mkdir(parents=True, exist_ok=True)
+                destino = fuentes.PROPIAS / nombre
+                destino.write_bytes(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+                try:
+                    fuentes.Fuente(destino)
+                except Exception:
+                    destino.unlink()
+                    raise ValueError("Ese archivo no es una fuente que la sala pueda leer")
+                fuentes.cargar.cache_clear()
+                self._json({"ok": True, "archivo": nombre})
             elif u.path == "/api/asignar":
                 b = self._cuerpo()
                 motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
@@ -280,5 +403,8 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print(f"Sala de edición en http://localhost:{PUERTO}  (semana {motor.S.semana})")
-    ThreadingHTTPServer(("127.0.0.1", PUERTO), H).serve_forever()
+    host = "0.0.0.0" if red()["activa"] else "127.0.0.1"
+    print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})")
+    if red()["activa"]:
+        print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")
+    ThreadingHTTPServer((host, PUERTO), H).serve_forever()

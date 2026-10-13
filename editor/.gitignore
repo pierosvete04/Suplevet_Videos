@@ -4,6 +4,8 @@
 !/.gitignore
 !/*.py
 !/app.html
+!/teleprompter.html
+!/fuentes/
 !/config.json
 !/VERSION
 !/LANZADOR_MINIMO

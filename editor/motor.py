@@ -178,8 +178,34 @@ def produccion():
             m = f.stat().st_mtime
             if not _prod_cache or _prod_cache[0] != (f, m):
                 _prod_cache = ((f, m), json.loads(f.read_text(encoding="utf-8")))
-            return _prod_cache[1]
-    return {}
+            return _sumar_plan(_prod_cache[1])
+    return _sumar_plan({})
+
+
+def _sumar_plan(base):
+    """El plan del director (subtitulos/<sesión>/_plan.json) manda sobre el guion: música, videos y piezas."""
+    plan = plan_director()
+    if not plan:
+        return base
+    out = {**base}
+    for k in ("musica", "musica_por_defecto", "plantilla_sub", "calendario"):
+        if k in plan:
+            out[k] = plan[k]
+    for k in ("videos", "piezas"):
+        if k in plan:
+            out[k] = {**base.get(k, {}), **{n: {**base.get(k, {}).get(n, {}), **v} for n, v in plan[k].items()}}
+    return out
+
+
+def _plan_path():
+    return S.subs / "_plan.json"
+
+
+def plan_director():
+    try:
+        return json.loads(_plan_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
 
 
 def info_pieza(nombre):
@@ -478,6 +504,83 @@ def aceptar_sugerencias(minimo=0.5):
     return hechas
 
 
+# ---------- Director: comparar lo grabado con el guion y aplicar el plan ----------
+
+def dossier():
+    """Todo lo que Claude necesita para dirigir la edición de una sesión: por pieza, el texto del guion,
+    lo que realmente se dijo (con el segundo de cada palabra), las diferencias y las marcas actuales."""
+    import difflib
+    prod = produccion()
+    out = {"sesion": S.semana, "plantilla_sub": id_plantilla(), "palabras_clave": CONFIG["palabras_clave"],
+           "categorias_sfx": sorted(set(CONFIG.get("sfx_mapa", {}))), "musica": prod.get("musica", []), "piezas": {}}
+    for p in piezas():
+        d = leer_subs(p["nombre"])
+        palabras = [{"w": w["w"], "s": w["s"], "e": w["e"]} for ln in d["lineas"] for w in ln["palabras"]]
+        dicho = " ".join(w["w"] for w in palabras)
+        guion = info_pieza(p["nombre"]).get("texto", "")
+        a = [norm(x) for x in guion.split() if norm(x)]
+        b = [norm(w["w"]) for w in palabras if norm(w["w"])]
+        cambios = []
+        for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+            if op != "equal":
+                cambios.append({"tipo": {"replace": "cambió", "delete": "no se dijo", "insert": "se agregó"}[op],
+                                "guion": " ".join(guion.split()[i1:i2]) if a else "", "dicho": " ".join(w for w in b[j1:j2])})
+        proc = S.proc / f"{p['nombre']}.mp4"
+        out["piezas"][p["nombre"]] = {
+            "tipo": p["tipo"], "tipo_hook": info_pieza(p["nombre"]).get("tipo"), "partes": len(p["partes"]),
+            "duracion": round(duracion(proc), 2) if proc.exists() else None,
+            "guion": guion, "dicho": dicho, "parecido": round(difflib.SequenceMatcher(None, a, b).ratio(), 2) if a and b else None,
+            "cambios": cambios, "palabras": palabras, "marcas": marcas_de(p["nombre"]),
+            "musica": info_pieza(p["nombre"]).get("musica")}
+    return out
+
+
+def aplicar_plan(plan):
+    """Guarda el plan del director: marcas por pieza (en sus subtítulos) y música/videos/plantilla (en _plan.json).
+    Devuelve las marcas cuya palabra no aparece en lo dicho, para corregirlas."""
+    perdidas = []
+    for nombre, info in plan.get("piezas", {}).items():
+        if "marcas" in info:
+            lineas = leer_subs(nombre)["lineas"]
+            for m in info["marcas"]:
+                if ubicar(lineas, m.get("palabra", ""), m.get("n", 1)) is None:
+                    perdidas.append(f"{nombre}: «{m.get('palabra')}»")
+            guardar_marcas(nombre, info["marcas"])
+    resto = {k: v for k, v in plan.items() if k != "piezas"}
+    resto["piezas"] = {n: {k: v for k, v in i.items() if k != "marcas"} for n, i in plan.get("piezas", {}).items()}
+    resto["piezas"] = {n: i for n, i in resto["piezas"].items() if i}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _plan_path().write_text(json.dumps(resto, ensure_ascii=False, indent=1), encoding="utf-8")
+    global _prod_cache
+    _prod_cache = None
+    return perdidas
+
+
+# ---------- Teleprompter ----------
+
+def guion_para_grabar(semana=None):
+    """Piezas del guion de una sesión en el orden de la hoja de grabación: cuerpos (por frases), hooks, CTAs."""
+    global S, _prod_cache
+    anterior, cache = S, _prod_cache
+    if semana and semana != S.semana:
+        S, _prod_cache = Rutas(semana), None
+    try:
+        prod = produccion()
+    finally:
+        S, _prod_cache = anterior, cache
+    out = []
+    for nombre, info in prod.get("piezas", {}).items():
+        texto = info.get("texto", "")
+        if not texto:
+            continue
+        tipo = tipo_de(nombre) if info.get("tipo") not in ("cuerpo",) else "cuerpo"
+        partes = info.get("partes") or (re.split(r"(?<=[.!?])\s+", texto.strip()) if tipo == "cuerpo" else [texto])
+        out.append({"nombre": nombre, "tipo": tipo, "tipo_hook": info.get("tipo") if tipo == "hook" else None,
+                    "texto": texto, "partes": [x for x in partes if x.strip()]})
+    orden = {"cuerpo": 0, "hook": 1, "cta": 2}
+    return sorted(out, key=lambda x: (orden[x["tipo"]], x["nombre"]))
+
+
 def leer_subs(pieza):
     f = S.subs / f"{pieza}.json"
     return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {"pieza": pieza, "lineas": []}
@@ -584,31 +687,81 @@ def limpiar(w):
     return w.replace("{", "").replace("}", "").replace("\\", "")
 
 
-def cabecera_ass():
-    st = CONFIG["subtitulos"]
-    f, t = st["fuente"], st["tamano"]
-    estilo = "{n},{f},{t},&H00FFFFFF&,&H00FFFFFF&,&H00000000&,&H64000000&,-1,0,0,0,100,100,0,0,1,{o},{sh},{al},90,90,{mv},1"
+ESTILOS_SUB = ["normal", "centro_grande", "arriba", "palabra_sola", "resaltado"]
+ESCALA_ESTILO = {"normal": 1.0, "arriba": 1.0, "centro_grande": 1.35, "sobre_imagen": 1.2, "palabra_sola": 2.0}
+
+
+def carpeta_trabajo():
+    """Carpeta temporal de armado, con las fuentes al lado (ffmpeg no acepta bien rutas con espacios y ':')."""
+    trabajo = DATOS / "_trabajo"
+    (trabajo / "fuentes").mkdir(parents=True, exist_ok=True)
+    import fuentes
+    for f in [*(RAIZ / "fuentes").glob("*.ttf"), *fuentes.PROPIAS.glob("*.[ot]tf")]:
+        d = trabajo / "fuentes" / f.name
+        if not d.exists() or d.stat().st_size != f.stat().st_size:
+            shutil.copy2(f, d)
+    return trabajo
+
+
+def plantillas():
+    """Las plantillas que trae la sala + las que creó el equipo (config.local → plantillas_propias)."""
+    return {**CONFIG.get("plantillas_sub", {}), **CONFIG.get("plantillas_propias", {})}
+
+
+def id_plantilla():
+    """La del guion de la sesión manda; si no, la predeterminada de esta PC; si no, la de config.json."""
+    todas = plantillas()
+    for pid in (produccion().get("plantilla_sub"), CONFIG.get("plantilla_activa"), CONFIG["subtitulos"].get("plantilla")):
+        if pid in todas:
+            return pid
+    return next(iter(todas))
+
+
+def plantilla_sub():
+    """Plantilla de subtítulos activa (fuente, colores, resaltador)."""
+    return plantillas()[id_plantilla()]
+
+
+def _caja(w, h, r):
+    """Rectángulo redondeado en dibujo ASS (origen arriba a la izquierda)."""
+    r = max(0, min(r, h / 2, w / 2))
+    k = r * 0.45
+
+    def q(v):
+        return f"{v:.0f}"
+    return (f"m {q(r)} 0 l {q(w - r)} 0 b {q(w - k)} 0 {q(w)} {q(k)} {q(w)} {q(r)} l {q(w)} {q(h - r)} "
+            f"b {q(w)} {q(h - k)} {q(w - k)} {q(h)} {q(w - r)} {q(h)} l {q(r)} {q(h)} b {q(k)} {q(h)} 0 {q(h - k)} 0 {q(h - r)} "
+            f"l 0 {q(r)} b 0 {q(k)} {q(k)} 0 {q(r)} 0")
+
+
+def cabecera_ass(fuente_nombre, pl):
     return "\n".join([
-        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 0", "",
+        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 2",
+        "ScaledBorderAndShadow: yes", "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        "Style: " + estilo.format(n="normal", f=f, t=t, o=7, sh=3, al=2, mv=st["altura_desde_abajo"]),
-        "Style: " + estilo.format(n="centro_grande", f=f, t=int(t * 1.35), o=8, sh=3, al=5, mv=0),
-        "Style: " + estilo.format(n="arriba", f=f, t=t, o=7, sh=3, al=8, mv=st.get("altura_desde_arriba", 300)),
-        "Style: " + estilo.format(n="sobre_imagen", f=f, t=int(t * 1.2), o=10, sh=5, al=5, mv=0),
-        "Style: " + estilo.format(n="palabra_sola", f=f, t=int(t * 2.0), o=11, sh=4, al=5, mv=0),
+        f"Style: W,{fuente_nombre},{pl['tamano']},{color_ass(pl['color_texto'])},&H00FFFFFF&,{color_ass(pl['color_borde'])},"
+        f"&H80000000&,0,0,0,0,100,100,0,0,1,{pl['borde']},{pl['sombra']},5,0,0,0,1",
+        "Style: Caja,Arial,20,&H00FFFFFF&,&H00FFFFFF&,&H00000000&,&H00000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", ""])
 
 
-ESTILOS_SUB = ["normal", "centro_grande", "arriba", "palabra_sola", "resaltado"]
-
-
 def escribir_ass(segmentos, ruta, tapas=()):
-    """segmentos: [(offset, lineas, marcas_resueltas)]. tapas: [(ini, fin)] donde hay imagen a pantalla completa."""
+    """segmentos: [(offset, lineas, marcas_resueltas)]. tapas: [(ini, fin)] donde hay imagen a pantalla completa.
+
+    Cada palabra se ubica a mano (con el ancho real de la fuente) para poder poner el resaltador
+    —una caja del color de la marca— detrás de la palabra clave o de la que se está diciendo."""
+    import fuentes
     st = CONFIG["subtitulos"]
-    activo, resalte = color_ass(st["color_activo"]), color_ass(st.get("color_resaltado", "#4DE1FF"))
+    pl = plantilla_sub()
+    fu = fuentes.cargar(pl["fuente"])
+    res = pl.get("resaltador") or {}
+    modo = res.get("modo", "")  # "clave", "activa", "ambas" o "" (sin caja)
+    c_activo, c_texto = color_ass(pl["color_activo"]), color_ass(pl["color_texto"])
+    c_marca = color_ass(pl.get("color_resaltado", st.get("color_resaltado", "#4DE1FF")))
     ev = []
+
     todas = []
     for off, lineas, marcas in segmentos:
         estilo_linea, solas, resaltadas = {}, set(), set()
@@ -622,6 +775,43 @@ def escribir_ass(segmentos, ruta, tapas=()):
                 resaltadas.add((m["linea"], m["indice"]))
         for li, ln in enumerate(lineas):
             todas.append((off, li, ln, estilo_linea.get(li), solas, resaltadas))
+
+    def poner_linea(palabras, activa, estilo, ini, fin, cajas, coloreadas, pop):
+        tam = pl["tamano"] * ESCALA_ESTILO[estilo]
+        textos = [limpiar(w.upper() if pl.get("mayusculas", True) else w) for w in palabras]
+        esp = fu.ancho(" ", tam) * 1.1
+        # la palabra activa se ve más grande: se le reserva ese espacio para que no pise a sus vecinas
+        crece = [(pl.get("escala_activa", 108) / 100 if j == activa else 1.0) for j in range(len(textos))]
+        anchos = [fu.ancho(t, tam) * c for t, c in zip(textos, crece)]
+        total = sum(anchos) + esp * (len(textos) - 1)
+        if total > 960:  # no entra: se achica la línea entera
+            f = 960 / total
+            tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], 960
+        y = {"normal": 1920 - st["altura_desde_abajo"] - tam / 2,
+             "arriba": st.get("altura_desde_arriba", 300) + tam / 2}.get(estilo, 960)
+        x = 540 - total / 2
+        a, b = t_ass(ini), t_ass(fin)
+        for j, (t, w) in enumerate(zip(textos, anchos)):
+            cx = x + w / 2
+            if j in cajas:
+                px, alto = tam * res.get("margen", 0.16), tam * res.get("alto", 0.95) * crece[j]
+                fade = "\\fad(60,0)" if j == activa and pop else ""
+                ev.append(f"Dialogue: 1,{a},{b},Caja,,0,0,0,,{{\\pos({x - px:.0f},{y - alto / 2:.0f})\\p1"
+                          f"\\1c{color_ass(res['color'])}\\1a&H{res.get('transparencia', '00')}&{fade}}}"
+                          f"{_caja(w + 2 * px, alto, tam * res.get('radio', 0.22))}")
+                color, extra = color_ass(res.get("texto", "#253C61")), "\\bord0\\shad0"
+            elif j == activa:
+                color, extra = c_activo, ""
+            elif j in coloreadas:
+                color, extra = c_marca, ""
+            else:
+                color, extra = c_texto, ""
+            escala = pl.get("escala_activa", 108) if j == activa else 100
+            anim = "\\fscx80\\fscy80\\t(0,90,\\fscx100\\fscy100)" if pop and j == 0 and activa == 0 else ""
+            ev.append(f"Dialogue: 2,{a},{b},W,,0,0,0,,{{\\an5\\pos({cx:.0f},{y:.0f})\\fs{tam:.0f}\\1c{color}{extra}"
+                      f"\\fscx{escala}\\fscy{escala}{anim}}}{t}")
+            x += w + esp
+
     for idx, (off, li, ln, estilo, solas, resaltadas) in enumerate(todas):
         pal = ln["palabras"]
         if not pal:
@@ -632,31 +822,24 @@ def escribir_ass(segmentos, ruta, tapas=()):
         if siguiente is not None and siguiente - fin_linea < 0.4:
             fin_linea = siguiente
         if estilo is None:  # regla automática: sobre una imagen a pantalla completa el subtítulo va al centro
-            a, b = off + ln["s"], fin_linea
-            estilo = "sobre_imagen" if any(a < tb and b > ta for ta, tb in tapas) else "normal"
+            ta0, tb0 = off + ln["s"], fin_linea
+            estilo = "sobre_imagen" if any(ta0 < tb and tb0 > ta for ta, tb in tapas) else "normal"
+        claves = {j for j, q in enumerate(pal) if es_clave(q["w"]) or (li, j) in resaltadas}
         for i, p in enumerate(pal):
             ini = off + (ln["s"] if i == 0 else p["s"])
             fin = off + pal[i + 1]["s"] if i + 1 < len(pal) else fin_linea
             if fin <= ini:
                 continue
             if (li, i) in solas:
-                w = limpiar(p["w"].upper() if st["mayusculas"] else p["w"])
-                ev.append(f"Dialogue: 1,{t_ass(ini)},{t_ass(fin)},palabra_sola,,0,0,0,,"
-                          f"{{\\c{activo}\\fscx60\\fscy60\\t(0,110,\\fscx110\\fscy110)\\t(110,180,\\fscx100\\fscy100)}}{w}")
+                poner_linea([p["w"]], 0, "palabra_sola", ini, fin, {0} if modo else set(), set(), True)
                 continue
-            partes = []
-            for j, q in enumerate(pal):
-                w = limpiar(q["w"].upper() if st["mayusculas"] else q["w"])
-                base = resalte if (li, j) in resaltadas else "&H00FFFFFF&"
-                if j == i:
-                    escala = 118 if es_clave(q["w"]) or (li, j) in resaltadas else 108
-                    w = f"{{\\c{activo}\\fscx{escala}\\fscy{escala}}}{w}{{\\c{base}\\fscx100\\fscy100}}"
-                elif base != "&H00FFFFFF&":
-                    w = f"{{\\c{base}}}{w}{{\\c&H00FFFFFF&}}"
-                partes.append(w)
-            pop = "{\\fscx80\\fscy80\\t(0,90,\\fscx100\\fscy100)}" if i == 0 else ""
-            ev.append(f"Dialogue: 0,{t_ass(ini)},{t_ass(fin)},{estilo},,0,0,0,,{pop}{' '.join(partes)}")
-    ruta.write_text(cabecera_ass() + "\n".join(ev) + "\n", encoding="utf-8")
+            cajas = set()
+            if modo in ("clave", "ambas"):
+                cajas |= claves
+            if modo in ("activa", "ambas"):
+                cajas.add(i)
+            poner_linea([q["w"] for q in pal], i, estilo, ini, fin, cajas, claves - cajas, i == 0)
+    ruta.write_text(cabecera_ass(fu.nombre, pl) + "\n".join(ev) + "\n", encoding="utf-8")
 
 
 # ---------- Sonido ----------
@@ -879,10 +1062,12 @@ def hacer_portada(combo, archivo_video=None):
     """JPG 1080x1920: un cuadro del hook, oscurecido, con el título grande al centro.
     *palabra* entre asteriscos sale en amarillo. El título queda dentro del recorte 4:5 del perfil de Instagram."""
     S.portadas.mkdir(parents=True, exist_ok=True)
-    trabajo = DATOS / "_trabajo"
-    trabajo.mkdir(exist_ok=True)
+    trabajo = carpeta_trabajo()
     cfg = CONFIG["portada"]
-    st = CONFIG["subtitulos"]
+    import fuentes
+    pl = plantilla_sub()
+    st = {**CONFIG["subtitulos"], "fuente": fuentes.cargar(pl["fuente"]).nombre,
+          "color_activo": (pl.get("resaltador") or {}).get("color") or pl["color_activo"]}
     titulo = texto_portada(combo).upper()
     amarillo = color_ass(st["color_activo"])
     titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{amarillo}}}{limpiar(m.group(1))}{{\\c&H00FFFFFF&}}", limpiar(titulo.replace("{", "")))
@@ -903,7 +1088,7 @@ def hacer_portada(combo, archivo_video=None):
     fuente = S.proc / f"{combo['hook']}.mp4"
     salida = S.portadas / f"{combo['archivo']}.jpg"
     run([FFMPEG, "-hide_banner", "-y", "-ss", f"{float(seg):.2f}", "-i", str(fuente), "-frames:v", "1",
-         "-vf", f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{cfg['oscurecer']}:t=fill,subtitles=portada.ass",
+         "-vf", f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{cfg['oscurecer']}:t=fill,subtitles=portada.ass:fontsdir=fuentes",
          "-q:v", "2", str(salida)], cwd=trabajo)
     return salida
 
@@ -913,8 +1098,7 @@ def hacer_portada(combo, archivo_video=None):
 def armar_uno(combo, n_musica=0):
     for d in (S.salida, S.recetas):
         d.mkdir(parents=True, exist_ok=True)
-    trabajo = DATOS / "_trabajo"
-    trabajo.mkdir(exist_ok=True)
+    trabajo = carpeta_trabajo()
     orden = [combo["hook"], combo["cuerpo"], combo["cta"]]
     archivos = [S.proc / f"{n}.mp4" for n in orden]
     durs = [duracion(a) for a in archivos]
@@ -971,7 +1155,7 @@ def armar_uno(combo, n_musica=0):
         f.append(f"[{v_prev}][o{idx}]overlay={x}:{y}:eof_action=pass:enable='between(t,{ov['t']:.2f},{ov['t'] + ov['dur']:.2f})'[v{idx}]")
         v_prev = f"v{idx}"
         idx += 1
-    f.append(f"[{v_prev}]subtitles=subs.ass[v]")
+    f.append(f"[{v_prev}]subtitles=subs.ass:fontsdir=fuentes[v]")
     mezcla = []
     if tramos:
         f.append("[ac]asplit=2[voz][sc]")
@@ -1142,13 +1326,27 @@ def checklist():
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
-    ap.add_argument("accion", choices=["procesar", "armar", "exportar", "portadas", "todo"])
+    ap.add_argument("accion", choices=["procesar", "armar", "exportar", "portadas", "todo", "dossier", "aplicar-plan"])
+    ap.add_argument("--plan", help="archivo JSON del plan (para aplicar-plan)")
+    ap.add_argument("--salida", help="dónde escribir el dossier (si no, se imprime)")
     ap.add_argument("--pieza")
     ap.add_argument("--semana")
     ap.add_argument("--rehacer-subtitulos", action="store_true")
     a = ap.parse_args()
     if a.semana:
         usar_semana(a.semana)
+    if a.accion == "dossier":
+        texto = json.dumps(dossier(), ensure_ascii=False, indent=1)
+        if a.salida:
+            Path(a.salida).write_text(texto, encoding="utf-8")
+            print(a.salida)
+        else:
+            print(texto)
+        sys.exit(0)
+    if a.accion == "aplicar-plan":
+        perdidas = aplicar_plan(json.loads(Path(a.plan).read_text(encoding="utf-8")))
+        print("Plan aplicado." + (" Palabras no encontradas: " + ", ".join(perdidas) if perdidas else ""))
+        sys.exit(0)
     if a.accion in ("procesar", "todo"):
         procesar(a.rehacer_subtitulos)
     if a.accion in ("armar", "todo"):

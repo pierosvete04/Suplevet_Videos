@@ -3,14 +3,12 @@
   "carpeta_trabajo": "",
   "cta_organico": "CTA-O",
   "subtitulos": {
-    "mayusculas": true,
     "max_palabras_por_linea": 3,
-    "fuente": "Arial Black",
-    "tamano": 82,
-    "color_activo": "#FFE14D",
     "color_resaltado": "#4DE1FF",
     "altura_desde_abajo": 560,
-    "altura_desde_arriba": 300
+    "altura_desde_arriba": 300,
+    "plantilla": "suplevet_celeste",
+    "ajustes": {}
   },
   "palabras_clave": [
     "error",
@@ -188,5 +186,110 @@
     "camara": [
       "FX COMMON/Efectos de Sonido_Edwin Arenas/07-CAMARA"
     ]
+  },
+  "plantillas_sub": {
+    "suplevet_celeste": {
+      "nombre": "Suplevet celeste",
+      "descripcion": "Montserrat Black. La palabra que se dice va en una caja celeste con texto azul marino.",
+      "fuente": "Montserrat-Black.ttf",
+      "tamano": 80,
+      "mayusculas": true,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#000000",
+      "borde": 5,
+      "sombra": 2,
+      "color_activo": "#FFFFFF",
+      "escala_activa": 106,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {
+        "modo": "activa",
+        "color": "#99D3DA",
+        "texto": "#253C61",
+        "margen": 0.16,
+        "alto": 0.95,
+        "radio": 0.22
+      }
+    },
+    "suplevet_clave": {
+      "nombre": "Suplevet palabra clave",
+      "descripcion": "Poppins Black. Solo las palabras clave llevan caja celeste; la que se dice se agranda.",
+      "fuente": "Poppins-Black.ttf",
+      "tamano": 82,
+      "mayusculas": true,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#000000",
+      "borde": 6,
+      "sombra": 2,
+      "color_activo": "#FFE14D",
+      "escala_activa": 110,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {
+        "modo": "clave",
+        "color": "#99D3DA",
+        "texto": "#253C61",
+        "margen": 0.16,
+        "alto": 0.95,
+        "radio": 0.22
+      }
+    },
+    "suplevet_naranja": {
+      "nombre": "Suplevet naranja",
+      "descripcion": "Poppins ExtraBold. Caja naranja Suplevet sobre la palabra que se dice, texto blanco.",
+      "fuente": "Poppins-ExtraBold.ttf",
+      "tamano": 80,
+      "mayusculas": true,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#253C61",
+      "borde": 5,
+      "sombra": 0,
+      "color_activo": "#FFFFFF",
+      "escala_activa": 106,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {
+        "modo": "activa",
+        "color": "#EA8C43",
+        "texto": "#FFFFFF",
+        "margen": 0.16,
+        "alto": 0.95,
+        "radio": 0.22
+      }
+    },
+    "juvenil": {
+      "nombre": "Juvenil",
+      "descripcion": "Lilita One redondeada, borde azul marino; caja celeste en la palabra clave. Para dueños.",
+      "fuente": "LilitaOne-Regular.ttf",
+      "tamano": 88,
+      "mayusculas": false,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#253C61",
+      "borde": 7,
+      "sombra": 0,
+      "color_activo": "#FFE14D",
+      "escala_activa": 110,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {
+        "modo": "clave",
+        "color": "#99D3DA",
+        "texto": "#253C61",
+        "margen": 0.16,
+        "alto": 0.95,
+        "radio": 0.3
+      }
+    },
+    "impacto": {
+      "nombre": "Impacto clásico",
+      "descripcion": "Anton alta, palabra activa en amarillo. Sin caja.",
+      "fuente": "Anton-Regular.ttf",
+      "tamano": 96,
+      "mayusculas": true,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#000000",
+      "borde": 6,
+      "sombra": 3,
+      "color_activo": "#FFE14D",
+      "escala_activa": 112,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {}
+    }
   }
 }
