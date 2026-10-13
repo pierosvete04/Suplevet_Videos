@@ -17,14 +17,14 @@ jobs:
       run:
         working-directory: editor
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Revisar que VERSION coincide con el tag
         shell: bash
         run: |
           test "v$(tr -d '\r\n' < VERSION)" = "${GITHUB_REF_NAME}" || { echo "VERSION no coincide con el tag ${GITHUB_REF_NAME}"; exit 1; }
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -34,10 +34,14 @@ jobs:
           pip install pyinstaller faster-whisper numpy
 
       - name: Armar SalaSuplevet.exe
-        run: >
-          pyinstaller lanzador.py --noconfirm --onedir --console --name SalaSuplevet
-          --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime
-          --collect-all tokenizers --collect-all av --collect-all huggingface_hub
+        shell: bash
+        run: |
+          set -o pipefail
+          pyinstaller lanzador.py --noconfirm --onedir --console --name SalaSuplevet             --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime             --collect-all tokenizers --collect-all av --collect-all huggingface_hub 2>&1 | tee pyinstaller.log || {
+            # El registro de Actions no es público: el error se publica como anotación para poder leerlo.
+            tail -n 25 pyinstaller.log | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+            exit 1
+          }
 
       - name: Bajar ffmpeg
         shell: pwsh
