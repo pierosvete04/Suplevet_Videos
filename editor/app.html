@@ -136,6 +136,33 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .frases { display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
 .frase { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--bg); }
 .frase.fuera { opacity: .5; text-decoration: line-through; }
+.ev-arriba { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.ev-visor { position: relative; aspect-ratio: 9/16; background: #000; border-radius: 12px; overflow: hidden; container-type: inline-size; }
+.ev-visor video { width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 38%; }
+.ev-visor .sub { position: absolute; }
+.ev-panel { display: grid; gap: 10px; }
+.ev-campo { display: grid; gap: 3px; font-size: 12px; }
+.ev-inspector { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 8px; background: var(--bg); min-height: 92px; }
+.ev-inspector .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.ev-controles { margin: 10px 0 6px; }
+.ev-tl { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 4px 0 8px; user-select: none; }
+.ev-regla { position: relative; height: 18px; margin-left: 78px; font: 10px var(--mono); color: var(--muted); cursor: pointer; }
+.ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line); padding-left: 3px; }
+.ev-pista { display: flex; align-items: center; height: 46px; margin-top: 4px; }
+.ev-etq { width: 78px; flex: none; font-size: 11px; font-weight: 700; color: var(--muted); padding-left: 8px; position: sticky; left: 0; background: var(--bg); z-index: 2; height: 100%; display: flex; align-items: center; }
+.ev-carril { position: relative; height: 100%; cursor: pointer; }
+.ev-b { position: absolute; top: 3px; bottom: 3px; border-radius: 8px; color: #fff; font: 700 11px var(--f); padding: 4px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; border: 2px solid transparent; }
+.ev-b.h { background: var(--hook); } .ev-b.c { background: var(--body); } .ev-b.t { background: var(--cta); }
+.ev-b.fuera { background: repeating-linear-gradient(45deg, #9aa, #9aa 5px, #b6c2c6 5px, #b6c2c6 10px); color: #233; }
+.ev-b.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface) inset; }
+.ev-b .zm { position: absolute; right: 12px; top: 3px; font-size: 10px; background: rgba(0,0,0,.35); border-radius: 4px; padding: 0 4px; }
+.ev-asa { position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; background: rgba(255,255,255,.35); }
+.ev-asa:hover { background: rgba(255,255,255,.7); }
+.ev-asa.izq { left: 0; border-radius: 6px 0 0 6px; } .ev-asa.der { right: 0; border-radius: 0 6px 6px 0; }
+.ev-s { position: absolute; top: 8px; bottom: 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 10.5px; padding: 3px 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+.ev-s:hover, .ev-s.sel { border-color: var(--ink); }
+.ev-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; background: #EA8C43; pointer-events: none; z-index: 3; }
+@media (max-width: 680px) { .ev-arriba { grid-template-columns: 1fr; } .ev-visor { max-width: 240px; margin: 0 auto; } }
 /* Plantillas */
 .plant-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 14px; align-items: start; }
 .plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
@@ -212,7 +239,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <section data-panel="videos">
     <div class="fila" style="justify-content:space-between;margin-bottom:12px">
       <input id="buscar" type="search" placeholder="Buscar: C1, H2, CTA-A…" aria-label="Buscar videos" style="max-width:260px">
-      <button class="btn sec peq" id="portadas">Rehacer portadas</button>
+
     </div>
     <div class="grid-portadas" id="videos"></div>
   </section>
@@ -316,6 +343,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
             <label>Sombra<input type="number" min="0" max="8" data-p="sombra"></label></div>
           <div class="dos"><label>Palabra que se dice (color)<input type="color" data-p="color_activo"></label>
             <label>Cuánto crece (%)<input type="number" min="100" max="130" data-p="escala_activa"></label></div>
+          <label>Altura del subtítulo (px desde abajo; más = más arriba)<input type="range" min="200" max="1200" step="10" data-p="altura_desde_abajo"></label>
           <label>Resaltador (caja de color)<select data-p="resaltador.modo">
             <option value="">Sin caja</option><option value="activa">En la palabra que se dice</option>
             <option value="clave">Solo en palabras clave</option><option value="ambas">Las dos</option></select></label>
@@ -411,21 +439,67 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         <button class="btn sec peq" id="copiarCopy">Copiar copy de esta red</button></div>
       <details><summary>Qué hizo el editor automático</summary><div id="dlgReceta"></div></details>
     </div>
-    <div class="caja" style="grid-column:1/-1" id="editorVideo">
-      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Estructura del video</h2>
-        <span class="muted" id="evDur"></span></div>
-      <p class="muted" style="margin:4px 0 0;font-size:12px">Cambia el hook, el cuerpo o el CTA, apaga frases del cuerpo para acortarlo y recorta el inicio o el final. Se guarda como una versión nueva; el original no se toca.</p>
-      <div class="linea-tiempo" id="evLinea"></div>
-      <div class="dos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px">
-        <label class="muted" style="display:grid;gap:3px;font-size:12px">Hook<select id="evHook"></select></label>
-        <label class="muted" style="display:grid;gap:3px;font-size:12px">Cuerpo<select id="evCuerpo"></select></label>
-        <label class="muted" style="display:grid;gap:3px;font-size:12px">CTA<select id="evCta"></select></label>
-        <label class="muted" style="display:grid;gap:3px;font-size:12px">Recortar inicio (s)<input id="evIni" type="number" min="0" max="5" step="0.1" value="0"></label>
-        <label class="muted" style="display:grid;gap:3px;font-size:12px">Recortar final (s)<input id="evFin" type="number" min="0" max="5" step="0.1" value="0"></label>
-        <label class="muted" style="display:grid;gap:3px;font-size:12px">Nombre de la versión<input id="evNombre" placeholder="Ej.: corta 25 s"></label>
+    <div class="caja" style="grid-column:1/-1" id="editorPortada">
+      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Portada</h2>
+        <span class="muted" style="font-size:12px">Elige el momento, escribe el título (*palabra* sale en color) y su lugar. Se rehace al instante.</span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:14px;margin-top:8px;align-items:start">
+        <div style="display:grid;gap:6px">
+          <img id="porVista" alt="Vista de la portada" style="width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:10px;background:#000">
+          <span class="muted" style="font-size:11px;text-align:center" id="porEstado">Portada actual</span>
+        </div>
+        <div style="display:grid;gap:8px">
+          <label class="muted" style="display:grid;gap:3px;font-size:12px">Momento del hook: <b id="porSeg"></b><input type="range" id="porT" min="0" max="5" step="0.1"></label>
+          <label class="muted" style="display:grid;gap:3px;font-size:12px">Título<input id="porTitulo" placeholder="Heridas que se *complican*"></label>
+          <div class="fila">
+            <label class="muted" style="display:grid;gap:3px;font-size:12px">Posición<select id="porPos"><option value="arriba">Arriba</option><option value="centro">Centro</option><option value="abajo">Abajo</option></select></label>
+            <label class="fila muted" style="font-size:12px;margin-top:16px"><input type="checkbox" id="porLogo"> Logo de Suplevet</label>
+          </div>
+          <div class="fila"><button class="btn" id="porGuardar">Guardar portada</button>
+            <button class="btn sec peq" id="porVolver">Ver portada actual</button></div>
+        </div>
       </div>
-      <h3 style="margin:10px 0 4px">Frases del cuerpo <span class="muted" style="font-weight:400">(desmarca las que quieras quitar)</span></h3>
-      <div class="frases" id="evFrases"></div>
+    </div>
+    <div class="caja" style="grid-column:1/-1" id="editorSubs">
+      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Subtítulos de este video</h2>
+        <span class="muted" style="font-size:12px">Por defecto usa la plantilla predeterminada (pestaña Plantillas).</span></div>
+      <div class="fila" style="margin-top:8px">
+        <label class="muted" style="display:grid;gap:3px;font-size:12px">Plantilla<select id="vidPlantilla"></select></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px;min-width:220px">Altura del subtítulo: <b id="vidAlturaTxt"></b><input type="range" id="vidAltura" min="200" max="1200" step="10"></label>
+        <button class="btn sec" id="vidSubsGuardar">Guardar y re-armar</button>
+      </div>
+    </div>
+    <div class="caja" style="grid-column:1/-1" id="editorVideo">
+      <div class="fila" style="justify-content:space-between">
+        <h2 style="margin:0">Editor del video</h2>
+        <span class="muted" id="evDur"></span>
+      </div>
+      <p class="muted" style="margin:2px 0 8px;font-size:12px">Como en CapCut: arrastra los bordes de cada bloque para recortarlo, toca un bloque para su zoom o para ocultar una frase, y toca un subtítulo para corregirlo. Se guarda como versión nueva; el original no se toca.</p>
+      <div class="ev-arriba">
+        <div class="ev-visor" id="evVisor">
+          <video id="evVideo" playsinline preload="auto" muted></video>
+          <div class="sub sublinea normal" id="evSub"></div>
+        </div>
+        <div class="ev-panel">
+          <div class="fila">
+            <label class="muted ev-campo">Hook<select id="evHook"></select></label>
+            <label class="muted ev-campo">Cuerpo<select id="evCuerpo"></select></label>
+            <label class="muted ev-campo">CTA<select id="evCta"></select></label>
+          </div>
+          <div class="ev-inspector" id="evInspector"><span class="muted">Toca un bloque o un subtítulo de la línea de tiempo.</span></div>
+          <label class="muted ev-campo">Nombre de la versión<input id="evNombre" placeholder="Ej.: corta 25 s con zoom"></label>
+        </div>
+      </div>
+      <div class="ev-controles fila">
+        <button class="btn sec peq" id="evPlay">▶ Reproducir</button>
+        <span id="evTiempo" class="muted" style="font-variant-numeric:tabular-nums">0.0 s</span>
+        <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="12" max="140" value="34"></label>
+      </div>
+      <div class="ev-tl" id="evTL">
+        <div class="ev-regla" id="evRegla"></div>
+        <div class="ev-pista"><span class="ev-etq">Video</span><div class="ev-carril" id="evCarrilV"></div></div>
+        <div class="ev-pista"><span class="ev-etq">Subtítulos</span><div class="ev-carril" id="evCarrilS"></div></div>
+        <div class="ev-cabezal" id="evCabezal"></div>
+      </div>
       <div class="fila" style="margin-top:10px">
         <button class="btn" id="evArmar">Guardar versión y armarla</button>
         <button class="btn sec" id="evGuardar">Solo guardar</button>
@@ -502,7 +576,8 @@ function abrirVideo(cod) {
     ${r.efectos.map(e => `<li>${fmt(e.t)} · ${esc(e.sfx)} — ${esc(e.motivo)}</li>`).join("")}</ul>` : `<p class="muted">Aún no armado.</p>`;
   pintarTelefono(); contar();
   $("dlg").showModal();
-  cargarEstructura(actual.codigo);
+  abrirPortada(); abrirSubsVideo();
+  cargarEstructura(actual.codigo).then(abrirPortada);
 }
 
 const LIM = { instagram: 125, tiktok: 100, youtube: 0 };
@@ -772,7 +847,7 @@ function vigilar(t) {
   const caja = $("estadoTrabajo");
   caja.hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "portadas", "escuchar"].forEach(id => $(id).disabled = t.activo);
+  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "escuchar"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   if (t.activo && !vigilando) {
     vigilando = setInterval(async () => {
@@ -782,11 +857,15 @@ function vigilar(t) {
         clearInterval(vigilando); vigilando = null;
         await cargar();
         avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || ""), j.error ? "err" : "ok");
+        if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} re-armado. Lo estás viendo actualizado.`, "ok"); }
+        reabrir = null;
       }
     }, 1000);
   }
 }
+let reabrir = null;  // al terminar de re-armar un video, se vuelve a abrir con el resultado
 async function trabajo(accion, pieza) {
+  if (accion === "uno") reabrir = pieza;
   try { await post("/api/trabajo", { accion, pieza }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 }
@@ -897,8 +976,8 @@ $("aceptarSug").onclick = async () => {
 };
 $("subirPanel").onclick = () => trabajo("panel");
 $("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
-$("portadas").onclick = () => trabajo("portadas");
-$("rearmarUno").onclick = () => { if (actual) { trabajo("uno", actual.codigo); $("dlg").close(); } };
+
+$("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; $("dlg").close(); trabajo("uno", cod); } };
 $("cerrar").onclick = () => $("dlg").close();
 $("dlg").addEventListener("close", () => $("dlgVideo").pause());
 $("guardarCopy").onclick = async () => {
@@ -961,6 +1040,52 @@ $("redBoton").onclick = async () => {
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
+// ---------- Portada de un video ----------
+let porTimer = null;
+function abrirPortada() {
+  const a = actual.ajustes_portada || {};
+  const durHook = (est && est.hook && est.hook.dur) || 5;
+  $("porT").max = Math.max(1, durHook - 0.1).toFixed(1);
+  $("porT").value = a.segundo ?? 0.5;
+  $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s";
+  $("porTitulo").value = a.titulo || (actual.titulo_portada || "");
+  $("porPos").value = a.posicion || "centro";
+  $("porLogo").checked = a.logo !== false;
+  $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual";
+}
+$("porT").addEventListener("input", () => {
+  $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s";
+  clearTimeout(porTimer);
+  porTimer = setTimeout(() => { $("porVista").src = `/api/cuadro?codigo=${encodeURIComponent(actual.codigo)}&t=${$("porT").value}&_=${Date.now()}`; $("porEstado").textContent = "Cuadro elegido (sin título todavía)"; }, 150);
+});
+$("porVolver").onclick = () => { $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; };
+$("porGuardar").onclick = async () => {
+  $("porGuardar").disabled = true; $("porEstado").textContent = "Haciendo la portada…";
+  try {
+    const r = await post("/api/portada", { codigo: actual.codigo, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), posicion: $("porPos").value, logo: $("porLogo").checked });
+    $("porVista").src = r.portada; actual.portada = r.portada; $("porEstado").textContent = "Portada guardada ✓"; avisar("Portada guardada.", "ok"); cargar();
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+  $("porGuardar").disabled = false;
+};
+
+// ---------- Plantilla y altura del subtítulo de un video ----------
+function abrirSubsVideo() {
+  const av = actual.ajustes_video || {};
+  $("vidPlantilla").innerHTML = `<option value="">Predeterminada (${esc(E.plantillas[E.plantilla]?.nombre || "")})</option>` +
+    Object.entries(E.plantillas).map(([id, p]) => `<option value="${id}" ${av.plantilla === id ? "selected" : ""}>${esc(p.nombre || id)}</option>`).join("");
+  const pl = E.plantillas[av.plantilla] || E.plantillas[E.plantilla];
+  $("vidAltura").value = (av.ajustes_sub || {}).altura_desde_abajo ?? pl.altura_desde_abajo ?? 560;
+  $("vidAlturaTxt").textContent = `${$("vidAltura").value} px desde abajo`;
+}
+$("vidAltura").addEventListener("input", () => $("vidAlturaTxt").textContent = `${$("vidAltura").value} px desde abajo`);
+$("vidSubsGuardar").onclick = async () => {
+  try {
+    await post("/api/ajustes_video", { codigo: actual.codigo, plantilla: $("vidPlantilla").value, ajustes_sub: { altura_desde_abajo: Number($("vidAltura").value) } });
+    const cod = actual.codigo; $("dlg").close();
+    await trabajo("uno", cod);
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+};
+
 // ---------- Selección múltiple ----------
 const elegidos = new Set();
 function pintarSeleccion() {
@@ -982,67 +1107,257 @@ $("selArmar").onclick = () => trabajoSel("armar_sel");
 $("selExportar").onclick = () => trabajoSel("exportar_sel");
 $("selLimpiar").onclick = () => { elegidos.clear(); pintarVideos(); pintarSeleccion(); };
 
-// ---------- Editor de un video ----------
-let est = null;
+// ---------- Editor de un video (línea de tiempo) ----------
+let est = null, ed = null, evReproduciendo = false, evSeg = 0;
 async function cargarEstructura(codigo) {
-  $("evLinea").innerHTML = `<span class="muted" style="padding:16px">Cargando estructura…</span>`;
+  $("evInspector").innerHTML = `<span class="muted">Cargando…</span>`;
   est = await (await fetch(`/api/estructura?codigo=${encodeURIComponent(codigo)}`)).json();
-  if (est.error) { $("evLinea").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
+  if (est.error) { $("evInspector").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
   const opt = (lista, v) => lista.map(n => `<option ${n === v ? "selected" : ""}>${esc(n)}</option>`).join("");
   $("evHook").innerHTML = opt(est.opciones.hook, est.hook.nombre);
   $("evCuerpo").innerHTML = opt(est.opciones.cuerpo, est.cuerpo.nombre);
   $("evCta").innerHTML = opt(est.opciones.cta, est.cta.nombre);
-  $("evIni").value = est.recorte_inicio || 0; $("evFin").value = est.recorte_fin || 0; $("evNombre").value = est.nombre || "";
+  $("evNombre").value = est.nombre || "";
   $("evBorrar").hidden = est.base;
-  $("evFrases").innerHTML = est.cuerpo.partes.map(p => `<label class="frase ${est.quitar.includes(p.i) ? "fuera" : ""}">
-      <input type="checkbox" data-frase="${p.i}" ${est.quitar.includes(p.i) ? "" : "checked"}>
-      <span>${esc(p.texto)}</span><span class="muted">${(p.fin - p.ini).toFixed(1)} s</span></label>`).join("");
-  pintarTimeline();
+  const r = est.recortes || {};
+  ed = { quitar: new Set(est.quitar || []), hook: r.hook || null, cta: r.cta || null, partes: { ...(r.partes || {}) },
+         zoom: JSON.parse(JSON.stringify(est.zoom || {})), sel: "hook", subSel: null, t: 0 };
+  ed.zoom.partes = ed.zoom.partes || {};
+  pararEditor(); pintarEditor(); irA(0);
 }
-function quitadas() { return [...document.querySelectorAll("[data-frase]")].filter(c => !c.checked).map(c => Number(c.dataset.frase)); }
-function pintarTimeline() {
+// Bloques en orden: hook, frases del cuerpo, CTA. a/b = entrada/salida en segundos del archivo de esa pieza.
+function bloquesEd() {
+  if (!est || est.error) return [];
+  const out = [];
+  const rango = (rec, lo, hi) => rec ? [lo + rec[0], Math.min(hi, lo + rec[1])] : [lo, hi];
+  const hd = est.hook.dur || 0, cd = est.cta.dur || 0;
+  let [a, b] = rango(ed.hook, 0, hd);
+  out.push({ key: "hook", k: "h", t: est.hook.nombre, pieza: est.hook, lo: 0, hi: hd, a, b, zoom: ed.zoom.hook });
+  est.cuerpo.partes.forEach(p => {
+    [a, b] = rango(ed.partes[p.i], p.ini, p.fin);
+    out.push({ key: "p" + p.i, i: p.i, k: "c", t: `${est.cuerpo.nombre}·${p.i + 1}`, pieza: est.cuerpo, lo: p.ini, hi: p.fin, a, b,
+               fuera: ed.quitar.has(p.i), zoom: ed.zoom.partes[p.i], texto: p.texto });
+  });
+  [a, b] = rango(ed.cta, 0, cd);
+  out.push({ key: "cta", k: "t", t: est.cta.nombre, pieza: est.cta, lo: 0, hi: cd, a, b, zoom: ed.zoom.cta });
+  return out;
+}
+function segmentosEd() {  // los que se ven, con su inicio en el video final (g0)
+  let g = 0;
+  return bloquesEd().filter(b => !b.fuera).map(b => { const s = { ...b, g0: g }; g += b.b - b.a; return s; });
+}
+const escalaEd = () => Number($("evEscala").value);
+const ANCHO_FUERA = 26;
+function xDeTiempo(t) {  // posición en la línea de tiempo (las frases ocultas ocupan una ranura fija)
+  let x = 0, g = 0;
+  for (const b of bloquesEd()) {
+    if (b.fuera) { x += ANCHO_FUERA + 3; continue; }
+    const d = b.b - b.a;
+    if (t <= g + d) return x + (t - g) * escalaEd();
+    x += d * escalaEd() + 3; g += d;
+  }
+  return x;
+}
+function pintarEditor() {
   if (!est || est.error) return;
-  const q = quitadas();
-  const bloques = [{ k: "h", t: est.hook.nombre, d: est.hook.dur || 0 },
-    ...est.cuerpo.partes.map(p => ({ k: "c", t: `${est.cuerpo.nombre}·${p.i + 1}`, d: p.fin - p.ini, fuera: q.includes(p.i), i: p.i })),
-    { k: "t", t: est.cta.nombre, d: est.cta.dur || 0 }];
-  const total = bloques.reduce((a, b) => a + b.d, 0);
-  const queda = bloques.filter(b => !b.fuera).reduce((a, b) => a + b.d, 0) - Number($("evIni").value || 0) - Number($("evFin").value || 0);
-  $("evLinea").innerHTML = bloques.map(b => `<button type="button" class="bloque ${b.k} ${b.fuera ? "fuera" : ""}" style="flex:${Math.max(b.d, .3)}"
-      ${b.i !== undefined ? `data-bloque="${b.i}"` : ""} title="${esc(b.t)} · ${b.d.toFixed(1)} s">${esc(b.t)}</button>`).join("");
-  $("evDur").textContent = `${queda.toFixed(1)} s${queda < total - .05 ? ` (antes ${total.toFixed(1)} s)` : ""}`;
-  document.querySelectorAll(".frase").forEach(l => l.classList.toggle("fuera", !l.querySelector("input").checked));
+  const px = escalaEd(), segs = segmentosEd(), total = segs.reduce((a, s) => a + s.b - s.a, 0);
+  const original = (est.hook.dur || 0) + est.cuerpo.partes.reduce((a, p) => a + p.fin - p.ini, 0) + (est.cta.dur || 0);
+  $("evDur").textContent = `${total.toFixed(1)} s${Math.abs(original - total) > .05 ? ` · antes ${original.toFixed(1)} s` : ""}`;
+  let x = 0, html = "", subs = "";
+  for (const b of bloquesEd()) {
+    const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
+    const z = b.zoom ? `<span class="zm">${{ in: "zoom +", out: "zoom −", punch: "punch" }[b.zoom.tipo]}</span>` : "";
+    html += `<div class="ev-b ${b.k} ${b.fuera ? "fuera" : ""} ${ed.sel === b.key ? "sel" : ""}" data-b="${b.key}" style="left:${x}px;width:${w}px" title="${esc(b.t)} · ${(b.b - b.a).toFixed(2)} s">
+      ${b.fuera ? "" : `<span class="ev-asa izq" data-asa="izq" data-b="${b.key}"></span>`}${b.fuera ? "⊘" : esc(b.t)}${z}
+      ${b.fuera ? "" : `<span class="ev-asa der" data-asa="der" data-b="${b.key}"></span>`}</div>`;
+    if (!b.fuera) {
+      b.pieza.lineas.forEach((l, li) => {
+        const s0 = Math.max(l.s, b.a), s1 = Math.min(l.e, b.b);
+        if (s1 - s0 < .05) return;
+        const sx = x + (s0 - b.a) * px, sw = Math.max(10, (s1 - s0) * px - 2);
+        const id = `${b.pieza.nombre}|${li}`;
+        subs += `<div class="ev-s ${ed.subSel === id ? "sel" : ""}" data-sub="${esc(id)}" style="left:${sx}px;width:${sw}px" title="${esc(l.texto)}">${esc(l.texto)}</div>`;
+      });
+    }
+    x += w + 3;
+  }
+  $("evCarrilV").innerHTML = html; $("evCarrilS").innerHTML = subs;
+  $("evCarrilV").style.width = $("evCarrilS").style.width = x + "px";
+  $("evRegla").style.width = x + "px";
+  let marcas = "";
+  for (let t = 0; t <= total + .01; t += px > 60 ? 1 : px > 25 ? 2 : 5) marcas += `<span style="left:${xDeTiempo(t)}px">${t}s</span>`;
+  $("evRegla").innerHTML = marcas;
+  pintarInspector(); moverCabezal();
 }
-document.addEventListener("click", e => {
-  const b = e.target.closest("[data-bloque]");
-  if (!b) return;
-  const c = document.querySelector(`[data-frase="${b.dataset.bloque}"]`);
-  c.checked = !c.checked; pintarTimeline();
+function pintarInspector() {
+  const b = bloquesEd().find(x => x.key === ed.sel);
+  if (ed.subSel) {
+    const [pieza, li] = ed.subSel.split("|"), pz = [est.hook, est.cuerpo, est.cta].find(p => p.nombre === pieza), l = pz?.lineas[li];
+    if (l) {
+      $("evInspector").innerHTML = `<b>Subtítulo de ${esc(pieza)}</b>
+        <label class="muted ev-campo">Texto (se corrige en todos los videos que usan esta pieza)<input id="evSubTexto" value="${esc(l.texto)}"></label>
+        <div class="fila"><button class="btn peq" id="evSubGuardar">Guardar subtítulo</button><span class="muted" style="font-size:12px">${l.s.toFixed(2)}–${l.e.toFixed(2)} s</span></div>`;
+      return;
+    }
+  }
+  if (!b) { $("evInspector").innerHTML = `<span class="muted">Toca un bloque o un subtítulo.</span>`; return; }
+  const z = b.zoom || {};
+  $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
+      ${b.i !== undefined ? `<label class="fila" style="font-size:13px"><input type="checkbox" id="evVisible" ${b.fuera ? "" : "checked"}> Incluir esta frase</label>` : ""}</div>
+    ${b.texto ? `<span class="muted" style="font-size:12px">«${esc(b.texto)}»</span>` : ""}
+    <div class="dos">
+      <label class="muted ev-campo">Entrada (s)<input type="number" id="evA" step="0.05" min="0" value="${(b.a - b.lo).toFixed(2)}"></label>
+      <label class="muted ev-campo">Salida (s)<input type="number" id="evB" step="0.05" min="0" value="${(b.b - b.lo).toFixed(2)}"></label>
+      <label class="muted ev-campo">Zoom<select id="evZoom"><option value="">Sin zoom</option>
+        <option value="in" ${z.tipo === "in" ? "selected" : ""}>Acercar despacio</option><option value="out" ${z.tipo === "out" ? "selected" : ""}>Alejar despacio</option>
+        <option value="punch" ${z.tipo === "punch" ? "selected" : ""}>Punch (acercamiento al corte)</option></select></label>
+      <label class="muted ev-campo">Intensidad: <b id="evFuerzaTxt">${Math.round((z.fuerza || .15) * 100)}%</b><input type="range" id="evFuerza" min="5" max="40" value="${Math.round((z.fuerza || .15) * 100)}"></label>
+    </div><span class="muted" style="font-size:11px">Duración original ${(b.hi - b.lo).toFixed(2)} s · queda ${(b.b - b.a).toFixed(2)} s</span>`;
+}
+function recorteDe(key) { return key === "hook" ? "hook" : key === "cta" ? "cta" : null; }
+function ponerRecorte(b, a, c) {  // a, c en segundos del archivo
+  a = Math.max(b.lo, Math.min(a, b.hi - .3)); c = Math.min(b.hi, Math.max(c, a + .3));
+  const par = (a - b.lo < .01 && b.hi - c < .01) ? null : [+(a - b.lo).toFixed(2), +(c - b.lo).toFixed(2)];
+  if (b.i !== undefined) { if (par) ed.partes[b.i] = par; else delete ed.partes[b.i]; } else ed[recorteDe(b.key)] = par;
+}
+function ponerZoom(b, tipo, fuerza) {
+  const v = tipo ? { tipo, fuerza } : null;
+  if (b.i !== undefined) { if (v) ed.zoom.partes[b.i] = v; else delete ed.zoom.partes[b.i]; } else ed.zoom[b.key] = v;
+}
+// Arrastrar los bordes de un bloque
+let arrastre = null;
+$("evCarrilV").addEventListener("pointerdown", e => {
+  const asa = e.target.closest("[data-asa]");
+  const blo = e.target.closest("[data-b]");
+  if (!blo) return;
+  ed.sel = blo.dataset.b; ed.subSel = null;
+  if (asa) {
+    const b = bloquesEd().find(x => x.key === asa.dataset.b);
+    arrastre = { b, lado: asa.dataset.asa, x0: e.clientX, a0: b.a, b0: b.b };
+    asa.setPointerCapture(e.pointerId); e.preventDefault();
+  } else {
+    const b = segmentosEd().find(x => x.key === ed.sel);
+    if (b) irA(b.g0);
+  }
+  pintarEditor();
 });
-document.addEventListener("input", e => { if (e.target.closest("#editorVideo")) pintarTimeline(); });
+document.addEventListener("pointermove", e => {
+  if (!arrastre) return;
+  const d = (e.clientX - arrastre.x0) / escalaEd(), b = arrastre.b;
+  if (arrastre.lado === "izq") ponerRecorte(b, arrastre.a0 + d, arrastre.b0); else ponerRecorte(b, arrastre.a0, arrastre.b0 + d);
+  pintarEditor();
+});
+document.addEventListener("pointerup", () => { if (arrastre) { arrastre = null; const s = segmentosEd().find(x => x.key === ed.sel); if (s) irA(s.g0); } });
+$("evCarrilS").addEventListener("click", e => {
+  const s = e.target.closest("[data-sub]"); if (!s) return;
+  ed.subSel = s.dataset.sub; ed.sel = null; pintarEditor();
+});
+$("evRegla").addEventListener("click", e => {  // tocar la regla mueve el cabezal
+  const r = $("evRegla").getBoundingClientRect(), x = e.clientX - r.left;
+  let g = 0, xx = 0;
+  for (const b of bloquesEd()) {
+    if (b.fuera) { xx += ANCHO_FUERA + 3; continue; }
+    const w = (b.b - b.a) * escalaEd();
+    if (x <= xx + w) { irA(g + Math.max(0, x - xx) / escalaEd()); return; }
+    xx += w + 3; g += b.b - b.a;
+  }
+});
+$("evInspector").addEventListener("input", e => {
+  const b = bloquesEd().find(x => x.key === ed.sel);
+  if (!b) return;
+  if (e.target.id === "evA" || e.target.id === "evB") ponerRecorte(b, b.lo + Number($("evA").value), b.lo + Number($("evB").value));
+  if (e.target.id === "evZoom" || e.target.id === "evFuerza") { ponerZoom(b, $("evZoom").value, Number($("evFuerza").value) / 100); $("evFuerzaTxt").textContent = $("evFuerza").value + "%"; }
+  if (e.target.id === "evVisible") { e.target.checked ? ed.quitar.delete(b.i) : ed.quitar.add(b.i); }
+  const foco = e.target.id;
+  pintarEditor();
+  if (foco && $(foco) && foco !== "evVisible" && foco !== "evZoom") { $(foco).focus(); }
+});
+$("evInspector").addEventListener("change", e => { if (e.target.id === "evZoom" || e.target.id === "evVisible") pintarEditor(); });
+$("evInspector").addEventListener("click", async e => {
+  if (e.target.id !== "evSubGuardar") return;
+  const [pieza, li] = ed.subSel.split("|"), pz = [est.hook, est.cuerpo, est.cta].find(p => p.nombre === pieza);
+  const lineas = pz.lineas.map((l, k) => ({ texto: k === Number(li) ? $("evSubTexto").value : l.texto, s: l.s, e: l.e }));
+  try { await post(`/api/subtitulos?pieza=${encodeURIComponent(pieza)}`, { lineas }); pz.lineas = lineas; pintarEditor(); avisar("Subtítulo corregido. Re-arma los videos para verlo quemado en el video.", "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
+$("evEscala").addEventListener("input", pintarEditor);
+// Vista previa: reproduce los tramos seguidos, con zoom y subtítulo, sin armar el video
+function irA(t) {
+  const segs = segmentosEd(); if (!segs.length) return;
+  const total = segs.reduce((a, s) => a + s.b - s.a, 0);
+  ed.t = Math.max(0, Math.min(t, total - .01));
+  evSeg = Math.max(0, segs.findIndex(s => ed.t < s.g0 + s.b - s.a));
+  const s = segs[evSeg], v = $("evVideo");
+  const destino = s.a + (ed.t - s.g0);
+  if (!v.src.includes(s.pieza.url.split("?")[0])) { v.src = s.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = destino; }, { once: true }); }
+  else v.currentTime = destino;
+  vistaEd();
+}
+function vistaEd() {
+  const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
+  if (!s) return;
+  const ct = v.currentTime;
+  ed.t = s.g0 + Math.max(0, ct - s.a);
+  $("evTiempo").textContent = ed.t.toFixed(1) + " s";
+  moverCabezal();
+  let z = 1;
+  if (s.zoom) { const p = Math.min(1, Math.max(0, (ct - s.a) / Math.max(.1, s.b - s.a))); z = 1 + (s.zoom.tipo === "in" ? s.zoom.fuerza * p : s.zoom.tipo === "out" ? s.zoom.fuerza * (1 - p) : s.zoom.fuerza); }
+  v.style.transform = `scale(${z})`;
+  const l = s.pieza.lineas.find(x => ct >= x.s && ct < x.e + .05);
+  const pls = (E && E.plantillas) || {};
+  const pl = pls[(actual?.ajustes_video || {}).plantilla] || pls[E?.plantilla] || Object.values(pls)[0];
+  const sub = $("evSub");
+  if (l && pl) { sub.hidden = false; pintarLinea(sub, l.texto.split(" "), -1, new Set(), pl, $("evVisor").clientWidth || 220); } else sub.hidden = true;
+}
+function moverCabezal() { $("evCabezal").style.left = (78 + xDeTiempo(ed?.t || 0)) + "px"; }
+function bucleEd() {
+  if (!evReproduciendo) return;
+  const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
+  if (s && v.currentTime >= s.b - .02) {
+    if (evSeg + 1 >= segs.length) { pararEditor(); irA(0); return; }
+    evSeg++; const n = segs[evSeg];
+    if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; v.play(); }, { once: true }); }
+    else v.currentTime = n.a;
+  }
+  vistaEd();
+  requestAnimationFrame(bucleEd);
+}
+function pararEditor() { evReproduciendo = false; $("evVideo").pause(); $("evPlay").textContent = "▶ Reproducir"; }
+$("evPlay").onclick = () => {
+  if (evReproduciendo) return pararEditor();
+  evReproduciendo = true; $("evVideo").muted = false; $("evVideo").play(); $("evPlay").textContent = "❚❚ Pausa"; bucleEd();
+};
 ["evHook", "evCuerpo", "evCta"].forEach(id => $(id).addEventListener("change", async () => {
-  // cambiar de cuerpo cambia sus frases: se recarga la estructura de esa combinación
-  if (id === "evCuerpo") { const c = E.salidas.find(s => s.cuerpo === $("evCuerpo").value); if (c) await cargarEstructura(c.codigo); }
-  pintarTimeline();
+  // otra combinación: se carga la estructura de un video que use esas piezas y se mantienen los ajustes posibles
+  const c = E.salidas.find(s => s.hook === $("evHook").value && s.cuerpo === $("evCuerpo").value && s.cta === $("evCta").value)
+         || E.salidas.find(s => s.cuerpo === $("evCuerpo").value);
+  if (c) { const nombre = $("evNombre").value; await cargarEstructura(c.codigo); $("evNombre").value = nombre; }
+  const opt = (sel, v) => { [...$(sel).options].forEach(o => o.selected = o.value === v); };
+  opt("evHook", $("evHook").value); pintarEditor();
 }));
+function datosEd() {
+  const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes };
+  return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar],
+    recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value };
+}
 async function guardarVersion(armar) {
-  const datos = { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: quitadas(),
-    recorte_inicio: Number($("evIni").value || 0), recorte_fin: Number($("evFin").value || 0), nombre: $("evNombre").value,
-    id: est && !est.base ? est.codigo : null, armar };
+  const datos = { ...datosEd(), id: est && !est.base ? est.codigo : null, armar };
   try {
+    pararEditor();
     const r = await post("/api/version", datos);
-    avisar(armar ? `Armando la versión ${r.codigo}…` : `Versión ${r.codigo} guardada.`, "ok");
     $("dlg").close(); await cargar();
-    if (armar) vigilar(await (await fetch("/api/trabajo")).json());
+    if (armar) { reabrir = r.codigo; vigilar(await (await fetch("/api/trabajo")).json()); avisar(`Armando la versión ${r.codigo}… cuando termine se abre sola.`, "ok"); }
+    else avisar(`Versión ${r.codigo} guardada.`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 $("evArmar").onclick = () => guardarVersion(true);
 $("evGuardar").onclick = () => guardarVersion(false);
-$("evExportar").onclick = async () => { if (!actual) return; elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
+$("evExportar").onclick = async () => { if (!actual) return; pararEditor(); elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
 $("evBorrar").onclick = async () => {
   if (!est || est.base || !confirm(`¿Borrar la versión ${est.codigo}?`)) return;
   await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar(); avisar("Versión borrada.", "ok");
 };
+$("dlg").addEventListener("close", pararEditor);
 
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;
@@ -1064,7 +1379,7 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
     const escala = j === activa ? (pl.escala_activa || 108) / 100 : 1;
     const borde = caja ? 0 : (pl.borde || 0) * k * 2;
     const sombra = caja || !pl.sombra ? "none" : `0 ${pl.sombra * k}px ${pl.sombra * k}px rgba(0,0,0,.6)`;
-    return `<span class="${caja ? "caja" : ""}" style="color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio || .22)}em` : ""}">${esc(pl.mayusculas === false ? w.toLowerCase() : w)}</span>`;
+    return `<span class="${caja ? "caja" : ""}" style="color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio || .22)}em` : ""}">${esc(pl.mayusculas === false ? w : w.toUpperCase())}</span>`;
   }).join("");
   // igual que en el video: si la línea no entra, se achica entera
   const disponible = el.clientWidth;
@@ -1093,7 +1408,7 @@ function elegirPlantilla(id) {
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
     const [a, b] = el.dataset.p.split(".");
     const v = b ? (plantEdit[a] || {})[b] : plantEdit[a];
-    el.value = v === undefined || v === null ? (el.type === "color" ? "#000000" : "") : String(v);
+    el.value = v === undefined || v === null ? (el.type === "color" ? "#000000" : a === "altura_desde_abajo" ? "560" : "") : String(v);
     el.disabled = fabrica;
   });
   $("plantGuardar").hidden = fabrica; $("plantBorrar").hidden = fabrica;
@@ -1112,7 +1427,14 @@ function leerFormPlantilla() {
 function animarMuestra() {
   clearInterval(plantTimer);
   let i = 0;
-  const pintar = () => { const el = $("plantLinea"); pintarLinea(el, MUESTRA.slice(0, 3), i % 3, CLAVES_MUESTRA, plantEdit, $("plantMuestra").clientWidth || 300); i++; };
+  const pintar = () => {
+    const el = $("plantLinea");
+    pintarLinea(el, MUESTRA.slice(0, 3), i % 3, CLAVES_MUESTRA, plantEdit, $("plantMuestra").clientWidth || 300);
+    // misma altura que en el video: la muestra (9:12) es el centro del cuadro 9:16, sin 240 px arriba y abajo
+    const alto = $("plantMuestra").clientHeight, h = Number(plantEdit.altura_desde_abajo || 560);
+    el.style.top = "auto"; el.style.transform = "none"; el.style.bottom = `${Math.max(0, (h - 240) / 1440 * alto)}px`;
+    i++;
+  };
   pintar(); plantTimer = setInterval(pintar, 650);
 }
 async function guardarPlantilla(id, datos, predeterminada) {

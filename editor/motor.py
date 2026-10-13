@@ -217,13 +217,14 @@ def info_pieza(nombre):
 
 
 # C1_H2 (hook), C1 (cuerpo), C1_P3 (parte 3 del cuerpo C1), CTA / CTA-A / C1_CTA1
-CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*)$", re.I)
-PARTE = re.compile(r"^((?:C|P)\d+)_P(\d+)$", re.I)
+# C1_H2 (hook), C1_H2_P1 (parte 1 del hook 2), C1 (cuerpo), C1_P3 (parte 3 del cuerpo), CTA / CTA-A / C1_CTA1
+CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+(?:_P\d+)?|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*)$", re.I)
+PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?)_P(\d+)$", re.I)
 
 
 def tipo_de(nombre):
     n = nombre.upper()
-    return "cta" if "CTA" in n else "hook" if re.search(r"_H\d+$", n) else "cuerpo"
+    return "cta" if "CTA" in n else "hook" if re.search(r"_H\d+", n) else "cuerpo"
 
 
 def _asig_local():
@@ -290,6 +291,15 @@ def nombre_automatico(c):
         return f"{cuerpo}_P{int(stem)}"
     if tipo == "cta" and stem.upper().startswith("CTA"):
         return stem.upper()
+    if tipo == "hook":  # Hooks/1-2.MOV (hook 1, parte 2) o Hooks/H3.MOV; Hooks/C2/… si hay varios cuerpos
+        padre = c["ruta"].parent.name
+        cuerpo = padre.upper() if re.fullmatch(r"(?:C|P)\d+", padre, re.I) else "C1"
+        m = re.fullmatch(r"H?(\d+)\s*[-_.]\s*(\d+)", stem, re.I)
+        if m:
+            return f"{cuerpo}_H{int(m.group(1))}_P{int(m.group(2))}"
+        m = re.fullmatch(r"H(\d+)", stem, re.I)
+        if m:
+            return f"{cuerpo}_H{int(m.group(1))}"
     return None
 
 
@@ -402,7 +412,7 @@ def procesar(forzar_subs=False, avance=print):
                 t = dest if len(lista) == 1 else S.proc / f"_{p['nombre']}_{k}.mp4"
                 run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
                      "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
-                     "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2",
+                     "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2", "-dn", "-map_chapters", "-1",
                      "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", str(t)])
                 trozos.append(t)
             duraciones = [round(duracion(t), 3) for t in trozos]
@@ -706,10 +716,60 @@ def guardar_version(datos, vid=None):
     vs[vid] = {"hook": datos["hook"], "cuerpo": datos["cuerpo"], "cta": datos["cta"],
                "quitar": sorted({int(i) for i in datos.get("quitar", [])}),
                "recorte_inicio": max(0.0, float(datos.get("recorte_inicio") or 0)),
-               "recorte_fin": max(0.0, float(datos.get("recorte_fin") or 0)), "nombre": (datos.get("nombre") or "").strip()[:60]}
+               "recorte_fin": max(0.0, float(datos.get("recorte_fin") or 0)), "nombre": (datos.get("nombre") or "").strip()[:60],
+               # recortes por bloque: [entrada, salida] en segundos dentro del hook, del CTA o de cada frase del cuerpo
+               "recortes": _limpiar_recortes(datos.get("recortes") or {}),
+               # zoom por bloque: {"hook": {"tipo": "in|out|punch", "fuerza": 0.15}, "cta": …, "partes": {"2": …}}
+               "zoom": _limpiar_zoom(datos.get("zoom") or {})}
     S.subs.mkdir(parents=True, exist_ok=True)
     _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
     return vid
+
+
+def _limpiar_recortes(r):
+    def par(x):
+        try:
+            a, b = float(x[0]), float(x[1])
+            return [round(max(0.0, a), 2), round(max(a + 0.2, b), 2)]
+        except (TypeError, ValueError, IndexError):
+            return None
+    out = {k: par(r[k]) for k in ("hook", "cta") if r.get(k)}
+    if r.get("partes"):
+        out["partes"] = {str(i): par(v) for i, v in r["partes"].items() if par(v)}
+    return {k: v for k, v in out.items() if v}
+
+
+def _limpiar_zoom(z):
+    def uno(x):
+        if not isinstance(x, dict) or x.get("tipo") not in ("in", "out", "punch"):
+            return None
+        return {"tipo": x["tipo"], "fuerza": round(min(0.5, max(0.03, float(x.get("fuerza") or 0.15))), 2)}
+    out = {k: uno(z.get(k)) for k in ("hook", "cta")}
+    out["partes"] = {str(i): uno(v) for i, v in (z.get("partes") or {}).items() if uno(v)}
+    return {k: v for k, v in out.items() if v}
+
+
+def _expresion_zoom(combo, offs, total):
+    """Expresión de zoom para zoompan según el tiempo del video (it): acercar, alejar o «punch» por bloque."""
+    z = (combo.get("version") or {}).get("zoom") or {}
+    if not z:
+        return None
+    tramos = []
+    if z.get("hook"):
+        tramos.append((0.0, offs[1], z["hook"]))
+    if z.get("cta"):
+        tramos.append((offs[2], total, z["cta"]))
+    if z.get("partes"):
+        partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
+        for i, zz in z["partes"].items():
+            if int(i) in partes:
+                tramos.append((offs[1] + partes[int(i)]["ini"], offs[1] + partes[int(i)]["fin"], zz))
+    sumas = []
+    for a, b, zz in tramos:
+        f, d = zz["fuerza"], max(0.1, b - a)
+        cuerpo = {"in": f"{f}*(it-{a:.3f})/{d:.3f}", "out": f"{f}*(1-(it-{a:.3f})/{d:.3f})", "punch": f"{f}"}[zz["tipo"]]
+        sumas.append(f"between(it,{a:.3f},{b:.3f})*({cuerpo})")
+    return "1+" + "+".join(sumas) if sumas else None
 
 
 def borrar_version(vid):
@@ -759,13 +819,16 @@ def estructura(codigo):
 
     def bloque(nombre):
         f = S.proc / f"{nombre}.mp4"
+        lineas = leer_subs(nombre)["lineas"]
         return {"nombre": nombre, "dur": round(duracion(f), 2) if f.exists() else None,
-                "texto": " ".join(l["texto"] for l in leer_subs(nombre)["lineas"])}
+                "texto": " ".join(l["texto"] for l in lineas), "archivo": str(f) if f.exists() else None,
+                "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"]} for l in lineas]}
 
     v = c.get("version") or {}
     return {"codigo": codigo, "base": not c.get("version"), "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
-            "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""),
+            "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
+            "zoom": v.get("zoom", {}),
             "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
 
 
@@ -775,6 +838,22 @@ def _rangos_a_quitar(combo, offs, total):
     if v.get("quitar"):
         partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
         rangos += [(offs[1] + partes[i]["ini"], offs[1] + partes[i]["fin"]) for i in v["quitar"] if i in partes]
+    r = v.get("recortes") or {}
+    durs = [offs[1], offs[2] - offs[1], total - offs[2]]
+    for clave, off, dur in (("hook", 0.0, durs[0]), ("cta", offs[2], durs[2])):
+        if r.get(clave):
+            a, b = r[clave]
+            rangos += [(off, off + a)] if a > 0 else []
+            rangos += [(off + b, off + dur)] if b < dur - 0.02 else []
+    if r.get("partes"):
+        partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
+        for i, (a, b) in r["partes"].items():
+            p = partes.get(int(i))
+            if not p or int(i) in v.get("quitar", []):
+                continue
+            ini, fin = offs[1] + p["ini"], offs[1] + p["fin"]
+            rangos += [(ini, ini + a)] if a > 0 else []
+            rangos += [(ini + b, fin)] if ini + b < fin - 0.02 else []
     if v.get("recorte_inicio"):
         rangos.append((0.0, min(float(v["recorte_inicio"]), total - 1)))
     if v.get("recorte_fin"):
@@ -783,11 +862,31 @@ def _rangos_a_quitar(combo, offs, total):
 
 
 def _quitar_tramos(video, rangos):
-    """Saca del video ya armado los tramos indicados (frases quitadas, recortes); voz, música y subtítulos van juntos."""
-    expr = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in rangos)
+    """Saca del video ya armado los tramos indicados (frases quitadas, recortes): se quedan los tramos que
+    sobran, cortados con trim (preciso al cuadro) y unidos; voz, música y subtítulos van juntos."""
+    total = duracion(video)
+    juntos = []
+    for a, b in sorted((max(0.0, a), min(total, b)) for a, b in rangos):
+        if juntos and a <= juntos[-1][1] + 0.01:
+            juntos[-1] = (juntos[-1][0], max(juntos[-1][1], b))
+        else:
+            juntos.append((a, b))
+    quedan, t = [], 0.0
+    for a, b in juntos:
+        if a - t > 0.05:
+            quedan.append((t, a))
+        t = max(t, b)
+    if total - t > 0.05:
+        quedan.append((t, total))
+    if not quedan:
+        return
+    f = []
+    for k, (a, b) in enumerate(quedan):
+        f.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[v{k}]")
+        f.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS[a{k}]")
+    f.append("".join(f"[v{k}][a{k}]" for k in range(len(quedan))) + f"concat=n={len(quedan)}:v=1:a=1[v][a]")
     tmp = video.with_name(video.stem + "_corto.mp4")
-    run([FFMPEG, "-hide_banner", "-y", "-i", str(video),
-         "-vf", f"select='not({expr})',setpts=N/FRAME_RATE/TB", "-af", f"aselect='not({expr})',asetpts=N/SR/TB",
+    run([FFMPEG, "-hide_banner", "-y", "-i", str(video), "-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-dn", "-map_chapters", "-1",
          "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(tmp)])
     tmp.replace(video)
 
@@ -840,9 +939,35 @@ def id_plantilla():
     return next(iter(todas))
 
 
-def plantilla_sub():
-    """Plantilla de subtítulos activa (fuente, colores, resaltador)."""
-    return plantillas()[id_plantilla()]
+def plantilla_sub(combo=None):
+    """Plantilla de subtítulos (fuente, colores, resaltador, posición). Si el video tiene una propia, esa."""
+    todas = plantillas()
+    propia = ajustes_video(combo["codigo"]).get("plantilla") if combo else None
+    base = todas.get(propia) or todas[id_plantilla()]
+    return {**base, **(ajustes_video(combo["codigo"]).get("ajustes_sub", {}) if combo else {})}
+
+
+def _ajustes_video_path():
+    return S.subs / "_ajustes_videos.json"
+
+
+def ajustes_video(codigo):
+    """Ajustes propios de un video: plantilla de subtítulos, posición del subtítulo."""
+    try:
+        return json.loads(_ajustes_video_path().read_text(encoding="utf-8")).get(codigo, {})
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def guardar_ajustes_video(codigo, datos):
+    try:
+        todos = json.loads(_ajustes_video_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        todos = {}
+    actual = {**todos.get(codigo, {}), **datos}
+    todos[codigo] = {k: v for k, v in actual.items() if v not in (None, "", {})}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _ajustes_video_path().write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def _caja(w, h, r):
@@ -870,14 +995,14 @@ def cabecera_ass(fuente_nombre, pl):
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", ""])
 
 
-def escribir_ass(segmentos, ruta, tapas=()):
+def escribir_ass(segmentos, ruta, tapas=(), combo=None):
     """segmentos: [(offset, lineas, marcas_resueltas)]. tapas: [(ini, fin)] donde hay imagen a pantalla completa.
 
     Cada palabra se ubica a mano (con el ancho real de la fuente) para poder poner el resaltador
     —una caja del color de la marca— detrás de la palabra clave o de la que se está diciendo."""
     import fuentes
     st = CONFIG["subtitulos"]
-    pl = plantilla_sub()
+    pl = plantilla_sub(combo)
     fu = fuentes.cargar(pl["fuente"])
     res = pl.get("resaltador") or {}
     modo = res.get("modo", "")  # "clave", "activa", "ambas" o "" (sin caja)
@@ -910,8 +1035,9 @@ def escribir_ass(segmentos, ruta, tapas=()):
         if total > 960:  # no entra: se achica la línea entera
             f = 960 / total
             tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], 960
-        y = {"normal": 1920 - st["altura_desde_abajo"] - tam / 2,
-             "arriba": st.get("altura_desde_arriba", 300) + tam / 2}.get(estilo, 960)
+        # la altura del subtítulo normal se mueve desde la plantilla (o desde el ajuste del video)
+        y = {"normal": 1920 - pl.get("altura_desde_abajo", st["altura_desde_abajo"]) - tam / 2,
+             "arriba": pl.get("altura_desde_arriba", st.get("altura_desde_arriba", 300)) + tam / 2}.get(estilo, 960)
         x = 540 - total / 2
         a, b = t_ass(ini), t_ass(fin)
         for j, (t, w) in enumerate(zip(textos, anchos)):
@@ -1166,7 +1292,36 @@ def filtro_broll(i, ov):
 
 # ---------- Portada ----------
 
+POSICION_TITULO = {"arriba": 560, "centro": 960, "abajo": 1380}  # dentro del recorte 4:5 que muestra el perfil de Instagram
+
+
+def _portadas_path():
+    return S.subs / "_portadas.json"
+
+
+def ajustes_portada(codigo):
+    """Lo que el equipo eligió para la portada de ese video (cuadro, título, posición, logo)."""
+    try:
+        return json.loads(_portadas_path().read_text(encoding="utf-8")).get(codigo, {})
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def guardar_ajustes_portada(codigo, datos):
+    try:
+        todos = json.loads(_portadas_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        todos = {}
+    limpio = {k: datos[k] for k in ("segundo", "titulo", "posicion", "logo", "oscurecer") if k in datos}
+    todos[codigo] = {**todos.get(codigo, {}), **limpio}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _portadas_path().write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 def texto_portada(combo):
+    t = ajustes_portada(combo["codigo"]).get("titulo")
+    if t:
+        return t
     p = produccion()
     v = p.get("videos", {}).get(combo["codigo"], {})
     t = v.get("portada") or info_pieza(combo["hook"]).get("portada")
@@ -1181,38 +1336,59 @@ def texto_portada(combo):
     return t
 
 
+def segundo_portada(combo):
+    a = ajustes_portada(combo["codigo"])
+    return float(a.get("segundo", info_pieza(combo["hook"]).get("portada_segundo", CONFIG["portada"]["segundo"])))
+
+
+def cuadro(combo, segundo, destino, ancho=540):
+    """Un cuadro del hook (sin título) para elegir la portada."""
+    run([FFMPEG, "-hide_banner", "-y", "-ss", f"{float(segundo):.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4"),
+         "-frames:v", "1", "-vf", f"scale={ancho}:-2", "-q:v", "4", str(destino)])
+    return destino
+
+
 def hacer_portada(combo, archivo_video=None):
-    """JPG 1080x1920: un cuadro del hook, oscurecido, con el título grande al centro.
-    *palabra* entre asteriscos sale en amarillo. El título queda dentro del recorte 4:5 del perfil de Instagram."""
+    """JPG 1080x1920 a color: un cuadro del hook con el título grande y el logo de Suplevet.
+    *palabra* entre asteriscos sale con el color de la plantilla. Todo queda dentro del recorte 4:5 del perfil."""
     S.portadas.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
     cfg = CONFIG["portada"]
+    aj = ajustes_portada(combo["codigo"])
     import fuentes
-    pl = plantilla_sub()
-    st = {**CONFIG["subtitulos"], "fuente": fuentes.cargar(pl["fuente"]).nombre,
-          "color_activo": (pl.get("resaltador") or {}).get("color") or pl["color_activo"]}
-    titulo = texto_portada(combo).upper()
-    amarillo = color_ass(st["color_activo"])
-    titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{amarillo}}}{limpiar(m.group(1))}{{\\c&H00FFFFFF&}}", limpiar(titulo.replace("{", "")))
+    pl = plantilla_sub(combo)
+    fuente = fuentes.cargar(pl["fuente"]).nombre
+    acento = color_ass((pl.get("resaltador") or {}).get("color") or pl["color_activo"])
+    titulo = texto_portada(combo)
+    if pl.get("mayusculas", True):
+        titulo = titulo.upper()
+    titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c&H00FFFFFF&}}", limpiar(titulo.replace("{", "")))
+    y = POSICION_TITULO.get(aj.get("posicion", "centro"), 960)
     cab = "\n".join([
-        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 0", "",
+        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: T,{st['fuente']},{cfg['tamano']},&H00FFFFFF&,&H00FFFFFF&,&H00000000&,&H80000000&,-1,0,0,0,100,100,0,0,1,12,6,5,80,80,0,1",
-        f"Style: M,{st['fuente']},44,&H00FFFFFF&,&H00FFFFFF&,&H00000000&,&H80000000&,-1,0,0,0,100,100,4,0,1,5,2,8,80,80,{cfg['margen_marca']},1",
+        f"Style: T,{fuente},{cfg['tamano']},&H00FFFFFF&,&H00FFFFFF&,{color_ass(pl.get('color_borde', '#000000'))},&H90000000&,0,0,0,0,100,100,0,0,1,12,7,5,90,90,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{titulo}",
+        f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos(540,{y})}}{titulo}",
     ])
-    if cfg.get("marca"):
-        cab += f"\nDialogue: 0,0:00:00.00,0:00:10.00,M,,0,0,0,,{limpiar(cfg['marca'])}"
     (trabajo / "portada.ass").write_text(cab + "\n", encoding="utf-8")
-    seg = info_pieza(combo["hook"]).get("portada_segundo", cfg["segundo"])
-    fuente = S.proc / f"{combo['hook']}.mp4"
     salida = S.portadas / f"{combo['archivo']}.jpg"
-    run([FFMPEG, "-hide_banner", "-y", "-ss", f"{float(seg):.2f}", "-i", str(fuente), "-frames:v", "1",
-         "-vf", f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{cfg['oscurecer']}:t=fill,subtitles=portada.ass:fontsdir=fuentes",
-         "-q:v", "2", str(salida)], cwd=trabajo)
+    oscuro = float(aj.get("oscurecer", 0))
+    filtro = (f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{oscuro}:t=fill," if oscuro > 0 else "") + "subtitles=portada.ass:fontsdir=fuentes"
+    logo = BIBLIO_BASE / "marca" / "logo-blanco.png"
+    cmd = [FFMPEG, "-hide_banner", "-y", "-ss", f"{segundo_portada(combo):.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4")]
+    if aj.get("logo", True) and logo.exists():
+        # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
+        ylogo = 1490 if aj.get("posicion") == "arriba" else 330
+        cmd += ["-i", str(logo), "-filter_complex",
+                f"[0:v]{filtro}[t];[1:v]scale=380:-1,split[l][s];"
+                f"[s]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.6,boxblur=8[sombra];"  # sombra suave para que se lea sobre paredes claras
+                f"[t][sombra]overlay=(W-w)/2+3:{ylogo}+4[t2];[t2][l]overlay=(W-w)/2:{ylogo}[v]", "-map", "[v]"]
+    else:
+        cmd += ["-vf", filtro]
+    run(cmd + ["-frames:v", "1", "-q:v", "2", str(salida)], cwd=trabajo)
     return salida
 
 
@@ -1252,7 +1428,7 @@ def armar_uno(combo, n_musica=0):
                 overlays.append({"asset": m["asset"], "archivo": f, "t": t, "dur": dur, "modo": m.get("modo", "completa"),
                                  "mov": m.get("mov", "zoom_in"), "es_imagen": f.suffix.lower() in EXT_IMG})
     tapas = [(o["t"], o["t"] + o["dur"]) for o in overlays if o["modo"] == "completa"]
-    escribir_ass(list(zip(offs, subs, marcas)), trabajo / "subs.ass", tapas)
+    escribir_ass(list(zip(offs, subs, marcas)), trabajo / "subs.ass", tapas, combo)
 
     eventos, silencios = planear_sonidos(combo, offs, total, subs, marcas)
     tramos, faltan_musica = planear_musica(combo, offs, total, marcas, n_musica)
@@ -1268,6 +1444,10 @@ def armar_uno(combo, n_musica=0):
         idx += 1
     f = ["[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[vc][ac]"]
     v_prev = "vc"
+    zexpr = _expresion_zoom(combo, offs, total)
+    if zexpr:  # zoom por bloque (antes de imágenes y subtítulos, que no se acercan); encuadre hacia la cara
+        f.append(f"[vc]zoompan=z='{zexpr}':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*0.38':d=1:s=1080x1920:fps=30,setsar=1[vz]")
+        v_prev = "vz"
     for ov in overlays:
         if ov["es_imagen"]:
             cmd += ["-loop", "1", "-framerate", "30", "-t", f"{ov['dur']:.2f}", "-i", str(ov["archivo"])]
@@ -1311,7 +1491,7 @@ def armar_uno(combo, n_musica=0):
         idx += 1
     f.append(f"{''.join(mezcla)}amix=inputs={len(mezcla)}:normalize=0:duration=first,alimiter=limit=0.95[a]")
     salida = S.salida / f"{combo['archivo']}.mp4"
-    cmd += ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-t", f"{total:.2f}",
+    cmd += ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-dn", "-map_chapters", "-1", "-t", f"{total:.2f}",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
             "-movflags", "+faststart", str(salida)]
     run(cmd, cwd=trabajo)

@@ -74,7 +74,12 @@ def estado():
         info_hook = motor.info_pieza(c["hook"])
         v = c.get("version") or {}
         etiqueta = v.get("nombre") or f"Hook {c['hook'].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") else "")
-        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(), "video": url_media(f) if f.exists() else None,
+        ap = motor.ajustes_portada(c["codigo"])
+        av = motor.ajustes_video(c["codigo"])
+        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(),
+                        "ajustes_portada": {"segundo": ap.get("segundo"), "titulo": ap.get("titulo"),
+                                            "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
+                        "ajustes_video": av, "video": url_media(f) if f.exists() else None,
                         "portada": url_media(por) if por.exists() else None,
                         "titulo_portada": motor.texto_portada(c) if (S.proc / f"{c['hook']}.mp4").exists() or prod else "",
                         "receta": json.loads(r.read_text(encoding="utf-8")) if r.exists() else None,
@@ -255,9 +260,26 @@ class H(BaseHTTPRequestHandler):
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
+        elif u.path == "/api/cuadro":
+            q2 = parse_qs(u.query)
+            c = next((x for x in motor.combinaciones() if x["codigo"] == q2["codigo"][0]), None)
+            if not c:
+                return self.send_error(404)
+            destino = motor.carpeta_trabajo() / "cuadro.jpg"
+            motor.cuadro(c, float(q2.get("t", ["0.5"])[0]), destino)
+            b = destino.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(b)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b)
         elif u.path == "/api/estructura":
             try:
-                self._json(motor.estructura(parse_qs(u.query)["codigo"][0]))
+                e = motor.estructura(parse_qs(u.query)["codigo"][0])
+                for k in ("hook", "cuerpo", "cta"):
+                    e[k]["url"] = url_media(e[k].pop("archivo")) if e[k].get("archivo") else None
+                self._json(e)
             except Exception as e:
                 self._json({"error": str(e)}, 400)
         elif u.path == "/api/version":
@@ -411,6 +433,17 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("Ese archivo no es una fuente que la sala pueda leer")
                 fuentes.cargar.cache_clear()
                 self._json({"ok": True, "archivo": nombre})
+            elif u.path == "/api/portada":
+                b = self._cuerpo()
+                c = next(x for x in motor.combinaciones() if x["codigo"] == b["codigo"])
+                motor.guardar_ajustes_portada(b["codigo"], b)
+                motor.hacer_portada(c)  # un segundo: no hace falta re-armar el video
+                self._json({"ok": True, "portada": url_media(motor.S.portadas / f"{c['archivo']}.jpg")})
+            elif u.path == "/api/ajustes_video":
+                b = self._cuerpo()
+                motor.guardar_ajustes_video(b["codigo"], {"plantilla": b.get("plantilla") or None,
+                                                          "ajustes_sub": b.get("ajustes_sub") or None})
+                self._json({"ok": True})
             elif u.path == "/api/version":
                 b = self._cuerpo()
                 if b.get("borrar"):
