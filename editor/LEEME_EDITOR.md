@@ -2,25 +2,30 @@
 
 ## Instalar (una sola vez)
 
-1. Copia la carpeta `editor` a tu PC, por ejemplo en `C:\SalaSuplevet`. **No la pongas dentro de Drive**: crea archivos pesados que no hace falta sincronizar.
-2. Instala **Google Drive para escritorio** y asegúrate de ver la carpeta compartida `SUPLEVET_VIDEOS`.
-3. Doble clic en `instalar.bat`. Instala Python, ffmpeg y el transcriptor, y al final te pide la ruta de `SUPLEVET_VIDEOS` (cópiala de la barra del Explorador).
+1. Entra a https://github.com/pierosvete04/Suplevet_Videos/releases/latest y descarga **`SalaSuplevet-vX.Y.Z.zip`**.
+2. Descomprímelo en `C:\SalaSuplevet`. **No lo pongas dentro de Google Drive**: la sala crea archivos pesados que no hace falta sincronizar.
+3. Abre **`SalaSuplevet.exe`**. Si Windows muestra "Windows protegió su PC", toca *Más información → Ejecutar de todas formas* (el programa no está firmado, es normal).
+4. La primera vez descarga el transcriptor (unos 500 MB). Las siguientes veces abre al toque.
+5. Instala **Google Drive para escritorio** y agrega a "Mi unidad" el acceso directo de la carpeta compartida `SUPLEVET_VIDEOS`. Luego avísale a Piero o a Claude para conectar la sala a esa carpeta.
+
+## Actualizaciones
+
+No tienes que hacer nada. Cuando hay una versión nueva, arriba aparece **"Hay una versión nueva de la sala"**. Toca **Actualizar ahora**: se descarga, la sala se reinicia sola y tus videos y ajustes se quedan donde estaban (carpeta `datos`).
 
 ## Cada semana
 
-1. Doble clic en `abrir_sala.bat`. Se abre la sala en el navegador.
+1. Abre `SalaSuplevet.exe`. Se abre la sala en el navegador. No cierres la ventana negra mientras trabajas.
 2. Arriba, elige la **semana**.
-3. Pestaña **Faltantes**: ahí ves qué piezas faltan grabar y qué imágenes de Google Flow faltan. Arrastra cada archivo a su cuadro; se guarda con el nombre correcto.
-4. Botón **Procesar y armar semana**. Une hook + cuerpo + CTA, pone subtítulos, imágenes, sonidos, música y la portada de cada video.
+3. Pestaña **Faltantes**: qué piezas faltan grabar y qué imágenes de Google Flow faltan. Arrastra cada archivo a su cuadro; se guarda con el nombre correcto.
+4. Botón **Procesar y armar semana**: une hook + cuerpo + CTA y pone subtítulos, imágenes, sonidos, música y la portada de cada video.
 5. Pestaña **Videos**: toca una portada para ver el video, cómo se ve en Instagram, TikTok o Shorts, y corregir el copy.
 6. Pestaña **Piezas y subtítulos**:
    - **Subtítulos**: corrige palabras mal escritas.
-   - **Marcas**: cambia en qué palabra entra una imagen, el estilo del subtítulo (centro, palabra sola, resaltado…) o el sonido.
-   - La vista previa muestra los cambios al instante. Cuando te guste, **Guardar y re-armar sus videos**.
-7. Pestaña **Publicar**: **Exportar por día** copia cada video con su portada y su copy a `SUPLEVET_VIDEOS/SEMANA_XX/listos/DIA_X`.
-8. Lo que no se arregla desde la sala (música, volumen de un efecto, otro estilo) va en **Notas para Claude**.
+   - **Marcas**: cambia en qué palabra entra una imagen, el estilo del subtítulo o el sonido.
+   - La vista previa muestra los cambios al instante. Cuando te guste: **Guardar y re-armar sus videos**.
+7. Pestaña **Publicar**: **Exportar por día** deja cada video con su portada y su copy en `SUPLEVET_VIDEOS/SEMANA_XX/listos/DIA_X`. **Subir al panel** los manda a edicion.suplevet.pe para aprobarlos.
+8. Lo que no se arregla desde la sala va en **Notas para Claude**.
 
 ## Sonidos y música
 
-- Efectos: `biblioteca/sfx/<categoría>/`. Pon varias versiones en cada carpeta y la sala las va rotando. Los que dicen `PROVISIONAL_` son de prueba; reemplázalos por los buenos.
-- Música: `biblioteca/musica/`.
+Están en Drive: `SUPLEVET_VIDEOS/_BIBLIOTECA/sfx/<categoría>/` y `_BIBLIOTECA/musica/`. Pon varias versiones en cada carpeta y la sala las va rotando.
