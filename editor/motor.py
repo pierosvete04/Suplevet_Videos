@@ -127,8 +127,6 @@ def usar_semana(semana):
 
 
 def semanas_disponibles():
-    if not S.base.exists():
-        return []
     def es_sesion(d):
         n = d.name.upper()
         return d.is_dir() and ("SESI" in n or n.startswith("SEMANA") or (d / "Clips").is_dir())
@@ -137,7 +135,13 @@ def semanas_disponibles():
         m = re.match(r"^(\d{1,2})\D+(\d{1,2})", nombre)
         return (0, int(m.group(2)), int(m.group(1)), nombre) if m else (1, 0, 0, nombre)
 
-    return sorted((d.name for d in S.base.iterdir() if es_sesion(d)), key=orden)
+    nombres = {d.name for d in S.base.iterdir() if es_sesion(d)} if S.base.exists() else set()
+    if CONFIG.get("drive", {}).get("activo"):  # también las que están en Drive y aún no se bajaron
+        try:
+            nombres |= set(json.loads((DATOS / "drive_sesiones.json").read_text(encoding="utf-8")))
+        except (FileNotFoundError, ValueError):
+            pass
+    return sorted(nombres, key=orden)
 
 
 def guardar_config(cambios):

@@ -182,7 +182,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
   <button role="tab" data-tab="publicar" aria-selected="false">Publicar</button>
-  <button role="tab" data-tab="notas" aria-selected="false">Notas para Claude</button>
+  <button role="tab" data-tab="notas" aria-selected="false">Ajustes y notas</button>
 </nav>
 <main>
   <p id="aviso" role="status" class="muted" style="margin:0 0 10px"></p>
@@ -324,6 +324,26 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 
   <section data-panel="notas" hidden>
     <div class="caja" style="margin-bottom:14px">
+      <h2>Google Drive</h2>
+      <p class="muted" style="margin:0 0 8px">La sala trabaja con la carpeta del equipo por internet: baja la sesión que abres y sube sola los videos finales, la música, las imágenes de Flow y las asignaciones. No hace falta Google Drive para escritorio.</p>
+      <p id="driveEstado" style="margin:0 0 8px"></p>
+      <div class="form-plant" style="max-width:640px">
+        <label>Link de la carpeta (EDICIÓN DE VIDEOS)<input id="driveLink" placeholder="https://drive.google.com/drive/folders/…"></label>
+        <details><summary>Credenciales propias de Google Cloud (recomendado)</summary>
+          <p class="muted" style="font-size:12px">Del proyecto «Suplevet Sala» en Google Cloud: cliente OAuth tipo «App de escritorio». Sin ellas se usan las de rclone (sirven para probar).</p>
+          <label>ID de cliente<input id="driveCid" placeholder="…apps.googleusercontent.com"></label>
+          <label>Secreto del cliente<input id="driveSecret" type="password" autocomplete="off"></label>
+        </details>
+        <div class="fila">
+          <button class="btn" id="driveConectar">Conectar con Google</button>
+          <button class="btn sec" id="driveLista">Actualizar sesiones</button>
+          <button class="btn sec" id="driveBajar">Bajar de nuevo esta sesión</button>
+          <button class="btn sec" id="driveSubir">Subir todo a Drive</button>
+          <button class="btn sec" id="driveDesconectar">Desconectar</button>
+        </div>
+      </div>
+    </div>
+    <div class="caja" style="margin-bottom:14px">
       <h2>Teleprompter en la tablet</h2>
       <p class="muted" style="margin:0 0 8px">Con la tablet en el mismo WiFi que esta PC. Desde la red solo se abre el teleprompter, con PIN; el resto de la sala sigue cerrado.</p>
       <div class="fila"><button class="btn sec" id="redBoton"></button><span id="redInfo" class="muted"></span></div>
@@ -386,6 +406,7 @@ async function cargar() {
   $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva sesión…</option>`;
   $("notas").value = E.notas;
   pintarRed();
+  pintarDrive();
   $("rutaListos").textContent = E.listos;
   $("subirPanel").hidden = !E.panel;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas[0]?.nombre;
@@ -839,6 +860,29 @@ $("semana").onchange = async e => {
   if (s === "__nueva") { s = prompt("Nombre de la sesión (día y mes de grabación):", new Date().toLocaleDateString("es-PE", { day: "numeric", month: "numeric" }).replace("/", " ") + " SESIÓN"); if (!s) return cargar(); }
   try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
 };
+function pintarDrive() {
+  const d = E.drive || {};
+  $("driveEstado").innerHTML = d.activo
+    ? `<span class="pill ok">conectado</span> ${d.sesiones.length} sesiones en Drive${d.credenciales_propias ? " · credenciales propias" : " · credenciales de rclone"}`
+    : `<span class="pill warn">sin conectar</span> Pega el link y toca «Conectar con Google».`;
+  if (!$("driveLink").value) $("driveLink").value = d.link || "";
+  ["driveLista", "driveBajar", "driveSubir", "driveDesconectar"].forEach(id => $(id).hidden = !d.activo);
+  if (d.activo && !E.sesion_bajada) avisar(`La sesión «${E.semana}» se está bajando de Drive…`);
+}
+async function accionDrive(accion, extra = {}) {
+  try { await post("/api/drive", { accion, ...extra }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); if (accion === "desconectar") await cargar(); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+}
+$("driveConectar").onclick = () => {
+  const link = $("driveLink").value.trim();
+  if (!link) return avisar("Pega el link de la carpeta de Drive.", "err");
+  avisar("Se abrirá Google en el navegador: entra con la cuenta que tiene acceso a la carpeta y acepta.");
+  accionDrive("conectar", { link, client_id: $("driveCid").value, client_secret: $("driveSecret").value });
+};
+$("driveLista").onclick = () => accionDrive("lista");
+$("driveBajar").onclick = () => accionDrive("bajar");
+$("driveSubir").onclick = () => accionDrive("subir");
+$("driveDesconectar").onclick = () => { if (confirm("¿Dejar de trabajar con Drive en esta PC?")) accionDrive("desconectar"); };
 function pintarRed() {
   const r = E.red || {};
   $("redBoton").textContent = r.activa ? "Desactivar acceso por WiFi" : "Activar acceso por WiFi";

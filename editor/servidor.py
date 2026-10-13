@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import actualizador
+import drive
 import motor
 import panel
 
@@ -99,7 +100,9 @@ def estado():
                            "-vf", "scale=540:-2", "-q:v", "4", str(fondo)])
             except Exception:
                 pass
-    return {"version": motor.VERSION, "red": red(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
+    dr = drive.estado()
+    return {"version": motor.VERSION, "red": red(), "drive": dr,
+            "sesion_bajada": (not dr["activo"]) or drive.bajada(S.semana), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
             "propias": list(motor.CONFIG.get("plantillas_propias", {})),
@@ -112,7 +115,7 @@ def estado():
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
 
-def lanzar(accion, pieza=None):
+def lanzar(accion, pieza=None, extra=None):
     """Corre procesar/armar/exportar en segundo plano para que la app no se congele."""
     if TRABAJO["activo"]:
         raise RuntimeError("Ya hay un trabajo en curso. Espera a que termine.")
@@ -128,6 +131,14 @@ def lanzar(accion, pieza=None):
                     motor.procesar(avance=avance)
                 if accion in ("todo", "armar"):
                     motor.armar(pieza, avance=avance)
+                if accion == "conectar":
+                    drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
+                if accion == "bajar":
+                    drive.bajar_sesion(motor.S.semana, avance=avance)
+                if accion == "subir_drive":
+                    drive.subir(motor.S.semana, avance=avance)
+                if accion == "lista_drive":
+                    avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
                     motor.escuchar_clips(avance=avance)
                 if accion == "uno":
@@ -139,6 +150,9 @@ def lanzar(accion, pieza=None):
                 if accion in ("todo", "exportar"):
                     hechos = motor.exportar(avance=avance)
                     avance(f"Exportados {len(hechos)} videos a {motor.S.listos}")
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.semana, [motor.S.listos.name], avance=avance)
+                        avance(f"Exportados y subidos a Drive ({motor.S.listos.name}): {len(hechos)} videos")
                 if accion == "panel":
                     n = panel.subir_semana(avance=avance)
                     avance(f"Subidos {n} videos al panel")
@@ -321,17 +335,25 @@ class H(BaseHTTPRequestHandler):
                 motor.guardar_config({"red_local": {"activa": activa, "pin": actual.get("pin") or f"{secrets.randbelow(9000) + 1000}"}})
                 return self._json({"ok": True, **red(), "reiniciar": True})
             if u.path == "/api/subir":
-                self._json({"ok": True, "archivo": self._subir(q)})
+                archivo = self._subir(q)
+                carpeta = {"assets": motor.S.assets, "musica": motor.S.musica, "hooks": motor.S.carpeta("hook"),
+                           "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}[q["destino"][0]]
+                drive.subir_en_segundo_plano(motor.S.semana, [carpeta.relative_to(motor.S.grab).as_posix()])
+                self._json({"ok": True, "archivo": archivo})
             elif u.path == "/api/semana":
                 sem = " ".join(self._cuerpo()["semana"].split())
                 if not re.fullmatch(r"[\w .-]{1,60}", sem) or sem.startswith("."):
                     raise ValueError("Nombre de semana no válido")
                 nueva = motor.S.base / sem
-                if not nueva.exists():  # sesión nueva con la convención del equipo
+                if drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
+                    drive.crear_sesion(sem)
+                if not nueva.exists() and not (drive.estado()["activo"] and sem in drive.sesiones_en_drive()):
                     for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "V.FINALES"):
                         (nueva / sub).mkdir(parents=True, exist_ok=True)
                 motor.usar_semana(sem)
                 motor.guardar_config({"semana": sem})
+                if drive.estado()["activo"] and not drive.bajada(sem):
+                    lanzar("bajar")  # se baja sola la primera vez que se abre
                 self._json({"ok": True})
             elif u.path == "/api/subtitulos":
                 motor.guardar_lineas_editadas(q["pieza"][0], self._cuerpo()["lineas"])
@@ -369,11 +391,26 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/asignar":
                 b = self._cuerpo()
                 motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
+                drive.subir_en_segundo_plano(motor.S.semana, ["asignaciones.json"])
+                self._json({"ok": True})
+            elif u.path == "/api/drive":
+                b = self._cuerpo()
+                if b.get("accion") == "conectar":
+                    drive.carpeta_id(b.get("link", ""))  # valida el link antes de abrir Google
+                    lanzar("conectar", extra=b)
+                elif b.get("accion") == "desconectar":
+                    drive.desconectar()
+                else:
+                    lanzar({"bajar": "bajar", "subir": "subir_drive", "lista": "lista_drive"}[b["accion"]])
                 self._json({"ok": True})
             elif u.path == "/api/numerar_hooks":
-                self._json({"ok": True, "asignadas": motor.numerar_hooks(self._cuerpo().get("cuerpo"))})
+                n = motor.numerar_hooks(self._cuerpo().get("cuerpo"))
+                drive.subir_en_segundo_plano(motor.S.semana, ["asignaciones.json"])
+                self._json({"ok": True, "asignadas": n})
             elif u.path == "/api/aceptar_sugerencias":
-                self._json({"ok": True, "asignadas": motor.aceptar_sugerencias()})
+                n = motor.aceptar_sugerencias()
+                drive.subir_en_segundo_plano(motor.S.semana, ["asignaciones.json"])
+                self._json({"ok": True, "asignadas": n})
             elif u.path == "/api/marcas":
                 motor.guardar_marcas(q["pieza"][0], self._cuerpo()["marcas"])
                 self._json({"ok": True})
