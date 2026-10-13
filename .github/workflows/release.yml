@@ -39,8 +39,8 @@ jobs:
           set -o pipefail
           pyinstaller lanzador.py --noconfirm --onedir --console --name SalaSuplevet             --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime             --collect-all tokenizers --collect-all av --collect-all huggingface_hub 2>&1 | tee pyinstaller.log || {
             # El registro de Actions no es público: el error se publica como anotación para poder leerlo.
-            # GitHub solo muestra 10 anotaciones por paso: se publican las líneas con el error real.
-            grep -inE "error|failed|no module|exception" pyinstaller.log | grep -v "^.*Traceback" | tail -n 9 | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+            # GitHub solo muestra 10 anotaciones por paso: se publica lo que dijo el proceso que falló.
+            awk '/failed with:/{n=NR} {l[NR]=$0} END{for(i=n+1;i<=n+12 && i<=NR;i++) print l[i]}' pyinstaller.log | grep -v '^\s*$' | head -n 9 | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
             exit 1
           }
 
