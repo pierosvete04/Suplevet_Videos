@@ -47,7 +47,6 @@ LOCAL_PATH = DATOS / "config.local.json"  # lo propio de cada PC: carpeta de Dri
 CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 if LOCAL_PATH.exists():
     CONFIG.update(json.loads(LOCAL_PATH.read_text(encoding="utf-8")))
-TIPOS = {"hooks": "hook", "cuerpos": "cuerpo", "ctas": "cta"}
 EXT_IMG = {".png", ".jpg", ".jpeg", ".webp"}
 EXT_VID = {".mp4", ".mov", ".webm", ".m4v"}
 EXT_AUDIO = {".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac"}
@@ -67,10 +66,29 @@ def _buscar_ffmpeg():
 
 FFMPEG, FFPROBE = _buscar_ffmpeg()
 # Sonidos y música: en Drive (_BIBLIOTECA) si está configurado, si no la carpeta local.
+# Sonidos: la librería del equipo (SOUND FX en Drive) si está configurada; si falta, los provisionales del código.
 BIBLIO = Path(CONFIG.get("biblioteca") or (DATOS / "biblioteca" if (DATOS / "biblioteca").exists() else RAIZ / "biblioteca"))
+BIBLIO_BASE = RAIZ / "biblioteca"
 
 
 # ---------- Rutas de la semana activa ----------
+
+# Carpetas que se aceptan en una sesión. La primera de cada lista es la que se crea si falta:
+# es la convención del equipo (DD MM SESIÓN/Clips/Hooks, Cuerpo, CTA y V.FINALES).
+CARPETAS = {
+    "hook": ["Clips/Hooks", "Clips/Hook", "hooks"],
+    "cuerpo": ["Clips/Cuerpo", "Clips/Cuerpos", "cuerpos"],
+    "cta": ["Clips/CTA", "Clips/CTAs", "ctas"],
+}
+CARPETA_SUELTOS = "Clips"  # clips sin clasificar (IMG_1053.MOV…)
+
+
+def _primera(base, opciones):
+    for o in opciones:
+        if (base / o).is_dir():
+            return base / o
+    return base / opciones[0]
+
 
 class Rutas:
     def __init__(self, semana):
@@ -78,16 +96,24 @@ class Rutas:
         base = Path(CONFIG.get("carpeta_trabajo") or DATOS / "grabaciones")
         self.base = base
         self.grab = base / semana                    # en Drive: lo que suben tú y el editor
-        self.assets = self.grab / "assets"
-        self.listos = self.grab / "listos"
+        self.assets = _primera(self.grab, ["Flow", "assets"])
+        self.listos = _primera(self.grab, ["V.FINALES", "VIDEOS FINALES", "listos"])
+        self.guion = _primera(self.grab, ["Guion", "1_guion"])
+        self.asignaciones = self.grab / "asignaciones.json"
         self.proc = DATOS / "procesado" / semana      # local: pesado, no se sincroniza
         self.subs = DATOS / "subtitulos" / semana
         self.salida = DATOS / "salidas" / semana
         self.portadas = DATOS / "salidas" / semana / "portadas"
         self.recetas = DATOS / "recetas" / semana
+        self.transcripciones = DATOS / "transcripciones" / semana
         self.copies_editados = DATOS / "subtitulos" / semana / "_copies_editados.json"
+        fecha = re.match(r"^(\d{1,2})\D+(\d{1,2})", semana)   # "13 10 SESIÓN" -> 1310
         n = re.search(r"(\d+)", semana)
-        self.prefijo = f"S{int(n.group(1)):02d}" if n else "S00"
+        self.prefijo = (f"{int(fecha.group(1)):02d}{int(fecha.group(2)):02d}" if fecha
+                        else f"S{int(n.group(1)):02d}" if n else "S00")
+
+    def carpeta(self, tipo):
+        return _primera(self.grab, CARPETAS[tipo])
 
 
 S = Rutas(CONFIG["semana"])
@@ -102,7 +128,15 @@ def usar_semana(semana):
 def semanas_disponibles():
     if not S.base.exists():
         return []
-    return sorted(d.name for d in S.base.iterdir() if d.is_dir() and d.name.upper().startswith("SEMANA"))
+    def es_sesion(d):
+        n = d.name.upper()
+        return d.is_dir() and ("SESI" in n or n.startswith("SEMANA") or (d / "Clips").is_dir())
+
+    def orden(nombre):  # "13 10 SESIÓN" -> (10, 13); el resto al final por nombre
+        m = re.match(r"^(\d{1,2})\D+(\d{1,2})", nombre)
+        return (0, int(m.group(2)), int(m.group(1)), nombre) if m else (1, 0, 0, nombre)
+
+    return sorted((d.name for d in S.base.iterdir() if es_sesion(d)), key=orden)
 
 
 def guardar_config(cambios):
@@ -137,7 +171,7 @@ _prod_cache = None
 def produccion():
     """produccion.json de la semana (en la carpeta de la semana o en semanas/SEMANA_XX)."""
     global _prod_cache
-    for f in (S.grab / "1_guion" / "produccion.json", S.grab / "produccion.json",
+    for f in (S.guion / "produccion.json", S.grab / "produccion.json",
               RAIZ.parent / "semanas" / S.semana / "produccion.json"):
         if f.exists():
             m = f.stat().st_mtime
@@ -151,14 +185,115 @@ def info_pieza(nombre):
     return produccion().get("piezas", {}).get(nombre, {})
 
 
-def piezas():
-    """Lista de piezas grabadas: [{nombre, tipo, original}]"""
-    out = []
-    for carpeta, tipo in TIPOS.items():
-        for f in sorted((S.grab / carpeta).glob("*")):
-            if f.suffix.lower() in EXT_VID:
-                out.append({"nombre": f.stem, "tipo": tipo, "original": f})
+# C1_H2 (hook), C1 (cuerpo), C1_P3 (parte 3 del cuerpo C1), CTA / CTA-A / C1_CTA1
+CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*)$", re.I)
+PARTE = re.compile(r"^((?:C|P)\d+)_P(\d+)$", re.I)
+
+
+def tipo_de(nombre):
+    n = nombre.upper()
+    return "cta" if "CTA" in n else "hook" if re.search(r"_H\d+$", n) else "cuerpo"
+
+
+def _asig_local():
+    return DATOS / "asignaciones" / f"{S.semana}.json"
+
+
+def leer_asignaciones():
+    """Une la copia de Drive (compartida con el equipo) y la local de esta PC; la local manda.
+    La local existe porque Drive borra en silencio lo que escribe una cuenta con permiso de solo lectura."""
+    d = {}
+    for f in (S.asignaciones, _asig_local()):
+        try:
+            d.update(json.loads(f.read_text(encoding="utf-8")))
+        except (FileNotFoundError, ValueError, OSError):
+            pass
+    return d
+
+
+def guardar_asignacion(rel, pieza):
+    d = leer_asignaciones()
+    if pieza:
+        if not CODIGO_PIEZA.match(pieza):
+            raise ValueError(f"«{pieza}» no es un código de pieza (C1_H2, C3, C1_P2, CTA-A…)")
+        d[rel] = pieza.upper()
+    else:
+        d.pop(rel, None)
+    texto = json.dumps(d, ensure_ascii=False, indent=1)
+    _asig_local().parent.mkdir(parents=True, exist_ok=True)
+    _asig_local().write_text(texto, encoding="utf-8")
+    try:
+        S.asignaciones.write_text(texto, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def clips():
+    """Todos los videos de la sesión: [{rel, ruta, tipo_carpeta}]. tipo_carpeta = None si están sueltos en Clips/."""
+    vistos, out = set(), []
+    for tipo, opciones in CARPETAS.items():
+        for o in opciones:
+            d = S.grab / o
+            if d.is_dir():
+                for f in sorted(d.rglob("*"), key=lambda x: x.as_posix().lower()):
+                    if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
+                        vistos.add(f)
+                        out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": tipo})
+    sueltos = S.grab / CARPETA_SUELTOS
+    if sueltos.is_dir():
+        for f in sorted(sueltos.iterdir()):
+            if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
+                out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None})
     return out
+
+
+def nombre_automatico(c):
+    """Nombre de pieza que se deduce sin asignar a mano:
+    C1_H2.mov · Cuerpo/3.MOV -> C1_P3 · Cuerpo/C2/1.MOV -> C2_P1 · CTA/CTA.MOV -> CTA."""
+    stem, tipo = c["ruta"].stem, c["tipo_carpeta"]
+    if CODIGO_PIEZA.match(stem):
+        return stem.upper()
+    if tipo == "cuerpo" and stem.isdigit():
+        padre = c["ruta"].parent.name
+        cuerpo = padre.upper() if re.fullmatch(r"(?:C|P)\d+", padre, re.I) else "C1"
+        return f"{cuerpo}_P{int(stem)}"
+    if tipo == "cta" and stem.upper().startswith("CTA"):
+        return stem.upper()
+    return None
+
+
+def piezas():
+    """Piezas listas para editar: [{nombre, tipo, partes: [rutas], original, rel}].
+    Un cuerpo grabado en partes (C1_P1, C1_P2…) es una sola pieza C1 con sus partes en orden.
+    Si dos clips dicen ser la misma pieza, gana el asignado a mano."""
+    asig = leer_asignaciones()
+    por_nombre, origen_manual = {}, set()
+    for c in clips():
+        manual = asig.get(c["rel"])
+        nombre = manual or nombre_automatico(c)
+        if not nombre or (nombre in por_nombre and nombre in origen_manual and not manual):
+            continue
+        por_nombre[nombre] = c
+        if manual:
+            origen_manual.add(nombre)
+    agrupadas = {}
+    for nombre, c in por_nombre.items():
+        m = PARTE.match(nombre)
+        base, orden = (m.group(1).upper(), int(m.group(2))) if m else (nombre, 0)
+        agrupadas.setdefault(base, []).append((orden, c))
+    out = []
+    for nombre, lista in agrupadas.items():
+        lista.sort(key=lambda x: x[0])
+        partes = [c["ruta"] for _, c in lista]
+        out.append({"nombre": nombre, "tipo": tipo_de(nombre), "partes": partes, "original": partes[0],
+                    "rel": lista[0][1]["rel"], "rels": [c["rel"] for _, c in lista]})
+    orden = {"hook": 0, "cuerpo": 1, "cta": 2}
+    return sorted(out, key=lambda p: (orden[p["tipo"]], p["nombre"]))
+
+
+def clips_sin_asignar():
+    usados = {r for p in piezas() for r in p["rels"]}
+    return [c for c in clips() if c["rel"] not in usados]
 
 
 def buscar_asset(aid):
@@ -222,19 +357,124 @@ def procesar(forzar_subs=False, avance=print):
     ps = piezas()
     for n, p in enumerate(ps, 1):
         dest = S.proc / f"{p['nombre']}.mp4"
-        if not dest.exists() or dest.stat().st_mtime < p["original"].stat().st_mtime:
-            avance(f"Procesando {p['nombre']} ({n}/{len(ps)})")
-            ini, fin = limites_de_voz(p["original"])
-            run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(p["original"]),
-                 "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
-                 "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2",
-                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", str(dest)])
+        firma = S.proc / f"{p['nombre']}.partes.json"
+        lista = [str(x) for x in p["partes"]]
+        vieja = json.loads(firma.read_text(encoding="utf-8")) if firma.exists() else None
+        if (not dest.exists() or vieja != lista
+                or dest.stat().st_mtime < max(x.stat().st_mtime for x in p["partes"])):
+            avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
+            trozos = []
+            for k, parte in enumerate(p["partes"]):
+                ini, fin = limites_de_voz(parte)
+                t = dest if len(lista) == 1 else S.proc / f"_{p['nombre']}_{k}.mp4"
+                run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
+                     "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
+                     "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2",
+                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", str(t)])
+                trozos.append(t)
+            if len(trozos) > 1:
+                lst = S.proc / f"_{p['nombre']}.txt"
+                lst.write_text("".join(f"file '{t.name}'\n" for t in trozos), encoding="utf-8")
+                run([FFMPEG, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", lst.name, "-c", "copy", dest.name], cwd=S.proc)
+                for t in trozos + [lst]:
+                    t.unlink(missing_ok=True)
+            firma.write_text(json.dumps(lista, ensure_ascii=False), encoding="utf-8")
+            (S.subs / f"{p['nombre']}.json").unlink(missing_ok=True) if vieja is not None and vieja != lista else None
         sub = S.subs / f"{p['nombre']}.json"
         if forzar_subs or not sub.exists():
             avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})")
             pal = transcribir(dest)
             sub.write_text(json.dumps({"pieza": p["nombre"], "lineas": agrupar_lineas(pal)},
                                       ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+# ---------- Sugerir a qué pieza corresponde cada clip ----------
+
+def _archivo_transcripcion(c):
+    return S.transcripciones / (re.sub(r"[^\w.-]", "_", c["rel"]) + ".json")
+
+
+def transcripcion_clip(c, crear=True):
+    """Texto de un clip (en caché; se rehace si el archivo cambió)."""
+    f = _archivo_transcripcion(c)
+    firma = f"{c['ruta'].stat().st_size}-{int(c['ruta'].stat().st_mtime)}"
+    if f.exists():
+        d = json.loads(f.read_text(encoding="utf-8"))
+        if d.get("firma") == firma:
+            return d["texto"]
+    if not crear:
+        return None
+    texto = " ".join(p["w"] for p in transcribir(c["ruta"]))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"firma": firma, "texto": texto}, ensure_ascii=False), encoding="utf-8")
+    return texto
+
+
+def escuchar_clips(avance=print):
+    """Transcribe los clips sin asignar para poder sugerir de qué pieza son."""
+    pendientes = clips_sin_asignar()
+    for n, c in enumerate(pendientes, 1):
+        avance(f"Escuchando {c['ruta'].name} ({n}/{len(pendientes)})")
+        transcripcion_clip(c)
+
+
+def _parecido(a, b):
+    import difflib
+    wa, wb = [norm(x) for x in a.split() if norm(x)], [norm(x) for x in b.split() if norm(x)]
+    if not wa or not wb:
+        return 0.0
+    return difflib.SequenceMatcher(None, wa, wb, autojunk=False).ratio()
+
+
+def sugerencias():
+    """{rel: {texto, pieza, parecido, mejor}}. «mejor» marca la toma más parecida de cada pieza;
+    si hay empate gana la última grabada (suele ser la buena)."""
+    esperadas = {n: i.get("texto", "") for n, i in produccion().get("piezas", {}).items() if i.get("texto")}
+    ya = {p["nombre"] for p in piezas()}
+    out = {}
+    for c in clips_sin_asignar():
+        texto = transcripcion_clip(c, crear=False)
+        if texto is None:
+            continue
+        mejor = max(((n, _parecido(texto, t)) for n, t in esperadas.items() if n not in ya), key=lambda x: x[1], default=(None, 0))
+        out[c["rel"]] = {"texto": texto, "pieza": mejor[0] if mejor[1] >= 0.35 else None, "parecido": round(mejor[1], 2)}
+    por_pieza = {}
+    for rel, sug in out.items():
+        if sug["pieza"]:
+            actual = por_pieza.get(sug["pieza"])
+            if not actual or (sug["parecido"], rel) >= (out[actual]["parecido"], actual):
+                por_pieza[sug["pieza"]] = rel
+    for rel, sug in out.items():
+        sug["mejor"] = bool(sug["pieza"]) and por_pieza.get(sug["pieza"]) == rel
+    return out
+
+
+def numerar_hooks(cuerpo=None):
+    """Asigna C1_H1, C1_H2… a los clips sin nombre de la carpeta Hooks, en el orden en que se grabaron."""
+    cuerpos = [p["nombre"] for p in piezas() if p["tipo"] == "cuerpo"]
+    cuerpo = (cuerpo or (cuerpos[0] if len(cuerpos) == 1 else "")).upper()
+    if not cuerpo:
+        raise ValueError("Hay varios cuerpos: indica a cuál pertenecen los hooks")
+    usados = {int(m.group(1)) for p in piezas() if (m := re.fullmatch(rf"{cuerpo}_H(\d+)", p["nombre"]))}
+    n, hechas = 1, 0
+    for c in clips_sin_asignar():
+        if c["tipo_carpeta"] != "hook":
+            continue
+        while n in usados:
+            n += 1
+        guardar_asignacion(c["rel"], f"{cuerpo}_H{n}")
+        usados.add(n)
+        hechas += 1
+    return hechas
+
+
+def aceptar_sugerencias(minimo=0.5):
+    hechas = 0
+    for rel, sug in sugerencias().items():
+        if sug["mejor"] and sug["parecido"] >= minimo:
+            guardar_asignacion(rel, sug["pieza"])
+            hechas += 1
+    return hechas
 
 
 def leer_subs(pieza):
@@ -420,12 +660,29 @@ def escribir_ass(segmentos, ruta, tapas=()):
 
 # ---------- Sonido ----------
 
+def _audios(ruta):
+    if ruta.is_file():
+        return [ruta] if ruta.suffix.lower() in EXT_AUDIO else []
+    if ruta.is_dir():
+        return sorted(f for f in ruta.iterdir() if f.suffix.lower() in EXT_AUDIO and f.stat().st_size > 0)
+    return []
+
+
+_sfx_cache = {}
+
+
 def sfx_de(categoria):
-    """Archivos de una categoría (biblioteca/sfx/<categoria>/). Si no hay carpeta, prueba sfx/<categoria>.wav."""
-    d = BIBLIO / "sfx" / categoria
-    if d.is_dir():
-        return sorted(f for f in d.iterdir() if f.suffix.lower() in EXT_AUDIO)
-    return [f for f in (BIBLIO / "sfx").glob(f"{categoria}.*") if f.suffix.lower() in EXT_AUDIO]
+    """Archivos de una categoría. Orden: mapa de config (carpetas o archivos de la librería del equipo),
+    carpeta <biblioteca>/sfx/<categoria>/, y por último los provisionales que trae el código."""
+    if categoria in _sfx_cache:
+        return _sfx_cache[categoria]
+    out = []
+    for rel in CONFIG.get("sfx_mapa", {}).get(categoria, []):
+        out += _audios(BIBLIO / rel)
+    if not out:
+        out = _audios(BIBLIO / "sfx" / categoria) or _audios(BIBLIO_BASE / "sfx" / categoria)
+    _sfx_cache[categoria] = out
+    return out
 
 
 def elegir_sfx(categoria, semilla):
@@ -514,15 +771,21 @@ def planear_sonidos(combo, offs, total, subs, marcas):
         f = elegir_sfx(c["cat"], f"{combo['codigo']}|{c['cat']}|{len(elegidos)}")
         if not f:
             continue
-        t = c["t"]
-        if c["cat"] == "riser":  # el riser termina en el corte
-            t = max(0.0, c["t"] - dur_audio(f))
-        elegidos.append({**c, "t": round(t, 2), "archivo": f})
+        maxd = so.get("duracion_maxima", {}).get(c["cat"], so.get("duracion_maxima", {}).get("default", 2.5))
+        d = dur_audio(f)
+        t, desde = c["t"], 0.0
+        if c["cat"] == "riser":  # el riser termina en el corte; si es largo se usa solo su final
+            desde = max(0.0, d - maxd)
+            t = max(0.0, c["t"] - min(d, maxd))
+        elegidos.append({**c, "t": round(t, 2), "archivo": f, "desde": round(desde, 2), "largo": round(min(d, maxd), 2)})
     return sorted(elegidos, key=lambda e: e["t"]), silencios
 
 
 def pistas_musica():
-    return sorted(f for f in (BIBLIO / "musica").glob("*") if f.suffix.lower() in EXT_AUDIO)
+    for d in (CONFIG.get("carpeta_musica"), BIBLIO / "musica", BIBLIO_BASE / "musica"):
+        if d and _audios(Path(d)):
+            return _audios(Path(d))
+    return []
 
 
 # ---------- Imágenes y clips (b-roll) ----------
@@ -553,9 +816,14 @@ def texto_portada(combo):
     p = produccion()
     v = p.get("videos", {}).get(combo["codigo"], {})
     t = v.get("portada") or info_pieza(combo["hook"]).get("portada")
-    if not t:
-        lineas = leer_subs(combo["hook"])["lineas"]
-        t = " ".join(" ".join(l["texto"] for l in lineas).split()[:6])
+    if not t:  # sin guion: la primera frase del hook, sin el saludo ("Estimado médico veterinario,")
+        texto = " ".join(l["texto"] for l in leer_subs(combo["hook"])["lineas"])
+        partes = [x.strip() for x in re.split(r"(?<=[,.?!:])\s+", texto) if x.strip()]
+        while len(partes) > 1 and len(partes[0].split()) <= 4 and partes[0].endswith(","):
+            partes.pop(0)
+        frase = re.split(r"(?<=[.?!])\s", partes[0] if partes else texto)[0] if partes else texto
+        palabras = frase.rstrip(",.").split()
+        t = " ".join(palabras[:7]) + ("…" if len(palabras) > 7 else "")
     return t
 
 
@@ -671,7 +939,9 @@ def armar_uno(combo, n_musica=0):
         cmd += ["-i", str(e["archivo"])]
         ms = int(e["t"] * 1000)
         vk = vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0)
-        f.append(f"[{idx}:a]aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}[s{k}]")
+        recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
+                   f"afade=t=out:st={max(0, e['largo'] - 0.15):.2f}:d=0.15,")
+        f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}[s{k}]")
         mezcla.append(f"[s{k}]")
         idx += 1
     f.append(f"{''.join(mezcla)}amix=inputs={len(mezcla)}:normalize=0:duration=first,alimiter=limit=0.95[a]")
@@ -802,7 +1072,10 @@ def checklist():
     for a in p.get("assets", []):
         f = buscar_asset(a["id"])
         assets.append({**a, "listo": bool(f), "archivo_actual": f.name if f else None})
-    return {"piezas_faltan": falta_piezas, "assets": assets}
+    sug = sugerencias()
+    sin = [{"rel": c["rel"], "nombre": c["ruta"].name, "carpeta": c["tipo_carpeta"], **sug.get(c["rel"], {})}
+           for c in clips_sin_asignar()]
+    return {"piezas_faltan": falta_piezas, "assets": assets, "sin_asignar": sin}
 
 
 if __name__ == "__main__":

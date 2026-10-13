@@ -63,10 +63,13 @@ def estado():
                    "es_video": f.suffix.lower() in motor.EXT_VID}
                   for f in sorted(S.assets.iterdir()) if f.suffix.lower() in motor.EXT_IMG | motor.EXT_VID]
     notas = motor.DATOS / "correcciones.md"
-    sfx = sorted(d.name for d in (motor.BIBLIO / "sfx").iterdir() if d.is_dir())
+    sfx = sorted(set(motor.CONFIG.get("sfx_mapa", {})) | {d.name for d in (motor.BIBLIO_BASE / "sfx").iterdir() if d.is_dir()})
+    checklist = motor.checklist()
+    for c in checklist["sin_asignar"]:
+        c["video"] = url_media(motor.S.grab / c["rel"])
     return {"version": motor.VERSION, "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
-            "piezas": ps, "salidas": salidas, "assets": assets, "checklist": motor.checklist(),
+            "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
             "calendario": motor.calendario(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
@@ -88,6 +91,8 @@ def lanzar(accion, pieza=None):
                     motor.procesar(avance=avance)
                 if accion in ("todo", "armar"):
                     motor.armar(pieza, avance=avance)
+                if accion == "escuchar":
+                    motor.escuchar_clips(avance=avance)
                 if accion == "uno":
                     combo = next(c for c in motor.combinaciones() if c["codigo"] == pieza)
                     avance(f"Armando {combo['archivo']}")
@@ -194,8 +199,8 @@ class H(BaseHTTPRequestHandler):
         destino = q["destino"][0]
         nombre = q["nombre"][0]
         ext = "." + q["ext"][0].lower().lstrip(".")
-        carpetas = {"assets": motor.S.assets, "hooks": motor.S.grab / "hooks",
-                    "cuerpos": motor.S.grab / "cuerpos", "ctas": motor.S.grab / "ctas"}
+        carpetas = {"assets": motor.S.assets, "hooks": motor.S.carpeta("hook"),
+                    "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}
         if destino not in carpetas or not NOMBRE_OK.match(nombre) or ext not in motor.EXT_IMG | motor.EXT_VID:
             raise ValueError("Archivo o nombre no válido")
         carpeta = carpetas[destino]
@@ -220,16 +225,27 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/subir":
                 self._json({"ok": True, "archivo": self._subir(q)})
             elif u.path == "/api/semana":
-                sem = self._cuerpo()["semana"]
-                if not NOMBRE_OK.match(sem):
+                sem = " ".join(self._cuerpo()["semana"].split())
+                if not re.fullmatch(r"[\w .-]{1,60}", sem) or sem.startswith("."):
                     raise ValueError("Nombre de semana no válido")
-                (motor.S.base / sem).mkdir(parents=True, exist_ok=True)
+                nueva = motor.S.base / sem
+                if not nueva.exists():  # sesión nueva con la convención del equipo
+                    for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "V.FINALES"):
+                        (nueva / sub).mkdir(parents=True, exist_ok=True)
                 motor.usar_semana(sem)
                 motor.guardar_config({"semana": sem})
                 self._json({"ok": True})
             elif u.path == "/api/subtitulos":
                 motor.guardar_lineas_editadas(q["pieza"][0], self._cuerpo()["lineas"])
                 self._json({"ok": True})
+            elif u.path == "/api/asignar":
+                b = self._cuerpo()
+                motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
+                self._json({"ok": True})
+            elif u.path == "/api/numerar_hooks":
+                self._json({"ok": True, "asignadas": motor.numerar_hooks(self._cuerpo().get("cuerpo"))})
+            elif u.path == "/api/aceptar_sugerencias":
+                self._json({"ok": True, "asignadas": motor.aceptar_sugerencias()})
             elif u.path == "/api/marcas":
                 motor.guardar_marcas(q["pieza"][0], self._cuerpo()["marcas"])
                 self._json({"ok": True})

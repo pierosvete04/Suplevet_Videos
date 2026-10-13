@@ -98,6 +98,21 @@
       "glitch": [
         "pop"
       ]
+    },
+    "duracion_maxima": {
+      "default": 2.5,
+      "riser": 2.2,
+      "tension": 1.4,
+      "brillo": 1.5,
+      "tecleo": 1.6,
+      "notificacion": 1.2,
+      "impacto": 1.8,
+      "scratch": 1.2,
+      "glitch": 0.8,
+      "whoosh": 1.2,
+      "whoosh_inverso": 1.2,
+      "pop": 0.8,
+      "ding": 1.2
     }
   },
   "musica": {
@@ -121,5 +136,57 @@
   },
   "actualizaciones": {
     "repo": "pierosvete04/Suplevet_Videos"
+  },
+  "sfx_mapa": {
+    "impacto": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/05-BOOM (IMPACTO)"
+    ],
+    "whoosh": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/36-WHOOSH",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/32-SWOSH"
+    ],
+    "whoosh_inverso": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/35-TRANSICION"
+    ],
+    "zoom": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/32-SWOSH"
+    ],
+    "pop": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/29-POP",
+      "FX CARTOON 2/Pop Sounds"
+    ],
+    "riser": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/31-RISER",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/11-CORPORATE RISER"
+    ],
+    "ding": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/14-DING"
+    ],
+    "glitch": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/22-GLITCH"
+    ],
+    "brillo": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/03-ANIMACION LOGO",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/35-TRANSICION/Magic Spell Sound Effect ( By Ashish Editz )_01.mp3",
+      "FX SERIES/Sound Effects Series (Volume.1-10)/Volume 4/Vintage Cartoon/Hits & Tones/Soft Chime.wav"
+    ],
+    "scratch": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/25-MEMES/Turntable Scratch.mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/19-EXTRAS/Scratch SFX _55 _ Disco Rayado DJ Efecto De Sonido _ Free Sounds(MP3_160K).mp3"
+    ],
+    "notificacion": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/19-EXTRAS/Notification Bell Sound Effect ( By Ashish Editz )_01.mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/19-EXTRAS/Notification Pop Up Sound Effect ( By Ashish Editz )_01.mp3"
+    ],
+    "tecleo": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/10-CLICK/Keyboard.mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/10-CLICK/Writing on keyboard Sound Effect.mp3"
+    ],
+    "tension": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/08-CINEMATICA"
+    ],
+    "camara": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/07-CAMARA"
+    ]
   }
 }

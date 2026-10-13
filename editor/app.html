@@ -147,7 +147,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <div><h1>Sala de edición <span class="muted" id="prefijo"></span></h1>
     <span class="muted" id="carpeta" style="font-size:12px"></span></div>
   <div class="fila">
-    <label class="muted" for="semana" style="font-size:12px">Semana</label>
+    <label class="muted" for="semana" style="font-size:12px">Sesión</label>
     <select id="semana"></select>
     <button class="btn" id="todo">Procesar y armar semana</button>
   </div>
@@ -214,6 +214,20 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   </section>
 
   <section data-panel="faltan" hidden>
+    <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Clips por identificar <span class="pill" id="nSinAsignar"></span></h2>
+          <span class="muted" style="font-size:12px">Clips con nombre de cámara (IMG_1016…). La sala los escucha, los compara con el guion y sugiere qué pieza es. Los archivos no se renombran.</span></div>
+        <div class="fila">
+          <button class="btn sec" id="numerarHooks" hidden>Numerar hooks en orden</button>
+          <button class="btn sec" id="escuchar">Escuchar y sugerir</button>
+          <button class="btn" id="aceptarSug">Aceptar sugerencias</button>
+        </div>
+      </div>
+      <label class="fila muted" style="font-size:12px;margin:8px 0"><input type="checkbox" id="ocultarTomas" checked> Ocultar otras tomas de piezas ya sugeridas</label>
+      <datalist id="codigosPiezas"></datalist>
+      <div class="grid-assets" id="sinAsignar"></div>
+    </div>
     <div class="caja" style="margin-bottom:14px">
       <h2>Piezas por grabar</h2>
       <p class="muted" style="margin:0 0 8px">Arrastra el video grabado encima de su nombre; se guarda con el nombre correcto.</p>
@@ -295,13 +309,13 @@ async function cargar() {
   $("prefijo").textContent = `· ${E.semana}`;
   document.title = `Sala de Edición Suplevet v${E.version}`;
   $("carpeta").textContent = E.carpeta;
-  $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva semana…</option>`;
+  $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva sesión…</option>`;
   $("notas").value = E.notas;
   $("rutaListos").textContent = E.listos;
   $("subirPanel").hidden = !E.panel;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas[0]?.nombre;
   pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias();
-  if (!E.hay_produccion) avisar("Esta semana no tiene produccion.json: no habrá marcas, copies ni portadas con título. Pídele a Claude el guion de la semana.", "muted");
+  if (!E.hay_produccion) avisar("Esta sesión no tiene guion (Guion/produccion.json): se arma igual, pero sin marcas, copies ni título de portada. Pídele a Claude el guion.", "muted");
   vigilar(E.trabajo);
 }
 
@@ -512,7 +526,28 @@ function zona(destino, nombre, actualUrl, esVideo, acepta) {
     <span>${actualUrl ? "Listo · arrastra otro para reemplazar" : "Arrastra aquí o toca para elegir"}</span>
     <input type="file" accept="${acepta}"></label>`;
 }
+function pintarSinAsignar() {
+  const lista = E.checklist.sin_asignar || [];
+  const ocultar = $("ocultarTomas").checked;
+  $("cajaSinAsignar").hidden = !lista.length;
+  $("nSinAsignar").textContent = lista.length;
+  $("numerarHooks").hidden = !lista.some(c => c.carpeta === "hook");
+  const esperadas = Object.keys(E.piezas_guion || {});
+  $("codigosPiezas").innerHTML = esperadas.map(n => `<option value="${esc(n)}">`).join("");
+  const visibles = lista.filter(c => !(ocultar && c.pieza && !c.mejor));
+  $("sinAsignar").innerHTML = visibles.map(c => `<div class="caja asset">
+      <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(c.nombre)}</code></h3>
+        <span class="muted" style="font-size:12px">${esc(c.carpeta || "Clips")}</span></div>
+      <video src="${c.video}" controls preload="none" style="width:100%;max-height:220px;background:#000;border-radius:8px"></video>
+      ${c.texto != null ? `<p class="muted" style="margin:0;font-size:12px">«${esc(c.texto.slice(0, 180))}${c.texto.length > 180 ? "…" : ""}»</p>` : `<p class="muted" style="margin:0;font-size:12px">Sin escuchar todavía.</p>`}
+      ${c.pieza ? `<span class="pill ${c.mejor ? "ok" : ""}">Sugerido: ${esc(c.pieza)} · ${Math.round(c.parecido * 100)}%${c.mejor ? " · mejor toma" : " · otra toma"}</span>` : ""}
+      <div class="fila"><input list="codigosPiezas" placeholder="C1_H2, C3, CTA-A…" value="${esc(c.pieza && c.mejor ? c.pieza : "")}" data-rel="${esc(c.rel)}" style="flex:1;min-width:120px">
+        <button class="btn sec peq" data-asignar="${esc(c.rel)}">Asignar</button></div></div>`).join("")
+    || `<p class="muted">Todos los clips sugeridos están identificados.</p>`;
+}
+
 function pintarFaltan() {
+  pintarSinAsignar();
   const ch = E.checklist;
   const faltaAssets = ch.assets.filter(a => !a.listo).length;
   const total = ch.piezas_faltan.length + faltaAssets;
@@ -560,7 +595,7 @@ let vigilando = null;
 function vigilar(t) {
   const caja = $("estadoTrabajo");
   caja.hidden = !t.activo;
-  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "portadas"].forEach(id => $(id).disabled = t.activo);
+  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "portadas", "escuchar"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   if (t.activo && !vigilando) {
     vigilando = setInterval(async () => {
@@ -605,6 +640,14 @@ document.addEventListener("click", e => {
   }
   const br = e.target.closest("[data-borrar]");
   if (br) { e.preventDefault(); leerMarcas(); marcasTmp.splice(Number(br.dataset.borrar), 1); pintarMarcas(); vivo(); return; }
+  const as = e.target.closest("[data-asignar]");
+  if (as) {
+    const inp = document.querySelector(`input[data-rel="${CSS.escape(as.dataset.asignar)}"]`);
+    post("/api/asignar", { rel: as.dataset.asignar, pieza: inp.value.trim() })
+      .then(() => { avisar(`${as.dataset.asignar.split("/").pop()} → ${inp.value.trim()}`, "ok"); return cargar(); })
+      .catch(err => avisar("Error: " + err.message, "err"));
+    return;
+  }
   const cp = e.target.closest("[data-copiar]");
   if (cp) { navigator.clipboard.writeText(cp.dataset.copiar); avisar("Copiado.", "ok"); }
 });
@@ -642,6 +685,19 @@ $("guardar").onclick = () => guardar(false);
 $("guardarArmar").onclick = () => guardar(true);
 $("todo").onclick = () => trabajo("todo");
 $("exportar").onclick = () => trabajo("exportar");
+$("escuchar").onclick = () => trabajo("escuchar");
+$("numerarHooks").onclick = async () => {
+  const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
+  let cuerpo = cuerpos.length === 1 ? cuerpos[0] : prompt(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
+  if (!cuerpo) return;
+  try { const r = await post("/api/numerar_hooks", { cuerpo }); avisar(`${r.asignadas} hooks numerados como ${cuerpo}_H1…`, "ok"); await cargar(); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+};
+$("ocultarTomas").onchange = pintarSinAsignar;
+$("aceptarSug").onclick = async () => {
+  try { const r = await post("/api/aceptar_sugerencias"); avisar(`${r.asignadas} clips identificados.`, "ok"); await cargar(); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+};
 $("subirPanel").onclick = () => trabajo("panel");
 $("portadas").onclick = () => trabajo("portadas");
 $("rearmarUno").onclick = () => { if (actual) { trabajo("uno", actual.codigo); $("dlg").close(); } };
@@ -660,7 +716,7 @@ $("copiarCopy").onclick = () => {
 };
 $("semana").onchange = async e => {
   let s = e.target.value;
-  if (s === "__nueva") { s = prompt("Nombre de la semana (ej. SEMANA_03):", "SEMANA_"); if (!s) return cargar(); }
+  if (s === "__nueva") { s = prompt("Nombre de la sesión (día y mes de grabación):", new Date().toLocaleDateString("es-PE", { day: "numeric", month: "numeric" }).replace("/", " ") + " SESIÓN"); if (!s) return cargar(); }
   try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
