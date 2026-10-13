@@ -31,7 +31,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller faster-whisper numpy
+          pip install -r requirements-build.txt
 
       - name: Armar SalaSuplevet.exe
         shell: bash
