@@ -12,31 +12,92 @@
     "altura_desde_abajo": 560,
     "altura_desde_arriba": 300
   },
-  "palabras_clave": ["error", "suplevet", "whatsapp", "muscular", "calostro", "lactoferrina", "senior", "tarde", "flaco", "ficha", "defensas", "músculo", "músculos", "panza", "piel"],
+  "palabras_clave": [
+    "error",
+    "suplevet",
+    "whatsapp",
+    "muscular",
+    "calostro",
+    "lactoferrina",
+    "senior",
+    "tarde",
+    "flaco",
+    "ficha",
+    "defensas",
+    "músculo",
+    "músculos",
+    "panza",
+    "piel"
+  ],
   "sonidos": {
     "volumen_sfx": 0.7,
     "separacion_minima": 1.5,
-    "volumen_por_categoria": {"riser": 0.8, "pop": 0.8, "tecleo": 0.9, "glitch": 0.6},
-    "arranque_por_tipo": {
-      "promesa": ["impacto", "brillo"],
-      "pregunta": ["tension"],
-      "numero": ["impacto"],
-      "contra": ["scratch"],
-      "contralocomun": ["scratch"],
-      "producto": ["brillo", "impacto"],
-      "productoenmano": ["brillo", "impacto"],
-      "default": ["impacto"]
+    "volumen_por_categoria": {
+      "riser": 0.8,
+      "pop": 0.8,
+      "tecleo": 0.9,
+      "glitch": 0.6
     },
-    "cta_por_tipo": {"anuncio": "notificacion", "organico": "tecleo"},
+    "arranque_por_tipo": {
+      "promesa": [
+        "impacto",
+        "brillo"
+      ],
+      "pregunta": [
+        "tension"
+      ],
+      "numero": [
+        "impacto"
+      ],
+      "contra": [
+        "scratch"
+      ],
+      "contralocomun": [
+        "scratch"
+      ],
+      "producto": [
+        "brillo",
+        "impacto"
+      ],
+      "productoenmano": [
+        "brillo",
+        "impacto"
+      ],
+      "default": [
+        "impacto"
+      ]
+    },
+    "cta_por_tipo": {
+      "anuncio": "notificacion",
+      "organico": "tecleo"
+    },
     "respaldo": {
-      "whoosh_inverso": ["whoosh"],
-      "zoom": ["whoosh"],
-      "tension": ["impacto"],
-      "scratch": ["glitch", "impacto"],
-      "impacto": ["pop"],
-      "brillo": ["ding", "pop"],
-      "ding": ["pop"],
-      "glitch": ["pop"]
+      "whoosh_inverso": [
+        "whoosh"
+      ],
+      "zoom": [
+        "whoosh"
+      ],
+      "tension": [
+        "impacto"
+      ],
+      "scratch": [
+        "glitch",
+        "impacto"
+      ],
+      "impacto": [
+        "pop"
+      ],
+      "brillo": [
+        "ding",
+        "pop"
+      ],
+      "ding": [
+        "pop"
+      ],
+      "glitch": [
+        "pop"
+      ]
     }
   },
   "musica": {
@@ -57,5 +118,8 @@
   "panel": {
     "url": "",
     "token": ""
+  },
+  "actualizaciones": {
+    "repo": "pierosvete04/Suplevet_Videos"
   }
 }
