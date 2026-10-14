@@ -301,6 +301,8 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .z-punto { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5); pointer-events: none; z-index: 2; }
 .z-punto.ini { background: transparent; } .z-punto.fin { background: var(--warn); }
 .ev-visor.eligiendo { cursor: crosshair; outline: 2px dashed var(--warn); outline-offset: 2px; }
+.g-dicho { margin-top: 6px; padding: 6px 9px; border-left: 3px solid var(--accent2); border-radius: 0 8px 8px 0; background: var(--hondo); font-size: 13px; color: var(--muted); }
+.g-dicho .etq { display: block; font: 600 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2px; }
 #guionLista mark { background: color-mix(in srgb, var(--warn) 42%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
 .ev-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent2); box-shadow: 0 0 10px var(--accent2); pointer-events: none; z-index: 3; }
 .aviso-alcance { display: flex; gap: 8px; align-items: flex-start; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(61,139,255,.35); background: rgba(61,139,255,.08); font-size: 12.5px; }
@@ -544,6 +546,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button class="btn sec" id="gCorroborar"><b>2</b> Ver cambios contra el guion</button>
         <span class="flecha" aria-hidden="true">→</span>
         <button class="btn sec" id="gRevisar"><b>3</b> Que Claude reacomode la edición</button>
+        <button class="btn sec" id="gEmparejar" title="Asigna cada clip analizado que quedó sin pieza a la pieza del guion que más se le parece (40 % o más; si dos tomas se parecen a la misma pieza, va la más parecida)">Emparejar lo que falta</button>
       </div>
       <p class="muted" id="gEstado" style="font-size:12px;margin:8px 0 0"></p>
     </div>
@@ -2830,6 +2833,10 @@ function textoGuion(p) {
     ? p.diff.map(d => d.t === "igual" ? esc(d.texto) : `<span class="g-${d.t}">${esc(d.texto)}</span>`).join(" ")
     : p.partes.length > 1 ? p.partes.map((f, k) => `<b>${k + 1}.</b> ${esc(f)}`).join("<br>") : esc(p.texto);
 }
+function dichoGuion(p) {  // lo que se dijo en el clip, para compararlo de un vistazo con el guion
+  if (corroborado || !p.dicho) return "";
+  return `<div class="g-dicho"><span class="etq">Se dijo en el clip</span><div>«${esc(p.dicho)}»</div></div>`;
+}
 function sugeridosGuion(p) {
   if (!corroborado || !p.sugeridos?.length || p.clips.length) return "";
   return `<div class="g-sugerido"><b>Clips que suenan a ${esc(p.nombre)}</b>${p.sugeridos.slice(0, 3).map(s => `
@@ -2838,7 +2845,7 @@ function sugeridosGuion(p) {
       <button class="btn peq" data-asig-rel="${esc(s.rel)}" data-asig-pieza="${esc(p.nombre)}">Es este</button></div>`).join("")}</div>`;
 }
 function estadoGuion(p) {
-  if (!corroborado) return p.clips.length ? `<span class="pill">con clip</span>` : `<span class="pill warn">sin clip</span>`;
+  if (!corroborado && !(p.procesada && p.parecido != null)) return p.clips.length ? `<span class="pill">con clip</span>` : `<span class="pill warn">sin clip</span>`;
   return !p.clips.length ? `<span class="pill warn">sin clip</span>`
     : !p.procesada ? `<span class="pill">sin analizar</span>`
     : `<span class="pill ${p.parecido >= .9 ? "ok" : p.parecido >= .7 ? "" : "warn"}">${Math.round((p.parecido || 0) * 100)}% igual al guion</span>`;
@@ -2871,7 +2878,7 @@ function pintarGuionLista() {
       const c = cuerpos[h.nombre.split("_")[0]];
       return `<div class="caja g-pieza">
         <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(h.nombre)} + ${esc(c?.nombre || "?")}${h.tipo_hook ? ` <span class="muted" style="font-weight:400">· ${esc(h.tipo_hook)}</span>` : ""}</h3>${estadoGuion(h)}</div>
-        <div><span class="etq" style="color:var(--hook)">Hook</span><div class="texto">${textoGuion(h)}</div></div>
+        <div><span class="etq" style="color:var(--hook)">Hook</span><div class="texto">${textoGuion(h)}</div>${dichoGuion(h)}</div>
         <div><span class="etq">Cuerpo</span><div class="texto">${c ? textoGuion(c) : '<span class="muted">Este cuerpo no está en el guion.</span>'}</div></div>
         ${sugeridosGuion(h)}
       </div>`;
@@ -2884,10 +2891,11 @@ function pintarGuionLista() {
   $("guionLista").innerHTML = lista.map(p => `<div class="caja g-pieza">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span></h3>${estadoGuion(p)}</div>
       <div class="texto">${textoGuion(p)}</div>
+      ${dichoGuion(p)}
       ${sugeridosGuion(p)}
       <div class="muted" style="font-size:12px">${p.clips.length ? "Clip: " + p.clips.map(c => esc(c.split("/").pop())).join(" + ") : "Ningún clip asignado todavía."}</div>
       ${sinAsignar.length ? `<div class="fila"><select data-guion-clip="${esc(p.nombre)}" style="flex:1"><option value="">Asignar un clip a ${esc(p.nombre)}…</option>
-        ${sinAsignar.map(c => `<option value="${esc(c.rel)}">${esc(c.nombre)}${c.pieza ? ` (sugerido: ${esc(c.pieza)})` : ""}</option>`).join("")}</select></div>` : ""}
+        ${sinAsignar.map(c => `<option value="${esc(c.rel)}">${esc(c.nombre)}${c.texto ? ` — «${esc(c.texto.split(/\s+/).slice(0, 9).join(" "))}…»` : ""}${c.pieza ? ` (parece ${esc(c.pieza)} · ${Math.round(c.parecido * 100)}%)` : ""}</option>`).join("")}</select></div>` : ""}
     </div>`).join("") || `<div class="sin-nada">${palabras.length ? "Ninguna pieza dice esas palabras." : "No hay piezas de ese tipo en el guion."}</div>`;
   resaltarGuion(palabras);
 }
@@ -2948,6 +2956,18 @@ function pintarEstadoGuion() {
   $("gCorroborar").className = "btn" + (!(g.sin_escuchar + g.sin_procesar) && !corroborado ? "" : " sec");
 }
 $("gAnalizar").onclick = () => { corroborado = false; trabajo("analizar"); };
+$("gEmparejar").onclick = async () => {
+  const sin = E.checklist.sin_asignar || [];
+  if (!sin.length) return avisar("No hay clips sin pieza: todos los clips analizados ya están emparejados.", "ok");
+  if (sin.some(c => c.texto == null)) return avisar("Hay clips sin analizar: toca primero «Analizar clips».", "err");
+  try {
+    const r = await post("/api/aceptar_sugerencias", { minimo: 0.4 });
+    await cargar(); await pintarGuion();
+    const quedan = (E.checklist.sin_asignar || []).length;
+    avisar(`${r.asignadas} clip${r.asignadas === 1 ? "" : "s"} emparejado${r.asignadas === 1 ? "" : "s"} con su pieza.` + (quedan
+      ? ` Quedan ${quedan} que no se parecen a ninguna pieza o son otra toma de una pieza que ya tiene clip: revísalos en Faltantes o con el buscador.` : ""), "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
 // Versiones del guion: para el host (solo lo que se dice) y de producción (todo: estilos, imágenes, música, sonidos)
 let gVersion = "revision", gDocTexto = "", gHostVista = "combinacion";
 function mdAHtml(md) {

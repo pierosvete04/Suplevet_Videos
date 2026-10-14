@@ -798,6 +798,7 @@ def revision_guion():
                     if j2 > j1:
                         fila["diff"].append({"t": "extra", "texto": " ".join(dicho[j1:j2])})
             fila["parecido"] = round(difflib.SequenceMatcher(None, a, b).ratio(), 2) if a and b else None
+            fila["dicho"] = " ".join(dicho)  # lo que se dijo en el clip, para leerlo al lado del guion
         out.append(fila)
     sin_escuchar = sum(1 for c in clips_sin_asignar() if transcripcion_clip(c, crear=False) is None)
     return {"hay_guion": bool(prod.get("piezas")), "piezas": out, "sin_escuchar": sin_escuchar,

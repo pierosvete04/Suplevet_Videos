@@ -1,3 +1,4 @@
-Versión 1.9.1 (se actualiza desde la app con «Actualizar ahora»):
-- Guion: buscador de palabras. Escribe lo que se escucha en un clip y quedan solo las piezas que lo dicen (en el guion o en lo grabado), con las palabras resaltadas. Si ninguna dice todas, salen primero las que dicen más. Funciona con o sin tildes.
-- Faltantes: botón «Buscar en el guion» en cada clip por identificar; busca sus palabras en el guion para ver a qué hook, cuerpo o CTA pertenece.
+Versión 1.9.2 (se actualiza desde la app con «Actualizar ahora»):
+- Guion: cada pieza con clip muestra lo que se dijo en su clip debajo del texto del guion, con su porcentaje de parecido, sin tener que tocar «Ver cambios».
+- Guion: botón «Emparejar lo que falta». Asigna cada clip analizado que quedó sin pieza a la pieza que más se le parece (40 % o más; si dos tomas se parecen a la misma pieza, va la más parecida). Lo que no se parece a nada queda en Faltantes.
+- El selector «Asignar un clip» muestra qué dice cada clip y a qué pieza se parece, para elegir por el texto.

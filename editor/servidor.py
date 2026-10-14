@@ -753,7 +753,9 @@ class H(BaseHTTPRequestHandler):
                 subir_asignaciones()
                 self._json({"ok": True, "asignadas": n})
             elif u.path == "/api/aceptar_sugerencias":
-                n = motor.aceptar_sugerencias()
+                # «Emparejar lo que falta» del Guion usa un mínimo más bajo; Faltantes, el de siempre (50 %)
+                minimo = min(0.9, max(0.3, float(self._cuerpo().get("minimo") or 0.5)))
+                n = motor.aceptar_sugerencias(minimo)
                 subir_asignaciones()
                 self._json({"ok": True, "asignadas": n})
             elif u.path == "/api/marcas":
