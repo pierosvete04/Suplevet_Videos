@@ -4,7 +4,9 @@ Abrir:  python servidor.py   →   http://localhost:8765   (o doble clic en abri
 """
 import json
 import mimetypes
+import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -167,6 +169,49 @@ def estado():
             "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
+
+
+def carpeta_descargas():
+    """La carpeta de Descargas de esta PC (la de verdad, aunque Windows la haya movido a otro disco u OneDrive).
+    Se puede fijar otra en config.local.json → carpeta_descargas."""
+    import ctypes
+    c = motor.CONFIG.get("carpeta_descargas")
+    if c and Path(c).is_dir():
+        return Path(c)
+    if os.name == "nt":
+        try:
+            class GUID(ctypes.Structure):
+                _fields_ = [("a", ctypes.c_uint32), ("b", ctypes.c_uint16), ("c", ctypes.c_uint16), ("d", ctypes.c_ubyte * 8)]
+            descargas = GUID(0x374DE290, 0x123F, 0x4565, (ctypes.c_ubyte * 8)(0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B))
+            p = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(descargas), 0, None, ctypes.byref(p)) == 0:
+                ruta = Path(p.value)
+                ctypes.windll.ole32.CoTaskMemFree(p)
+                if ruta.is_dir():
+                    return ruta
+        except Exception:  # noqa: BLE001
+            pass
+    return Path.home() / "Downloads"
+
+
+def descargas_recientes(dias=7):
+    """Música, imágenes y clips bajados en los últimos días (lo de Flow, Flow Music o Suno), lo más nuevo primero."""
+    base = carpeta_descargas()
+    archivos = []
+    if base.is_dir():
+        limite = time.time() - dias * 86400
+        for f in base.iterdir():
+            ext = f.suffix.lower()
+            tipo = "musica" if ext in motor.EXT_AUDIO else "imagen" if ext in motor.EXT_IMG else "video" if ext in motor.EXT_VID else None
+            if not tipo or not f.is_file():
+                continue
+            st = f.stat()
+            if st.st_mtime < limite or st.st_size > 600 * 1024 * 1024:
+                continue
+            archivos.append({"nombre": f.name, "tipo": tipo, "mb": round(st.st_size / 1048576, 1), "fecha": st.st_mtime,
+                             "url": "/descargas/" + quote(f.name) + f"?v={int(st.st_mtime)}"})
+    archivos.sort(key=lambda x: -x["fecha"])
+    return {"carpeta": str(base), "dias": dias, "archivos": archivos[:40]}
 
 
 def subir_asignaciones():
@@ -452,6 +497,10 @@ class H(BaseHTTPRequestHandler):
             self._archivo(motor.BIBLIO_BASE / "marca", unquote(u.path[len("/marca/"):]))
         elif u.path.startswith("/grab/"):
             self._archivo(motor.S.grab, unquote(u.path[len("/grab/"):]))
+        elif u.path == "/api/descargas":
+            self._json(descargas_recientes())
+        elif u.path.startswith("/descargas/"):  # vista previa de lo que se bajó (solo desde esta PC)
+            self._archivo(carpeta_descargas(), unquote(u.path[len("/descargas/"):]))
         else:
             self.send_error(404)
 
@@ -570,6 +619,25 @@ class H(BaseHTTPRequestHandler):
                 if drive.estado()["activo"] and not all(drive.bajada_completa(m) for m in motor.S.miembros) and not TRABAJO["activo"]:
                     lanzar("bajar")  # se baja sola la primera vez que se abre
                 self._json({"ok": True})
+            elif u.path == "/api/importar_descarga":
+                # un archivo de Descargas pasa a la sesión con el nombre que pide el guion, se sube a Drive
+                # y se dice qué videos lo usan (para re-armar solo esos)
+                b = self._cuerpo()
+                base = carpeta_descargas().resolve()
+                f = (base / str(b.get("nombre", ""))).resolve()
+                aid, destino = str(b.get("id", "")), b.get("destino")
+                if f.parent != base or not f.is_file() or not NOMBRE_OK.match(aid) or destino not in ("musica", "assets"):
+                    raise ValueError("Archivo o nombre no válido")
+                ext = f.suffix.lower()
+                if ext not in (motor.EXT_AUDIO if destino == "musica" else motor.EXT_IMG | motor.EXT_VID):
+                    raise ValueError("Ese archivo no es " + ("de audio" if destino == "musica" else "una imagen ni un clip"))
+                carpeta = motor.S.musica if destino == "musica" else motor.S.assets
+                carpeta.mkdir(parents=True, exist_ok=True)
+                for viejo in carpeta.glob(f"{aid}.*"):  # reemplaza la versión anterior aunque tenga otra extensión
+                    viejo.unlink()
+                shutil.copy2(f, carpeta / f"{aid}{ext}")
+                drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
+                self._json({"ok": True, "archivo": f"{aid}{ext}", "codigos": motor.videos_que_usan(aid, destino)})
             elif u.path == "/api/archivar":  # una sesión terminada deja de salir en las listas (se encuentra buscando)
                 b = self._cuerpo()
                 sesion = b.get("sesion")

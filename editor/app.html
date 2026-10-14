@@ -656,6 +656,14 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   </section>
 
   <section data-panel="faltan" hidden>
+    <div class="caja" style="margin-bottom:14px" id="cajaDescargas">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Descargas recientes</h2>
+          <span class="muted" style="font-size:12px">La música, imágenes y clips que bajaste de Flow, Flow Music o Suno en los últimos 7 días. Elige a qué pieza va cada uno: la sala lo guarda con su nombre, lo sube a Drive y re-arma solo los videos que lo usan.</span></div>
+        <button class="btn" id="buscarDescargas" type="button">Buscar en Descargas</button>
+      </div>
+      <div id="listaDescargas" class="grid-assets" style="margin-top:12px"></div>
+    </div>
     <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Clips por identificar <span class="pill" id="nSinAsignar"></span></h2>
@@ -3389,6 +3397,54 @@ async function asignarClip(rel, pieza) {
     if (r.procesando) vigilar(await (await fetch("/api/trabajo")).json());
   } catch (err) { avisar("Error: " + err.message, "err"); }
 }
+
+// ---------- Descargas recientes: lo bajado de Flow, Flow Music o Suno pasa a su pieza con un clic ----------
+let ultimasDescargas = null;
+$("buscarDescargas").onclick = async () => {
+  $("listaDescargas").innerHTML = `<p class="muted" style="margin:0">Buscando en Descargas…</p>`;
+  try { ultimasDescargas = await (await fetch("/api/descargas")).json(); pintarDescargas(); }
+  catch (err) { $("listaDescargas").innerHTML = `<p class="muted" style="margin:0">No pude leer la carpeta de Descargas: ${esc(err.message)}</p>`; }
+};
+function pintarDescargas() {
+  const r = ultimasDescargas; if (!r) return;
+  const musica = E.checklist.musica || [], assets = E.checklist.assets || [];
+  const hace = t => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+  $("listaDescargas").innerHTML = r.archivos.map(f => {
+    const esMus = f.tipo === "musica", lista = esMus ? musica : assets;
+    const base = f.nombre.replace(/\.[^.]+$/, "").toLowerCase(), faltan = lista.filter(x => !x.listo);
+    // sugerencia: el que se llama igual; si no, el único que falta de ese tipo
+    const sug = (lista.find(x => x.id.toLowerCase() === base) || (faltan.length === 1 ? faltan[0] : null))?.id || "";
+    const vista = esMus ? `<audio controls preload="none" src="${f.url}" style="width:100%"></audio>`
+      : f.tipo === "video" ? `<video src="${f.url}" controls preload="metadata" style="width:100%;max-height:200px;background:#000;border-radius:8px"></video>`
+      : `<img src="${f.url}" alt="" style="width:100%;max-height:200px;object-fit:contain;background:var(--hondo);border-radius:8px">`;
+    const opciones = lista.length ? `<option value="">${esMus ? "¿Qué pista es?" : "¿Qué imagen o clip es?"}</option>` + lista.map(x =>
+        `<option value="${esc(x.id)}" ${x.id === sug ? "selected" : ""}>${esc(x.id)}${x.listo ? " · ya tiene (reemplazar)" : " · falta"}</option>`).join("") : "";
+    return `<div class="caja asset">
+      <div class="fila" style="justify-content:space-between"><code style="overflow-wrap:anywhere">${esc(f.nombre)}</code>
+        <span class="muted" style="font-size:11.5px">${{ musica: "música", imagen: "imagen", video: "clip" }[f.tipo]} · ${f.mb} MB · ${hace(f.fecha)}</span></div>
+      ${vista}
+      ${lista.length ? `<div class="fila"><select data-desc-id="${esc(f.nombre)}" style="flex:1;min-width:0">${opciones}</select>
+        <button class="btn peq" type="button" data-importar="${esc(f.nombre)}" data-destino="${esMus ? "musica" : "assets"}">Usar</button></div>`
+        : `<span class="muted" style="font-size:12px">El guion de esta sesión no pide ${esMus ? "música" : "imágenes ni clips"}.</span>`}
+    </div>`;
+  }).join("") || `<p class="muted" style="margin:0">No hay música, imágenes ni clips bajados en los últimos ${r.dias} días en ${esc(r.carpeta)}.</p>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-importar]"); if (!b) return;
+  const sel = document.querySelector(`select[data-desc-id="${CSS.escape(b.dataset.importar)}"]`), id = sel?.value;
+  if (!id) return avisar("Elige primero a qué pista, imagen o clip corresponde.", "err");
+  b.disabled = true; b.textContent = "Guardando…";
+  try {
+    const r = await post("/api/importar_descarga", { nombre: b.dataset.importar, id, destino: b.dataset.destino });
+    await cargar(); pintarDescargas();
+    if (!r.codigos.length) return avisar(`${r.archivo} guardado en la sesión y subiéndose a Drive. Ningún video armado lo usa todavía.`, "ok");
+    if (confirm(`${r.archivo} quedó guardado. ¿Re-armar ahora los ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que lo usan?`)) {
+      await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos });
+      vigilar(await (await fetch("/api/trabajo")).json());
+      avisar(`${r.archivo} guardado. Re-armando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"}… lo ves en Procesos (☰).`, "ok");
+    } else avisar(`${r.archivo} guardado. Cuando quieras, re-arma los videos que lo usan.`, "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); b.disabled = false; b.textContent = "Usar"; }
+});
 
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;

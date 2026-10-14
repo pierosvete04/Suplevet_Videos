@@ -2097,6 +2097,28 @@ def info_musica(mid):
     return next((m for m in produccion().get("musica", []) if m.get("id", "").lower() == str(mid).lower()), {})
 
 
+def videos_que_usan(aid, tipo):
+    """Códigos de los videos que usan esa música (tipo «musica») o esa imagen o clip de Flow (tipo «assets»):
+    por el guion, por las marcas editadas en la sala o por la pista «Imágenes» del editor."""
+    aid_l = aid.lower()
+    prod = produccion().get("piezas", {})
+    usan = set()
+    for n in {p["nombre"] for p in piezas()}:
+        ms = marcas_de(n) or []
+        if tipo == "musica":
+            if (prod.get(n, {}).get("musica") or "").lower() == aid_l or any((m.get("musica") or "").lower() == aid_l for m in ms):
+                usan.add(n)
+        elif any((m.get("asset") or "").lower() == aid_l for m in ms):
+            usan.add(n)
+    out = []
+    for c in combinaciones():
+        if {c["hook"], c["cuerpo"], c["cta"]} & usan:
+            out.append(c["codigo"])
+        elif tipo != "musica" and any(x["id"].lower() == aid_l for cs in (edicion_de(c).get("capas") or {}).values() for x in cs):
+            out.append(c["codigo"])
+    return out
+
+
 def buscar_musica(mid):
     """Pista de Suno por id: carpeta Musica de la sesión, luego la carpeta de música general."""
     for d in (S.musica, CONFIG.get("carpeta_musica"), BIBLIO / "musica"):
