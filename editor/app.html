@@ -410,6 +410,14 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
           <div class="claude-cab"><div class="claude-logo" aria-hidden="true">C</div>
             <div><h2 style="margin:0">Claude</h2><span class="muted" style="font-size:12px" id="clEstado">Revisando…</span></div></div>
           <div id="clConfig" hidden style="margin-top:12px;font-size:13px"></div>
+          <div id="clYaHay" hidden style="margin-top:12px;display:grid;gap:10px">
+            <p style="margin:0;font-size:13.5px" id="clYaHayTxt"></p>
+            <div class="fila">
+              <button class="btn" data-ir="guion">Ver el guion</button>
+              <button class="btn sec" id="clRevisar2" title="Compara lo grabado con el guion y reacomoda sonidos, música, imágenes y estilos">Revisar lo grabado</button>
+              <button class="btn sec" id="clOtra">Escribir el guion de otra sesión</button>
+            </div>
+          </div>
           <div id="clListo" hidden style="margin-top:12px">
             <label class="muted" style="display:grid;gap:4px;font-size:12px">Escribir el guion para
               <select id="clSesion"></select></label>
@@ -501,7 +509,13 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         <button data-gver="host" aria-pressed="false">Versión host (para grabar)</button>
         <button data-gver="produccion" aria-pressed="false">Versión producción (detalle)</button>
       </div>
-      <div class="fila" id="gDocBotones" hidden><button class="btn sec peq" id="gDocCopiar">Copiar</button><button class="btn sec peq" id="gDocImprimir">Imprimir o guardar PDF</button></div>
+      <div class="fila" id="gDocBotones" hidden>
+        <div class="segmento" id="gHostVista" role="group" aria-label="Qué ver del guion del host">
+          <button data-hvista="combinacion" aria-pressed="true">Hook + cuerpo</button>
+          <button data-hvista="hooks" aria-pressed="false">Solo hooks</button>
+          <button data-hvista="cuerpos" aria-pressed="false">Solo cuerpos</button>
+        </div>
+        <button class="btn sec peq" id="gDocCopiar">Copiar</button><button class="btn sec peq" id="gDocImprimir">Imprimir o guardar PDF</button></div>
     </div>
     <div class="caja documento" id="gDoc" hidden></div>
     <div class="segmento" id="filtroGuion" role="group" aria-label="Qué ver del guion" style="margin-bottom:12px">
@@ -948,6 +962,7 @@ function pintarInicio() {
     + sesionesGuion.map(s => `<option ${elegida !== "__nueva" && s === ((elegida && sesionesGuion.includes(elegida)) ? elegida : E.semana) ? "selected" : ""}>${esc(s)}</option>`).join("");
   $("clNuevaCaja").hidden = $("clSesion").value !== "__nueva";
   pintarBajada(E.trabajo);
+  if (infoClaude) pintarClaudeForm();
 }
 function pintarBajada(t) {
   const bajando = t.activo && t.accion === "bajar";
@@ -959,10 +974,22 @@ function pintarBajada(t) {
   $("inBarra").querySelector("i").style.width = m ? m[1] + "%" : "";
 }
 let infoClaude = null;
+// Si la sesión abierta ya tiene guion, no se muestra el formulario: solo el resumen y sus atajos.
+let clMostrarForm = false;
+function pintarClaudeForm() {
+  const c = infoClaude || {}, conectado = c.instalado && c.sesion;
+  const yaHay = !!(E && E.hay_produccion) && !clMostrarForm;
+  $("clYaHay").hidden = !conectado || !yaHay;
+  $("clListo").hidden = !conectado || yaHay;
+  if (conectado && yaHay) {
+    const n = t => E.piezas.filter(p => p.tipo === t).length;
+    $("clYaHayTxt").innerHTML = `<span class="pill ok">✓ guion listo</span> <b>${esc(E.semana)}</b> ya tiene su guion: ${E.salidas.length} videos posibles con lo grabado (${n("cuerpo")} cuerpos, ${n("hook")} hooks).`;
+  }
+}
 async function revisarClaude(forzar) {
   try { infoClaude = await (await fetch("/api/claude" + (forzar ? "?forzar" : ""))).json(); } catch (e) { return; }
   const c = infoClaude;
-  $("clListo").hidden = !(c.instalado && c.sesion);
+  pintarClaudeForm();
   $("clConfig").hidden = c.instalado && c.sesion;
   $("clEstado").innerHTML = c.instalado && c.sesion ? `<span class="pill ok">conectado</span> con tu suscripción de Claude`
     : c.instalado ? `<span class="pill warn">falta iniciar sesión</span>` : `<span class="pill warn">no instalado</span>`;
@@ -1046,6 +1073,11 @@ const revisarConClaude = async () => {
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("clRevisar").onclick = revisarConClaude;
+$("clRevisar2").onclick = revisarConClaude;
+$("clOtra").onclick = () => {
+  clMostrarForm = true; pintarClaudeForm();
+  $("clSesion").value = "__nueva"; $("clSesion").dispatchEvent(new Event("change"));
+};
 $("gRevisar").onclick = revisarConClaude;
 $("inGrupo").onclick = () => {
   const libres = E.semanas.filter(s => !(E.grupos || {})[s]);
@@ -1069,6 +1101,7 @@ async function nuevaSesion() {
   catch (err) { avisar("Error: " + err.message, "err"); return null; }
 }
 async function cambiarSesion(s) {
+  clMostrarForm = false;
   try { await post("/api/semana", { semana: s }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
 }
 function irTab(nombre) {
@@ -1440,7 +1473,7 @@ function vigilar(t) {
   caja.hidden = !t.activo;
   $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar", "gAnalizar", "clTemas"].forEach(id => $(id).disabled = t.activo);
+  ["todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -1750,17 +1783,28 @@ function abrirPortada() {
   $("porLogo").checked = a.logo !== false;
   $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual";
 }
-$("porT").addEventListener("input", () => {
-  $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s";
+// Vista en vivo: cada cambio (momento, título, posición, logo) rehace la portada al instante, sin guardarla
+function verPortadaEnVivo(espera = 250) {
   clearTimeout(porTimer);
-  porTimer = setTimeout(() => { $("porVista").src = `/api/cuadro?codigo=${encodeURIComponent(actual.codigo)}&t=${$("porT").value}&_=${Date.now()}`; $("porEstado").textContent = "Cuadro elegido (sin título todavía)"; }, 150);
-});
+  porTimer = setTimeout(() => {
+    const q = new URLSearchParams({ codigo: actual.codigo, segundo: $("porT").value, titulo: $("porTitulo").value.trim(),
+                                    posicion: $("porPos").value, logo: $("porLogo").checked ? "1" : "0", _: Date.now() });
+    $("porVista").src = `/api/portada_vista?${q}`;
+    $("porEstado").innerHTML = `<span class="pill warn">sin guardar</span> Así quedará: toca «Guardar portada»`;
+  }, espera);
+}
+$("porT").addEventListener("input", () => { $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s"; verPortadaEnVivo(200); });
+$("porTitulo").addEventListener("input", () => verPortadaEnVivo(600));
+$("porPos").addEventListener("change", () => verPortadaEnVivo(0));
+$("porLogo").addEventListener("change", () => verPortadaEnVivo(0));
 $("porVolver").onclick = () => { $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; };
 $("porGuardar").onclick = async () => {
   $("porGuardar").disabled = true; $("porEstado").textContent = "Haciendo la portada…";
   try {
     const r = await post("/api/portada", { codigo: actual.codigo, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), posicion: $("porPos").value, logo: $("porLogo").checked });
-    $("porVista").src = r.portada; actual.portada = r.portada; $("porEstado").textContent = "Portada guardada ✓"; avisar("Portada guardada.", "ok"); cargar();
+    $("porVista").src = r.portada; actual.portada = r.portada; $("porEstado").innerHTML = `<span class="pill ok">✓ guardada</span>`;
+    actual.ajustes_portada = { segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), posicion: $("porPos").value, logo: $("porLogo").checked };
+    cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
   $("porGuardar").disabled = false;
 };
@@ -2253,7 +2297,7 @@ function pintarEstadoGuion() {
 }
 $("gAnalizar").onclick = () => { corroborado = false; trabajo("analizar"); };
 // Versiones del guion: para el host (solo lo que se dice) y de producción (todo: estilos, imágenes, música, sonidos)
-let gVersion = "revision", gDocTexto = "";
+let gVersion = "revision", gDocTexto = "", gHostVista = "combinacion";
 function mdAHtml(md) {
   const linea = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
   let html = "", lista = null;
@@ -2276,11 +2320,16 @@ async function pintarVersionGuion() {
   $("filtroGuion").hidden = doc; $("guionLista").hidden = doc;
   if (!doc) return;
   $("gDoc").className = "caja documento " + gVersion; $("gDoc").innerHTML = `<p class="muted">Cargando…</p>`;
-  const r = await (await fetch(`/api/guion_doc?version=${gVersion}&guardar`)).json();
+  $("gHostVista").hidden = gVersion !== "host";
+  document.querySelectorAll("[data-hvista]").forEach(b => b.setAttribute("aria-pressed", b.dataset.hvista === gHostVista));
+  const r = await (await fetch(`/api/guion_doc?version=${gVersion}&vista=${gHostVista}&guardar`)).json();
   gDocTexto = r.texto || "";
   $("gDoc").innerHTML = gDocTexto ? mdAHtml(gDocTexto) : `<p class="muted">Esta sesión todavía no tiene guion.</p>`;
 }
-document.addEventListener("click", e => { const b = e.target.closest("[data-gver]"); if (b) { gVersion = b.dataset.gver; pintarVersionGuion(); } });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-gver]"); if (b) { gVersion = b.dataset.gver; pintarVersionGuion(); }
+  const h = e.target.closest("[data-hvista]"); if (h) { gHostVista = h.dataset.hvista; pintarVersionGuion(); }
+});
 $("gDocCopiar").onclick = () => { navigator.clipboard.writeText(gDocTexto); avisar("Guion copiado.", "ok"); };
 $("gDocImprimir").onclick = () => {
   const w = window.open("", "_blank");

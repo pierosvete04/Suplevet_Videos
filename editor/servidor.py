@@ -386,6 +386,22 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(b)
+        elif u.path == "/api/portada_vista":  # la portada con los ajustes que se están eligiendo, sin guardarla
+            q2 = parse_qs(u.query)
+            c = next((x for x in motor.combinaciones() if x["codigo"] == q2["codigo"][0]), None)
+            if not c:
+                return self.send_error(404)
+            destino = motor.carpeta_trabajo() / "portada_vista.jpg"
+            motor.hacer_portada(c, prueba={"segundo": float(q2.get("segundo", ["0.5"])[0]), "titulo": q2.get("titulo", [""])[0],
+                                           "posicion": q2.get("posicion", ["centro"])[0], "logo": q2.get("logo", ["1"])[0] == "1"},
+                                destino=destino)
+            b = destino.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(b)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b)
         elif u.path == "/api/guion":
             self._json(motor.revision_guion())
         elif u.path == "/api/estructura":
@@ -408,7 +424,8 @@ class H(BaseHTTPRequestHandler):
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
         elif u.path == "/api/guion_doc":
             version = (parse_qs(u.query).get("version") or ["host"])[0]
-            texto = motor.documento_guion("produccion" if version == "produccion" else "host")
+            vista = (parse_qs(u.query).get("vista") or ["combinacion"])[0]
+            texto = motor.documento_guion("produccion" if version == "produccion" else "host", vista)
             if texto and "guardar" in u.query:  # quedan también en Drive (carpeta Guion), para abrirlas desde cualquier lado
                 motor.guardar_documentos_guion()
                 drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])

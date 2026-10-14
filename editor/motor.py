@@ -818,7 +818,7 @@ def _orden_piezas(prod):
     return sorted(prod.get("piezas", {}), key=clave)
 
 
-def documento_guion(version="host"):
+def documento_guion(version="host", vista="combinacion"):
     """Markdown del guion. «host»: solo lo que se dice, en orden de grabación, para leer y grabarse.
     «produccion»: pieza por pieza, todo lo que va en el video (estilos, imágenes con su prompt, música, sonidos, portada, copy)."""
     prod = produccion()
@@ -826,16 +826,42 @@ def documento_guion(version="host"):
         return ""
     titulo = prod.get("semana") or S.semana
     if version == "host":
-        out = [f"# {titulo} — guion para grabar", "",
-               "Lee tal cual. Una toma por pieza; en los cuerpos, una frase por toma si te es más cómodo (en orden).", ""]
-        for g in guion_para_grabar_actual():
-            nombre = {"cuerpo": "CUERPO", "hook": "HOOK", "cta": "CTA"}[g["tipo"]]
-            out.append(f"## {g['nombre']} · {nombre}" + (f" ({g['tipo_hook']})" if g.get("tipo_hook") else ""))
-            if g["tipo"] == "cuerpo" and len(g["partes"]) > 1:
-                out += [f"{k}. {f}" for k, f in enumerate(g["partes"], 1)]
-            else:
-                out.append(g["texto"])
-            out += ["", "- [ ] toma buena", ""]
+        # video por video, como se va a ver: el hook y después su cuerpo (y su CTA)
+        piezas_g = {g["nombre"]: g for g in guion_para_grabar_actual()}
+        cuerpos = [n for n, g in piezas_g.items() if g["tipo"] == "cuerpo"]
+        if vista in ("hooks", "cuerpos"):
+            solo = "hook" if vista == "hooks" else "cuerpo"
+            out = [f"# {titulo} — guion para el host · solo {'hooks' if solo == 'hook' else 'cuerpos y CTAs'}", "", "Lee tal cual.", ""]
+            for cuerpo in cuerpos:
+                if solo == "hook":
+                    out += [f"## Hooks de {cuerpo}", ""]
+                    for h in sorted((g for n, g in piezas_g.items() if g["tipo"] == "hook" and n.split("_")[0] == cuerpo), key=lambda g: g["nombre"]):
+                        out += [f"**{h['nombre']}**" + (f" · {h['tipo_hook']}" if h.get("tipo_hook") else "") + f": {h['texto']}", "", "- [ ] grabado", ""]
+                else:
+                    c = piezas_g[cuerpo]
+                    out += [f"## Cuerpo {cuerpo}", ""]
+                    out += [f"{k}. {f}" for k, f in enumerate(c["partes"], 1)] if len(c["partes"]) > 1 else [c["texto"]]
+                    out += ["", "- [ ] grabado", ""]
+            if solo == "cuerpo":
+                ctas = [g for g in piezas_g.values() if g["tipo"] == "cta"]
+                if ctas:
+                    out += ["## CTAs", ""]
+                    out += [f"**{g['nombre']}:** {g['texto']}\n\n- [ ] grabado\n" for g in ctas]
+            return "\n".join(out)
+        out = [f"# {titulo} — guion para el host · hook + cuerpo", "",
+               "Cada video tal como se va a ver: primero el hook y después el cuerpo. Lee tal cual.", ""]
+        for cuerpo in cuerpos:
+            c = piezas_g[cuerpo]
+            hooks = sorted((g for n, g in piezas_g.items() if g["tipo"] == "hook" and n.split("_")[0] == cuerpo),
+                           key=lambda g: g["nombre"])
+            ctas = [g for n, g in piezas_g.items() if g["tipo"] == "cta" and ("_" not in n or n.split("_")[0] == cuerpo)]
+            for h in hooks:
+                out += [f"## Video {h['nombre']} + {cuerpo}" + (f" · {h['tipo_hook']}" if h.get("tipo_hook") else ""), "",
+                        f"**Hook:** {h['texto']}", "", "**Cuerpo:**"]
+                out += [f"{k}. {f}" for k, f in enumerate(c["partes"], 1)] if len(c["partes"]) > 1 else [c["texto"]]
+                if ctas:
+                    out += ["", "**CTA:** " + " / ".join(g["texto"] for g in ctas)]
+                out += ["", "- [ ] grabado", ""]
         return "\n".join(out)
     assets = {a["id"]: a for a in prod.get("assets", [])}
     musica = {m["id"]: m for m in prod.get("musica", [])}
@@ -1802,18 +1828,19 @@ def cuadro(combo, segundo, destino, ancho=540):
     return destino
 
 
-def hacer_portada(combo, archivo_video=None):
+def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
+    """prueba: ajustes sin guardar (para ver la portada mientras se edita); destino: dónde dejar el JPG."""
     """JPG 1080x1920 a color: un cuadro del hook con el título grande y el logo de Suplevet.
     *palabra* entre asteriscos sale con el color de la plantilla. Todo queda dentro del recorte 4:5 del perfil."""
     S.portadas.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
     cfg = CONFIG["portada"]
-    aj = ajustes_portada(combo["codigo"])
+    aj = {**ajustes_portada(combo["codigo"]), **(prueba or {})}
     import fuentes
     pl = plantilla_sub(combo)
     fuente = fuentes.cargar(pl["fuente"]).nombre
     acento = color_ass((pl.get("resaltador") or {}).get("color") or pl["color_activo"])
-    titulo = texto_portada(combo)
+    titulo = aj.get("titulo") or texto_portada(combo)
     if pl.get("mayusculas", True):
         titulo = titulo.upper()
     titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c&H00FFFFFF&}}", limpiar(titulo.replace("{", "")))
@@ -1828,11 +1855,12 @@ def hacer_portada(combo, archivo_video=None):
         f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos(540,{y})}}{titulo}",
     ])
     (trabajo / "portada.ass").write_text(cab + "\n", encoding="utf-8")
-    salida = S.portadas / f"{combo['archivo']}.jpg"
+    salida = destino or S.portadas / f"{combo['archivo']}.jpg"
     oscuro = float(aj.get("oscurecer", 0))
     filtro = (f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{oscuro}:t=fill," if oscuro > 0 else "") + "subtitles=portada.ass:fontsdir=fuentes"
     logo = BIBLIO_BASE / "marca" / "logo-blanco.png"
-    cmd = [FFMPEG, "-hide_banner", "-y", "-ss", f"{segundo_portada(combo):.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4")]
+    segundo = float(aj["segundo"]) if aj.get("segundo") is not None else segundo_portada(combo)
+    cmd = [FFMPEG, "-hide_banner", "-y", "-ss", f"{segundo:.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4")]
     if aj.get("logo", True) and logo.exists():
         # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
         ylogo = 1490 if aj.get("posicion") == "arriba" else 330
