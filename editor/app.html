@@ -708,6 +708,14 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 
   <section data-panel="notas" hidden>
     <div class="caja" style="margin-bottom:14px">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Actualizaciones del sistema</h2>
+          <span class="muted" style="font-size:12.5px">Versión instalada: <b id="actVersion">—</b></span></div>
+        <button class="btn" id="actBuscar">Buscar actualizaciones</button>
+      </div>
+      <div id="actResultado" style="margin-top:10px;font-size:13.5px"></div>
+    </div>
+    <div class="caja" style="margin-bottom:14px">
       <h2>Google Drive</h2>
       <p class="muted" style="margin:0 0 8px">La sala trabaja con la carpeta del equipo por internet: baja la sesión que abres y sube sola los videos finales, la música, las imágenes de Flow y las asignaciones. No hace falta Google Drive para escritorio.</p>
       <p id="driveEstado" style="margin:0 0 8px"></p>
@@ -890,6 +898,7 @@ async function cargar() {
   document.title = `Sala de edición · ${E.semana}`;
   $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva sesión…</option>`;
   $("notas").value = E.notas;
+  $("actVersion").textContent = "v" + E.version;
   pintarRed();
   pintarDrive();
   $("rutaListos").textContent = E.listos;
@@ -2445,6 +2454,24 @@ async function revisarVersion() {
   } catch (e) {}
 }
 $("vNotas").onclick = () => alert(infoVersion?.notas || "Sin notas.");
+$("actBuscar").onclick = async () => {
+  const b = $("actBuscar"); b.disabled = true; b.textContent = "Buscando…";
+  $("actResultado").innerHTML = `<span class="muted">Revisando en GitHub si hay una versión nueva…</span>`;
+  try {
+    infoVersion = await (await fetch("/api/version?forzar")).json();
+    $("actVersion").textContent = "v" + infoVersion.actual;
+    if (infoVersion.error) $("actResultado").innerHTML = `<span class="pill warn">sin conexión</span> No se pudo revisar: ${esc(infoVersion.error)}`;
+    else if (!infoVersion.nueva) $("actResultado").innerHTML = `<span class="pill ok">✓ al día</span> Estás con la última versión del sistema (v${esc(infoVersion.actual)}).`;
+    else {
+      $("actResultado").innerHTML = `<span class="pill azul">nueva</span> Hay una versión nueva: <b>v${esc(infoVersion.nueva)}</b> (tienes v${esc(infoVersion.actual)}).
+        <pre class="salida-claude" style="max-height:160px">${esc((infoVersion.notas || "").split("lanzador minimo")[0].trim())}</pre>
+        <button class="btn" id="actInstalar" style="margin-top:8px">${infoVersion.requiere_completa ? "Bajar el instalador nuevo" : "Actualizar ahora"}</button>`;
+      $("actInstalar").onclick = () => $("vActualizar").click();
+      revisarVersion();
+    }
+  } catch (e) { $("actResultado").innerHTML = `<span class="pill warn">error</span> ${esc(e.message)}`; }
+  b.disabled = false; b.textContent = "Buscar actualizaciones";
+};
 $("vActualizar").onclick = async () => {
   if (infoVersion?.requiere_completa) { window.open(infoVersion.url_completa, "_blank"); return avisar("Esta versión trae un instalador nuevo: se está descargando. Ábrelo y sigue los pasos; tus datos no se tocan.", "muted"); }
   $("vActualizar").disabled = true; avisar("Descargando la versión nueva… la sala se reinicia sola.");
