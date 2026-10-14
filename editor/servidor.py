@@ -74,7 +74,7 @@ def vigilar_ventana():
     threading.Thread(target=revisar, daemon=True).start()
 
 
-TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "fin": None, "log": []}
+TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "fin": None, "log": [], "historial": [], "inicio": None}
 candado = threading.Lock()
 
 
@@ -153,10 +153,12 @@ def estado():
     for p in ps:
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
     return {"version": motor.VERSION, "red": red(), "drive": dr, "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
-            "sesion_bajada": (not dr["activo"]) or drive.bajada(S.semana), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
+            "sesion_bajada": (not dr["activo"]) or all(drive.bajada(m) for m in S.miembros),
+            "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
-            "propias": list(motor.CONFIG.get("plantillas_propias", {})),
+            "propias": list(motor.CONFIG.get("plantillas_propias", {})), "fabrica": list(motor.CONFIG.get("plantillas_sub", {})),
+            "elementos": elementos(),
             "claves": [motor.norm(x) for x in motor.CONFIG["palabras_clave"]],
             "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
@@ -166,12 +168,29 @@ def estado():
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
 
+def subir_asignaciones():
+    for m in motor.S.miembros:
+        drive.subir_en_segundo_plano(m, ["asignaciones.json"])
+
+
+def elementos():
+    """Imágenes, logos y GIF para las plantillas: los que subió el equipo y los de la marca."""
+    out = []
+    for base, propio in ((motor.ELEMENTOS, True), (motor.BIBLIO_BASE / "marca", False)):
+        if base.is_dir():
+            for f in sorted(base.iterdir()):
+                if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                    out.append({"archivo": f.name, "propio": propio, "url": url_media(f) if propio else "/marca/" + quote(f.name)})
+    return out
+
+
 def lanzar(accion, pieza=None, extra=None):
     """Corre procesar/armar/exportar en segundo plano para que la app no se congele."""
     if TRABAJO["activo"]:
         raise RuntimeError("Ya hay un trabajo en curso. Espera a que termine.")
 
     def avance(msg):
+        motor.revisar_cancelado()
         TRABAJO["mensaje"] = msg
         TRABAJO["log"] = (TRABAJO["log"] + [msg])[-200:]
 
@@ -191,18 +210,35 @@ def lanzar(accion, pieza=None, extra=None):
                         motor.armar(avance=avance, codigos=[c["codigo"] for c in faltan])
                     hechos = motor.exportar(avance=avance, codigos=extra["codigos"])
                     if drive.estado()["activo"]:
-                        drive.subir(motor.S.semana, [motor.S.listos.name], avance=avance)
+                        drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
                     avance(f"Exportados {len(hechos)} videos a {motor.S.listos.name}")
                 if accion == "conectar":
                     drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
                 if accion == "bajar":
-                    drive.bajar_sesion(motor.S.semana, avance=avance)
+                    for m in motor.S.miembros:  # en un grupo, cada una de sus sesiones
+                        drive.bajar_sesion(m, avance=avance)
                 if accion == "subir_drive":
-                    drive.subir(motor.S.semana, avance=avance)
+                    for m in motor.S.miembros:
+                        drive.subir(m, avance=avance)
                 if accion == "lista_drive":
                     avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
                     motor.escuchar_clips(avance=avance)
+                if accion == "analizar":
+                    # Paso 1: traer de Drive todos los clips, pasar su audio a texto (en esta PC, gratis), compararlo con
+                    # el guion, identificar solos los clips que se parecen claramente a una pieza y procesarlos.
+                    if drive.estado()["activo"]:
+                        for m in motor.S.miembros:
+                            drive.bajar_sesion(m, avance=avance)
+                    motor.escuchar_clips(avance=avance)
+                    n = motor.aceptar_sugerencias()
+                    if n and drive.estado()["activo"]:
+                        for m in motor.S.miembros:
+                            drive.subir(m, ["asignaciones.json"], avance=avance)
+                    motor.procesar(avance=avance)
+                    falta = len(motor.clips_sin_asignar())
+                    avance(f"Clips analizados y comparados con el guion: {n} identificados solos"
+                           + (f", {falta} por revisar a mano" if falta else "") + ".")
                 if accion == "guion":
                     sesion = extra["sesion"]
                     texto = asistente.generar_guion(sesion, extra.get("pedido", ""), avance=avance)
@@ -214,7 +250,7 @@ def lanzar(accion, pieza=None, extra=None):
                 if accion == "revisar":
                     r = asistente.revisar_grabacion(motor.S.semana, avance=avance)
                     if drive.estado()["activo"]:
-                        drive.subir(motor.S.semana, ["Guion"], avance=avance)
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = r["texto"]
                     if r["aplicado"]:
                         avance("Ojo: estas palabras del plan no se dijeron: " + ", ".join(r["aplicado"][:5]))
@@ -230,7 +266,7 @@ def lanzar(accion, pieza=None, extra=None):
                     hechos = motor.exportar(avance=avance)
                     avance(f"Exportados {len(hechos)} videos a {motor.S.listos}")
                     if drive.estado()["activo"]:
-                        drive.subir(motor.S.semana, [motor.S.listos.name], avance=avance)
+                        drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
                         avance(f"Exportados y subidos a Drive ({motor.S.listos.name}): {len(hechos)} videos")
                 if accion == "importar":
                     n = panel.importar_finales(avance=avance)
@@ -239,6 +275,11 @@ def lanzar(accion, pieza=None, extra=None):
                     n = panel.subir_semana(avance=avance)
                     avance(f"Subidos {n} videos al panel")
             TRABAJO["mensaje"] = "Listo"
+        except motor.Cancelado:
+            TRABAJO["error"] = None
+            TRABAJO["mensaje"] = "Cancelado"
+            TRABAJO["log"] = (TRABAJO["log"] + ["Cancelado por ti."])[-200:]
+            TRABAJO["cancelado"] = True
         except Exception as e:
             TRABAJO["error"] = str(e)
             avance("Error: " + str(e).splitlines()[0])
@@ -246,8 +287,14 @@ def lanzar(accion, pieza=None, extra=None):
         finally:
             TRABAJO["activo"] = False
             TRABAJO["fin"] = time.time()
+            TRABAJO["historial"] = ([{"accion": accion, "inicio": TRABAJO["inicio"], "fin": TRABAJO["fin"],
+                                      "resultado": "cancelado" if TRABAJO.get("cancelado") else "error" if TRABAJO["error"] else "listo",
+                                      "mensaje": (TRABAJO["error"] or (TRABAJO["log"] or [""])[-1])[:200]}]
+                                    + TRABAJO.get("historial", []))[:15]
 
-    TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "resultado": None})
+    motor.CANCELAR.clear()
+    TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "resultado": None,
+                    "cancelado": False, "inicio": time.time()})
     threading.Thread(target=correr, daemon=True).start()
 
 
@@ -353,13 +400,15 @@ class H(BaseHTTPRequestHandler):
                 LATIDO["ultimo"] = time.time()
             self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
         elif u.path == "/api/informe":
-            f = motor.S.grab / "Guion" / "director" / "informe.md"
+            f = motor.S.guion / "director" / "informe.md"
             self._json({"texto": f.read_text(encoding="utf-8") if f.exists() else ""})
         elif u.path.startswith("/media/"):
             self._archivo(motor.DATOS, unquote(u.path[len("/media/"):]))
         elif u.path.startswith("/fuentes/"):
             import fuentes
             self._archivo(fuentes.ruta(unquote(u.path[len("/fuentes/"):])).parent, unquote(u.path[len("/fuentes/"):]))
+        elif u.path.startswith("/marca/"):
+            self._archivo(motor.BIBLIO_BASE / "marca", unquote(u.path[len("/marca/"):]))
         elif u.path.startswith("/grab/"):
             self._archivo(motor.S.grab, unquote(u.path[len("/grab/"):]))
         else:
@@ -443,6 +492,10 @@ class H(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b)
                 return
+            if u.path == "/api/cancelar":
+                if TRABAJO["activo"]:
+                    motor.cancelar()
+                return self._json({"ok": True})
             if u.path == "/api/adios":
                 LATIDO["adios"] = time.time()
                 al_cerrar_ventana()
@@ -457,7 +510,7 @@ class H(BaseHTTPRequestHandler):
                 archivo = self._subir(q)
                 carpeta = {"assets": motor.S.assets, "musica": motor.S.musica, "hooks": motor.S.carpeta("hook"),
                            "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}[q["destino"][0]]
-                drive.subir_en_segundo_plano(motor.S.semana, [carpeta.relative_to(motor.S.grab).as_posix()])
+                drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
                 self._json({"ok": True, "archivo": archivo})
             elif u.path == "/api/semana":
                 sem = " ".join(self._cuerpo()["semana"].split())
@@ -465,15 +518,38 @@ class H(BaseHTTPRequestHandler):
                 if not re.fullmatch(r"[\w .／-]{1,60}", sem) or sem.startswith("."):
                     raise ValueError("Nombre de semana no válido")
                 nueva = motor.S.base / sem
-                if drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
+                es_grupo = sem in motor.grupos()
+                if not es_grupo and drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
                     drive.crear_sesion(sem)
-                if not nueva.exists() and not (drive.estado()["activo"] and sem in drive.sesiones_en_drive()):
+                if not es_grupo and not nueva.exists() and not (drive.estado()["activo"] and sem in drive.sesiones_en_drive()):
                     for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "V.FINALES"):
                         (nueva / sub).mkdir(parents=True, exist_ok=True)
                 motor.usar_semana(sem)
                 motor.guardar_config({"semana": sem})
-                if drive.estado()["activo"] and not drive.bajada_completa(sem) and not TRABAJO["activo"]:
+                if drive.estado()["activo"] and not all(drive.bajada_completa(m) for m in motor.S.miembros) and not TRABAJO["activo"]:
                     lanzar("bajar")  # se baja sola la primera vez que se abre
+                self._json({"ok": True})
+            elif u.path == "/api/grupo":
+                b = self._cuerpo()
+                nombre = " ".join(str(b.get("nombre", "")).split()).upper()[:60]
+                gs = motor.grupos()
+                if b.get("borrar"):
+                    gs.pop(nombre, None)
+                else:
+                    sesiones = [x for x in b.get("sesiones", []) if x in motor.semanas_disponibles() and x not in gs]
+                    if not re.fullmatch(r"[\w .／+-]{2,60}", nombre) or len(sesiones) < 2:
+                        raise ValueError("Ponle un nombre al grupo y elige al menos dos sesiones")
+                    if nombre in sesiones:
+                        raise ValueError("El grupo no puede llamarse igual que una sesión")
+                    guion = b.get("guion") if b.get("guion") in sesiones else sesiones[0]
+                    gs[nombre] = {"sesiones": sesiones, "guion": guion}
+                motor.guardar_grupos(gs)
+                drive.subir_grupos()
+                if not b.get("borrar"):
+                    motor.usar_semana(nombre)
+                    motor.guardar_config({"semana": nombre})
+                elif motor.S.semana == nombre:
+                    motor.usar_semana(motor.semanas_disponibles()[-1])
                 self._json({"ok": True})
             elif u.path == "/api/subtitulos":
                 motor.guardar_lineas_editadas(q["pieza"][0], self._cuerpo()["lineas"])
@@ -486,13 +562,18 @@ class H(BaseHTTPRequestHandler):
                 if b.get("borrar"):
                     propias = {k: v for k, v in motor.CONFIG.get("plantillas_propias", {}).items() if k != pid}
                     motor.guardar_config({"plantillas_propias": propias})
-                if b.get("datos"):
-                    if pid in motor.CONFIG.get("plantillas_sub", {}):
-                        raise ValueError("Las plantillas de fábrica no se editan: duplícala y edita la copia")
+                if b.get("datos"):  # una de fábrica editada se guarda encima (con «Restaurar» vuelve a la original)
                     motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: b["datos"]}})
                 if b.get("predeterminada"):
                     motor.guardar_config({"plantilla_activa": pid})
                 self._json({"ok": True})
+            elif u.path == "/api/elemento":
+                nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])[-80:]
+                if not nombre.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                    raise ValueError("Sube una imagen PNG, JPG, WEBP o un GIF")
+                motor.ELEMENTOS.mkdir(parents=True, exist_ok=True)
+                (motor.ELEMENTOS / nombre).write_bytes(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+                self._json({"ok": True, "archivo": nombre})
             elif u.path == "/api/fuente":
                 import fuentes
                 nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])
@@ -568,8 +649,8 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/asignar":
                 b = self._cuerpo()
-                motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
-                drive.subir_en_segundo_plano(motor.S.semana, ["asignaciones.json"])
+                sesion = motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
+                drive.subir_en_segundo_plano(sesion, ["asignaciones.json"])
                 self._json({"ok": True})
             elif u.path == "/api/drive":
                 b = self._cuerpo()
@@ -583,11 +664,11 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/numerar_hooks":
                 n = motor.numerar_hooks(self._cuerpo().get("cuerpo"))
-                drive.subir_en_segundo_plano(motor.S.semana, ["asignaciones.json"])
+                subir_asignaciones()
                 self._json({"ok": True, "asignadas": n})
             elif u.path == "/api/aceptar_sugerencias":
                 n = motor.aceptar_sugerencias()
-                drive.subir_en_segundo_plano(motor.S.semana, ["asignaciones.json"])
+                subir_asignaciones()
                 self._json({"ok": True, "asignadas": n})
             elif u.path == "/api/marcas":
                 motor.guardar_marcas(q["pieza"][0], self._cuerpo()["marcas"])

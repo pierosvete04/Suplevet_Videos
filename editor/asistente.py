@@ -24,10 +24,12 @@ _estado = {"t": 0, "datos": None}
 def encontrar():
     """Ruta de claude.exe o None."""
     candidatos = [shutil.which("claude"), str(Path.home() / ".local" / "bin" / "claude.exe")]
-    appdata = os.environ.get("APPDATA", "")
-    # el que trae la app de escritorio de Claude (pestaña Code): el más nuevo
-    candidatos += sorted(glob.glob(os.path.join(appdata, "Claude", "claude-code", "*", "*", "claude.exe")),
-                         key=lambda p: os.path.getmtime(p), reverse=True)
+    appdata, local = os.environ.get("APPDATA", ""), os.environ.get("LOCALAPPDATA", "")
+    # el que trae la app de escritorio de Claude (pestaña Code), el más nuevo. Si la app vino de la Microsoft Store,
+    # Windows guarda su carpeta dentro del paquete (Packages\Claude_…\LocalCache\Roaming) y fuera de él no se ve en APPDATA.
+    patrones = [os.path.join(appdata, "Claude", "claude-code", "*", "*", "claude.exe"),
+                os.path.join(local, "Packages", "Claude_*", "LocalCache", "Roaming", "Claude", "claude-code", "*", "*", "claude.exe")]
+    candidatos += sorted((p for pat in patrones for p in glob.glob(pat)), key=lambda p: os.path.getmtime(p), reverse=True)
     candidatos.append(os.path.join(appdata, "npm", "claude.cmd"))
     return next((c for c in candidatos if c and os.path.isfile(c)), None)
 
@@ -88,6 +90,7 @@ def correr(prompt, carpetas, avance=print, max_turnos=80):
         cmd += ["--add-dir", str(c)]
     p = subprocess.Popen(cmd, cwd=str(CONOCIMIENTO), stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
                          text=True, encoding="utf-8", errors="replace", **_sin_ventana())
+    motor.PROCESOS.add(p)
     final, pasos = None, 0
     nombres = {"Read": "Leyendo", "Write": "Escribiendo", "Edit": "Corrigiendo", "Glob": "Buscando", "Grep": "Buscando",
                "Skill": "Usando la skill", "TodoWrite": "Planificando"}
@@ -109,6 +112,8 @@ def correr(prompt, carpetas, avance=print, max_turnos=80):
             final = ev
     err = p.stderr.read()
     p.wait()
+    motor.PROCESOS.discard(p)
+    motor.revisar_cancelado()
     if not final:
         raise RuntimeError("Claude no respondió. " + err.strip()[-300:])
     if final.get("is_error"):
@@ -154,7 +159,7 @@ def revisar_grabacion(sesion, avance=print):
     actualizar_conocimiento(avance)
     motor.usar_semana(sesion)
     motor.procesar(avance=avance)  # lo que falte transcribir (lo ya procesado se salta)
-    trabajo = motor.S.grab / "Guion" / "director"
+    trabajo = motor.S.guion / "director"
     trabajo.mkdir(parents=True, exist_ok=True)
     avance("Preparando lo grabado para Claude (dossier)…")
     (trabajo / "dossier.json").write_text(json.dumps(motor.dossier(), ensure_ascii=False, indent=1), encoding="utf-8")

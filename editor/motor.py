@@ -91,17 +91,41 @@ def _primera(base, opciones):
     return base / opciones[0]
 
 
+# ---------- Grupos: varias sesiones de grabación que son una sola producción (un guion) ----------
+# datos/grupos.json (copia de Drive _SALA/grupos.json):
+#   {"B2B VETERINARIOS": {"sesiones": ["11／10 SESIÓN", "13／10 SESIÓN"], "guion": "11／10 SESIÓN"}}
+GRUPOS_PATH = DATOS / "grupos.json"
+
+
+def grupos():
+    try:
+        return json.loads(GRUPOS_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def guardar_grupos(g):
+    GRUPOS_PATH.write_text(json.dumps(g, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 class Rutas:
     def __init__(self, semana):
         self.semana = semana
         base = Path(CONFIG.get("carpeta_trabajo") or DATOS / "grabaciones")
         self.base = base
-        self.grab = base / semana                    # en Drive: lo que suben tú y el editor
-        self.assets = _primera(self.grab, ["Flow", "assets"])
-        self.listos = _primera(self.grab, ["V.FINALES", "VIDEOS FINALES", "listos"])
-        self.guion = _primera(self.grab, ["Guion", "1_guion"])
-        self.musica = _primera(self.grab, ["Musica", "Música", "musica"])
-        self.asignaciones = self.grab / "asignaciones.json"
+        g = grupos().get(semana)
+        self.es_grupo = bool(g)
+        self.miembros = list(g["sesiones"]) if g else [semana]
+        # sesión principal: ahí viven el guion, Flow, la música y V.FINALES (en un grupo, la que tiene el guion)
+        self.drive = (g.get("guion") or g["sesiones"][0]) if g else semana
+        self.principal = base / self.drive
+        # en un grupo, los clips de todas sus sesiones se ven desde la carpeta de arriba («11／10 SESIÓN/Clips/…»)
+        self.grab = base if g else base / semana
+        self.assets = _primera(self.principal, ["Flow", "assets"])
+        self.listos = _primera(self.principal, ["V.FINALES", "VIDEOS FINALES", "listos"])
+        self.guion = _primera(self.principal, ["Guion", "1_guion"])
+        self.musica = _primera(self.principal, ["Musica", "Música", "musica"])
+        self.asignaciones = self.principal / "asignaciones.json"
         self.proc = DATOS / "procesado" / semana      # local: pesado, no se sincroniza
         self.subs = DATOS / "subtitulos" / semana
         self.salida = DATOS / "salidas" / semana
@@ -109,13 +133,16 @@ class Rutas:
         self.recetas = DATOS / "recetas" / semana
         self.transcripciones = DATOS / "transcripciones" / semana
         self.copies_editados = DATOS / "subtitulos" / semana / "_copies_editados.json"
-        fecha = re.match(r"^(\d{1,2})\D+(\d{1,2})", semana)   # "13 10 SESIÓN" -> 1310
-        n = re.search(r"(\d+)", semana)
+        fecha = re.match(r"^(\d{1,2})\D+(\d{1,2})", self.drive)   # "13 10 SESIÓN" -> 1310
+        n = re.search(r"(\d+)", self.drive)
         self.prefijo = (f"{int(fecha.group(1)):02d}{int(fecha.group(2)):02d}" if fecha
                         else f"S{int(n.group(1)):02d}" if n else "S00")
 
     def carpeta(self, tipo):
-        return _primera(self.grab, CARPETAS[tipo])
+        return _primera(self.principal, CARPETAS[tipo])
+
+    def carpetas_sesiones(self):
+        return [self.base / m for m in self.miembros]
 
 
 S = Rutas(CONFIG["semana"])
@@ -125,6 +152,28 @@ def usar_semana(semana):
     global S, _prod_cache
     S = Rutas(semana)
     _prod_cache = None
+    if S.es_grupo:
+        heredar_de_sesiones()
+
+
+def heredar_de_sesiones():
+    """Un grupo aprovecha lo ya hecho en sus sesiones (piezas procesadas, subtítulos corregidos, lo escuchado),
+    para no volver a transcribir. Solo copia lo que el grupo todavía no tiene."""
+    for m in S.miembros:
+        for origen, destino in ((DATOS / "procesado" / m, S.proc), (DATOS / "subtitulos" / m, S.subs)):
+            if not origen.is_dir():
+                continue
+            destino.mkdir(parents=True, exist_ok=True)
+            for f in origen.iterdir():
+                if f.is_file() and not f.name.startswith("_") and not (destino / f.name).exists():
+                    shutil.copy2(f, destino / f.name)
+        t = DATOS / "transcripciones" / m
+        if t.is_dir():
+            S.transcripciones.mkdir(parents=True, exist_ok=True)
+            pre = re.sub(r"[^\w.-]", "_", m + "/")
+            for f in t.iterdir():
+                if f.is_file() and not (S.transcripciones / (pre + f.name)).exists():
+                    shutil.copy2(f, S.transcripciones / (pre + f.name))
 
 
 def semanas_disponibles():
@@ -136,13 +185,13 @@ def semanas_disponibles():
         m = re.match(r"^(\d{1,2})\D+(\d{1,2})", nombre)
         return (0, int(m.group(2)), int(m.group(1)), nombre) if m else (1, 0, 0, nombre)
 
-    nombres = {d.name for d in S.base.iterdir() if es_sesion(d)} if S.base.exists() else set()
+    nombres = {d.name for d in S.base.iterdir() if es_sesion(d) and not d.name.startswith("_")} if S.base.exists() else set()
     if CONFIG.get("drive", {}).get("activo"):  # también las que están en Drive y aún no se bajaron
         try:
             nombres |= set(json.loads((DATOS / "drive_sesiones.json").read_text(encoding="utf-8")))
         except (FileNotFoundError, ValueError):
             pass
-    return sorted(nombres, key=orden)
+    return sorted(nombres - set(grupos()), key=orden) + sorted(grupos())
 
 
 def guardar_config(cambios):
@@ -155,11 +204,42 @@ def guardar_config(cambios):
 
 # ---------- Utilidades ----------
 
+# ---------- Cancelar el trabajo en curso ----------
+import threading as _hilos
+CANCELAR = _hilos.Event()
+PROCESOS = set()  # ffmpeg, rclone o Claude corriendo ahora: se cortan al cancelar
+
+
+class Cancelado(Exception):
+    pass
+
+
+def revisar_cancelado():
+    if CANCELAR.is_set():
+        raise Cancelado("Cancelado")
+
+
+def cancelar():
+    CANCELAR.set()
+    for p in list(PROCESOS):
+        try:
+            p.kill()
+        except OSError:
+            pass
+
+
 def run(cmd, cwd=None):
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd)
-    if r.returncode != 0:
-        raise RuntimeError(f"Falló: {' '.join(map(str, cmd))[:300]}\n{r.stderr[-1500:]}")
-    return r
+    revisar_cancelado()
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", cwd=cwd)
+    PROCESOS.add(p)
+    try:
+        out, err = p.communicate()
+    finally:
+        PROCESOS.discard(p)
+    revisar_cancelado()
+    if p.returncode != 0:
+        raise RuntimeError(f"Falló: {' '.join(map(str, cmd))[:300]}\n{err[-1500:]}")
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
 
 
 def duracion(p):
@@ -178,7 +258,7 @@ def produccion():
     """produccion.json de la semana (en la carpeta de la semana o en semanas/SEMANA_XX)."""
     global _prod_cache
     for f in (S.guion / "produccion.json", S.grab / "produccion.json",
-              RAIZ.parent / "semanas" / S.semana / "produccion.json"):
+              RAIZ.parent / "semanas" / S.drive / "produccion.json"):
         if f.exists():
             m = f.stat().st_mtime
             if not _prod_cache or _prod_cache[0] != (f, m):
@@ -228,15 +308,15 @@ def tipo_de(nombre):
     return "cta" if "CTA" in n else "hook" if re.search(r"_H\d+", n) else "cuerpo"
 
 
-def _asig_local():
-    return DATOS / "asignaciones" / f"{S.semana}.json"
-
-
-def leer_asignaciones():
-    """Une la copia de Drive (compartida con el equipo) y la local de esta PC; la local manda.
+def _asig_archivos(sesion):
+    """La copia de Drive (compartida con el equipo) y la local de esta PC; la local manda.
     La local existe porque Drive borra en silencio lo que escribe una cuenta con permiso de solo lectura."""
+    return S.base / sesion / "asignaciones.json", DATOS / "asignaciones" / f"{sesion}.json"
+
+
+def _leer_asig(sesion):
     d = {}
-    for f in (S.asignaciones, _asig_local()):
+    for f in _asig_archivos(sesion):
         try:
             d.update(json.loads(f.read_text(encoding="utf-8")))
         except (FileNotFoundError, ValueError, OSError):
@@ -244,8 +324,21 @@ def leer_asignaciones():
     return d
 
 
+def leer_asignaciones():
+    """{rel del clip: pieza}. En un grupo, cada sesión guarda las suyas y aquí se ven con «sesión/» delante."""
+    if not S.es_grupo:
+        return _leer_asig(S.semana)
+    return {f"{m}/{rel}": p for m in S.miembros for rel, p in _leer_asig(m).items()}
+
+
 def guardar_asignacion(rel, pieza):
-    d = leer_asignaciones()
+    """Devuelve la sesión donde quedó guardada (para subir su asignaciones.json a Drive)."""
+    sesion = S.semana
+    if S.es_grupo:
+        sesion, rel = rel.split("/", 1)
+        if sesion not in S.miembros:
+            raise ValueError("Ese clip no es de este grupo")
+    d = _leer_asig(sesion)
     if pieza:
         if not CODIGO_PIEZA.match(pieza):
             raise ValueError(f"«{pieza}» no es un código de pieza (C1_H2, C3, C1_P2, CTA-A…)")
@@ -253,30 +346,38 @@ def guardar_asignacion(rel, pieza):
     else:
         d.pop(rel, None)
     texto = json.dumps(d, ensure_ascii=False, indent=1)
-    _asig_local().parent.mkdir(parents=True, exist_ok=True)
-    _asig_local().write_text(texto, encoding="utf-8")
+    drive_f, local_f = _asig_archivos(sesion)
+    local_f.parent.mkdir(parents=True, exist_ok=True)
+    local_f.write_text(texto, encoding="utf-8")
     try:
-        S.asignaciones.write_text(texto, encoding="utf-8")
+        drive_f.write_text(texto, encoding="utf-8")
     except OSError:
         pass
+    return sesion
 
 
 def clips():
     """Todos los videos de la sesión: [{rel, ruta, tipo_carpeta}]. tipo_carpeta = None si están sueltos en Clips/."""
     vistos, out = set(), []
-    for tipo, opciones in CARPETAS.items():
-        for o in opciones:
-            d = S.grab / o
-            if d.is_dir():
-                for f in sorted(d.rglob("*"), key=lambda x: x.as_posix().lower()):
-                    if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
-                        vistos.add(f)
-                        out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": tipo})
-    sueltos = S.grab / CARPETA_SUELTOS
-    if sueltos.is_dir():
-        for f in sorted(sueltos.iterdir()):
-            if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
-                out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None})
+    for sesion in S.carpetas_sesiones():
+      # también la forma ordenada por video: Clips/C2/Cuerpo/…, Clips/C2/Hooks/…
+      por_cuerpo = [d for d in sorted((sesion / "Clips").glob("*")) if d.is_dir() and re.fullmatch(r"(?:C|P)\d+", d.name, re.I)] \
+          if (sesion / "Clips").is_dir() else []
+      for carpeta, nombres in [(sesion, CARPETAS)] + [(d, {t: [o.split("/")[-1] for o in ops] for t, ops in CARPETAS.items()}) for d in por_cuerpo]:
+        for tipo, opciones in nombres.items():
+            for o in opciones:
+                d = carpeta / o
+                if d.is_dir():
+                    for f in sorted(d.rglob("*"), key=lambda x: x.as_posix().lower()):
+                        if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
+                            vistos.add(f)
+                            out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": tipo})
+      for sueltos in [sesion / CARPETA_SUELTOS] + por_cuerpo:
+        if sueltos.is_dir():
+            for f in sorted(sueltos.iterdir()):
+                if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
+                    vistos.add(f)
+                    out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None})
     return out
 
 
@@ -284,23 +385,30 @@ def nombre_automatico(c):
     """Nombre de pieza que se deduce sin asignar a mano:
     C1_H2.mov · Cuerpo/3.MOV -> C1_P3 · Cuerpo/C2/1.MOV -> C2_P1 · CTA/CTA.MOV -> CTA."""
     stem, tipo = c["ruta"].stem, c["tipo_carpeta"]
+
+    def cuerpo_de(ruta):  # Cuerpo/C2/1.MOV o C2/Cuerpo/1.MOV → C2; si no dice, C1
+        for d in (ruta.parent.name, ruta.parent.parent.name):
+            if re.fullmatch(r"(?:C|P)\d+", d, re.I):
+                return d.upper()
+        return "C1"
     if CODIGO_PIEZA.match(stem):
         return stem.upper()
     if tipo == "cuerpo" and stem.isdigit():
-        padre = c["ruta"].parent.name
-        cuerpo = padre.upper() if re.fullmatch(r"(?:C|P)\d+", padre, re.I) else "C1"
-        return f"{cuerpo}_P{int(stem)}"
+        return f"{cuerpo_de(c['ruta'])}_P{int(stem)}"
+    if tipo == "cuerpo" and stem.lower() in ("cuerpo", "c"):
+        return cuerpo_de(c["ruta"])
     if tipo == "cta" and stem.upper().startswith("CTA"):
         return stem.upper()
     if tipo == "hook":  # Hooks/1-2.MOV (hook 1, parte 2) o Hooks/H3.MOV; Hooks/C2/… si hay varios cuerpos
-        padre = c["ruta"].parent.name
-        cuerpo = padre.upper() if re.fullmatch(r"(?:C|P)\d+", padre, re.I) else "C1"
+        cuerpo = cuerpo_de(c["ruta"])
         m = re.fullmatch(r"H?(\d+)\s*[-_.]\s*(\d+)", stem, re.I)
         if m:
             return f"{cuerpo}_H{int(m.group(1))}_P{int(m.group(2))}"
         m = re.fullmatch(r"H(\d+)", stem, re.I)
         if m:
             return f"{cuerpo}_H{int(m.group(1))}"
+    if tipo is None and stem.lower() == "cuerpo":  # Clips/C3/Cuerpo.MOV (cuerpo de una sola toma)
+        return cuerpo_de(c["ruta"])
     return None
 
 
@@ -376,7 +484,11 @@ def transcribir(video):
                           "-f", "f32le", "-"], capture_output=True).stdout
     segs, _ = _modelo.transcribe(np.frombuffer(pcm, dtype=np.float32), language="es", word_timestamps=True,
                                  vad_filter=True, initial_prompt=CONFIG["transcripcion"]["vocabulario"])
-    return [{"w": w.word.strip(), "s": round(w.start, 2), "e": round(w.end, 2)} for s in segs for w in s.words]
+    out = []
+    for s in segs:  # se va transcribiendo de a pedazos: se puede cancelar en el medio
+        revisar_cancelado()
+        out += [{"w": w.word.strip(), "s": round(w.start, 2), "e": round(w.end, 2)} for w in s.words]
+    return out
 
 
 def agrupar_lineas(palabras):
@@ -581,13 +693,18 @@ def revision_guion():
     import difflib
     prod = produccion()
     ps = {p["nombre"]: p for p in piezas()}
+    sugs = sugerencias()
     out = []
-    for g in guion_para_grabar():
+    for g in guion_para_grabar_actual():
         nombre = g["nombre"]
         p = ps.get(nombre)
         fila = {"nombre": nombre, "tipo": g["tipo"], "tipo_hook": g.get("tipo_hook"), "texto": g["texto"], "partes": g["partes"],
                 "clips": p["rels"] if p else [], "procesada": bool(p and (S.subs / f"{nombre}.json").exists()),
-                "diff": [], "parecido": None}
+                "diff": [], "parecido": None,
+                # clips sin identificar que suenan a esta pieza (para asignarlos desde el guion)
+                "sugeridos": sorted(({"rel": rel, "nombre": rel.split("/")[-1], "parecido": s["parecido"], "mejor": s["mejor"],
+                                      "texto": s["texto"]} for rel, s in sugs.items() if s["pieza"] == nombre),
+                                    key=lambda x: -x["parecido"])}
         if fila["procesada"]:
             dicho = [w["w"] for ln in leer_subs(nombre)["lineas"] for w in ln["palabras"]]
             guion = g["texto"].split()
@@ -602,7 +719,14 @@ def revision_guion():
                         fila["diff"].append({"t": "extra", "texto": " ".join(dicho[j1:j2])})
             fila["parecido"] = round(difflib.SequenceMatcher(None, a, b).ratio(), 2) if a and b else None
         out.append(fila)
-    return {"hay_guion": bool(prod.get("piezas")), "piezas": out}
+    sin_escuchar = sum(1 for c in clips_sin_asignar() if transcripcion_clip(c, crear=False) is None)
+    return {"hay_guion": bool(prod.get("piezas")), "piezas": out, "sin_escuchar": sin_escuchar,
+            "sin_procesar": sum(1 for f in out if f["clips"] and not f["procesada"]), "sin_asignar": len(sugs)}
+
+
+def guion_para_grabar_actual():
+    """El guion de la sesión o grupo abierto (sin cambiar de sesión)."""
+    return guion_para_grabar(None)
 
 
 # ---------- Teleprompter ----------
@@ -994,6 +1118,13 @@ def color_ass(hexrgb):
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}&"
 
 
+def color_ass_alfa(hexrgb, opacidad):
+    """Color ASS con transparencia (opacidad 0–100 %)."""
+    h = hexrgb.lstrip("#")
+    alfa = 255 - round(max(0, min(100, float(opacidad))) * 2.55)
+    return f"&H{alfa:02X}{h[4:6]}{h[2:4]}{h[0:2]}&"
+
+
 def es_clave(w):
     return norm(w) in {norm(x) for x in CONFIG["palabras_clave"]}
 
@@ -1016,6 +1147,18 @@ def carpeta_trabajo():
         if not d.exists() or d.stat().st_size != f.stat().st_size:
             shutil.copy2(f, d)
     return trabajo
+
+
+ELEMENTOS = DATOS / "elementos"  # imágenes, logos y GIF que el equipo sube para usar en las plantillas
+
+
+def ruta_elemento(nombre):
+    """Archivo de un elemento de plantilla: subido por el equipo o de la marca (biblioteca/marca)."""
+    nombre = Path(str(nombre)).name
+    for base in (ELEMENTOS, BIBLIO_BASE / "marca"):
+        if nombre and (base / nombre).is_file():
+            return base / nombre
+    return None
 
 
 def plantillas():
@@ -1085,7 +1228,7 @@ def cabecera_ass(fuente_nombre, pl):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: W,{fuente_nombre},{pl['tamano']},{color_ass(pl['color_texto'])},&H00FFFFFF&,{color_ass(pl['color_borde'])},"
-        f"&H80000000&,0,0,0,0,100,100,0,0,1,{pl['borde']},{pl['sombra']},5,0,0,0,1",
+        f"{color_ass_alfa(pl.get('color_sombra', '#000000'), pl.get('opacidad_sombra', 50))},0,0,0,0,100,100,0,0,1,{pl['borde']},{pl['sombra']},5,0,0,0,1",
         "Style: Caja,Arial,20,&H00FFFFFF&,&H00FFFFFF&,&H00000000&,&H00000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", ""])
 
@@ -1129,6 +1272,10 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         except Exception:
             fu2 = fu
     c_texto2 = color_ass(l2["color"]) if l2.get("color") else c_texto
+    # cuadro de texto: dónde va el subtítulo (centro horizontal y ancho máximo, en píxeles del video 1080×1920)
+    x_centro = float(pl.get("x_centro", 540))
+    ancho_max = max(200.0, min(1080.0, float(pl.get("ancho_max", 960))))
+    blur = f"\\blur{float(pl['desenfoque']):.1f}" if pl.get("desenfoque") else ""
 
     def partir(textos):
         """Índices de cada renglón: un solo renglón, o dos parejos por cantidad de letras."""
@@ -1150,12 +1297,14 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
             esp = f_.ancho(" ", tam) * 1.1
             # la palabra activa se ve más grande: se le reserva ese espacio para que no pise a sus vecinas
             crece = {j: (pl.get("escala_activa", 108) / 100 if j == activa else 1.0) for j in idx}
-            anchos = [f_.ancho(textos[j], tam) * crece[j] for j in idx]
+            letras = float(pl.get("espaciado", 0)) * tam / 100  # espaciado entre letras (% del tamaño)
+            anchos = [(f_.ancho(textos[j], tam) + letras * len(textos[j])) * crece[j] for j in idx]
             total = sum(anchos) + esp * (len(idx) - 1)
-            if total > 960:  # no entra: se achica el renglón entero
-                f = 960 / total
-                tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], 960
-            medidas.append({"fu": f_, "tam": tam, "esp": esp, "anchos": anchos, "total": total, "idx": idx, "crece": crece, "r": r})
+            if total > ancho_max:  # no entra en el cuadro de texto: se achica el renglón entero
+                f = ancho_max / total
+                tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], ancho_max
+            medidas.append({"fu": f_, "tam": tam, "esp": esp, "anchos": anchos, "total": total, "idx": idx, "crece": crece, "r": r,
+                            "fsp": letras * tam / (tam0 * (l2.get("escala", 100) / 100 if r == 1 else 1))})
         altos = [m["tam"] * 1.02 for m in medidas]
         bloque = sum(altos)
         # la altura del subtítulo normal se mueve desde la plantilla (o desde el ajuste del video)
@@ -1170,7 +1319,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         for m, alto_fila in zip(medidas, altos):
             y = y0 + alto_fila / 2
             y0 += alto_fila
-            x, tam = 540 - m["total"] / 2, m["tam"]
+            x, tam = x_centro - m["total"] / 2, m["tam"]
             fn = f"\\fn{m['fu'].nombre}" if m["fu"] is not fu else ""
             for j, w in zip(m["idx"], m["anchos"]):
                 t = textos[j]
@@ -1190,7 +1339,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
                     color, extra = (c_texto2 if m["r"] == 1 else c_texto), ""
                 escala = pl.get("escala_activa", 108) if j == activa else 100
                 anim = "\\fscx80\\fscy80\\t(0,90,\\fscx100\\fscy100)" if pop and j == 0 and activa == 0 else ""
-                ev.append(f"Dialogue: 2,{a},{b},W,,0,0,0,,{{\\an5\\pos({cx:.0f},{y:.0f}){fn}\\fs{tam:.0f}\\1c{color}{extra}"
+                ev.append(f"Dialogue: 2,{a},{b},W,,0,0,0,,{{\\an5\\pos({cx:.0f},{y:.0f}){fn}\\fs{tam:.0f}\\fsp{m['fsp']:.1f}{blur}\\1c{color}{extra}"
                           f"\\fscx{escala}\\fscy{escala}{anim}}}{t}")
                 x += w + m["esp"]
 
@@ -1602,6 +1751,21 @@ def armar_uno(combo, n_musica=0):
         cadena, x, y = filtro_broll(idx, ov)
         f.append(cadena)
         f.append(f"[{v_prev}][o{idx}]overlay={x}:{y}:eof_action=pass:enable='between(t,{ov['t']:.2f},{ov['t'] + ov['dur']:.2f})'[v{idx}]")
+        v_prev = f"v{idx}"
+        idx += 1
+    # Elementos de la plantilla (logo, imágenes, GIF): encima del video y debajo del subtítulo, todo el video
+    for el in plantilla_sub(combo).get("elementos") or []:
+        arch = ruta_elemento(el.get("archivo", ""))
+        if not arch:
+            continue
+        if arch.suffix.lower() == ".gif":
+            cmd += ["-ignore_loop", "0", "-t", f"{total:.2f}", "-i", str(arch)]
+        else:
+            cmd += ["-loop", "1", "-framerate", "30", "-t", f"{total:.2f}", "-i", str(arch)]
+        ancho = max(8, int(float(el.get("ancho", 200))))
+        opac = max(0.0, min(1.0, float(el.get("opacidad", 100)) / 100))
+        f.append(f"[{idx}:v]scale={ancho}:-1,format=rgba,colorchannelmixer=aa={opac:.2f}[e{idx}]")
+        f.append(f"[{v_prev}][e{idx}]overlay={int(float(el.get('x', 0)))}:{int(float(el.get('y', 0)))}:eof_action=pass[v{idx}]")
         v_prev = f"v{idx}"
         idx += 1
     f.append(f"[{v_prev}]subtitles=subs.ass:fontsdir=fuentes[v]")

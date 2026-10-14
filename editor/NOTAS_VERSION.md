@@ -1,10 +1,11 @@
-Versión 1.6.0 — hay que instalarla con el instalador nuevo (tus datos no se tocan):
-- La sala abre en su propia ventana, como un programa: sin navegador, sin «localhost» y sin consola. Al cerrarla, se apaga sola (si está armando algo, primero termina).
-- Diseño nuevo, oscuro (negro, azul y blanco).
-- Pestaña Inicio: cómo va la sesión, sesiones y Claude. Escribe el guion de una sesión con Claude o haz que revise lo grabado, con tu suscripción de Claude (sin API).
-- Videos agrupados por cuerpo (o por hook o CTA), con estado de cada video: pendiente, editando o listo. «Editar cuerpo»: lo que cambies en el cuerpo se aplica a todos sus videos y se re-arman solos. Para un cambio solo en un video: «Guardar como versión aparte».
-- Aviso de videos por re-armar cuando cambió algo de sus piezas.
-- Piezas y Guion separados en Hooks, Cuerpos y CTAs; en Guion también «Hook + cuerpo» para leer cada video completo.
-- Subtítulos en dos líneas con dos fuentes (plantilla «Dos fuentes» o en cualquier plantilla propia).
-- El subtítulo se sube o baja arrastrándolo en la vista del editor; se puede aplicar a todos los videos del cuerpo.
-- Bajada de Drive más rápida: primero el guion, después los clips (varios a la vez), con porcentaje y tiempo restante.
+Versión 1.7.0 (se actualiza desde la app con «Actualizar ahora»):
+- Grupos de sesiones: varias grabaciones que son una sola producción (por ejemplo 11/10 + 13/10 = «B2B VETERINARIOS 6X5») se ven juntas: un guion, todos los clips, todos los videos. Se crean en Inicio → «Unir en grupo».
+- Guion en 3 pasos: «Analizar clips» (trae los clips de Drive, pasa el audio a texto en esta PC, gratis, y los identifica solo comparándolos con el guion) → «Ver cambios contra el guion» → «Que Claude reacomode la edición».
+- Procesos (botón ☰ o la rueda de abajo): ves lo que está haciendo la sala, su historial, y puedes cancelarlo.
+- Configuración en la tuerca ⚙ de arriba a la derecha.
+- Plantillas: todas se pueden editar (las de fábrica se pueden restaurar). Lienzo del video donde mueves el cuadro del subtítulo y estiras su ancho; espaciado entre letras, color y opacidad de la sombra, desenfoque; logo, imágenes o GIF dentro de la plantilla (se ven en todo el video).
+- Nueva fuente DM Sans.
+- Carpetas ordenadas por video: Clips/C2/Cuerpo/1.MOV, Clips/C2/Hooks/H1.MOV, Clips/CTA/CTA1.MOV.
+- Estados de cada video: por revisar, editando, aprobado.
+- Claude Code se encuentra aunque la app de Claude venga de la Microsoft Store.
+- Nombres más claros: «Armar todos los videos», «Exportar» (dice dónde queda cada cosa).

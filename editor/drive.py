@@ -60,6 +60,7 @@ def _rc(*args, avance=None, timeout=None, prefijo="Drive: "):
         return r.stdout
     p = subprocess.Popen(cmd + ["--stats", "2s", "--stats-one-line", "-v"], stderr=subprocess.PIPE, stdout=subprocess.DEVNULL,
                          text=True, encoding="utf-8", errors="replace")
+    motor.PROCESOS.add(p)
     ultima = ""
     for linea in p.stderr:
         linea = linea.strip()
@@ -70,7 +71,10 @@ def _rc(*args, avance=None, timeout=None, prefijo="Drive: "):
             vel = f" · {m.group(3)}" if m.group(3) else ""
             eta = f" · faltan {m.group(4)}" if m.group(4) and m.group(4) != "-" else ""
             avance(f"{prefijo}{m.group(2)} ({m.group(1)}{vel}{eta})")
-    if p.wait() != 0:
+    codigo = p.wait()
+    motor.PROCESOS.discard(p)
+    motor.revisar_cancelado()
+    if codigo != 0:
         raise RuntimeError("Drive: " + ultima[-300:])
 
 
@@ -99,7 +103,9 @@ def conectar(link, client_id="", client_secret="", avance=print):
         _rc("config", "delete", REMOTO)
     extra = [f"client_id={client_id.strip()}", f"client_secret={client_secret.strip()}"] if client_id.strip() else []
     _rc("config", "create", REMOTO, "drive", "scope=drive", f"root_folder_id={cid}", *extra, timeout=600)
+    avance("Google dio el acceso. Comprobando que se ve la carpeta…")
     _rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)  # comprueba que la carpeta se ve
+    avance("Leyendo las sesiones de Drive…")
     motor.guardar_config({"drive": {"activo": True, "carpeta_id": cid, "link": link, "credenciales_propias": bool(extra)},
                           "carpeta_trabajo": str(CACHE), "biblioteca": str(CACHE / "SOUND FX")})
     actualizar_lista()
@@ -115,7 +121,21 @@ def actualizar_lista():
     datos = json.loads(_rc("lsjson", f"{REMOTO}:", "--dirs-only", timeout=60) or "[]")
     nombres = sorted(d["Name"] for d in datos if "SESI" in d["Name"].upper() or d["Name"].upper().startswith("SEMANA"))
     LISTA.write_text(json.dumps(nombres, ensure_ascii=False), encoding="utf-8")
+    bajar_grupos()
     return nombres
+
+
+def bajar_grupos():
+    """Los grupos de sesiones (varias grabaciones = una producción) se comparten por Drive: _SALA/grupos.json."""
+    try:
+        _rc("copyto", f"{REMOTO}:_SALA/grupos.json", motor.GRUPOS_PATH, timeout=60)
+    except Exception:
+        pass  # todavía no hay grupos en Drive
+
+
+def subir_grupos():
+    if estado()["activo"] and motor.GRUPOS_PATH.exists():
+        threading.Thread(target=lambda: _rc("copyto", motor.GRUPOS_PATH, f"{REMOTO}:_SALA/grupos.json", timeout=60), daemon=True).start()
 
 
 def sesiones_en_drive():

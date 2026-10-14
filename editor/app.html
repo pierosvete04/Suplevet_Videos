@@ -209,6 +209,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 #estadoTrabajo { position: fixed; right: 16px; bottom: 16px; z-index: 20; display: flex; align-items: center; gap: 10px; max-width: min(460px, calc(100vw - 32px));
   padding: 10px 16px; border-radius: 999px; background: var(--flotante); border: 1px solid rgba(61,139,255,.45); color: var(--ink); font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.6), 0 0 20px rgba(61,139,255,.2); }
 #estadoTrabajo[hidden] { display: none; }
+#estadoTrabajo { cursor: pointer; }
+.btn.icono { padding: 7px 11px; font-size: 16px; line-height: 1; position: relative; }
+.btn.icono .punto { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+.proc { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; background: var(--hondo); }
+.proc pre { grid-column: 1 / -1; margin: 0; font: 11.5px/1.5 var(--mono); color: var(--muted); max-height: 200px; overflow: auto; white-space: pre-wrap; }
 #estadoTrabajo #trabajo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rueda { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 3px solid rgba(61,139,255,.22); border-top-color: var(--accent2); animation: girar .8s linear infinite; }
 @keyframes girar { to { transform: rotate(360deg); } }
@@ -256,9 +261,29 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .g-extra { background: rgba(255,181,71,.18); border-radius: 4px; padding: 0 2px; color: var(--warn); }
 .g-pieza { display: grid; gap: 8px; }
 .g-pieza .texto { font-size: 14px; line-height: 1.6; }
+.pasos-guion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.pasos-guion .btn b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,.2); font-size: 11px; margin-right: 6px; }
+.pasos-guion .btn.sec b { background: var(--raise); }
+.pasos-guion .flecha { color: var(--muted); }
+.g-sugerido { border: 1px dashed var(--line2); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; font-size: 12.5px; }
 .informe { white-space: pre-wrap; font-size: 13px; line-height: 1.6; max-height: 420px; overflow: auto; margin: 0; }
 /* Plantillas */
-.plant-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 14px; align-items: start; }
+.plant-layout { display: grid; gap: 14px; }
+.plant-edicion { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.plant-edicion .form-plant { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; align-items: start; }
+.plant-edicion .form-plant > label, .plant-edicion .form-plant > p { grid-column: 1 / -1; }
+.lienzo { position: relative; aspect-ratio: 9/16; width: 100%; border-radius: 14px; overflow: hidden; background: #172235 center/cover; container-type: inline-size; border: 1px solid var(--line2); user-select: none; position: sticky; top: calc(var(--alto-header, 56px) + 60px); }
+.lienzo .caja-texto { position: absolute; border: 1.5px dashed rgba(94,225,255,.85); border-radius: 6px; cursor: move; touch-action: none; min-height: 6%; }
+.lienzo .caja-texto .sublinea { position: absolute; inset: 0; transform: none; top: 0; left: 0; right: 0; display: flex; justify-content: flex-end; }
+.asa-caja { position: absolute; top: 20%; bottom: 20%; width: 8px; background: var(--accent2); border-radius: 4px; cursor: ew-resize; }
+.asa-caja.izq { left: -5px; } .asa-caja.der { right: -5px; }
+.lienzo .elem { position: absolute; cursor: move; touch-action: none; outline: 1px dashed transparent; }
+.lienzo .elem:hover, .lienzo .elem.sel { outline-color: var(--accent2); }
+.lienzo .elem img { display: block; width: 100%; pointer-events: none; }
+.lienzo .elem .asa-elem { position: absolute; right: -6px; bottom: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent2); cursor: nwse-resize; }
+.fila-elem { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; }
+.fila-elem img { width: 40px; height: 40px; object-fit: contain; background: var(--bg2); border-radius: 6px; }
+@media (max-width: 900px) { .plant-edicion { grid-template-columns: 1fr; } .lienzo { max-width: 300px; margin: 0 auto; position: relative; top: 0; } }
 .plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .plant { border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); padding: 8px; display: grid; gap: 6px; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
 .plant:hover { border-color: var(--line2); }
@@ -320,7 +345,9 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
     <select id="semana"></select>
     <button class="btn sec" id="tema" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro"></button>
     <a class="btn sec" href="/teleprompter" target="_blank">Teleprompter</a>
-    <button class="btn" id="todo">Procesar y armar sesión</button>
+    <button class="btn" id="todo" title="Recorta los silencios de cada clip, pasa su audio a texto y une cada hook con su cuerpo y su CTA: arma todos los videos de la sesión">Armar todos los videos</button>
+    <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
+    <button class="btn sec icono" id="abrirAjustes" title="Configuración: Drive, teleprompter en la tablet, notas" aria-label="Configuración">⚙</button>
   </div>
   <div id="avisoVersion" hidden>
     <span><b>Hay una versión nueva de la sala: <span id="vNueva"></span></b> <span class="muted" id="vActual"></span></span>
@@ -334,8 +361,8 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <button role="tab" data-tab="piezas" aria-selected="false">Piezas y subtítulos</button>
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
-  <button role="tab" data-tab="publicar" aria-selected="false">Publicar</button>
-  <button role="tab" data-tab="notas" aria-selected="false">Ajustes y notas</button>
+  <button role="tab" data-tab="publicar" aria-selected="false">Exportar</button>
+  <button role="tab" data-tab="notas" aria-selected="false" hidden>Configuración</button>
 </nav>
 <main>
   <p id="aviso" role="status" class="muted" style="margin:0 0 10px"></p>
@@ -378,8 +405,10 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         </div>
         <div class="caja">
           <div class="fila" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Sesiones</h2>
-            <button class="btn sec peq" id="inNueva">+ Nueva sesión</button></div>
+            <div class="fila"><button class="btn sec peq" id="inGrupo" title="Varias grabaciones que son una sola producción (un guion)">Unir en grupo</button>
+            <button class="btn sec peq" id="inNueva">+ Nueva sesión</button></div></div>
           <div class="sesiones" id="inSesiones"></div>
+          <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
         </div>
       </div>
     </div>
@@ -396,10 +425,10 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         </div>
         <div class="segmento" id="filtroEstado" role="group" aria-label="Filtrar por estado">
           <button data-estado="" aria-pressed="true">Todos</button>
-          <button data-estado="pendiente" aria-pressed="false">Pendientes</button>
+          <button data-estado="pendiente" aria-pressed="false">Por revisar</button>
           <button data-estado="editando" aria-pressed="false">Editando</button>
-          <button data-estado="listo" aria-pressed="false">Listos</button>
-          <button data-estado="viejo" aria-pressed="false">Por re-armar</button>
+          <button data-estado="listo" aria-pressed="false">Aprobados</button>
+          <button data-estado="viejo" aria-pressed="false">Sin armar o por re-armar</button>
         </div>
       </div>
       <input id="buscar" type="search" placeholder="Buscar: C1, H2, CTA-A…" aria-label="Buscar videos" style="max-width:240px">
@@ -411,11 +440,17 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
     <div class="caja" style="margin-bottom:14px">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Guion de la sesión</h2>
-          <span class="muted" style="font-size:12px">Cada pieza del guion, el clip que la cubre y lo que realmente se dijo. <span class="g-falta">tachado</span> = no se dijo · <span class="g-extra">resaltado</span> = se agregó.</span></div>
-        <div class="fila"><a class="btn sec" href="/teleprompter" target="_blank">Abrir teleprompter</a>
-          <button class="btn" id="gRevisar">Revisar lo grabado con Claude</button></div>
+          <span class="muted" style="font-size:12px" id="gSub">«Analizar clips» trae de Drive todos los clips, pasa su audio a texto (en esta PC, gratis), lo compara con el guion e identifica solo cada clip. Luego ves los cambios aquí.</span></div>
+        <a class="btn sec peq" href="/teleprompter" target="_blank">Abrir teleprompter</a>
       </div>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Claude compara lo grabado con el guion y reacomoda sonidos, música, imágenes y estilos sobre lo que realmente se dijo. Después se re-arman los videos solos.</p>
+      <div class="pasos-guion">
+        <button class="btn" id="gAnalizar"><b>1</b> Analizar clips</button>
+        <span class="flecha" aria-hidden="true">→</span>
+        <button class="btn sec" id="gCorroborar"><b>2</b> Ver cambios contra el guion</button>
+        <span class="flecha" aria-hidden="true">→</span>
+        <button class="btn sec" id="gRevisar"><b>3</b> Que Claude reacomode la edición</button>
+      </div>
+      <p class="muted" id="gEstado" style="font-size:12px;margin:8px 0 0"></p>
     </div>
     <div class="caja" style="margin-bottom:14px" id="cajaInforme" hidden>
       <h2>Informe de Claude</h2>
@@ -478,11 +513,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
     <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Clips por identificar <span class="pill" id="nSinAsignar"></span></h2>
-          <span class="muted" style="font-size:12px">Clips con nombre de cámara (IMG_1016…). La sala los escucha, los compara con el guion y sugiere qué pieza es. Los archivos no se renombran.</span></div>
+          <span class="muted" style="font-size:12px">Clips con nombre de cámara (IMG_1016…). La sala pasa su audio a texto <b>en esta PC</b> (gratis, sin Claude), lo compara con el guion y dice qué pieza es cada uno. Los archivos no se renombran.</span></div>
         <div class="fila">
           <button class="btn sec" id="numerarHooks" hidden>Numerar hooks en orden</button>
-          <button class="btn sec" id="escuchar">Escuchar y sugerir</button>
-          <button class="btn" id="aceptarSug">Aceptar sugerencias</button>
+          <button class="btn" id="escuchar" title="Trae los clips de Drive, los escucha, los compara con el guion e identifica los que se parecen claramente">Analizar clips</button>
+          <button class="btn sec" id="aceptarSug" title="Asigna cada clip a la pieza que sugirió la sala (solo los de 50 % de parecido o más)">Aceptar lo sugerido</button>
         </div>
       </div>
       <label class="fila muted" style="font-size:12px;margin:8px 0"><input type="checkbox" id="ocultarTomas" checked> Ocultar otras tomas de piezas ya sugeridas</label>
@@ -516,42 +551,77 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
         </div>
         <div class="plant-lista" id="plantLista"></div>
       </div>
-      <div class="caja">
-        <h2 id="plantTitulo" style="margin-bottom:6px">Plantilla</h2>
-        <div class="muestra" id="plantMuestra" style="aspect-ratio:9/12"><div class="sublinea" id="plantLinea"></div></div>
-        <div class="fila" style="margin:8px 0">
-          <button class="btn peq" id="plantPredet">Usar como predeterminada</button>
-          <button class="btn sec peq" id="plantDuplicar">Duplicar y editar</button>
-          <button class="btn sec peq" id="plantBorrar">Borrar</button>
+      <div class="caja" id="plantEditor">
+        <div class="fila" style="justify-content:space-between;margin-bottom:10px">
+          <h2 id="plantTitulo" style="margin:0">Plantilla</h2>
+          <div class="fila">
+            <button class="btn peq" id="plantPredet">Usar como predeterminada</button>
+            <button class="btn sec peq" id="plantDuplicar">Duplicar</button>
+            <button class="btn sec peq" id="plantBorrar">Borrar</button>
+            <button class="btn" id="plantGuardar">Guardar plantilla</button>
+          </div>
         </div>
-        <form class="form-plant" id="plantForm" onsubmit="return false">
-          <label>Nombre<input data-p="nombre"></label>
-          <label>Fuente<select data-p="fuente" id="plantFuente"></select></label>
-          <div class="dos"><label>Tamaño<input type="number" min="40" max="160" data-p="tamano"></label>
-            <label>Mayúsculas<select data-p="mayusculas"><option value="true">Sí</option><option value="false">No</option></select></label></div>
-          <div class="dos"><label>Color del texto<input type="color" data-p="color_texto"></label>
-            <label>Color del borde<input type="color" data-p="color_borde"></label></div>
-          <div class="dos"><label>Grosor del borde<input type="number" min="0" max="14" data-p="borde"></label>
-            <label>Sombra<input type="number" min="0" max="8" data-p="sombra"></label></div>
-          <div class="dos"><label>Palabra que se dice (color)<input type="color" data-p="color_activo"></label>
-            <label>Cuánto crece (%)<input type="number" min="100" max="130" data-p="escala_activa"></label></div>
-          <label>Altura del subtítulo (px desde abajo; más = más arriba)<input type="range" min="200" max="1200" step="10" data-p="altura_desde_abajo"></label>
-          <label>Resaltador (caja de color)<select data-p="resaltador.modo">
-            <option value="">Sin caja</option><option value="activa">En la palabra que se dice</option>
-            <option value="clave">Solo en palabras clave</option><option value="ambas">Las dos</option></select></label>
-          <div class="dos"><label>Color de la caja<input type="color" data-p="resaltador.color"></label>
-            <label>Texto dentro de la caja<input type="color" data-p="resaltador.texto"></label></div>
-          <div class="dos"><label>Redondeo<input type="number" step="0.02" min="0" max="0.5" data-p="resaltador.radio"></label>
-            <label>Palabras clave sin caja (color)<input type="color" data-p="color_resaltado"></label></div>
-          <fieldset><legend>Segunda línea</legend>
-            <label>La frase va en dos líneas, la de abajo con otra fuente<select data-p="linea2.activa"><option value="false">No, una sola línea</option><option value="true">Sí, dos líneas</option></select></label>
-            <label>Fuente de la segunda línea<select data-p="linea2.fuente" id="plantFuente2"></select></label>
-            <div class="dos"><label>Tamaño de la segunda (%)<input type="number" min="60" max="200" data-p="linea2.escala"></label>
-              <label>Color de la segunda<input type="color" data-p="linea2.color"></label></div>
-          </fieldset>
-          <p class="muted" style="font-size:12px;margin:0" id="plantAviso"></p>
-          <button class="btn" id="plantGuardar">Guardar plantilla</button>
-        </form>
+        <div class="plant-edicion">
+          <div>
+            <div class="lienzo" id="plantLienzo">
+              <div id="plantElems"></div>
+              <div class="caja-texto" id="plantCaja" title="Arrastra para mover el subtítulo; estira los bordes para cambiar el ancho">
+                <div class="sublinea" id="plantLinea"></div>
+                <span class="asa-caja izq" data-asa-caja="izq"></span><span class="asa-caja der" data-asa-caja="der"></span>
+              </div>
+            </div>
+            <p class="muted" style="font-size:11.5px;margin:6px 0 0;text-align:center">Arrastra el cuadro del subtítulo y los elementos. Estira los bordes para el ancho.</p>
+          </div>
+          <form class="form-plant" id="plantForm" onsubmit="return false">
+            <label>Nombre<input data-p="nombre"></label>
+            <fieldset><legend>Letra</legend>
+              <div class="dos"><label>Fuente<select data-p="fuente" id="plantFuente"></select></label>
+                <label>Tamaño<input type="number" min="30" max="180" data-p="tamano"></label></div>
+              <div class="dos"><label>Mayúsculas<select data-p="mayusculas"><option value="true">Sí</option><option value="false">No</option></select></label>
+                <label>Espacio entre letras (%)<input type="number" min="-5" max="30" step="1" data-p="espaciado"></label></div>
+              <div class="dos"><label>Color del texto<input type="color" data-p="color_texto"></label>
+                <label>Palabra que se dice<input type="color" data-p="color_activo"></label></div>
+              <div class="dos"><label>Cuánto crece la que se dice (%)<input type="number" min="100" max="140" data-p="escala_activa"></label>
+                <label>Palabras clave (color)<input type="color" data-p="color_resaltado"></label></div>
+            </fieldset>
+            <fieldset><legend>Borde y sombra</legend>
+              <div class="dos"><label>Grosor del borde<input type="number" min="0" max="16" data-p="borde"></label>
+                <label>Color del borde<input type="color" data-p="color_borde"></label></div>
+              <div class="dos"><label>Sombra (distancia)<input type="number" min="0" max="16" data-p="sombra"></label>
+                <label>Color de la sombra<input type="color" data-p="color_sombra"></label></div>
+              <div class="dos"><label>Opacidad de la sombra (%)<input type="number" min="0" max="100" step="5" data-p="opacidad_sombra"></label>
+                <label>Desenfoque (suave)<input type="number" min="0" max="10" step="0.5" data-p="desenfoque"></label></div>
+            </fieldset>
+            <fieldset><legend>Resaltador</legend>
+              <label>Caja de color<select data-p="resaltador.modo">
+                <option value="">Sin caja</option><option value="activa">En la palabra que se dice</option>
+                <option value="clave">Solo en palabras clave</option><option value="ambas">Las dos</option></select></label>
+              <div class="dos"><label>Color de la caja<input type="color" data-p="resaltador.color"></label>
+                <label>Texto dentro de la caja<input type="color" data-p="resaltador.texto"></label></div>
+              <label>Redondeo<input type="number" step="0.02" min="0" max="0.5" data-p="resaltador.radio"></label>
+            </fieldset>
+            <fieldset><legend>Segunda línea</legend>
+              <label>La frase va en dos líneas, la de abajo con otra fuente<select data-p="linea2.activa"><option value="false">No, una sola línea</option><option value="true">Sí, dos líneas</option></select></label>
+              <label>Fuente de la segunda línea<select data-p="linea2.fuente" id="plantFuente2"></select></label>
+              <div class="dos"><label>Tamaño de la segunda (%)<input type="number" min="60" max="200" data-p="linea2.escala"></label>
+                <label>Color de la segunda<input type="color" data-p="linea2.color"></label></div>
+            </fieldset>
+            <fieldset><legend>Cuadro del subtítulo</legend>
+              <label>Altura (px desde abajo)<input type="range" min="100" max="1700" step="10" data-p="altura_desde_abajo"></label>
+              <div class="dos"><label>Centro horizontal (px)<input type="number" min="100" max="980" step="10" data-p="x_centro"></label>
+                <label>Ancho máximo (px)<input type="number" min="200" max="1080" step="10" data-p="ancho_max"></label></div>
+            </fieldset>
+            <fieldset><legend>Elementos (logo, imágenes, GIF)</legend>
+              <div id="plantListaElems" style="display:grid;gap:6px"></div>
+              <div class="fila">
+                <select id="plantElemSel" style="flex:1"></select>
+                <button class="btn sec peq" id="plantElemAgregar" type="button">Agregar</button>
+                <label class="btn sec peq" style="cursor:pointer">Subir imagen o GIF<input type="file" id="plantElemSubir" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+              </div>
+            </fieldset>
+            <p class="muted" style="font-size:12px;margin:0" id="plantAviso"></p>
+          </form>
+        </div>
       </div>
     </div>
   </section>
@@ -559,8 +629,9 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   <section data-panel="publicar" hidden>
     <div class="caja" style="margin-bottom:14px">
       <div class="fila" style="justify-content:space-between">
-        <div><h2 style="margin:0">Calendario de la semana</h2>
-          <span class="muted" style="font-size:12px">Exportar copia cada video con su portada y copy a <code id="rutaListos"></code></span></div>
+        <div><h2 style="margin:0">Exportar los videos</h2>
+          <span class="muted" style="font-size:12px">Aquí no se publica en redes. <b>Exportar por día</b> deja cada video con su portada y su copy en <code id="rutaListos"></code> (en Drive, carpeta V.FINALES), ordenados por día de publicación.
+          <b>Subir al panel</b> los manda al panel de videos (edicion.suplevet.pe/videos), donde se revisan y aprueban. La publicación en Instagram, TikTok y YouTube se hace desde ahí o a mano.</span></div>
         <div class="fila">
           <button class="btn" id="exportar">Exportar por día</button>
           <button class="btn sec" id="subirPanel">Subir al panel</button>
@@ -607,18 +678,35 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   </section>
 </main>
 
-<div id="estadoTrabajo" hidden role="status" aria-live="polite"><span class="rueda" aria-hidden="true"></span><span id="trabajo"></span></div>
+<div id="estadoTrabajo" hidden role="status" aria-live="polite" title="Ver el proceso y cancelarlo"><span class="rueda" aria-hidden="true"></span><span id="trabajo"></span></div>
+<dialog id="dlgProcesos" aria-labelledby="procTit" style="width:min(560px,94vw)">
+  <div class="dlg-cab"><h2 id="procTit" style="margin:0">Procesos</h2><button class="btn sec peq" id="procCerrar" aria-label="Cerrar">✕</button></div>
+  <div style="padding:16px;display:grid;gap:12px">
+    <div id="procActual"></div>
+    <div><h3>Últimos procesos</h3><div id="procHistorial" style="display:grid;gap:6px"></div></div>
+  </div>
+</dialog>
 <div id="barraSel" hidden><span id="nSel"></span>
   <button class="btn peq" id="selArmar">Armar seleccionados</button>
   <button class="btn sec peq" id="selExportar">Exportar seleccionados</button>
   <button class="btn sec peq" id="selLimpiar">Quitar selección</button></div>
+<dialog id="dlgGrupo" aria-labelledby="dlgGrupoTit" style="width:min(460px,94vw)">
+  <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formGrupo">
+    <h2 id="dlgGrupoTit" style="margin:0">Unir sesiones en un grupo</h2>
+    <p class="muted" style="margin:0;font-size:12.5px">Por ejemplo: grabaste los cuerpos un día y los hooks otro, pero es el mismo guion.</p>
+    <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre del grupo<input id="grNombre" placeholder="B2B VETERINARIOS 6x5" required></label>
+    <div style="display:grid;gap:6px"><span class="muted" style="font-size:12px">Sesiones del grupo</span><div id="grSesiones" style="display:grid;gap:4px"></div></div>
+    <label class="muted" style="display:grid;gap:4px;font-size:12px">La que tiene el guion (ahí van Flow, música y V.FINALES)<select id="grGuion"></select></label>
+    <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
+  </form>
+</dialog>
 <dialog id="dlg" aria-labelledby="dlgTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="dlgTitulo" style="margin:0"></h2><span id="dlgAviso"></span></div>
     <div class="fila">
       <div class="segmento" id="dlgEstado" role="group" aria-label="Estado del video">
-        <button data-est="pendiente" aria-pressed="false">Pendiente</button>
+        <button data-est="pendiente" aria-pressed="false">Por revisar</button>
         <button data-est="editando" aria-pressed="false">Editando</button>
-        <button data-est="listo" aria-pressed="false">Listo</button>
+        <button data-est="listo" aria-pressed="false">Aprobado</button>
       </div>
       <button class="btn sec peq" id="irEditor">Editar ↓</button>
       <button class="btn sec peq" id="rearmarUno">Re-armar este video</button>
@@ -759,19 +847,23 @@ function pintarInicio() {
   const sinId = (E.checklist.sin_asignar || []).length;
   $("inSub").textContent = `${tipos("cuerpo")} cuerpos · ${tipos("hook")} hooks · ${tipos("cta")} CTAs grabados${E.hay_produccion ? " · con guion" : " · sin guion"}`;
   const stat = (n, txt, cls = "") => `<div class="stat ${cls}"><b>${n}</b><span>${txt}</span></div>`;
-  $("inStats").innerHTML = stat(vids.length, "videos posibles", "azul") + stat(armados, "armados") + stat(listos, "listos", listos ? "ok" : "")
+  $("inStats").innerHTML = stat(vids.length, "videos posibles", "azul") + stat(armados, "armados") + stat(listos, "aprobados", listos ? "ok" : "")
     + stat(viejos, "por re-armar", viejos ? "warn" : "") + stat(faltan, "imágenes y música por generar", faltan ? "warn" : "");
   const pasos = [
     [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : `<button class="btn peq blanco" data-ir="claude">Escribir con Claude</button>`],
     [E.piezas.length > 0 || sinId > 0, "Grabar y subir los clips a Drive", E.piezas.length || sinId ? `<span class="pill">${E.piezas.length + sinId} clips</span>` : `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
+    [E.piezas.length > 0 && E.piezas.every(p => p.procesada), "Analizar los clips y corroborar con el guion", `<button class="btn sec peq" data-ir="guion">Ir a Guion</button>`],
     [E.piezas.length > 0 && !sinId, "Identificar los clips", sinId ? `<button class="btn sec peq" data-ir="faltan">${sinId} por identificar</button>` : ""],
     [E.hay_produccion && !faltan, "Imágenes de Flow y música", faltan ? `<button class="btn sec peq" data-ir="faltan">Faltan ${faltan}</button>` : ""],
     [vids.length > 0 && armados === vids.length && !viejos, "Armar los videos", vids.length ? `<button class="btn sec peq" data-ir="videos">${armados}/${vids.length}</button>` : ""],
-    [vids.length > 0 && listos === vids.length, "Revisar cada video y exportar", vids.length ? `<button class="btn sec peq" data-ir="publicar">Publicar</button>` : ""],
+    [vids.length > 0 && listos === vids.length, "Revisar y aprobar cada video, y exportar", vids.length ? `<button class="btn sec peq" data-ir="publicar">Publicar</button>` : ""],
   ];
   const ahora = pasos.findIndex(p => !p[0]);
   $("inPasos").innerHTML = pasos.map(([ok, txt, accion], i) => `<li class="${ok ? "hecho" : i === ahora ? "ahora" : ""}"><span>${txt}</span>${accion}</li>`).join("");
-  $("inSesiones").innerHTML = [...E.semanas].reverse().map(s => `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}</button>`).join("")
+  const grs = E.grupos || {};
+  $("inSesiones").innerHTML = [...E.semanas].reverse().map(s => grs[s]
+      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">(${grs[s].sesiones.length})</span></button>`
+      : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}</button>`).join("")
     || `<span class="muted">Todavía no hay sesiones.</span>`;
   const sesionesGuion = [...E.semanas].reverse();
   const elegida = $("clSesion").value;
@@ -825,6 +917,20 @@ const revisarConClaude = async () => {
 };
 $("clRevisar").onclick = revisarConClaude;
 $("gRevisar").onclick = revisarConClaude;
+$("inGrupo").onclick = () => {
+  const libres = E.semanas.filter(s => !(E.grupos || {})[s]);
+  $("grSesiones").innerHTML = libres.map(s => `<label class="fila" style="font-size:13px"><input type="checkbox" value="${esc(s)}"> ${esc(s)}</label>`).join("");
+  const pintarGuionSel = () => { const el = [...$("grSesiones").querySelectorAll("input:checked")].map(i => i.value); $("grGuion").innerHTML = el.map(s => `<option>${esc(s)}</option>`).join(""); };
+  $("grSesiones").onchange = pintarGuionSel; pintarGuionSel();
+  $("grNombre").value = ""; $("dlgGrupo").showModal();
+};
+$("formGrupo").addEventListener("submit", async e => {
+  if (e.submitter?.value !== "crear") return;
+  e.preventDefault();
+  const sesiones = [...$("grSesiones").querySelectorAll("input:checked")].map(i => i.value);
+  try { await post("/api/grupo", { nombre: $("grNombre").value, sesiones, guion: $("grGuion").value }); $("dlgGrupo").close(); sel = null; await cargar(); avisar("Grupo creado: ahora ves todos sus clips y videos juntos.", "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); alert(err.message); }
+});
 $("inNueva").onclick = async () => { const s = await nuevaSesion(); if (s) avisar(`Sesión «${s}» creada.`, "ok"); };
 async function nuevaSesion() {
   const s = prompt("Nombre de la sesión (día y mes de grabación):", new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" }).replace("/", " ") + " SESIÓN");
@@ -842,7 +948,7 @@ function irTab(nombre) {
 
 // ---------- Videos ----------
 let vistaVideos = "cuerpo", filtroEstado = "";
-const ESTADOS = { pendiente: "Pendiente", editando: "Editando", listo: "Listo" };
+const ESTADOS = { pendiente: "Por revisar", editando: "Editando", listo: "Aprobado" };
 function tarjetaVideo(s) {
   const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
   return `<button class="tarjeta ${elegidos.has(s.codigo) ? "elegida" : ""}" data-cod="${esc(s.codigo)}" style="position:relative">
@@ -874,12 +980,12 @@ function pintarVideos() {
     const nombreTipo = { cuerpo: "Cuerpo", hook: "Hook", cta: "CTA" }[clave];
     return `<div class="grupo-cuerpo"><div class="grupo-cab ${clave}">
         <div class="titulo"><span class="cod">${esc(k)}</span>
-          <div style="min-width:0"><b style="font-size:13px">${vs.length} video${vs.length === 1 ? "" : "s"}</b> <span class="muted" style="font-size:12px">· ${listos} listo${listos === 1 ? "" : "s"}${viejos ? ` · ${viejos} por armar` : ""}${p?.editada ? " · editado" : ""}</span>
+          <div style="min-width:0"><b style="font-size:13px">${vs.length} video${vs.length === 1 ? "" : "s"}</b> <span class="muted" style="font-size:12px">· ${listos} aprobado${listos === 1 ? "" : "s"}${viejos ? ` · ${viejos} por armar` : ""}${p?.editada ? " · editado" : ""}</span>
           <div class="resumen" title="${esc(texto)}">${esc(texto)}</div></div></div>
-        <div class="fila"><div class="progreso" title="${listos} de ${vs.length} listos"><i style="width:${vs.length ? listos / vs.length * 100 : 0}%"></i></div>
+        <div class="fila"><div class="progreso" title="${listos} de ${vs.length} aprobados"><i style="width:${vs.length ? listos / vs.length * 100 : 0}%"></i></div>
           <button class="btn peq" data-grupo-editar="${esc(vs[0].codigo)}" title="Lo que cambies en ${esc(k)} se aplica a sus ${vs.length} videos">Editar ${nombreTipo.toLowerCase()}</button>
           <button class="btn sec peq" data-grupo-armar="${esc(vs.map(s => s.codigo).join(","))}">${viejos ? `Armar ${viejos}` : "Re-armar todos"}</button>
-          <button class="btn sec peq" data-grupo-listos="${esc(vs.map(s => s.codigo).join(","))}">Marcar listos</button></div></div>
+          <button class="btn sec peq" data-grupo-listos="${esc(vs.map(s => s.codigo).join(","))}">Aprobar todos</button></div></div>
       <div class="grid-portadas">${vs.map(tarjetaVideo).join("")}</div></div>`;
   }).join("") || `<div class="sin-nada">Ningún video con ese filtro.</div>`;
 }
@@ -1202,8 +1308,9 @@ let vigilando = null;
 function vigilar(t) {
   const caja = $("estadoTrabajo");
   caja.hidden = !t.activo;
+  $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar"].forEach(id => $(id).disabled = t.activo);
+  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar", "gAnalizar"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -1218,7 +1325,8 @@ function vigilar(t) {
       if (!j.activo) {
         clearInterval(vigilando); vigilando = null;
         await cargar();
-        if (j.accion === "revisar") pintarGuion();
+        if (j.accion === "analizar" && !j.error) corroborado = true;
+        if (["revisar", "analizar"].includes(j.accion)) pintarGuion();
         avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || ""), j.error ? "err" : "ok");
         if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} re-armado. Lo estás viendo actualizado.`, "ok"); }
         reabrir = null;
@@ -1327,13 +1435,43 @@ $("plantDuplicar").onclick = async () => {
   try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(E.plantillas[plantSel])), nombre, descripcion: "Plantilla propia" }); avisar("Plantilla creada: edítala a la derecha.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("plantGuardar").onclick = async () => { leerFormPlantilla(); try { await guardarPlantilla(plantSel, plantEdit); avisar("Plantilla guardada.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
-$("plantBorrar").onclick = async () => { if (!confirm("¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); plantSel = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantBorrar").onclick = async () => { if (!confirm(E.fabrica.includes(plantSel) ? "¿Volver esta plantilla a como venía de fábrica?" : "¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); if (!E.fabrica.includes(plantSel)) plantSel = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("subirFuente").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}`, f, true); avisar(`Fuente ${f.name} agregada.`, "ok"); await cargar(); pintarPlantillas(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
-$("escuchar").onclick = () => trabajo("escuchar");
+$("escuchar").onclick = () => trabajo("analizar");
+// ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
+const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Re-armar videos de una pieza", uno: "Re-armar un video",
+  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", exportar: "Exportar por día", portadas: "Rehacer portadas",
+  panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
+  conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
+  guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado" };
+let procTimer = null;
+const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
+async function pintarProcesos() {
+  let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
+  $("procActual").innerHTML = t.activo
+    ? `<div class="proc"><b>${esc(NOMBRE_PROCESO[t.accion] || t.accion)}</b><button class="btn peq" id="procCancelar" style="background:var(--err)">Cancelar</button>
+        <span class="muted">Empezó a las ${hora(t.inicio)} · ${esc(t.mensaje)}</span><span></span>
+        <pre>${esc((t.log || []).slice(-25).join("\n"))}</pre></div>`
+    : `<p class="muted" style="margin:0">No hay nada corriendo ahora.</p>`;
+  const marca = { listo: '<span class="pill ok">listo</span>', error: '<span class="pill err">error</span>', cancelado: '<span class="pill warn">cancelado</span>' };
+  $("procHistorial").innerHTML = (t.historial || []).map(h => `<div class="proc"><span><b>${esc(NOMBRE_PROCESO[h.accion] || h.accion)}</b> <span class="muted">· ${hora(h.inicio)}–${hora(h.fin)}</span></span>${marca[h.resultado] || ""}
+      <span class="muted" style="grid-column:1/-1">${esc(h.mensaje)}</span></div>`).join("") || `<span class="muted">Todavía nada.</span>`;
+}
+function abrirProcesos() { $("dlgProcesos").showModal(); pintarProcesos(); clearInterval(procTimer); procTimer = setInterval(pintarProcesos, 1500); }
+$("estadoTrabajo").onclick = abrirProcesos;
+$("verProcesos").onclick = abrirProcesos;
+$("procCerrar").onclick = () => $("dlgProcesos").close();
+$("dlgProcesos").addEventListener("close", () => clearInterval(procTimer));
+$("procActual").addEventListener("click", async e => {
+  if (e.target.id !== "procCancelar") return;
+  e.target.disabled = true; e.target.textContent = "Cancelando…";
+  try { await post("/api/cancelar"); } catch (err) { avisar("Error: " + err.message, "err"); }
+});
+$("abrirAjustes").onclick = () => irTab("notas");
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
   let cuerpo = cuerpos.length === 1 ? cuerpos[0] : prompt(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
@@ -1798,17 +1936,25 @@ async function pintarGuion() {
   const sinAsignar = E.checklist.sin_asignar || [];
   if (!g.hay_guion) { $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Escríbelo con Claude (con sus prompts de Flow y de música) y aparece aquí.</p><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div>`; return; }
   ultimoGuion = g;
-  pintarGuionLista();
+  pintarGuionLista(); pintarEstadoGuion();
 }
-let ultimoGuion = null, vistaGuion = "todo";
+let ultimoGuion = null, vistaGuion = "todo", corroborado = false;
 function textoGuion(p) {
-  return p.procesada && p.diff.length
+  return corroborado && p.procesada && p.diff.length
     ? p.diff.map(d => d.t === "igual" ? esc(d.texto) : `<span class="g-${d.t}">${esc(d.texto)}</span>`).join(" ")
     : p.partes.length > 1 ? p.partes.map((f, k) => `<b>${k + 1}.</b> ${esc(f)}`).join("<br>") : esc(p.texto);
 }
+function sugeridosGuion(p) {
+  if (!corroborado || !p.sugeridos?.length || p.clips.length) return "";
+  return `<div class="g-sugerido"><b>Clips que suenan a ${esc(p.nombre)}</b>${p.sugeridos.slice(0, 3).map(s => `
+    <div class="fila" style="justify-content:space-between"><span><code>${esc(s.nombre)}</code> · ${Math.round(s.parecido * 100)}%${s.mejor ? " · mejor toma" : ""}<br>
+      <span class="muted">«${esc(s.texto.slice(0, 120))}${s.texto.length > 120 ? "…" : ""}»</span></span>
+      <button class="btn peq" data-asig-rel="${esc(s.rel)}" data-asig-pieza="${esc(p.nombre)}">Es este</button></div>`).join("")}</div>`;
+}
 function estadoGuion(p) {
+  if (!corroborado) return p.clips.length ? `<span class="pill">con clip</span>` : `<span class="pill warn">sin clip</span>`;
   return !p.clips.length ? `<span class="pill warn">sin clip</span>`
-    : !p.procesada ? `<span class="pill">sin procesar</span>`
+    : !p.procesada ? `<span class="pill">sin analizar</span>`
     : `<span class="pill ${p.parecido >= .9 ? "ok" : p.parecido >= .7 ? "" : "warn"}">${Math.round((p.parecido || 0) * 100)}% igual al guion</span>`;
 }
 function pintarGuionLista() {
@@ -1825,6 +1971,7 @@ function pintarGuionLista() {
         <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(h.nombre)} + ${esc(c?.nombre || "?")}${h.tipo_hook ? ` <span class="muted" style="font-weight:400">· ${esc(h.tipo_hook)}</span>` : ""}</h3>${estadoGuion(h)}</div>
         <div><span class="etq" style="color:var(--hook)">Hook</span><div class="texto">${textoGuion(h)}</div></div>
         <div><span class="etq">Cuerpo</span><div class="texto">${c ? textoGuion(c) : '<span class="muted">Este cuerpo no está en el guion.</span>'}</div></div>
+        ${sugeridosGuion(h)}
       </div>`;
     }).join("") || `<div class="sin-nada">El guion no tiene hooks.</div>`;
     return;
@@ -1833,15 +1980,32 @@ function pintarGuionLista() {
   $("guionLista").innerHTML = lista.map(p => `<div class="caja g-pieza">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span></h3>${estadoGuion(p)}</div>
       <div class="texto">${textoGuion(p)}</div>
+      ${sugeridosGuion(p)}
       <div class="muted" style="font-size:12px">${p.clips.length ? "Clip: " + p.clips.map(c => esc(c.split("/").pop())).join(" + ") : "Ningún clip asignado todavía."}</div>
       ${sinAsignar.length ? `<div class="fila"><select data-guion-clip="${esc(p.nombre)}" style="flex:1"><option value="">Asignar un clip a ${esc(p.nombre)}…</option>
         ${sinAsignar.map(c => `<option value="${esc(c.rel)}">${esc(c.nombre)}${c.pieza ? ` (sugerido: ${esc(c.pieza)})` : ""}</option>`).join("")}</select></div>` : ""}
     </div>`).join("") || `<div class="sin-nada">No hay piezas de ese tipo en el guion.</div>`;
 }
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
   const b = e.target.closest("[data-gvista]");
   if (b) { vistaGuion = b.dataset.gvista; pintarGuionLista(); }
+  const a = e.target.closest("[data-asig-rel]");
+  if (a) {
+    try { await post("/api/asignar", { rel: a.dataset.asigRel, pieza: a.dataset.asigPieza }); avisar(`${a.dataset.asigRel.split("/").pop()} → ${a.dataset.asigPieza}. Analiza los clips de nuevo para compararlo.`, "ok"); await cargar(); pintarGuion(); }
+    catch (err) { avisar("Error: " + err.message, "err"); }
+  }
 });
+function pintarEstadoGuion() {
+  const g = ultimoGuion; if (!g) return;
+  const conClip = g.piezas.filter(p => p.clips.length).length, cambios = g.piezas.filter(p => p.parecido != null && p.parecido < .9).length;
+  $("gEstado").innerHTML = !g.hay_guion ? "" : corroborado
+    ? `<b>${conClip}/${g.piezas.length}</b> piezas del guion tienen clip · <b>${cambios}</b> con cambios respecto al guion · ${g.sin_asignar} clips sin identificar${g.sin_escuchar ? ` (${g.sin_escuchar} sin analizar)` : ""}. <span class="g-falta">tachado</span> = no se dijo · <span class="g-extra">resaltado</span> = se agregó.`
+    : `${conClip}/${g.piezas.length} piezas con clip · ${g.sin_escuchar + g.sin_procesar} clips por analizar.`;
+  $("gAnalizar").className = "btn" + (g.sin_escuchar + g.sin_procesar ? "" : " sec");
+  $("gCorroborar").className = "btn" + (!(g.sin_escuchar + g.sin_procesar) && !corroborado ? "" : " sec");
+}
+$("gAnalizar").onclick = () => { corroborado = false; trabajo("analizar"); };
+$("gCorroborar").onclick = async () => { corroborado = true; await pintarGuion(); $("guionLista").scrollIntoView({ behavior: "smooth", block: "start" }); };
 document.addEventListener("change", async e => {
   const s = e.target.closest("[data-guion-clip]");
   if (!s || !s.value) return;
@@ -1885,61 +2049,127 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
   el.innerHTML = partirRenglones(palabras, pl).map((idx, r) => `<div class="renglon">${idx.map(j => span(palabras[j], j, r === 1)).join("")}</div>`).join("");
   // igual que en el video: si la línea no entra, se achica entera
   const disponible = el.clientWidth;
-  if (disponible && el.scrollWidth > disponible) el.style.fontSize = (pl.tamano * k * disponible / el.scrollWidth) + "px";
+  for (let n = 0; n < 4 && disponible && el.scrollWidth > disponible + 1; n++) el.style.fontSize = (parseFloat(el.style.fontSize) * disponible / el.scrollWidth * 0.99) + "px";
 }
 function pintarPlantillas() {
   cargarFuentesCSS();
   const ids = Object.keys(E.plantillas);
   if (!plantSel || !E.plantillas[plantSel]) plantSel = E.plantilla;
-  $("plantInfo").textContent = E.plantilla_del_guion ? `Esta sesión usa «${E.plantillas[E.plantilla_del_guion]?.nombre}» porque lo pide su guion.` : `Predeterminada: ${E.plantillas[E.plantilla_predeterminada]?.nombre || E.plantillas[E.plantilla]?.nombre}`;
+  $("plantInfo").textContent = E.plantilla_del_guion ? `Esta sesión usa «${E.plantillas[E.plantilla_del_guion]?.nombre}» porque lo pide su guion.` : `Predeterminada: ${E.plantillas[E.plantilla_predeterminada]?.nombre || E.plantillas[E.plantilla]?.nombre}. Toca una para editarla.`;
   const fondo = E.fondo;
-  $("plantLista").innerHTML = ids.map(id => { const pl = E.plantillas[id]; return `<button class="plant" data-plant="${id}" aria-pressed="${id === plantSel}">
+  $("plantLista").innerHTML = ids.map(id => { const pl = E.plantillas[id]; const editada = E.fabrica.includes(id) && E.propias.includes(id);
+    return `<button class="plant" data-plant="${id}" aria-pressed="${id === plantSel}">
       <div class="muestra" style="${fondo ? `background-image:url('${fondo}')` : ""}"><div class="sublinea" data-linea="${id}"></div></div>
-      <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">predeterminada</span>' : ""} ${E.propias.includes(id) ? '<span class="pill">propia</span>' : ""}</b>
+      <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">predeterminada</span>' : ""} ${editada ? '<span class="pill azul">editada</span>' : !E.fabrica.includes(id) ? '<span class="pill">propia</span>' : ""}</b>
       <span class="muted" style="font-size:11px">${esc(pl.descripcion || "")}</span></button>`; }).join("");
   ids.forEach(id => { const el = document.querySelector(`[data-linea="${id}"]`); pintarLinea(el, ["LA", "RECUPERACIÓN", "PASA"], 1, new Set([1]), E.plantillas[id], el.parentElement.clientWidth || 200); });
   $("plantFuente").innerHTML = $("plantFuente2").innerHTML = E.fuentes.map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}${f.propia ? " (propia)" : ""}</option>`).join("");
-  if ($("plantMuestra").style.backgroundImage === "" && fondo) $("plantMuestra").style.backgroundImage = `url('${fondo}')`;
+  $("plantElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("") || `<option value="">Sube una imagen primero</option>`;
+  $("plantLienzo").style.backgroundImage = fondo ? `url('${fondo}')` : "";
   elegirPlantilla(plantSel);
 }
+const DEFECTO_PLANT = { "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", altura_desde_abajo: "560",
+  x_centro: "540", ancho_max: "960", espaciado: "0", desenfoque: "0", opacidad_sombra: "50", color_sombra: "#000000" };
 function elegirPlantilla(id) {
   plantSel = id; plantEdit = JSON.parse(JSON.stringify(E.plantillas[id]));
+  plantEdit.elementos = plantEdit.elementos || [];
   document.querySelectorAll(".plant").forEach(b => b.setAttribute("aria-pressed", b.dataset.plant === id));
-  const fabrica = !E.propias.includes(id);
+  const deFabrica = E.fabrica.includes(id), editada = deFabrica && E.propias.includes(id);
   $("plantTitulo").textContent = plantEdit.nombre || id;
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
     const [a, b] = el.dataset.p.split(".");
     const v = b ? (plantEdit[a] || {})[b] : plantEdit[a];
-    const defecto = { "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", "linea2.color": plantEdit.color_texto || "#ffffff", altura_desde_abajo: "560" }[el.dataset.p];
+    const defecto = el.dataset.p === "linea2.color" ? (plantEdit.color_texto || "#ffffff") : DEFECTO_PLANT[el.dataset.p];
     el.value = v === undefined || v === null || v === "" ? (defecto ?? (el.type === "color" ? "#000000" : "")) : String(v);
-    el.disabled = fabrica;
+    el.disabled = false;
   });
-  $("plantGuardar").hidden = fabrica; $("plantBorrar").hidden = fabrica;
-  $("plantAviso").textContent = fabrica ? "Plantilla de fábrica: para cambiarla, «Duplicar y editar»." : "";
-  animarMuestra();
+  $("plantBorrar").hidden = deFabrica && !editada;
+  $("plantBorrar").textContent = deFabrica ? "Restaurar original" : "Borrar";
+  $("plantAviso").textContent = deFabrica ? "Plantilla de fábrica: tus cambios se guardan encima y con «Restaurar original» vuelve a como venía." : "";
+  pintarElementos(); animarMuestra();
 }
 function leerFormPlantilla() {
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
     const [a, b] = el.dataset.p.split(".");
     let v = el.value;
-    if (el.type === "number") v = Number(v);
+    if (el.type === "number" || el.type === "range") v = Number(v);
     if (a === "mayusculas" || el.dataset.p === "linea2.activa") v = v === "true";
     if (b) { plantEdit[a] = plantEdit[a] || {}; plantEdit[a][b] = v; } else plantEdit[a] = v;
   });
+}
+function ponerCampo(clave, valor) {  // un cambio hecho arrastrando en el lienzo vuelve al formulario
+  const el = document.querySelector(`#plantForm [data-p="${clave}"]`);
+  if (el) el.value = valor;
+  plantEdit[clave] = valor;
+}
+// El lienzo es el video entero (1080×1920) en chico: el cuadro del subtítulo y los elementos se mueven ahí.
+function escalaLienzo() { return ($("plantLienzo").clientWidth || 300) / 1080; }
+function colocarCaja() {
+  const k = escalaLienzo(), caja = $("plantCaja");
+  const ancho = Number(plantEdit.ancho_max || 960), x = Number(plantEdit.x_centro || 540), h = Number(plantEdit.altura_desde_abajo || 560);
+  const alto = Number(plantEdit.tamano || 80) * ((plantEdit.linea2 || {}).activa ? 2.5 : 1.3);
+  caja.style.width = ancho * k + "px"; caja.style.left = (x - ancho / 2) * k + "px";
+  caja.style.height = alto * k + "px"; caja.style.bottom = h * k + "px";
 }
 function animarMuestra() {
   clearInterval(plantTimer);
   let i = 0;
   const pintar = () => {
+    colocarCaja();
     const el = $("plantLinea");
-    pintarLinea(el, MUESTRA.slice(0, 3), i % 3, CLAVES_MUESTRA, plantEdit, $("plantMuestra").clientWidth || 300);
-    // misma altura que en el video: la muestra (9:12) es el centro del cuadro 9:16, sin 240 px arriba y abajo
-    const alto = $("plantMuestra").clientHeight, h = Number(plantEdit.altura_desde_abajo || 560);
-    el.style.top = "auto"; el.style.transform = "none"; el.style.bottom = `${Math.max(0, (h - 240) / 1440 * alto)}px`;
+    pintarLinea(el, MUESTRA.slice(0, 3), i % 3, CLAVES_MUESTRA, plantEdit, $("plantLienzo").clientWidth || 300);
     i++;
   };
-  pintar(); plantTimer = setInterval(pintar, 650);
+  pintar(); plantTimer = setInterval(pintar, 700);
 }
+function pintarElementos() {
+  const k = escalaLienzo(), url = a => (E.elementos || []).find(e => e.archivo === a)?.url || "";
+  $("plantElems").innerHTML = plantEdit.elementos.map((e, i) => `<div class="elem" data-elem="${i}" style="left:${(e.x || 0) * k}px;top:${(e.y || 0) * k}px;width:${(e.ancho || 200) * k}px;opacity:${(e.opacidad ?? 100) / 100}">
+      <img src="${url(e.archivo)}" alt=""><span class="asa-elem" data-asa-elem="${i}"></span></div>`).join("");
+  $("plantListaElems").innerHTML = plantEdit.elementos.map((e, i) => `<div class="fila-elem"><img src="${url(e.archivo)}" alt="">
+      <span>${esc(e.archivo)}<br><label class="muted" style="font-size:11px">Opacidad <input type="range" min="10" max="100" value="${e.opacidad ?? 100}" data-elem-op="${i}"></label></span>
+      <span class="muted">${Math.round(e.ancho || 200)} px</span><button class="btn sec peq" type="button" data-elem-quitar="${i}">Quitar</button></div>`).join("")
+    || `<span class="muted" style="font-size:12px">Sin elementos. Agrega el logo, una imagen o un GIF: se ven en todo el video, debajo del subtítulo.</span>`;
+}
+// Arrastrar en el lienzo: cuadro del subtítulo (mover y ancho) y elementos (mover y tamaño)
+let arrLienzo = null;
+$("plantLienzo").addEventListener("pointerdown", e => {
+  const k = escalaLienzo();
+  const asaCaja = e.target.closest("[data-asa-caja]"), caja = e.target.closest("#plantCaja");
+  const asaElem = e.target.closest("[data-asa-elem]"), elem = e.target.closest("[data-elem]");
+  if (asaElem) { const i = Number(asaElem.dataset.asaElem); arrLienzo = { tipo: "tamElem", i, x0: e.clientX, a0: plantEdit.elementos[i].ancho || 200, k }; }
+  else if (elem) { const i = Number(elem.dataset.elem), el = plantEdit.elementos[i]; arrLienzo = { tipo: "elem", i, x0: e.clientX, y0: e.clientY, ex: el.x || 0, ey: el.y || 0, k }; }
+  else if (asaCaja) arrLienzo = { tipo: "anchoCaja", lado: asaCaja.dataset.asaCaja, x0: e.clientX, a0: Number(plantEdit.ancho_max || 960), k };
+  else if (caja) arrLienzo = { tipo: "caja", x0: e.clientX, y0: e.clientY, cx: Number(plantEdit.x_centro || 540), h: Number(plantEdit.altura_desde_abajo || 560), k };
+  if (arrLienzo) { e.preventDefault(); $("plantLienzo").setPointerCapture(e.pointerId); }
+});
+$("plantLienzo").addEventListener("pointermove", e => {
+  const a = arrLienzo; if (!a) return;
+  const dx = (e.clientX - a.x0) / a.k, dy = (e.clientY - (a.y0 ?? e.clientY)) / a.k, r10 = v => Math.round(v / 10) * 10;
+  if (a.tipo === "caja") { ponerCampo("x_centro", r10(Math.max(100, Math.min(980, a.cx + dx)))); ponerCampo("altura_desde_abajo", r10(Math.max(100, Math.min(1700, a.h - dy)))); colocarCaja(); }
+  if (a.tipo === "anchoCaja") { ponerCampo("ancho_max", r10(Math.max(200, Math.min(1080, a.a0 + (a.lado === "der" ? dx : -dx) * 2)))); colocarCaja(); }
+  if (a.tipo === "elem") { const el = plantEdit.elementos[a.i]; el.x = Math.round(a.ex + dx); el.y = Math.round(a.ey + dy); pintarElementos(); }
+  if (a.tipo === "tamElem") { plantEdit.elementos[a.i].ancho = Math.max(20, Math.round(a.a0 + dx)); pintarElementos(); }
+});
+$("plantLienzo").addEventListener("pointerup", () => { if (arrLienzo) { arrLienzo = null; animarMuestra(); } });
+$("plantElemAgregar").onclick = () => {
+  const archivo = $("plantElemSel").value; if (!archivo) return;
+  plantEdit.elementos.push({ archivo, x: 760, y: 80, ancho: 260, opacidad: 100 }); pintarElementos();
+};
+$("plantElemSubir").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const r = await post(`/api/elemento?nombre=${encodeURIComponent(f.name)}`, f, true);
+    const actual = JSON.parse(JSON.stringify(plantEdit));
+    await cargar(); pintarPlantillas(); plantEdit = actual;
+    plantEdit.elementos.push({ archivo: r.archivo, x: 760, y: 80, ancho: 260, opacidad: 100 }); pintarElementos(); animarMuestra();
+    avisar(`${r.archivo} agregado. Muévelo en el lienzo y guarda la plantilla.`, "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+  e.target.value = "";
+};
+$("plantListaElems").addEventListener("input", e => { const i = e.target.dataset.elemOp; if (i !== undefined) { plantEdit.elementos[i].opacidad = Number(e.target.value); pintarElementos(); } });
+$("plantListaElems").addEventListener("click", e => { const i = e.target.dataset.elemQuitar; if (i !== undefined) { plantEdit.elementos.splice(Number(i), 1); pintarElementos(); } });
+new ResizeObserver(() => { if (plantEdit && !$("plantLienzo").closest("[hidden]")) { colocarCaja(); pintarElementos(); } }).observe($("plantLienzo"));
 async function guardarPlantilla(id, datos, predeterminada) {
   await post("/api/plantilla", { id, datos, predeterminada });
   await cargar(); plantSel = id; pintarPlantillas();
