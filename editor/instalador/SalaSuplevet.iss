@@ -1,4 +1,4 @@
-; Instalador de la sala de edición Suplevet (Inno Setup). Lo compila GitHub Actions en cada versión:
+﻿; Instalador de la sala de edición Suplevet (Inno Setup). Lo compila GitHub Actions en cada versión:
 ;   iscc /DVersion=1.5.1 /DOrigen=..\dist\SalaSuplevet instalador\SalaSuplevet.iss
 ; Se instala en la carpeta del usuario (no pide permisos de administrador), así la propia sala
 ; puede actualizarse sola después. Los datos (datos\) nunca se borran: ni al actualizar ni al desinstalar.
