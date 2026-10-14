@@ -1,5 +1,5 @@
-Versión 1.7.9 (se actualiza desde la app con «Actualizar ahora»):
-- Portada: se ve en vivo mientras cambias el momento, el título, la posición o el logo; «Guardar portada» la deja fija.
-- Inicio: si la sesión ya tiene guion, en vez del formulario sale el resumen con «Ver el guion», «Revisar lo grabado» y «Escribir el guion de otra sesión».
-- Guion → Versión host: «Hook + cuerpo» (cada video completo, como se va a ver), «Solo hooks» y «Solo cuerpos» (con los CTAs).
-- Cambiar la plantilla de varios videos a la vez desde la selección en Videos.
+Versión 1.8.0 (se actualiza desde la app con «Actualizar ahora»):
+- «Editar» abre el editor en su propia ventana grande (línea de tiempo y subtítulos del video). Lo que cambies en el cuerpo se aplica a todos sus videos.
+- Nueva pista «Efectos» en la línea de tiempo: cada sonido, imagen y su segundo (pasa el mouse para ver qué es y por qué está).
+- Zoom de la línea de tiempo con el touchpad: pellizca (o Ctrl + rueda) para acercar o alejar donde está el cursor; desliza con dos dedos para moverte.
+- Arreglado: después de cancelar un proceso, el editor mostraba «Cancelado» y el zoom no respondía.

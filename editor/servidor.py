@@ -195,6 +195,7 @@ def lanzar(accion, pieza=None, extra=None):
         TRABAJO["log"] = (TRABAJO["log"] + [msg])[-200:]
 
     def correr():
+        motor.HILO_TRABAJO["id"] = threading.get_ident()
         try:
             with candado:
                 if accion in ("todo", "procesar"):
@@ -291,6 +292,7 @@ def lanzar(accion, pieza=None, extra=None):
             traceback.print_exc()
         finally:
             TRABAJO["activo"] = False
+            motor.CANCELAR.clear()
             TRABAJO["fin"] = time.time()
             TRABAJO["historial"] = ([{"accion": accion, "inicio": TRABAJO["inicio"], "fin": TRABAJO["fin"],
                                       "resultado": "cancelado" if TRABAJO.get("cancelado") else "error" if TRABAJO["error"] else "listo",

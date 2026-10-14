@@ -260,6 +260,13 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-asa:hover { background: rgba(255,255,255,.75); }
 .ev-asa.izq { left: 0; border-radius: 6px 0 0 6px; } .ev-asa.der { right: 0; border-radius: 0 6px 6px 0; }
 .ev-audio { height: 58px; }
+.ev-efectos { height: 40px; }
+.ev-fx { position: absolute; top: 6px; height: 26px; transform: translateX(-1px); display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px;
+  border-left: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); border-radius: 0 6px 6px 0; font: 600 10.5px var(--mono); color: var(--ink); white-space: nowrap; cursor: help; }
+.ev-fx.img { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.ev-fx.mus { border-color: var(--accent2); background: color-mix(in srgb, var(--accent2) 14%, transparent); }
+dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
+#dlgEditor .cuerpo-editor { padding: 14px 16px; display: grid; gap: 14px; }
 .ev-a { position: absolute; top: 3px; bottom: 3px; border-radius: 6px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
 .ev-a canvas { display: block; width: 100%; height: 100%; }
 .ev-a.fuera { opacity: .35; }
@@ -789,6 +796,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
   </form>
 </dialog>
+<dialog id="dlgEditor" aria-labelledby="edTitulo">
+  <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="muted" style="font-size:12px">Lo que cambies en el cuerpo se aplica a todos sus videos.</span></div>
+    <button class="btn sec peq" id="edCerrar">← Volver al video</button></div>
+  <div class="cuerpo-editor" id="edCuerpo"></div>
+</dialog>
 <dialog id="dlg" aria-labelledby="dlgTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="dlgTitulo" style="margin:0"></h2><span id="dlgAviso"></span></div>
     <div class="fila">
@@ -877,12 +889,14 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
       <div class="ev-controles fila">
         <button class="btn sec peq" id="evPlay">▶ Reproducir</button>
         <span id="evTiempo" class="muted" style="font-variant-numeric:tabular-nums">0.0 s</span>
-        <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="12" max="140" value="34"></label>
+        <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="6" max="400" value="34"></label>
+        <span class="muted" style="font-size:11px">Touchpad: pellizca (o Ctrl + rueda) para acercar · desliza con dos dedos para moverte</span>
       </div>
       <div class="ev-tl" id="evTL">
         <div class="ev-regla" id="evRegla"></div>
         <div class="ev-pista"><span class="ev-etq">Video</span><div class="ev-carril" id="evCarrilV"></div></div>
         <div class="ev-pista ev-audio"><span class="ev-etq">Audio</span><div class="ev-carril" id="evCarrilA"></div></div>
+        <div class="ev-pista ev-efectos"><span class="ev-etq">Efectos</span><div class="ev-carril" id="evCarrilE"></div></div>
         <div class="ev-pista"><span class="ev-etq">Subtítulos</span><div class="ev-carril" id="evCarrilS"></div></div>
         <div class="ev-cabezal" id="evCabezal"></div>
       </div>
@@ -1197,7 +1211,7 @@ function abrirVideo(cod, editar) {
   pintarTelefono(); contar();
   $("dlg").showModal();
   abrirPortada(); abrirSubsVideo();
-  cargarEstructura(actual.codigo).then(() => { abrirPortada(); if (editar) $("editorVideo").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  cargarEstructura(actual.codigo).then(() => { abrirPortada(); if (editar) abrirEditor(); });
 }
 
 const LIM = { instagram: 125, tiktok: 100, youtube: 0 };
@@ -1709,6 +1723,7 @@ $("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los v
 
 $("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; $("dlg").close(); trabajo("uno", cod); } };
 $("cerrar").onclick = () => $("dlg").close();
+$("dlg").addEventListener("close", () => { if ($("dlgEditor").open) $("dlgEditor").close(); });
 $("dlg").addEventListener("close", () => $("dlgVideo").pause());
 $("guardarCopy").onclick = async () => {
   try {
@@ -1894,6 +1909,8 @@ function pintarAudio() {
     x += w + 3;
   }
   $("evCarrilA").innerHTML = html;
+  $("evCarrilE").style.width = $("evCarrilA").style.width;
+  pintarEfectos();
   dibujos.forEach(({ b, w }, k) => {
     const o = ondas[b.pieza.nombre]; if (!o || !o.picos.length || b.fuera) return;
     const cv = $("evCarrilA").children[k].firstElementChild, alto = 50, dpr = devicePixelRatio || 1;
@@ -1909,6 +1926,25 @@ function pintarAudio() {
       g.fillRect(xx, (alto - h) / 2, 1, h);
     }
   });
+}
+// Pista de efectos: los sonidos, imágenes y cambios de música del último armado, en su segundo del video editado
+function pintarEfectos() {
+  const r = actual?.receta;
+  if (!r || !est || est.error) { $("evCarrilE").innerHTML = `<span class="muted" style="font-size:11px;padding:10px">Arma el video para ver sus efectos.</span>`; return; }
+  const hd = est.hook.dur || 0, cd = est.cuerpo.partes.reduce((a, p) => Math.max(a, p.fin), 0);
+  const inicioOriginal = b => b.key === "hook" ? 0 : b.key === "cta" ? hd + cd : hd;  // dónde empezaba la pieza en el video sin recortes
+  const segs = segmentosEd();
+  const aEditado = t => {  // segundo del video armado (sin recortes) → segundo en el video editado
+    for (const s of segs) { const o = inicioOriginal(s); if (t >= o + s.a - .05 && t <= o + s.b + .05) return s.g0 + Math.max(0, t - o - s.a); }
+    return null;
+  };
+  const nombre = f => f.split("/")[0].replace("_", " ");
+  const chips = [];
+  (r.efectos || []).forEach(e => { const t = aEditado(e.t); if (t != null) chips.push({ t, cls: "", txt: "♪ " + nombre(e.sfx), tip: `${e.t.toFixed(2)} s · ${e.sfx} — ${e.motivo}` }); });
+  (r.imagenes || []).forEach(i => { const t = aEditado(i.t); if (t != null) chips.push({ t, cls: "img", txt: "▣ " + i.asset.replace(/^B2B_|^\d+_/, ""), tip: `${i.asset} · ${i.dur} s · ${i.modo}` }); });
+  (r.faltan_assets || []).length && chips.push({ t: 0, cls: "img", txt: `faltan ${r.faltan_assets.length} imágenes`, tip: r.faltan_assets.join(", ") });
+  $("evCarrilE").innerHTML = chips.map(c => `<span class="ev-fx ${c.cls}" style="left:${xDeTiempo(c.t)}px" title="${esc(c.tip)}">${esc(c.txt)}</span>`).join("")
+    || `<span class="muted" style="font-size:11px;padding:10px">Sin efectos en este video.</span>`;
 }
 $("evCarrilA").addEventListener("click", e => {  // tocar el audio lleva el cabezal a ese punto
   const blo = e.target.closest("[data-audio]"); if (!blo) return;
@@ -2098,6 +2134,23 @@ $("evInspector").addEventListener("click", async e => {
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
 $("evEscala").addEventListener("input", pintarEditor);
+// Zoom con el touchpad (pellizcar = rueda con Ctrl) como en CapCut/Premiere: acerca y aleja donde está el cursor
+$("evTL").addEventListener("wheel", e => {
+  const tl = $("evTL");
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const antes = escalaEd(), r = tl.getBoundingClientRect();
+    const xCursor = e.clientX - r.left - 78, tCursor = (tl.scrollLeft + xCursor) / antes;  // segundo que está bajo el cursor
+    const paso = Math.max(-40, Math.min(40, e.deltaY));  // el touchpad manda pasos chicos; la rueda del mouse, grandes
+    const nueva = Math.max(6, Math.min(400, antes * Math.exp(-paso * 0.01)));
+    $("evEscala").value = nueva; pintarEditor();
+    tl.scrollLeft = Math.max(0, tCursor * escalaEd() - xCursor);
+  } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !e.shiftKey) {
+    // dos dedos arriba/abajo o la rueda del mouse: se mueve por la línea de tiempo (de lado)
+    e.preventDefault();
+    tl.scrollLeft += e.deltaY;
+  }
+}, { passive: false });
 // Vista previa: reproduce los tramos seguidos, con zoom y subtítulo, sin armar el video
 function irA(t) {
   const segs = segmentosEd(); if (!segs.length) return;
@@ -2212,7 +2265,17 @@ async function guardarVersion(armar, nueva) {
 }
 $("evArmar").onclick = () => guardarEdicion();
 $("evGuardar").onclick = () => guardarVersion(true, true);
-$("irEditor").onclick = () => $("editorVideo").scrollIntoView({ behavior: "smooth", block: "start" });
+// «Editar» abre el editor en su propia ventana grande (línea de tiempo + subtítulos de este video)
+$("edCuerpo").append($("editorVideo"), $("editorSubs"));
+function abrirEditor() {
+  if (!actual) return;
+  $("edTitulo").textContent = "Editar " + actual.archivo;
+  if (!$("dlgEditor").open) $("dlgEditor").showModal();
+  setTimeout(() => { pintarEditor(); vistaEd(); }, 50);
+}
+$("irEditor").onclick = abrirEditor;
+$("edCerrar").onclick = () => $("dlgEditor").close();
+$("dlgEditor").addEventListener("close", pararEditor);
 $("evExportar").onclick = async () => { if (!actual) return; pararEditor(); elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
 $("evBorrar").onclick = async () => {
   if (!est || est.base || !confirm(`¿Borrar la versión ${est.codigo}?`)) return;

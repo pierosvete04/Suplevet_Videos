@@ -214,8 +214,11 @@ class Cancelado(Exception):
     pass
 
 
+HILO_TRABAJO = {"id": None}  # solo el trabajo en segundo plano se cancela; lo demás (ver un video, una portada) no
+
+
 def revisar_cancelado():
-    if CANCELAR.is_set():
+    if CANCELAR.is_set() and _hilos.get_ident() == HILO_TRABAJO["id"]:
         raise Cancelado("Cancelado")
 
 
