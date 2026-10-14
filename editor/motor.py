@@ -1138,7 +1138,8 @@ def guardar_version(datos, vid=None):
                # zoom por bloque: {"hook": {"tipo": "in|out|punch", "fuerza": 0.15}, "cta": …, "partes": {"2": …}}
                # y tramos de zoom: {"tramos": {"hook": [...], "cuerpo": [...], "cta": [...]}} (ver _limpiar_tramos)
                "zoom": _limpiar_zoom(datos.get("zoom") or {}),
-               "cortes": _limpiar_cortes(datos.get("cortes")), "quitar_rangos": _limpiar_rangos(datos.get("quitar_rangos"))}
+               "cortes": _limpiar_cortes(datos.get("cortes")), "quitar_rangos": _limpiar_rangos(datos.get("quitar_rangos")),
+               "capas": _limpiar_capas(datos.get("capas")), "velocidad": _limpiar_velocidad(datos.get("velocidad"))}
     S.subs.mkdir(parents=True, exist_ok=True)
     _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
     return vid
@@ -1186,6 +1187,47 @@ def _limpiar_puntos(lista):
         except (TypeError, ValueError, KeyError):
             continue
     return [out[t] for t in sorted(out)]
+
+
+def _limpiar_capas(c):
+    """Pista «Imágenes y escenas» del editor: {pieza: [{id, t, dur, modo, mov, x, y, ancho}]}. id = imagen o clip de
+    la carpeta Flow de la sesión; t en segundos del clip de la pieza; en modo ventana, x/y/ancho en px del video 1080×1920."""
+    out = {}
+    for k, v in (c or {}).items():
+        if k not in ("hook", "cuerpo", "cta"):
+            continue
+        lista = []
+        for x in (v or [])[:60]:
+            try:
+                aid = str(x["id"])
+                if not re.fullmatch(r"[\w.-]{1,80}", aid):
+                    continue
+                capa = {"id": aid, "t": round(min(3600.0, max(0.0, float(x["t"]))), 3),
+                        "dur": round(min(60.0, max(0.3, float(x.get("dur", 2)))), 3),
+                        "modo": "ventana" if x.get("modo") == "ventana" else "completa",
+                        "mov": x.get("mov") if x.get("mov") in ("fijo", "zoom_in", "zoom_out") else "fijo"}
+                if capa["modo"] == "ventana":
+                    capa.update(ancho=int(min(1080, max(200, float(x.get("ancho", 860))))),
+                                x=int(min(1080, max(-200, float(x.get("x", 110))))), y=int(min(1920, max(-200, float(x.get("y", 330))))))
+                lista.append(capa)
+            except (TypeError, ValueError, KeyError):
+                continue
+        if lista:
+            out[k] = sorted(lista, key=lambda c: c["t"])
+    return out
+
+
+def _limpiar_velocidad(v):
+    """Velocidad de cada bloque (para quien habla lento): {"hook": 1.2, "cta": 1.1, "partes": {"2": 1.25}}. 1 = normal."""
+    def f(x):
+        try:
+            x = round(min(2.0, max(0.5, float(x))), 2)
+        except (TypeError, ValueError):
+            return None
+        return x if abs(x - 1) > 0.001 else None
+    out = {k: f((v or {}).get(k)) for k in ("hook", "cta")}
+    out["partes"] = {str(i): f(x) for i, x in ((v or {}).get("partes") or {}).items() if f(x)}
+    return {k: x for k, x in out.items() if x}
 
 
 def _limpiar_cortes(c):
@@ -1269,13 +1311,15 @@ def guardar_edicion_piezas(datos):
     todo = ajustes_piezas()
     r, z = _limpiar_recortes(datos.get("recortes") or {}), _limpiar_zoom(datos.get("zoom") or {})
     cortes, rangos = _limpiar_cortes(datos.get("cortes")), _limpiar_rangos(datos.get("quitar_rangos"))
+    capas = _limpiar_capas(datos.get("capas"))
+    vel = _limpiar_velocidad(datos.get("velocidad"))
     propio = lambda pz: {"zoom_tramos": (z.get("tramos") or {}).get(pz), "zoom_puntos": (z.get("puntos") or {}).get(pz),
-                         "cortes": cortes.get(pz), "quitar_rangos": rangos.get(pz)}
+                         "cortes": cortes.get(pz), "quitar_rangos": rangos.get(pz), "capas": capas.get(pz)}
     nuevos = {
-        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), **propio("hook")},
+        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), "velocidad": vel.get("hook"), **propio("hook")},
         datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {}, **propio("cuerpo"),
-                          "quitar": sorted({int(i) for i in datos.get("quitar", [])})},
-        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta"), **propio("cta")},
+                          "velocidad_partes": vel.get("partes"), "quitar": sorted({int(i) for i in datos.get("quitar", [])})},
+        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta"), "velocidad": vel.get("cta"), **propio("cta")},
     }
     cambiadas = []
     for pieza, val in nuevos.items():
@@ -1300,7 +1344,8 @@ def edicion_de(combo):
     a = ajustes_piezas()
     h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
     por_pieza = lambda campo: {k: v for k, v in (("hook", h.get(campo)), ("cuerpo", c.get(campo)), ("cta", t.get(campo))) if v}
-    return {"quitar": c.get("quitar", []), "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"),
+    return {"quitar": c.get("quitar", []), "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"), "capas": por_pieza("capas"),
+            "velocidad": {k: v for k, v in (("hook", h.get("velocidad")), ("cta", t.get("velocidad")), ("partes", c.get("velocidad_partes"))) if v},
             "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
             "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes")),
                                        ("tramos", por_pieza("zoom_tramos")), ("puntos", por_pieza("zoom_puntos"))) if v}}
@@ -1472,7 +1517,8 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
     return {"codigo": codigo, "base": not c.get("version"), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
-            "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}),
+            "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
+            "velocidad": v.get("velocidad", {}),
             "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
 
 
@@ -1509,9 +1555,27 @@ def _rangos_a_quitar(combo, offs, total):
     return sorted(rangos)
 
 
-def _quitar_tramos(video, rangos):
+def _rangos_velocidad(combo, offs, total):
+    """[(desde, hasta, factor)] en el video armado sin recortes: el hook, el CTA o una frase del cuerpo más rápidos."""
+    vel = edicion_de(combo).get("velocidad") or {}
+    out = []
+    if vel.get("hook"):
+        out.append((0.0, offs[1], vel["hook"]))
+    if vel.get("cta"):
+        out.append((offs[2], total, vel["cta"]))
+    if vel.get("partes"):
+        partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
+        for i, f in vel["partes"].items():
+            p = partes.get(int(i))
+            if p:
+                out.append((offs[1] + p["ini"], offs[1] + p["fin"], f))
+    return out
+
+
+def _quitar_tramos(video, rangos, velocidades=()):
     """Saca del video ya armado los tramos indicados (frases quitadas, recortes): se quedan los tramos que
-    sobran, cortados con trim (preciso al cuadro) y unidos; voz, música y subtítulos van juntos."""
+    sobran, cortados con trim (preciso al cuadro) y unidos; voz, música y subtítulos van juntos.
+    velocidades: [(desde, hasta, factor)] que se aceleran (o frenan) sin cambiar el tono de la voz."""
     total = duracion(video)
     juntos = []
     for a, b in sorted((max(0.0, a), min(total, b)) for a, b in rangos):
@@ -1528,10 +1592,23 @@ def _quitar_tramos(video, rangos):
         quedan.append((t, total))
     if not quedan:
         return
+    # cada tramo que queda se parte donde cambia la velocidad
+    trozos = []
+    for a, b in quedan:
+        cortes = sorted({a, b, *(x for va, vb, _ in velocidades for x in (va, vb) if a < x < b)})
+        for x, y in zip(cortes, cortes[1:]):
+            if y - x < 0.02:
+                continue
+            medio = (x + y) / 2
+            fac = next((fv for va, vb, fv in velocidades if va <= medio <= vb), 1.0)
+            trozos.append((x, y, fac))
+    quedan = trozos
     f = []
-    for k, (a, b) in enumerate(quedan):
-        f.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[v{k}]")
-        f.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS[a{k}]")
+    for k, (a, b, fac) in enumerate(quedan):
+        vel_v = f"/{fac:.4f}" if abs(fac - 1) > 0.001 else ""
+        vel_a = f",atempo={fac:.4f}" if abs(fac - 1) > 0.001 else ""
+        f.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[v{k}]")
+        f.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}[a{k}]")
     f.append("".join(f"[v{k}][a{k}]" for k in range(len(quedan))) + f"concat=n={len(quedan)}:v=1:a=1[v][a]")
     tmp = video.with_name(video.stem + "_corto.mp4")
     run([FFMPEG, "-hide_banner", "-y", "-i", str(video), "-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-dn", "-map_chapters", "-1",
@@ -2064,6 +2141,9 @@ def filtro_broll(i, ov):
     """Cadena de filtro para una imagen/clip que entra en ov['t'] y dura ov['dur']."""
     dur, t, modo = ov["dur"], ov["t"], ov.get("modo", "completa")
     W, H, x, y = (1080, 1920, 0, 0) if modo == "completa" else (860, 860, 110, 330)
+    if modo != "completa" and ov.get("ancho"):  # ventana colocada a mano en el editor
+        W = H = int(ov["ancho"]) // 2 * 2
+        x, y = int(ov.get("x", x)), int(ov.get("y", y))
     n = max(1, int(dur * 30))
     if ov["es_imagen"]:
         mov = ov.get("mov", "zoom_in")
@@ -2250,6 +2330,21 @@ def armar_uno(combo, n_musica=0):
             if dur > 0.2:
                 overlays.append({"asset": m["asset"], "archivo": f, "t": t, "dur": dur, "modo": m.get("modo", "completa"),
                                  "mov": m.get("mov", "zoom_in"), "es_imagen": f.suffix.lower() in EXT_IMG})
+    # Pista «Imágenes y escenas» del editor: imágenes o clips puestos a mano en un segundo de cada pieza
+    o_pieza = {"hook": offs[0], "cuerpo": offs[1], "cta": offs[2]}
+    for pz, capas in (edicion_de(combo).get("capas") or {}).items():
+        for c in capas:
+            f = buscar_asset(c["id"])
+            if not f:
+                faltan.append(c["id"])
+                continue
+            t = o_pieza.get(pz, 0) + c["t"]
+            dur = min(c["dur"], total - t - 0.05)
+            if f.suffix.lower() in EXT_VID:
+                dur = min(dur, duracion(f))
+            if dur > 0.2:
+                overlays.append({"asset": c["id"], "archivo": f, "t": t, "dur": dur, "modo": c["modo"], "mov": c["mov"],
+                                 "es_imagen": f.suffix.lower() in EXT_IMG, **{k: c[k] for k in ("x", "y", "ancho") if k in c}})
     tapas = [(o["t"], o["t"] + o["dur"]) for o in overlays if o["modo"] == "completa"]
     escribir_ass(list(zip(offs, subs, marcas)), trabajo / "subs.ass", tapas, combo)
 
@@ -2333,9 +2428,9 @@ def armar_uno(combo, n_musica=0):
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
             "-movflags", "+faststart", str(salida)]
     run(cmd, cwd=trabajo)
-    rangos = _rangos_a_quitar(combo, offs, total)
-    if rangos:
-        _quitar_tramos(salida, rangos)
+    rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
+    if rangos or velocidades:
+        _quitar_tramos(salida, rangos, velocidades)
         total = duracion(salida)
     hacer_portada(combo)
 

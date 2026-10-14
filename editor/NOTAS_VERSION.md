@@ -1,6 +1,6 @@
-Versión 1.10.0 (se actualiza desde la app con «Actualizar ahora»):
-- Editor: «✂ Cortar» (tecla S) corta video y audio a la vez en el cabezal. Elige un pedazo y «🗑 Quitar pedazo» (tecla Supr): lo de antes y lo de después se juntan solos. El pedazo quitado queda como ranura para volver a ponerlo; «Unir con el anterior / siguiente» quita el corte.
-- Editor: encuadre con fotogramas clave, como CapCut. «◆ Fotograma clave» (tecla K) en el cabezal; en cada uno eliges escala (100–300 %), posición X y posición Y, y cómo va hacia el siguiente (suave, pareja o de golpe). La sala calcula el movimiento entre puntos. Reemplaza al zoom por tramos.
-- Editor: «✥ Mover y escalar» (tecla M): arrastra el video para moverlo y usa la rueda para acercar o alejar; se guarda en el fotograma del cabezal (si no hay, lo crea).
-- Editor: Enter o espacio reproduce y pausa; flechas ← → avanzan un cuadro (con Shift, un segundo).
-- Cortes, pedazos quitados y encuadre valen para todos los videos que usan esa pieza, o solo para uno si lo guardas como versión aparte.
+Versión 1.11.0 (se actualiza desde la app con «Actualizar ahora»):
+- Editor: pista «Imágenes» para poner imágenes o clips (escenas) encima del video en el segundo que quieras. «🖼 Imagen o escena» (tecla I) la pone en el cabezal; «⬆ Subir» o soltar un archivo sobre la pista la sube a Flow y la pone ahí. Se mueve arrastrándola y se estira desde los bordes.
+- Cada imagen: pantalla completa o en ventana (tamaño y lugar: arrastra la ventana en el video), movimiento fijo, acercar o alejar. Los clips entran sin su sonido.
+- Editor: velocidad por bloque (hook, CTA o cada frase del cuerpo), de 0,8× a 2×, para quien habla lento. La voz no cambia de tono; la duración del video se actualiza sola.
+- Editor: «✂ Quitar pausas» corta los silencios largos de un bloque de una vez, dejando un respiro. Cada pausa quitada queda como ranura para volver a ponerla.
+- Arreglado: al saltar a otra pieza en la línea de tiempo, el cabezal se iba al inicio de esa pieza mientras cargaba.
