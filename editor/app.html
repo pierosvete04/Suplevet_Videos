@@ -406,6 +406,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
           <div id="clListo" hidden style="margin-top:12px">
             <label class="muted" style="display:grid;gap:4px;font-size:12px">Escribir el guion para
               <select id="clSesion"></select></label>
+            <div id="clNuevaCaja" hidden style="margin-top:8px;padding:10px;border:1px dashed var(--accent);border-radius:10px;display:grid;gap:6px">
+              <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre de la nueva sesión (día y mes en que se va a grabar)
+                <input id="clNuevaNombre" placeholder="20 10 SESIÓN"></label>
+              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas (Guion, Clips, Flow, Música, V.FINALES) al escribir el guion.</span>
+            </div>
             <div class="form-plant" style="margin-top:10px">
               <div class="dos">
                 <label>Cuerpos (videos)<select id="clCuerpos"></select></label>
@@ -919,7 +924,9 @@ function pintarInicio() {
     || `<span class="muted">Todavía no hay sesiones.</span>`;
   const sesionesGuion = [...E.semanas].reverse();
   const elegida = $("clSesion").value;
-  $("clSesion").innerHTML = sesionesGuion.map(s => `<option ${s === (elegida || E.semana) ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva sesión…</option>`;
+  $("clSesion").innerHTML = `<option value="__nueva" ${elegida === "__nueva" ? "selected" : ""}>+ Nueva sesión (ponerle nombre)…</option>`
+    + sesionesGuion.map(s => `<option ${elegida !== "__nueva" && s === ((elegida && sesionesGuion.includes(elegida)) ? elegida : E.semana) ? "selected" : ""}>${esc(s)}</option>`).join("");
+  $("clNuevaCaja").hidden = $("clSesion").value !== "__nueva";
   pintarBajada(E.trabajo);
 }
 function pintarBajada(t) {
@@ -989,9 +996,24 @@ ${$("clIdea").value.trim() ? "Idea o enfoque: " + $("clIdea").value.trim() + "\n
 ${temas.join("\n")}
 ${$("clPedido").value.trim()}`;
 }
+function nombreSesionSugerido() {
+  return new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" }).replace("/", " ") + " SESIÓN";
+}
+$("clSesion").addEventListener("change", () => {
+  const nueva = $("clSesion").value === "__nueva";
+  $("clNuevaCaja").hidden = !nueva;
+  if (nueva) { $("clNuevaNombre").placeholder = "Ej.: " + nombreSesionSugerido(); $("clNuevaNombre").focus(); }
+});
 $("clGuion").onclick = async () => {
   let sesion = $("clSesion").value;
-  if (sesion === "__nueva") { sesion = await nuevaSesion(); if (!sesion) return; }
+  if (sesion === "__nueva") {
+    const nombre = $("clNuevaNombre").value.trim().toUpperCase();
+    if (!nombre) { $("clNuevaNombre").focus(); return avisar("Ponle nombre a la nueva sesión.", "err"); }
+    const clave = t => t.toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g, "");
+    if (E.semanas.some(x => clave(x) === clave(nombre))) return avisar("Ya existe una sesión con ese nombre: elígela en la lista.", "err");
+    try { await post("/api/semana", { semana: nombre }); sel = null; await cargar(); sesion = E.semana; $("clNuevaCaja").hidden = true; $("clNuevaNombre").value = ""; }
+    catch (err) { return avisar("Error: " + err.message, "err"); }
+  }
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
   try { await post("/api/claude", { accion: "guion", sesion, pedido: pedidoGuion() }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (err) { $("clSalida").textContent = "Error: " + err.message; }
