@@ -587,7 +587,13 @@ def sugerencias():
     """{rel: {texto, pieza, parecido, mejor}}. «mejor» marca la toma más parecida de cada pieza;
     si hay empate gana la última grabada (suele ser la buena)."""
     esperadas = {n: i.get("texto", "") for n, i in produccion().get("piezas", {}).items() if i.get("texto")}
+    # un cuerpo grabado frase por frase: cada toma se compara también con cada frase (C2_P1, C2_P2…)
+    for n, i in produccion().get("piezas", {}).items():
+        if i.get("tipo") == "cuerpo" and len(i.get("partes") or []) > 1:
+            for k, frase in enumerate(i["partes"], 1):
+                esperadas[f"{n}_P{k}"] = frase
     ya = {p["nombre"] for p in piezas()}
+    ya |= {f"{p['nombre']}_P{k}" for p in piezas() for k in range(1, len(p["partes"]) + 1) if len(p["partes"]) > 1}
     out = {}
     for c in clips_sin_asignar():
         texto = transcripcion_clip(c, crear=False)
@@ -727,6 +733,34 @@ def revision_guion():
 def guion_para_grabar_actual():
     """El guion de la sesión o grupo abierto (sin cambiar de sesión)."""
     return guion_para_grabar(None)
+
+
+# ---------- Forma de onda del audio (para cortar guiándose por la voz) ----------
+
+def onda(nombre, por_seg=50):
+    """Picos de volumen de una pieza procesada: {por_seg, picos: [0–1]} (en caché mientras no cambie el video)."""
+    import numpy as np
+    f = S.proc / f"{nombre}.mp4"
+    if not f.exists():
+        return {"por_seg": por_seg, "picos": []}
+    cache = S.proc / f"{nombre}.onda.json"
+    firma = f"{f.stat().st_size}-{int(f.stat().st_mtime)}-{por_seg}"
+    if cache.exists():
+        d = json.loads(cache.read_text(encoding="utf-8"))
+        if d.get("firma") == firma:
+            return d
+    sr = 8000
+    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
+                          "-f", "s16le", "-"], capture_output=True).stdout
+    x = np.abs(np.frombuffer(pcm, dtype=np.int16).astype(np.float32)) / 32768
+    paso = sr // por_seg
+    n = len(x) // paso
+    picos = x[:n * paso].reshape(n, paso).max(axis=1) if n else np.zeros(0)
+    tope = float(np.percentile(picos, 99)) if n else 1.0
+    picos = np.clip(picos / max(tope, 1e-4), 0, 1)
+    d = {"firma": firma, "por_seg": por_seg, "picos": [round(float(v), 3) for v in picos]}
+    cache.write_text(json.dumps(d), encoding="utf-8")
+    return d
 
 
 # ---------- Las dos versiones del guion: para el host y para producción ----------

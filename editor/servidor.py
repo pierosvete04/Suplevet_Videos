@@ -404,6 +404,8 @@ class H(BaseHTTPRequestHandler):
             if "ping" in u.query:
                 LATIDO["ultimo"] = time.time()
             self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
+        elif u.path == "/api/onda":
+            self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
         elif u.path == "/api/guion_doc":
             version = (parse_qs(u.query).get("version") or ["host"])[0]
             texto = motor.documento_guion("produccion" if version == "produccion" else "host")
