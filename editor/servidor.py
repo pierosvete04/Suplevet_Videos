@@ -243,6 +243,8 @@ def lanzar(accion, pieza=None, extra=None):
                     sesion = extra["sesion"]
                     texto = asistente.generar_guion(sesion, extra.get("pedido", ""), avance=avance)
                     motor._prod_cache = None
+                    if sesion == motor.S.semana:
+                        motor.guardar_documentos_guion()
                     if drive.estado()["activo"]:
                         drive.subir(sesion, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
@@ -399,6 +401,13 @@ class H(BaseHTTPRequestHandler):
             if "ping" in u.query:
                 LATIDO["ultimo"] = time.time()
             self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
+        elif u.path == "/api/guion_doc":
+            version = (parse_qs(u.query).get("version") or ["host"])[0]
+            texto = motor.documento_guion("produccion" if version == "produccion" else "host")
+            if texto and "guardar" in u.query:  # quedan también en Drive (carpeta Guion), para abrirlas desde cualquier lado
+                motor.guardar_documentos_guion()
+                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+            self._json({"texto": texto})
         elif u.path == "/api/informe":
             f = motor.S.guion / "director" / "informe.md"
             self._json({"texto": f.read_text(encoding="utf-8") if f.exists() else ""})

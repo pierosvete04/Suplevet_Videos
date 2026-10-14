@@ -729,6 +729,131 @@ def guion_para_grabar_actual():
     return guion_para_grabar(None)
 
 
+# ---------- Las dos versiones del guion: para el host y para producción ----------
+
+NOMBRES_SFX = {"impacto": "impacto", "whoosh": "whoosh", "whoosh_inverso": "whoosh inverso", "riser": "riser (sube la tensión)",
+               "pop": "pop", "ding": "ding", "brillo": "brillo", "glitch": "glitch", "scratch": "scratch de disco",
+               "notificacion": "notificación", "tecleo": "tecleo", "tension": "tensión", "camara": "obturador de cámara",
+               "dinero": "caja registradora", "datos": "datos (bip de computadora)", "error": "error (buzzer)", "papel": "papel",
+               "liquido": "líquido", "reloj": "reloj", "aplausos": "aplausos", "electrico": "eléctrico", "boing": "boing",
+               "golpe_texto": "golpe de texto", "riser_largo": "riser largo", "drama": "drama", "corte_silencio": "corte de silencio"}
+
+
+def plan_sonoro(nombre, info):
+    """Lo que va a sonar en una pieza según su guion: marcas del guion y reglas automáticas (sin tiempos:
+    se anclan a la palabra). [{momento, efecto, por}]"""
+    so = CONFIG["sonidos"]
+    out = []
+    tipo = tipo_de(nombre) if info.get("tipo") != "cuerpo" else "cuerpo"
+    if tipo == "hook":
+        t = norm(info.get("tipo", "")) or "default"
+        for cat in so["arranque_por_tipo"].get(t) or so["arranque_por_tipo"]["default"]:
+            out.append({"momento": "inicio", "efecto": cat, "por": f"arranque de hook ({info.get('tipo') or 'general'})"})
+        out.append({"momento": "final", "efecto": "whoosh", "por": "corte al cuerpo"})
+    if tipo == "cuerpo":
+        out.append({"momento": "inicio", "efecto": "riser", "por": "entrada del cuerpo"})
+        out.append({"momento": "final", "efecto": "whoosh_inverso", "por": "corte al CTA"})
+    if tipo == "cta":
+        cat = so["cta_por_tipo"].get(norm(info.get("tipo", "")) or "anuncio")
+        if cat:
+            out.append({"momento": "inicio", "efecto": cat, "por": f"CTA {info.get('tipo', 'anuncio')}"})
+    for m in info.get("marcas", []):
+        if m.get("sfx"):
+            out.append({"momento": f"«{m['palabra']}»", "efecto": m["sfx"], "por": "marca del guion"})
+        elif m.get("asset"):
+            out.append({"momento": f"«{m['palabra']}»", "efecto": "whoosh", "por": f"entra {m['asset']}"})
+        elif m.get("sub") in ("centro_grande", "palabra_sola"):
+            out.append({"momento": f"«{m['palabra']}»", "efecto": "impacto", "por": "subtítulo grande"})
+    palabras = [norm(w) for w in info.get("texto", "").split()]
+    situaciones = dict(CONFIG.get("sfx_palabras", {}))
+    for cat, frases in situaciones.items():
+        for f in frases:
+            fn = [norm(w) for w in f.split()]
+            if any(palabras[k:k + len(fn)] == fn for k in range(len(palabras) - len(fn) + 1)):
+                out.append({"momento": f"«{f}»", "efecto": cat, "por": "situación (se dice la palabra)"})
+    if tipo == "cuerpo" and "suplevet" in palabras:
+        out.append({"momento": "«Suplevet»", "efecto": "brillo", "por": "aparece la marca"})
+    return out
+
+
+def _orden_piezas(prod):
+    orden = {"cuerpo": 0, "hook": 1, "cta": 2}
+    def clave(n):
+        m = re.match(r"(?:C|P)(\d+)", n)
+        return (int(m.group(1)) if m else 99, orden[tipo_de(n) if prod["piezas"][n].get("tipo") != "cuerpo" else "cuerpo"], n)
+    return sorted(prod.get("piezas", {}), key=clave)
+
+
+def documento_guion(version="host"):
+    """Markdown del guion. «host»: solo lo que se dice, en orden de grabación, para leer y grabarse.
+    «produccion»: pieza por pieza, todo lo que va en el video (estilos, imágenes con su prompt, música, sonidos, portada, copy)."""
+    prod = produccion()
+    if not prod.get("piezas"):
+        return ""
+    titulo = prod.get("semana") or S.semana
+    if version == "host":
+        out = [f"# {titulo} — guion para grabar", "",
+               "Lee tal cual. Una toma por pieza; en los cuerpos, una frase por toma si te es más cómodo (en orden).", ""]
+        for g in guion_para_grabar_actual():
+            nombre = {"cuerpo": "CUERPO", "hook": "HOOK", "cta": "CTA"}[g["tipo"]]
+            out.append(f"## {g['nombre']} · {nombre}" + (f" ({g['tipo_hook']})" if g.get("tipo_hook") else ""))
+            if g["tipo"] == "cuerpo" and len(g["partes"]) > 1:
+                out += [f"{k}. {f}" for k, f in enumerate(g["partes"], 1)]
+            else:
+                out.append(g["texto"])
+            out += ["", "- [ ] toma buena", ""]
+        return "\n".join(out)
+    assets = {a["id"]: a for a in prod.get("assets", [])}
+    musica = {m["id"]: m for m in prod.get("musica", [])}
+    out = [f"# {titulo} — guion de producción", "",
+           f"Público: {prod.get('publico', '—')} · Plantilla de subtítulos: {prod.get('plantilla_sub') or 'la predeterminada'}", ""]
+    for n in _orden_piezas(prod):
+        info = prod["piezas"][n]
+        tipo = "cuerpo" if info.get("tipo") == "cuerpo" else tipo_de(n)
+        out += [f"## {n} · {tipo.upper()}" + (f" · {info['tipo']}" if tipo == "hook" and info.get("tipo") else ""), "",
+                f"**Voz:** {info.get('texto', '')}", ""]
+        if info.get("portada"):
+            out.append(f"**Portada:** {info['portada'].replace('*', '')}")
+        if info.get("musica"):
+            m = musica.get(info["musica"], {})
+            out.append(f"**Música:** {info['musica']}" + (f" — {m.get('uso', '')}" if m else ""))
+        estilos = [m for m in info.get("marcas", []) if m.get("sub")]
+        if estilos:
+            out.append("**Subtítulos:** " + " · ".join(f"«{m['palabra']}» → {m['sub'].replace('_', ' ')}" for m in estilos))
+        imgs = [m for m in info.get("marcas", []) if m.get("asset")]
+        if imgs:
+            out.append("**Imágenes y clips (Google Flow):**")
+            for m in imgs:
+                a = assets.get(m["asset"], {})
+                out.append(f"- `{m['asset']}` en «{m['palabra']}» · {m.get('dur', 1.5)} s · {m.get('modo', 'completa')}")
+                if a.get("flow", {}).get("prompt"):
+                    out.append(f"  - Prompt: {a['flow']['prompt']}")
+        sonidos = plan_sonoro(n, info)
+        if sonidos:
+            out.append("**Sonidos:**")
+            out += [f"- {s_['momento']}: {NOMBRES_SFX.get(s_['efecto'], s_['efecto'])} — {s_['por']}" for s_ in sonidos]
+        out.append("")
+    if musica:
+        out += ["## Música (Google Flow Music)", ""]
+        for m in musica.values():
+            pr = m.get("prompt") or {}
+            out += [f"### {m['id']} — {m.get('uso', '')}", f"- Prompt: {pr.get('prompt', '')}", f"- Evitar: {pr.get('evitar', '')}",
+                    f"- Duración: {pr.get('duracion', '')}", ""]
+    return "\n".join(out)
+
+
+def guardar_documentos_guion():
+    """Escribe guion_host.md y guion_produccion.md en la carpeta Guion de la sesión."""
+    hechos = []
+    for v in ("host", "produccion"):
+        texto = documento_guion(v)
+        if texto:
+            S.guion.mkdir(parents=True, exist_ok=True)
+            (S.guion / f"guion_{v}.md").write_text(texto, encoding="utf-8")
+            hechos.append(f"guion_{v}.md")
+    return hechos
+
+
 # ---------- Teleprompter ----------
 
 def guion_para_grabar(semana=None):

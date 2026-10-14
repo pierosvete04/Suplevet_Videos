@@ -266,6 +266,10 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .pasos-guion .btn.sec b { background: var(--raise); }
 .pasos-guion .flecha { color: var(--muted); }
 .g-sugerido { border: 1px dashed var(--line2); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; font-size: 12.5px; }
+.documento { max-width: 860px; font-size: 14.5px; line-height: 1.65; }
+.documento h1 { font: 700 22px var(--fd); margin: 0 0 6px; } .documento h2 { font-size: 16px; margin: 22px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.documento h3 { margin: 14px 0 4px; } .documento ul, .documento ol { margin: 4px 0 8px; padding-left: 22px; } .documento p { margin: 4px 0; }
+.documento.host { font-size: 18px; line-height: 1.8; } .documento.host h2 { font-size: 15px; color: var(--accent2); }
 .informe { white-space: pre-wrap; font-size: 13px; line-height: 1.6; max-height: 420px; overflow: auto; margin: 0; }
 /* Plantillas */
 .plant-layout { display: grid; gap: 14px; }
@@ -461,6 +465,15 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
       <h2>Informe de Claude</h2>
       <pre class="informe" id="gInforme"></pre>
     </div>
+    <div class="fila" style="justify-content:space-between;margin-bottom:12px">
+      <div class="segmento" role="group" aria-label="Versión del guion">
+        <button data-gver="revision" aria-pressed="true">Revisión de lo grabado</button>
+        <button data-gver="host" aria-pressed="false">Versión host (para grabar)</button>
+        <button data-gver="produccion" aria-pressed="false">Versión producción (detalle)</button>
+      </div>
+      <div class="fila" id="gDocBotones" hidden><button class="btn sec peq" id="gDocCopiar">Copiar</button><button class="btn sec peq" id="gDocImprimir">Imprimir o guardar PDF</button></div>
+    </div>
+    <div class="caja documento" id="gDoc" hidden></div>
     <div class="segmento" id="filtroGuion" role="group" aria-label="Qué ver del guion" style="margin-bottom:12px">
       <button data-gvista="todo" aria-pressed="true">Todo</button>
       <button data-gvista="hook" aria-pressed="false">Hooks</button>
@@ -2079,6 +2092,43 @@ function pintarEstadoGuion() {
   $("gCorroborar").className = "btn" + (!(g.sin_escuchar + g.sin_procesar) && !corroborado ? "" : " sec");
 }
 $("gAnalizar").onclick = () => { corroborado = false; trabajo("analizar"); };
+// Versiones del guion: para el host (solo lo que se dice) y de producción (todo: estilos, imágenes, música, sonidos)
+let gVersion = "revision", gDocTexto = "";
+function mdAHtml(md) {
+  const linea = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
+  let html = "", lista = null;
+  const cerrar = () => { if (lista) { html += `</${lista}>`; lista = null; } };
+  for (const l of md.split("\n")) {
+    let m;
+    if ((m = l.match(/^(#{1,3}) (.*)/))) { cerrar(); html += `<h${m[1].length}>${linea(m[2])}</h${m[1].length}>`; }
+    else if ((m = l.match(/^\s*- \[ \] (.*)/))) { cerrar(); html += `<p class="muted">☐ ${linea(m[1])}</p>`; }
+    else if ((m = l.match(/^(\s*)- (.*)/))) { if (lista !== "ul") { cerrar(); html += "<ul>"; lista = "ul"; } html += `<li${m[1] ? ' style="margin-left:18px;list-style:circle"' : ""}>${linea(m[2])}</li>`; }
+    else if ((m = l.match(/^\d+\. (.*)/))) { if (lista !== "ol") { cerrar(); html += "<ol>"; lista = "ol"; } html += `<li>${linea(m[1])}</li>`; }
+    else if (l.trim()) { cerrar(); html += `<p>${linea(l)}</p>`; }
+    else cerrar();
+  }
+  cerrar(); return html;
+}
+async function pintarVersionGuion() {
+  document.querySelectorAll("[data-gver]").forEach(b => b.setAttribute("aria-pressed", b.dataset.gver === gVersion));
+  const doc = gVersion !== "revision";
+  $("gDoc").hidden = !doc; $("gDocBotones").hidden = !doc;
+  $("filtroGuion").hidden = doc; $("guionLista").hidden = doc;
+  if (!doc) return;
+  $("gDoc").className = "caja documento " + gVersion; $("gDoc").innerHTML = `<p class="muted">Cargando…</p>`;
+  const r = await (await fetch(`/api/guion_doc?version=${gVersion}&guardar`)).json();
+  gDocTexto = r.texto || "";
+  $("gDoc").innerHTML = gDocTexto ? mdAHtml(gDocTexto) : `<p class="muted">Esta sesión todavía no tiene guion.</p>`;
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-gver]"); if (b) { gVersion = b.dataset.gver; pintarVersionGuion(); } });
+$("gDocCopiar").onclick = () => { navigator.clipboard.writeText(gDocTexto); avisar("Guion copiado.", "ok"); };
+$("gDocImprimir").onclick = () => {
+  const w = window.open("", "_blank");
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(E.semana)} — guion ${gVersion}</title>
+    <style>body{font:${gVersion === "host" ? "18px/1.8" : "13px/1.6"} "Segoe UI",sans-serif;max-width:760px;margin:30px auto;color:#111}h2{border-top:1px solid #ccc;padding-top:10px;margin-top:20px}code{font-family:Consolas,monospace}</style>
+    ${mdAHtml(gDocTexto)}<script>print()<\/script>`);
+  w.document.close();
+};
 $("gCorroborar").onclick = async () => { corroborado = true; await pintarGuion(); $("guionLista").scrollIntoView({ behavior: "smooth", block: "start" }); };
 document.addEventListener("change", async e => {
   const s = e.target.closest("[data-guion-clip]");

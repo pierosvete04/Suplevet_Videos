@@ -36,7 +36,7 @@ decide con criterio y deja todo escrito en las carpetas que te indica el pedido.
 
 def armar(destino):
     shutil.rmtree(destino, ignore_errors=True)
-    (destino / "contexto").mkdir(parents=True)
+    (destino / "contexto").mkdir(parents=True, exist_ok=True)
     for f in CONTEXTO:
         if f.exists():
             shutil.copy2(f, destino / "contexto" / f.name)
@@ -49,7 +49,7 @@ def armar(destino):
                       r"F:\TRABAJOS CLAUDE\GUIONES - SUPLEVET" + "\\0", "editor\\GUIA_SONIDOS.md"):
             nuevo = "contexto\\0" if viejo.endswith("\\0") else "contexto\\GUIA_SONIDOS.md" if "GUIA" in viejo else "contexto\\"
             texto = texto.replace(viejo, nuevo)
-        (destino / ".claude" / "skills" / nombre).mkdir(parents=True)
+        (destino / ".claude" / "skills" / nombre).mkdir(parents=True, exist_ok=True)
         (destino / ".claude" / "skills" / nombre / "SKILL.md").write_text(texto, encoding="utf-8")
     (destino / "CLAUDE.md").write_text(CLAUDE_MD, encoding="utf-8")
 
