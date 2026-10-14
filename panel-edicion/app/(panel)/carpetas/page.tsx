@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { TarjetaVideo } from "@/components/TarjetaVideo";
 import { VideoDetalle } from "@/components/VideoDetalle";
-import { COLORES_CARPETA, type Carpeta, type ColorCarpeta, type Video } from "@/lib/videos";
+import { COLORES_CARPETA, ordenarSesiones, type Carpeta, type ColorCarpeta, type Video } from "@/lib/videos";
 
 // Dos formas de ordenar: por sesión de grabación (automático) y por carpetas propias (campañas, temas, anuncios).
 // Para mover un video: arrástralo a una carpeta, o ábrelo y elige la carpeta en su ficha.
@@ -40,7 +40,7 @@ export default function CarpetasPage() {
   const sesiones = useMemo(() => {
     const m = new Map<string, Video[]>();
     videos.forEach((v) => m.set(v.semana, [...(m.get(v.semana) ?? []), v]));
-    return [...m.entries()];
+    return ordenarSesiones([...m.keys()]).map((s) => [s, m.get(s)!] as const);
   }, [videos]);
 
   const lista = videos.filter((v) =>

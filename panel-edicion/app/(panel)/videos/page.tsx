@@ -5,7 +5,7 @@ import { CheckCircle2, Clapperboard, Eye, Film, Search, Send } from "lucide-reac
 import { createClient } from "@/lib/supabase/client";
 import { TarjetaVideo } from "@/components/TarjetaVideo";
 import { VideoDetalle } from "@/components/VideoDetalle";
-import { ESTADOS, posicionHook, ranking, type EstadoVideo, type Video } from "@/lib/videos";
+import { ESTADOS, ordenarSesiones, posicionHook, ranking, type EstadoVideo, type Video } from "@/lib/videos";
 
 type Agrupar = "hook" | "tipo" | "cuerpo" | "cta";
 const AGRUPAR: { valor: Agrupar; etiqueta: string; fn: (v: Video) => string }[] = [
@@ -39,7 +39,7 @@ export default function VideosPage() {
     return () => window.removeEventListener("sesion-renovada", cargar);
   }, [cargar]);
 
-  const semanas = useMemo(() => [...new Set(videos.map((v) => v.semana))], [videos]);
+  const semanas = useMemo(() => ordenarSesiones([...new Set(videos.map((v) => v.semana))]), [videos]);
   const deLaSemana = useMemo(() => videos.filter((v) => semana === "todas" || v.semana === semana), [videos, semana]);
   const visibles = deLaSemana.filter(
     (v) => (estado === "todos" || v.estado === estado) && (!buscar || v.codigo.toLowerCase().includes(buscar.toLowerCase()))

@@ -24,6 +24,7 @@ function copiar(texto: string, que: string) {
 
 export default function MusicaPage() {
   const [guiones, setGuiones] = useState<Guion[]>([]);
+  const [sesion, setSesion] = useState("todas");
   const [tono, setTono] = useState(TONOS[0]);
   const [bpm, setBpm] = useState(TONOS[0].bpm);
   const [inst, setInst] = useState<string[]>(["soft piano", "plucked guitar", "light shaker"]);
@@ -37,12 +38,20 @@ export default function MusicaPage() {
   }, []);
 
   useEffect(() => {
-    createClient().from("guiones").select("*").order("updated_at", { ascending: false }).then(({ data }) => setGuiones((data as Guion[]) ?? []));
+    createClient()
+      .from("guiones")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .then(({ data }) => {
+        const g = (data as Guion[]) ?? [];
+        setGuiones(g);
+        setSesion((s) => (s === "todas" && g.length > 1 ? g[0].sesion : s)); // por defecto, solo el guion más reciente
+      });
   }, [version]);
 
   const pistas = useMemo(
     () =>
-      guiones.flatMap((g) =>
+      guiones.filter((g) => sesion === "todas" || g.sesion === sesion).flatMap((g) =>
         (g.datos.musica ?? []).map((m) => ({
           ...m,
           sesion: g.sesion,
@@ -51,7 +60,7 @@ export default function MusicaPage() {
             .map(([n]) => n),
         }))
       ),
-    [guiones]
+    [guiones, sesion]
   );
 
   const prompt = `${tono.base[0].toUpperCase()}${tono.base.slice(1)} at ${bpm} BPM with ${inst.slice(0, 4).join(", ").replace(/, ([^,]*)$/, " and $1")}, ${tono.animo}${extra.trim() ? `, ${extra.trim()}` : ""}, instrumental, no vocals, background music for voiceover, steady energy, no sudden drops`;
@@ -69,7 +78,17 @@ export default function MusicaPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <section aria-label="Pistas de los guiones" className="flex flex-col gap-3">
-          <h2 className="text-2xl">Pistas de los guiones</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-2xl">Pistas de los guiones</h2>
+            {guiones.length > 1 && (
+              <select aria-label="Sesión" className="campo w-auto min-w-[11rem]" value={sesion} onChange={(e) => setSesion(e.target.value)}>
+                <option value="todas">Todas las sesiones</option>
+                {guiones.map((g) => (
+                  <option key={g.sesion}>{g.sesion}</option>
+                ))}
+              </select>
+            )}
+          </div>
           {pistas.length === 0 && (
             <div className="tarjeta flex flex-col items-center gap-2 p-10 text-center text-sm text-navy/60">
               <Music2 className="h-8 w-8 text-sky" aria-hidden="true" />

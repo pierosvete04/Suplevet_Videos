@@ -111,3 +111,23 @@ export function ranking(videos: Video[], agrupar: (v: Video) => string): FilaRan
     })
     .sort((a, b) => a.grupo.localeCompare(b.grupo));
 }
+
+/** Sesiones de la más nueva a la más vieja: «13／10 SESIÓN» por fecha (sin año: un mes adelantado es del año pasado),
+ *  las producciones «P07 TEMA» (las nuevas) van antes, por número; el resto, por nombre. */
+export function ordenarSesiones(nombres: string[]): string[] {
+  const hoy = new Date();
+  const clave = (n: string): [number, number, string] => {
+    const f = n.match(/^(\d{1,2})\D+(\d{1,2})/);
+    if (f) {
+      const dia = Number(f[1]), mes = Number(f[2]);
+      const anio = hoy.getFullYear() - (mes > hoy.getMonth() + 2 ? 1 : 0);
+      return [2, anio * 10000 + mes * 100 + dia, n];
+    }
+    const p = n.match(/^P(\d{1,3})\b/i);
+    return p ? [3, Number(p[1]), n] : [0, 0, n];  // las producciones numeradas son las nuevas: van primero
+  };
+  return [...nombres].sort((a, b) => {
+    const x = clave(a), y = clave(b);
+    return y[0] - x[0] || y[1] - x[1] || x[2].localeCompare(y[2]);
+  });
+}
