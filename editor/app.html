@@ -109,6 +109,10 @@ section[hidden] { display: none; }
 .sesiones button[aria-current="true"] { border-color: var(--accent); color: var(--accent2); box-shadow: var(--glow); }
 .claude-cab { display: flex; align-items: center; gap: 10px; }
 .claude-logo { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: #edf3ff; color: #06101f; font: 800 14px var(--fd); flex: none; }
+.tema-cuerpo { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--hondo); }
+.tema-cuerpo .opciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.tema-cuerpo .opciones button { font-size: 12px; text-align: left; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); cursor: pointer; max-width: 100%; }
+.tema-cuerpo .opciones button[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--glow); }
 .salida-claude { font: 12px/1.5 var(--mono); color: var(--muted); background: var(--hondo); border: 1px solid var(--line); border-radius: 10px; padding: 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 10px 0 0; }
 .barra-prog { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 8px; }
 .barra-prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); box-shadow: 0 0 12px var(--accent); transition: width .5s; }
@@ -402,8 +406,21 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
           <div id="clListo" hidden style="margin-top:12px">
             <label class="muted" style="display:grid;gap:4px;font-size:12px">Escribir el guion para
               <select id="clSesion"></select></label>
-            <label class="muted" style="display:grid;gap:4px;font-size:12px;margin-top:8px">Qué quieres esta vez (ideas, público, producto, tono…)
-              <textarea id="clPedido" rows="4" placeholder="Ej.: para dueños de perros mayores; ideas: articulaciones y pelaje; 5 cuerpos con 5 hooks cada uno, tono directo."></textarea></label>
+            <div class="form-plant" style="margin-top:10px">
+              <div class="dos">
+                <label>Cuerpos (videos)<select id="clCuerpos"></select></label>
+                <label>Hooks por cuerpo<select id="clHooks"></select></label>
+              </div>
+              <div class="dos">
+                <label>Público<select id="clPublico"><option value="veterinarios">Médicos veterinarios</option><option value="duenos">Dueños de mascotas</option></select></label>
+                <label>CTAs<select id="clCtas"><option value="2">2 (anuncio y orgánico)</option><option value="1">1</option><option value="por_cuerpo">2 por cada cuerpo</option></select></label>
+              </div>
+              <label>Idea o enfoque (opcional)<input id="clIdea" placeholder="Ej.: perros mayores; articulaciones y pelaje"></label>
+              <div class="fila"><button class="btn sec peq" id="clTemas" type="button">Proponer temas con Claude</button>
+                <span class="muted" style="font-size:11.5px">o escribe tú el tema de cada cuerpo</span></div>
+              <div id="clListaTemas" style="display:grid;gap:8px"></div>
+              <label>Algo más para Claude (opcional)<textarea id="clPedido" rows="2" placeholder="Tono, producto a destacar, casos reales…"></textarea></label>
+            </div>
             <div class="fila" style="margin-top:10px">
               <button class="btn blanco" id="clGuion">Escribir guion con Claude</button>
               <button class="btn sec" id="clRevisar" title="Compara lo grabado con el guion y reacomoda sonidos, música, imágenes y estilos">Revisar lo grabado</button>
@@ -936,11 +953,47 @@ document.addEventListener("click", async e => {
   if (t.dataset.ir) { if (t.dataset.ir === "claude") { $("clPedido").focus(); return; } irTab(t.dataset.ir); return; }
   if (t.dataset.abrirSesion) { cambiarSesion(t.dataset.abrirSesion); return; }
 });
+// Estructura del guion: cuántos cuerpos y hooks; un tema por cuerpo (propuesto por Claude o escrito a mano)
+let propuestas = [];
+$("clCuerpos").innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option ${n === 5 ? "selected" : ""}>${n}</option>`).join("");
+$("clHooks").innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option ${n === 5 ? "selected" : ""}>${n}</option>`).join("");
+function pintarTemas() {
+  const n = Number($("clCuerpos").value), previos = [...document.querySelectorAll("[data-tema-cuerpo]")].map(i => i.value);
+  $("clListaTemas").innerHTML = Array.from({ length: n }, (_, k) => {
+    const ops = propuestas.filter(p => Number(p.cuerpo) === k + 1);
+    return `<div class="tema-cuerpo"><label class="muted" style="font-size:12px">Cuerpo ${k + 1} (C${k + 1})
+        <input data-tema-cuerpo="${k}" value="${esc(previos[k] || "")}" placeholder="Tema del cuerpo ${k + 1} (vacío = lo elige Claude)"></label>
+      ${ops.length ? `<div class="opciones">${ops.map(p => `<button type="button" data-elegir-tema="${k}" data-texto="${esc(`${p.tema} · ${p.angulo}`)}" title="${esc(p.por_que || "")}">${esc(p.tema)} <span class="muted">· ${esc(p.angulo)}</span></button>`).join("")}</div>` : ""}</div>`;
+  }).join("");
+}
+$("clCuerpos").onchange = pintarTemas;
+pintarTemas();
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-elegir-tema]"); if (!b) return;
+  document.querySelector(`[data-tema-cuerpo="${b.dataset.elegirTema}"]`).value = b.dataset.texto;
+  b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+});
+$("clTemas").onclick = async () => {
+  $("clSalida").hidden = false; $("clSalida").textContent = "Claude está pensando los temas…";
+  try { await post("/api/claude", { accion: "temas", cuerpos: Number($("clCuerpos").value), publico: $("clPublico").value, idea: $("clIdea").value });
+    vigilar(await (await fetch("/api/trabajo")).json()); }
+  catch (err) { $("clSalida").textContent = "Error: " + err.message; }
+};
+function pedidoGuion() {
+  const n = Number($("clCuerpos").value), h = Number($("clHooks").value);
+  const temas = [...document.querySelectorAll("[data-tema-cuerpo]")].map((i, k) => `- C${k + 1}: ${i.value.trim() || "(elige tú)"}`);
+  const ctas = { "2": "2 CTAs para todos los cuerpos (CTA-A anuncio y CTA-O orgánico)", "1": "1 CTA para todos los cuerpos", por_cuerpo: "2 CTAs por cada cuerpo (C1_CTA1, C1_CTA2…)" }[$("clCtas").value];
+  return `Estructura: ${n} cuerpos, ${h} hooks por cuerpo (${n * h} videos base), ${ctas}.
+Público: ${$("clPublico").value === "duenos" ? "dueños de mascotas" : "médicos veterinarios"}.
+${$("clIdea").value.trim() ? "Idea o enfoque: " + $("clIdea").value.trim() + "\n" : ""}Tema de cada cuerpo:
+${temas.join("\n")}
+${$("clPedido").value.trim()}`;
+}
 $("clGuion").onclick = async () => {
   let sesion = $("clSesion").value;
   if (sesion === "__nueva") { sesion = await nuevaSesion(); if (!sesion) return; }
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
-  try { await post("/api/claude", { accion: "guion", sesion, pedido: $("clPedido").value }); vigilar(await (await fetch("/api/trabajo")).json()); }
+  try { await post("/api/claude", { accion: "guion", sesion, pedido: pedidoGuion() }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (err) { $("clSalida").textContent = "Error: " + err.message; }
 };
 const revisarConClaude = async () => {
@@ -1345,7 +1398,7 @@ function vigilar(t) {
   caja.hidden = !t.activo;
   $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar", "gAnalizar"].forEach(id => $(id).disabled = t.activo);
+  ["todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar", "gAnalizar", "clTemas"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -1371,7 +1424,12 @@ function vigilar(t) {
 }
 let reabrir = null;  // al terminar de re-armar un video, se vuelve a abrir con el resultado
 function pintarClaudeTrabajo(t) {
-  if (!["guion", "revisar"].includes(t.accion)) return;
+  if (t.accion === "temas" && !t.activo && Array.isArray(t.resultado)) {
+    if (JSON.stringify(t.resultado) !== JSON.stringify(propuestas)) { propuestas = t.resultado; pintarTemas(); }
+    $("clSalida").textContent = "Elige un tema para cada cuerpo (o escríbelo) y toca «Escribir guion con Claude».";
+    return;
+  }
+  if (!["guion", "revisar", "temas"].includes(t.accion)) return;
   const sal = $("clSalida");
   sal.hidden = false;
   const lineas = (t.log || []).slice(-14).join("\n");
@@ -1534,7 +1592,7 @@ const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los
   armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
-  guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado" };
+  guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas" };
 let procTimer = null;
 const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
 async function pintarProcesos() {

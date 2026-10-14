@@ -249,6 +249,9 @@ def lanzar(accion, pieza=None, extra=None):
                         drive.subir(sesion, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
                     avance("Guion listo: " + (texto.strip().splitlines() or [""])[0][:120])
+                if accion == "temas":
+                    TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
+                    avance("Temas propuestos: elige uno por cuerpo.")
                 if accion == "revisar":
                     r = asistente.revisar_grabacion(motor.S.semana, avance=avance)
                     if drive.estado()["activo"]:
@@ -640,6 +643,10 @@ class H(BaseHTTPRequestHandler):
                     lanzar("guion", extra={"sesion": sesion, "pedido": str(b.get("pedido", ""))[:4000]})
                 elif b.get("accion") == "revisar":
                     lanzar("revisar")
+                elif b.get("accion") == "temas":
+                    lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
+                                           "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",
+                                           "idea": str(b.get("idea", ""))[:1000]})
                 else:
                     raise ValueError("Acción no válida")
                 self._json({"ok": True})

@@ -127,7 +127,7 @@ def correr(prompt, carpetas, avance=print, max_turnos=80):
 def generar_guion(sesion, pedido, avance=print):
     """Escribe guiones.md, hoja_de_grabacion.md y produccion.json en <sesión>/Guion con la skill del guionista."""
     actualizar_conocimiento(avance)
-    carpeta = motor.S.base / sesion
+    carpeta = motor.Rutas(sesion).principal  # en un grupo, la sesión que guarda el guion
     guion = carpeta / "Guion"
     guion.mkdir(parents=True, exist_ok=True)
     anteriores = motor.S.base
@@ -137,6 +137,8 @@ Pedido del equipo:
 {pedido.strip() or "(sin indicaciones: elige tú 1 o 2 ideas y 5 ángulos según el contexto y lo que funcionó antes)"}
 
 Estás dentro de la sala de edición, sin nadie a quien preguntarle: no pidas confirmación, decide con criterio.
+Respeta la estructura del pedido (cuántos cuerpos, hooks por cuerpo y CTAs) y el tema elegido para cada cuerpo, aunque la skill hable de 5×5.
+En produccion.json deja decidido todo: estilos de subtítulo, imágenes de Flow con su prompt, música con su prompt y sonidos (marcas sfx).
 Escribe los tres archivos (guiones.md, hoja_de_grabacion.md y produccion.json) directamente en:
 {guion}
 Las sesiones anteriores (para no repetir cuerpos ni hooks) están en {anteriores} (cada una con su carpeta Guion).
@@ -152,6 +154,24 @@ Los prompts de Flow y de música van siempre. Al terminar responde en 5 líneas:
         correr(f"El archivo {prod} no es JSON válido ({e}). Corrígelo sin cambiar el contenido.", [carpeta], avance=avance, max_turnos=15)
         json.loads(prod.read_text(encoding="utf-8"))
     return texto
+
+
+def proponer_temas(cuerpos, publico, idea, avance=print):
+    """Claude propone de qué habla cada cuerpo (idea + ángulo), para elegir antes de escribir el guion.
+    Devuelve [{"tema", "angulo", "por_que"}] (2 opciones por cuerpo, para que el equipo elija)."""
+    actualizar_conocimiento(avance)
+    prompt = f"""Lee el contexto de la marca en contexto/ (marca, productos, guía de hooks y guiones aprobados) y las sesiones anteriores
+en {motor.S.base} (cada una con Guion/), y propone temas para {cuerpos} cuerpos de video para {publico}.
+{('Idea del equipo: ' + idea.strip()) if idea.strip() else 'Elige tú las ideas según lo que más vende y lo que no se ha hecho.'}
+Sigue la skill suplevet-guionista-modular para elegir ideas y ángulos (no repitas temas ya hechos).
+Responde SOLO con JSON, sin texto antes ni después: una lista de {cuerpos * 2} objetos, 2 opciones por cuerpo, en orden
+(cuerpo 1 opción A, cuerpo 1 opción B, cuerpo 2 opción A…), cada uno así:
+{{"cuerpo": 1, "tema": "frase corta", "angulo": "qué es | cómo se hace | error común | caso real | mito | pregunta frecuente", "por_que": "una línea"}}"""
+    texto = correr(prompt, [motor.S.base], avance=avance, max_turnos=25)
+    inicio, fin = texto.find("["), texto.rfind("]")
+    if inicio < 0 or fin < 0:
+        raise RuntimeError("Claude no devolvió la lista de temas. Intenta de nuevo.")
+    return json.loads(texto[inicio:fin + 1])
 
 
 def revisar_grabacion(sesion, avance=print):
