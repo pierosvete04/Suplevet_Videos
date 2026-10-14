@@ -735,9 +735,13 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/asignar":
                 b = self._cuerpo()
-                sesion = motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
-                drive.subir_en_segundo_plano(sesion, ["asignaciones.json"])
-                self._json({"ok": True})
+                motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
+                subir_asignaciones()
+                # la pieza con su clip nuevo se prepara y se vuelve a escuchar (lo que se dijo se actualiza)
+                procesando = bool(b.get("pieza")) and not TRABAJO["activo"]
+                if procesando:
+                    lanzar("procesar")
+                self._json({"ok": True, "procesando": procesando})
             elif u.path == "/api/drive":
                 b = self._cuerpo()
                 if b.get("accion") == "conectar":

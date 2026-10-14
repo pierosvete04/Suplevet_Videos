@@ -372,20 +372,7 @@ def leer_asignaciones():
     return {f"{m}/{rel}": p for m in S.miembros for rel, p in _leer_asig(m).items()}
 
 
-def guardar_asignacion(rel, pieza):
-    """Devuelve la sesión donde quedó guardada (para subir su asignaciones.json a Drive)."""
-    sesion = S.semana
-    if S.es_grupo:
-        sesion, rel = rel.split("/", 1)
-        if sesion not in S.miembros:
-            raise ValueError("Ese clip no es de este grupo")
-    d = _leer_asig(sesion)
-    if pieza:
-        if not CODIGO_PIEZA.match(pieza):
-            raise ValueError(f"«{pieza}» no es un código de pieza (C1_H2, C3, C1_P2, CTA-A…)")
-        d[rel] = pieza.upper()
-    else:
-        d.pop(rel, None)
+def _escribir_asig(sesion, d):
     texto = json.dumps(d, ensure_ascii=False, indent=1)
     drive_f, local_f = _asig_archivos(sesion)
     local_f.parent.mkdir(parents=True, exist_ok=True)
@@ -394,6 +381,31 @@ def guardar_asignacion(rel, pieza):
         drive_f.write_text(texto, encoding="utf-8")
     except OSError:
         pass
+
+
+def guardar_asignacion(rel, pieza):
+    """Asigna un clip a una pieza. Si esa pieza ya tenía otro clip, lo reemplaza: el anterior vuelve a
+    «Clips por identificar». Devuelve la sesión donde quedó guardada (para subir su asignaciones.json a Drive).
+    Quitar se guarda como "" (no se borra la línea) para que no vuelva desde la copia de Drive."""
+    sesion = S.semana
+    if S.es_grupo:
+        sesion, rel = rel.split("/", 1)
+        if sesion not in S.miembros:
+            raise ValueError("Ese clip no es de este grupo")
+    if pieza:
+        if not CODIGO_PIEZA.match(pieza):
+            raise ValueError(f"«{pieza}» no es un código de pieza (C1_H2, C3, C1_P2, CTA-A…)")
+        pieza = pieza.upper()
+        for m in S.miembros:  # el clip que tenía esa pieza queda libre (en un grupo, en cualquiera de sus sesiones)
+            dm = _leer_asig(m)
+            viejos = [r for r, p in dm.items() if p == pieza and not (m == sesion and r == rel)]
+            if viejos:
+                dm.update({r: "" for r in viejos})
+                _escribir_asig(m, dm)
+        # (si la pieza la tenía un clip por su nombre de archivo, H3.MOV…, gana el asignado a mano: ver piezas())
+    d = _leer_asig(sesion)
+    d[rel] = pieza or ""
+    _escribir_asig(sesion, d)
     return sesion
 
 

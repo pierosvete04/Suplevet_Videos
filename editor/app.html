@@ -334,11 +334,12 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .g-pieza select { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 .g-pieza .texto { font-size: 14px; line-height: 1.6; }
 /* el clip al lado de su texto: se ve y se escucha sin salir del guion */
-.g-cuerpo { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: start; }
-.g-video { width: 112px; aspect-ratio: 9 / 16; border-radius: 9px; background: #000; object-fit: cover; display: block; }
+.g-cuerpo { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 14px; align-items: start; }
+.g-video { width: 200px; aspect-ratio: 9 / 16; border-radius: 9px; background: #000; object-fit: cover; display: block; }
 .g-video.vacio { display: grid; place-items: center; background: var(--hondo); border: 1px dashed var(--line2); color: var(--muted); font-size: 11px; text-align: center; padding: 6px; }
-.g-sugerido .g-cuerpo { grid-template-columns: 72px minmax(0, 1fr); gap: 8px; }
-.g-sugerido .g-video { width: 72px; }
+.g-sugerido .g-cuerpo { grid-template-columns: 110px minmax(0, 1fr); gap: 10px; }
+.g-sugerido .g-video { width: 110px; }
+@media (max-width: 700px) { .g-cuerpo { grid-template-columns: 130px minmax(0, 1fr); } .g-video { width: 130px; } }
 .pasos-guion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 .pasos-guion .btn b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,.2); font-size: 11px; margin-right: 6px; }
 .pasos-guion .btn.sec b { background: var(--raise); }
@@ -608,7 +609,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <input id="gBuscar" type="search" placeholder="Buscar palabras que se dicen: «quirófano analgésicos», «ya no es el mismo»…" aria-label="Buscar palabras en el guion" style="flex:1;min-width:220px">
       <span class="muted" id="gBuscarN" style="font-size:12px"></span>
     </div>
-    <div id="guionLista" class="grid-assets" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr))"></div>
+    <div id="guionLista" class="grid-assets" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,580px),1fr))"></div>
   </section>
 
   <section data-panel="piezas" hidden>
@@ -1713,7 +1714,7 @@ function vigilar(t) {
         clearInterval(vigilando); vigilando = null;
         await cargar();
         if (j.accion === "analizar" && !j.error) corroborado = true;
-        if (["revisar", "analizar"].includes(j.accion)) pintarGuion();
+        if (["revisar", "analizar", "procesar"].includes(j.accion)) pintarGuion();
         avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || ""), j.error ? "err" : "ok");
         if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} re-armado. Lo estás viendo actualizado.`, "ok"); }
         reabrir = null;
@@ -1773,9 +1774,7 @@ document.addEventListener("click", e => {
   const as = e.target.closest("[data-asignar]");
   if (as) {
     const inp = document.querySelector(`input[data-rel="${CSS.escape(as.dataset.asignar)}"]`);
-    post("/api/asignar", { rel: as.dataset.asignar, pieza: inp.value.trim() })
-      .then(() => { avisar(`${as.dataset.asignar.split("/").pop()} → ${inp.value.trim()}`, "ok"); return cargar(); })
-      .catch(err => avisar("Error: " + err.message, "err"));
+    asignarClip(as.dataset.asignar, inp.value.trim());
     return;
   }
   const cp = e.target.closest("[data-copiar]");
@@ -3294,8 +3293,7 @@ document.addEventListener("click", async e => {
   if (b) { vistaGuion = b.dataset.gvista; pintarGuionLista(); }
   const a = e.target.closest("[data-asig-rel]");
   if (a) {
-    try { await post("/api/asignar", { rel: a.dataset.asigRel, pieza: a.dataset.asigPieza }); avisar(`${a.dataset.asigRel.split("/").pop()} → ${a.dataset.asigPieza}. Analiza los clips de nuevo para compararlo.`, "ok"); await cargar(); pintarGuion(); }
-    catch (err) { avisar("Error: " + err.message, "err"); }
+    await asignarClip(a.dataset.asigRel, a.dataset.asigPieza);
   }
 });
 function pintarEstadoGuion() {
@@ -3375,9 +3373,22 @@ $("gCorroborar").onclick = async () => { corroborado = true; await pintarGuion()
 document.addEventListener("change", async e => {
   const s = e.target.closest("[data-guion-clip]");
   if (!s || !s.value) return;
-  try { await post("/api/asignar", { rel: s.value, pieza: s.dataset.guionClip }); avisar(`Clip asignado a ${s.dataset.guionClip}. Toca «Analizar clips» para compararlo.`, "ok"); await cargar(); pintarGuion(); }
-  catch (err) { avisar("Error: " + err.message, "err"); }
+  await asignarClip(s.value, s.dataset.guionClip);
 });
+
+// Asignar un clip a una pieza: si la pieza ya tenía otro, lo reemplaza (el anterior vuelve a «Clips por identificar»)
+// y la sala prepara y escucha la pieza de nuevo; al terminar, el guion muestra lo que se dijo en el clip nuevo.
+async function asignarClip(rel, pieza) {
+  const antes = ultimoGuion?.piezas?.find(p => p.nombre === (pieza || "").toUpperCase())?.clips || [];
+  try {
+    const r = await post("/api/asignar", { rel, pieza });
+    const nombre = rel.split("/").pop();
+    avisar(`${nombre} → ${pieza}` + (antes.length && !antes.includes(rel) ? ` (reemplaza a ${antes.map(c => c.split("/").pop()).join(" + ")}, que vuelve a Clips por identificar)` : "")
+      + (r.procesando ? ". Preparando y escuchando la pieza de nuevo…" : ". Toca «Analizar clips» para compararlo."), "ok");
+    await cargar(); if (ultimoGuion) pintarGuion();
+    if (r.procesando) vigilar(await (await fetch("/api/trabajo")).json());
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+}
 
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;
@@ -3605,6 +3616,16 @@ document.querySelectorAll("dialog").forEach(d => {
     if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
   });
 });
+// Un solo video suena a la vez: al darle play a uno, se pausa el que estaba sonando
+// (salvo la pareja del editor: su vista previa y la imagen o escena que va encima)
+document.addEventListener("play", e => {
+  const nuevo = e.target;
+  if (!(nuevo instanceof HTMLMediaElement) || nuevo.closest("#evCapa")) return;
+  document.querySelectorAll("video, audio").forEach(m => {
+    if (m !== nuevo && !m.paused && !m.closest("#evCapa")) m.pause();
+  });
+  if (nuevo !== reproductor && !reproductor.paused) reproductor.pause();
+}, true);
 revisarClaude();
 cargar();
 </script>
