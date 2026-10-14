@@ -81,8 +81,9 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          # el instalador va primero: las salas viejas abren el primer archivo «SalaSuplevet-…» cuando piden reinstalar
           files: |
+            editor/SalaSuplevet-Instalador-${{ github.ref_name }}.exe
             editor/app-${{ github.ref_name }}.zip
             editor/SalaSuplevet-${{ github.ref_name }}.zip
-            editor/SalaSuplevet-Instalador-${{ github.ref_name }}.exe
           body_path: editor/notas.md

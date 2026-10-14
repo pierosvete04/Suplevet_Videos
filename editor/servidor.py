@@ -14,11 +14,12 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import actualizador
+import asistente
 import drive
 import motor
 import panel
 
-PUERTO = 8765
+PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else 8765  # --puerto para probar sin chocar con la sala abierta
 # Desde otra PC o la tablet (por WiFi) solo se puede abrir el teleprompter, y con PIN.
 ABIERTO_A_LA_RED = {"/teleprompter", "/api/teleprompter", "/entrar"}
 
@@ -37,6 +38,42 @@ def red():
     r = motor.CONFIG.get("red_local", {})
     return {"activa": bool(r.get("activa")), "pin": r.get("pin", ""),
             "url": f"http://{ip_local()}:{PUERTO}/teleprompter" if r.get("activa") else None}
+LATIDO = {"ultimo": 0.0, "adios": 0.0}  # la ventana avisa que está abierta; al cerrarla, la sala se apaga (solo con el .exe)
+
+
+def al_cerrar_ventana():
+    """La ventana dijo adiós: si en unos segundos no vuelve (no era una recarga), se apaga la sala.
+    Si hay un trabajo en curso (armar, exportar, subir), primero lo termina."""
+    import os
+    if not os.environ.get("SALA_VENTANA"):
+        return
+    def esperar():
+        marca = LATIDO["adios"]
+        time.sleep(6)
+        if LATIDO["ultimo"] > marca:
+            return
+        while TRABAJO["activo"]:
+            time.sleep(2)
+            if LATIDO["ultimo"] > marca:
+                return
+        os._exit(0)
+    threading.Thread(target=esperar, daemon=True).start()
+
+
+def vigilar_ventana():
+    """Por si la ventana se cierra sin despedirse (se colgó, se apagó la PC a medias): sin latido por 3 minutos
+    y sin trabajo en curso, la sala se apaga. Minimizada, la página igual late una vez por minuto."""
+    import os
+    if not os.environ.get("SALA_VENTANA"):
+        return
+    def revisar():
+        while True:
+            time.sleep(30)
+            if LATIDO["ultimo"] and time.time() - LATIDO["ultimo"] > 180 and not TRABAJO["activo"]:
+                os._exit(0)
+    threading.Thread(target=revisar, daemon=True).start()
+
+
 TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "fin": None, "log": []}
 candado = threading.Lock()
 
@@ -76,7 +113,10 @@ def estado():
         etiqueta = v.get("nombre") or f"Hook {c['hook'].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") else "")
         ap = motor.ajustes_portada(c["codigo"])
         av = motor.ajustes_video(c["codigo"])
-        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(),
+        # desactualizado: se cambió algo de sus piezas (subtítulos, recortes, zoom) o sus ajustes después de armarlo
+        viejo = f.exists() and motor.editado_en(c) > f.stat().st_mtime + 1
+        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(), "desactualizado": viejo,
+                        "estado": av.get("estado") or "pendiente",
                         "ajustes_portada": {"segundo": ap.get("segundo"), "titulo": ap.get("titulo"),
                                             "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
                         "ajustes_video": av, "video": url_media(f) if f.exists() else None,
@@ -109,7 +149,10 @@ def estado():
             except Exception:
                 pass
     dr = drive.estado()
-    return {"version": motor.VERSION, "red": red(), "drive": dr,
+    ajustes_p = motor.ajustes_piezas()
+    for p in ps:
+        p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
+    return {"version": motor.VERSION, "red": red(), "drive": dr, "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or drive.bajada(S.semana), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
@@ -160,6 +203,23 @@ def lanzar(accion, pieza=None, extra=None):
                     avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
                     motor.escuchar_clips(avance=avance)
+                if accion == "guion":
+                    sesion = extra["sesion"]
+                    texto = asistente.generar_guion(sesion, extra.get("pedido", ""), avance=avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(sesion, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = texto
+                    avance("Guion listo: " + (texto.strip().splitlines() or [""])[0][:120])
+                if accion == "revisar":
+                    r = asistente.revisar_grabacion(motor.S.semana, avance=avance)
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.semana, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = r["texto"]
+                    if r["aplicado"]:
+                        avance("Ojo: estas palabras del plan no se dijeron: " + ", ".join(r["aplicado"][:5]))
+                    motor.armar(avance=avance)
+                    avance("Revisión de Claude aplicada y videos re-armados")
                 if accion == "uno":
                     combo = next(c for c in motor.combinaciones() if c["codigo"] == pieza)
                     avance(f"Armando {combo['archivo']}")
@@ -187,7 +247,7 @@ def lanzar(accion, pieza=None, extra=None):
             TRABAJO["activo"] = False
             TRABAJO["fin"] = time.time()
 
-    TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": []})
+    TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "resultado": None})
     threading.Thread(target=correr, daemon=True).start()
 
 
@@ -286,6 +346,15 @@ class H(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 400)
         elif u.path == "/api/version":
             self._json(actualizador.revisar(forzar="forzar" in u.query))
+        elif u.path == "/api/claude":
+            self._json(asistente.estado(forzar="forzar" in u.query))
+        elif u.path == "/api/latido":
+            if "ping" in u.query:
+                LATIDO["ultimo"] = time.time()
+            self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
+        elif u.path == "/api/informe":
+            f = motor.S.grab / "Guion" / "director" / "informe.md"
+            self._json({"texto": f.read_text(encoding="utf-8") if f.exists() else ""})
         elif u.path.startswith("/media/"):
             self._archivo(motor.DATOS, unquote(u.path[len("/media/"):]))
         elif u.path.startswith("/fuentes/"):
@@ -374,6 +443,10 @@ class H(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b)
                 return
+            if u.path == "/api/adios":
+                LATIDO["adios"] = time.time()
+                al_cerrar_ventana()
+                return self._json({"ok": True})
             if u.path == "/api/red":
                 activa = bool(self._cuerpo().get("activa"))
                 import secrets
@@ -399,7 +472,7 @@ class H(BaseHTTPRequestHandler):
                         (nueva / sub).mkdir(parents=True, exist_ok=True)
                 motor.usar_semana(sem)
                 motor.guardar_config({"semana": sem})
-                if drive.estado()["activo"] and not drive.bajada(sem):
+                if drive.estado()["activo"] and not drive.bajada_completa(sem) and not TRABAJO["activo"]:
                     lanzar("bajar")  # se baja sola la primera vez que se abre
                 self._json({"ok": True})
             elif u.path == "/api/subtitulos":
@@ -443,8 +516,42 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "portada": url_media(motor.S.portadas / f"{c['archivo']}.jpg")})
             elif u.path == "/api/ajustes_video":
                 b = self._cuerpo()
-                motor.guardar_ajustes_video(b["codigo"], {"plantilla": b.get("plantilla") or None,
-                                                          "ajustes_sub": b.get("ajustes_sub") or None})
+                codigos = [b["codigo"]]
+                if b.get("todo_el_cuerpo"):  # la misma plantilla y altura para todos los videos de ese cuerpo
+                    cuerpo = next(c["cuerpo"] for c in motor.combinaciones() if c["codigo"] == b["codigo"])
+                    codigos = [c["codigo"] for c in motor.combinaciones() if c["cuerpo"] == cuerpo]
+                for cod in codigos:
+                    motor.guardar_ajustes_video(cod, {"plantilla": b.get("plantilla") or None,
+                                                      "ajustes_sub": b.get("ajustes_sub") or None})
+                if b.get("armar"):
+                    lanzar("armar_sel", extra={"codigos": codigos})
+                self._json({"ok": True, "codigos": codigos})
+            elif u.path == "/api/estado_video":
+                b = self._cuerpo()
+                if b.get("estado") not in ("pendiente", "editando", "listo"):
+                    raise ValueError("Estado no válido")
+                for cod in b.get("codigos") or [b["codigo"]]:
+                    motor.guardar_ajustes_video(cod, {"estado": b["estado"]})
+                self._json({"ok": True})
+            elif u.path == "/api/edicion":
+                b = self._cuerpo()
+                codigos = motor.guardar_edicion_piezas(b)
+                if b.get("armar") and codigos:
+                    lanzar("armar_sel", extra={"codigos": codigos})
+                self._json({"ok": True, "codigos": codigos})
+            elif u.path == "/api/claude":
+                b = self._cuerpo()
+                if b.get("accion") == "login":
+                    asistente.iniciar_sesion()
+                elif b.get("accion") == "guion":
+                    sesion = b.get("sesion") or motor.S.semana
+                    if sesion not in motor.semanas_disponibles():
+                        raise ValueError("Primero crea la sesión")
+                    lanzar("guion", extra={"sesion": sesion, "pedido": str(b.get("pedido", ""))[:4000]})
+                elif b.get("accion") == "revisar":
+                    lanzar("revisar")
+                else:
+                    raise ValueError("Acción no válida")
                 self._json({"ok": True})
             elif u.path == "/api/version":
                 b = self._cuerpo()
@@ -512,7 +619,8 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     host = "0.0.0.0" if red()["activa"] else "127.0.0.1"
-    print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})")
+    print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})", flush=True)
+    vigilar_ventana()
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")
     ThreadingHTTPServer((host, PUERTO), H).serve_forever()

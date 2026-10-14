@@ -44,8 +44,8 @@ Source: "icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{app}\datos"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{userprograms}\Sala de edición Suplevet"; Filename: "{app}\SalaSuplevet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icono.ico"
-Name: "{userdesktop}\Sala de edición Suplevet"; Filename: "{app}\SalaSuplevet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icono.ico"; Tasks: escritorio
+Name: "{userprograms}\Sala de edición Suplevet"; Filename: "{app}\SalaSuplevet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icono.ico"; Flags: runminimized
+Name: "{userdesktop}\Sala de edición Suplevet"; Filename: "{app}\SalaSuplevet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icono.ico"; Tasks: escritorio; Flags: runminimized
 
 [Run]
-Filename: "{app}\SalaSuplevet.exe"; Description: "Abrir la sala de edición ahora"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\SalaSuplevet.exe"; Description: "Abrir la sala de edición ahora"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent runminimized

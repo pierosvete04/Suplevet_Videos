@@ -56,7 +56,7 @@ def revisar(forzar=False):
         rel = json.loads(_pedir(f"https://api.github.com/repos/{repo}/releases/latest"))
         nueva = rel["tag_name"].lstrip("v")
         app = next((a for a in rel["assets"] if a["name"].startswith("app-") and a["name"].endswith(".zip")), None)
-        completa = next((a for a in rel["assets"] if a["name"].startswith("SalaSuplevet-")), None)
+        completa = next((a for a in rel["assets"] if "Instalador" in a["name"] and a["name"].endswith(".exe")), None)             or next((a for a in rel["assets"] if a["name"].startswith("SalaSuplevet-")), None)
         minimo = next((l.split(":", 1)[1].strip() for l in (rel.get("body") or "").splitlines()
                        if l.lower().startswith("lanzador minimo:")), "0")
         out.update({

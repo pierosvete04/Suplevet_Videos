@@ -33,6 +33,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import unicodedata
 from pathlib import Path
 
@@ -780,9 +781,70 @@ def _limpiar_zoom(z):
     return {k: v for k, v in out.items() if v}
 
 
+# ---------- Ediciones por pieza: lo que se cambia en un cuerpo, hook o CTA vale para todos sus videos ----------
+
+def _ajustes_piezas_path():
+    return S.subs / "_ajustes_piezas.json"
+
+
+def ajustes_piezas():
+    try:
+        return json.loads(_ajustes_piezas_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def guardar_edicion_piezas(datos):
+    """datos = lo que manda el editor (hook, cuerpo, cta, quitar, recortes, zoom). Guarda cada cambio en su pieza
+    y devuelve los códigos de los videos que usan alguna pieza que cambió (hay que re-armarlos)."""
+    todo = ajustes_piezas()
+    r, z = _limpiar_recortes(datos.get("recortes") or {}), _limpiar_zoom(datos.get("zoom") or {})
+    nuevos = {
+        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook")},
+        datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {},
+                          "quitar": sorted({int(i) for i in datos.get("quitar", [])})},
+        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta")},
+    }
+    cambiadas = []
+    for pieza, val in nuevos.items():
+        val = {k: v for k, v in val.items() if v not in (None, {}, [])}
+        antes = {k: v for k, v in todo.get(pieza, {}).items() if k != "editado"}
+        if val != antes:
+            todo[pieza] = {**val, "editado": time.time()}  # la fecha queda aunque se deshaga: sus videos se re-arman
+            cambiadas.append(pieza)
+    todo = {k: v for k, v in todo.items() if v}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
+    return [c["codigo"] for c in combinaciones() if not c.get("version")
+            and {c["hook"], c["cuerpo"], c["cta"]} & set(cambiadas)]
+
+
+def edicion_de(combo):
+    """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas."""
+    if combo.get("version"):
+        return combo["version"]
+    a = ajustes_piezas()
+    h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
+    return {"quitar": c.get("quitar", []),
+            "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
+            "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes"))) if v}}
+
+
+def editado_en(combo):
+    """Último cambio (segundos) en algo que usa este video: subtítulos, marcas o recortes de sus piezas, o sus ajustes."""
+    a = {} if combo.get("version") else ajustes_piezas()  # una versión guarda sus propios recortes
+    t = 0.0
+    for n in (combo["hook"], combo["cuerpo"], combo["cta"]):
+        t = max(t, a.get(n, {}).get("editado", 0))
+        f = S.subs / f"{n}.json"
+        if f.exists():
+            t = max(t, f.stat().st_mtime)
+    return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
+
+
 def _expresion_zoom(combo, offs, total):
     """Expresión de zoom para zoompan según el tiempo del video (it): acercar, alejar o «punch» por bloque."""
-    z = (combo.get("version") or {}).get("zoom") or {}
+    z = edicion_de(combo).get("zoom") or {}
     if not z:
         return None
     tramos = []
@@ -855,7 +917,7 @@ def estructura(codigo):
                 "texto": " ".join(l["texto"] for l in lineas), "archivo": str(f) if f.exists() else None,
                 "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"]} for l in lineas]}
 
-    v = c.get("version") or {}
+    v = edicion_de(c)
     return {"codigo": codigo, "base": not c.get("version"), "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
@@ -864,7 +926,7 @@ def estructura(codigo):
 
 
 def _rangos_a_quitar(combo, offs, total):
-    v = combo.get("version") or {}
+    v = edicion_de(combo)
     rangos = []
     if v.get("quitar"):
         partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
@@ -996,6 +1058,8 @@ def guardar_ajustes_video(codigo, datos):
     except (FileNotFoundError, ValueError):
         todos = {}
     actual = {**todos.get(codigo, {}), **datos}
+    if set(datos) - {"estado"}:  # el estado de trabajo no cambia cómo se ve el video
+        actual["editado"] = time.time()
     todos[codigo] = {k: v for k, v in actual.items() if v not in (None, "", {})}
     S.subs.mkdir(parents=True, exist_ok=True)
     _ajustes_video_path().write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -1055,42 +1119,80 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         for li, ln in enumerate(lineas):
             todas.append((off, li, ln, estilo_linea.get(li), solas, resaltadas))
 
+    # Segunda línea con otra fuente (opcional): la frase se parte en dos renglones; el de abajo usa su propia fuente,
+    # tamaño y color. Si la fuente no está, se usa la principal.
+    l2 = pl.get("linea2") or {}
+    fu2 = fu
+    if l2.get("activa") and l2.get("fuente"):
+        try:
+            fu2 = fuentes.cargar(l2["fuente"])
+        except Exception:
+            fu2 = fu
+    c_texto2 = color_ass(l2["color"]) if l2.get("color") else c_texto
+
+    def partir(textos):
+        """Índices de cada renglón: un solo renglón, o dos parejos por cantidad de letras."""
+        n = len(textos)
+        if not l2.get("activa") or n < 2:
+            return [list(range(n))]
+        largos = [len(t) for t in textos]
+        mejor = min(range(1, n), key=lambda k: abs(sum(largos[:k]) - sum(largos[k:])))
+        return [list(range(mejor)), list(range(mejor, n))]
+
     def poner_linea(palabras, activa, estilo, ini, fin, cajas, coloreadas, pop):
-        tam = pl["tamano"] * ESCALA_ESTILO[estilo]
+        tam0 = pl["tamano"] * ESCALA_ESTILO[estilo]
         textos = [limpiar(w.upper() if pl.get("mayusculas", True) else w) for w in palabras]
-        esp = fu.ancho(" ", tam) * 1.1
-        # la palabra activa se ve más grande: se le reserva ese espacio para que no pise a sus vecinas
-        crece = [(pl.get("escala_activa", 108) / 100 if j == activa else 1.0) for j in range(len(textos))]
-        anchos = [fu.ancho(t, tam) * c for t, c in zip(textos, crece)]
-        total = sum(anchos) + esp * (len(textos) - 1)
-        if total > 960:  # no entra: se achica la línea entera
-            f = 960 / total
-            tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], 960
+        filas = partir(textos) if estilo != "palabra_sola" else [list(range(len(textos)))]
+        medidas = []
+        for r, idx in enumerate(filas):
+            f_ = fu2 if r == 1 else fu
+            tam = tam0 * (l2.get("escala", 100) / 100 if r == 1 else 1)
+            esp = f_.ancho(" ", tam) * 1.1
+            # la palabra activa se ve más grande: se le reserva ese espacio para que no pise a sus vecinas
+            crece = {j: (pl.get("escala_activa", 108) / 100 if j == activa else 1.0) for j in idx}
+            anchos = [f_.ancho(textos[j], tam) * crece[j] for j in idx]
+            total = sum(anchos) + esp * (len(idx) - 1)
+            if total > 960:  # no entra: se achica el renglón entero
+                f = 960 / total
+                tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], 960
+            medidas.append({"fu": f_, "tam": tam, "esp": esp, "anchos": anchos, "total": total, "idx": idx, "crece": crece, "r": r})
+        altos = [m["tam"] * 1.02 for m in medidas]
+        bloque = sum(altos)
         # la altura del subtítulo normal se mueve desde la plantilla (o desde el ajuste del video)
-        y = {"normal": 1920 - pl.get("altura_desde_abajo", st["altura_desde_abajo"]) - tam / 2,
-             "arriba": pl.get("altura_desde_arriba", st.get("altura_desde_arriba", 300)) + tam / 2}.get(estilo, 960)
-        x = 540 - total / 2
+        if estilo == "normal":
+            y_fin = 1920 - pl.get("altura_desde_abajo", st["altura_desde_abajo"])
+            y0 = y_fin - bloque
+        elif estilo == "arriba":
+            y0 = pl.get("altura_desde_arriba", st.get("altura_desde_arriba", 300))
+        else:
+            y0 = 960 - bloque / 2
         a, b = t_ass(ini), t_ass(fin)
-        for j, (t, w) in enumerate(zip(textos, anchos)):
-            cx = x + w / 2
-            if j in cajas:
-                px, alto = tam * res.get("margen", 0.16), tam * res.get("alto", 0.95) * crece[j]
-                fade = "\\fad(60,0)" if j == activa and pop else ""
-                ev.append(f"Dialogue: 1,{a},{b},Caja,,0,0,0,,{{\\pos({x - px:.0f},{y - alto / 2:.0f})\\p1"
-                          f"\\1c{color_ass(res['color'])}\\1a&H{res.get('transparencia', '00')}&{fade}}}"
-                          f"{_caja(w + 2 * px, alto, tam * res.get('radio', 0.22))}")
-                color, extra = color_ass(res.get("texto", "#253C61")), "\\bord0\\shad0"
-            elif j == activa:
-                color, extra = c_activo, ""
-            elif j in coloreadas:
-                color, extra = c_marca, ""
-            else:
-                color, extra = c_texto, ""
-            escala = pl.get("escala_activa", 108) if j == activa else 100
-            anim = "\\fscx80\\fscy80\\t(0,90,\\fscx100\\fscy100)" if pop and j == 0 and activa == 0 else ""
-            ev.append(f"Dialogue: 2,{a},{b},W,,0,0,0,,{{\\an5\\pos({cx:.0f},{y:.0f})\\fs{tam:.0f}\\1c{color}{extra}"
-                      f"\\fscx{escala}\\fscy{escala}{anim}}}{t}")
-            x += w + esp
+        for m, alto_fila in zip(medidas, altos):
+            y = y0 + alto_fila / 2
+            y0 += alto_fila
+            x, tam = 540 - m["total"] / 2, m["tam"]
+            fn = f"\\fn{m['fu'].nombre}" if m["fu"] is not fu else ""
+            for j, w in zip(m["idx"], m["anchos"]):
+                t = textos[j]
+                cx = x + w / 2
+                if j in cajas:
+                    px, alto = tam * res.get("margen", 0.16), tam * res.get("alto", 0.95) * m["crece"][j]
+                    fade = "\\fad(60,0)" if j == activa and pop else ""
+                    ev.append(f"Dialogue: 1,{a},{b},Caja,,0,0,0,,{{\\pos({x - px:.0f},{y - alto / 2:.0f})\\p1"
+                              f"\\1c{color_ass(res['color'])}\\1a&H{res.get('transparencia', '00')}&{fade}}}"
+                              f"{_caja(w + 2 * px, alto, tam * res.get('radio', 0.22))}")
+                    color, extra = color_ass(res.get("texto", "#253C61")), "\\bord0\\shad0"
+                elif j == activa:
+                    color, extra = c_activo, ""
+                elif j in coloreadas:
+                    color, extra = c_marca, ""
+                else:
+                    color, extra = (c_texto2 if m["r"] == 1 else c_texto), ""
+                escala = pl.get("escala_activa", 108) if j == activa else 100
+                anim = "\\fscx80\\fscy80\\t(0,90,\\fscx100\\fscy100)" if pop and j == 0 and activa == 0 else ""
+                ev.append(f"Dialogue: 2,{a},{b},W,,0,0,0,,{{\\an5\\pos({cx:.0f},{y:.0f}){fn}\\fs{tam:.0f}\\1c{color}{extra}"
+                          f"\\fscx{escala}\\fscy{escala}{anim}}}{t}")
+                x += w + m["esp"]
 
     for idx, (off, li, ln, estilo, solas, resaltadas) in enumerate(todas):
         pal = ln["palabras"]

@@ -19,6 +19,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -50,7 +51,7 @@ def rclone():
     return destino
 
 
-def _rc(*args, avance=None, timeout=None):
+def _rc(*args, avance=None, timeout=None, prefijo="Drive: "):
     cmd = [str(rclone()), *map(str, args), "--config", str(CONF)]
     if not avance:
         r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
@@ -63,9 +64,12 @@ def _rc(*args, avance=None, timeout=None):
     for linea in p.stderr:
         linea = linea.strip()
         ultima = linea or ultima
-        m = re.search(r"Transferred:\s+(.+?),\s*(\d+%)", linea)
-        if m:
-            avance(f"Drive: {m.group(1)} ({m.group(2)})")
+        # con --stats-one-line: «… INFO  :   1.2 GiB / 3.4 GiB, 35%, 12.1 MiB/s, ETA 3m2s»
+        m = re.search(r"([\d.]+\s*\w?i?B\s*/\s*[\d.]+\s*\w?i?B),\s*(\d+%)(?:,\s*([\d.]+\s*\w?i?B/s))?(?:,\s*ETA\s*(\S+))?", linea)
+        if m and avance:
+            vel = f" · {m.group(3)}" if m.group(3) else ""
+            eta = f" · faltan {m.group(4)}" if m.group(4) and m.group(4) != "-" else ""
+            avance(f"{prefijo}{m.group(2)} ({m.group(1)}{vel}{eta})")
     if p.wait() != 0:
         raise RuntimeError("Drive: " + ultima[-300:])
 
@@ -125,15 +129,27 @@ def bajada(nombre):
     return (CACHE / nombre).is_dir()
 
 
+RAPIDO = ["--transfers", "8", "--checkers", "16", "--fast-list", "--multi-thread-streams", "4"]
+
+
 def bajar_sesion(nombre, avance=print):
-    """Copia a esta PC lo necesario para editar la sesión (sin los videos finales)."""
+    """Copia a esta PC lo necesario para editar la sesión (sin los videos finales).
+    Primero lo liviano (guion, asignaciones, música, Flow) para que la sala ya muestre el guion;
+    después los clips grabados, varios a la vez."""
     with _candado:
-        avance(f"Bajando «{nombre}» de Drive…")
-        args = ["copy", f"{REMOTO}:{nombre}", CACHE / nombre]
-        for e in EXCLUIR_AL_BAJAR:
-            args += ["--exclude", e]
-        _rc(*args, avance=avance)
+        excluir = [a for e in EXCLUIR_AL_BAJAR for a in ("--exclude", e)]
+        avance(f"Bajando el guion de «{nombre}»…")
+        _rc("copy", f"{REMOTO}:{nombre}", CACHE / nombre, *excluir, "--exclude", "Clips/**", "--exclude", "*.{mov,MOV,mp4,MP4}",
+            *RAPIDO, avance=avance, prefijo="Guion y archivos: ")
+        avance(f"Bajando los clips de «{nombre}»…")
+        _rc("copy", f"{REMOTO}:{nombre}", CACHE / nombre, *excluir, *RAPIDO, avance=avance, prefijo="Clips: ")
         bajar_biblioteca(avance)
+        (CACHE / nombre / ".bajada").write_text(str(time.time()), encoding="utf-8")
+        avance(f"«{nombre}» quedó lista en esta PC")
+
+
+def bajada_completa(nombre):
+    return (CACHE / nombre / ".bajada").exists()
 
 
 def bajar_biblioteca(avance=print):

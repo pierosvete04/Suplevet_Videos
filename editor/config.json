@@ -349,6 +349,27 @@
       "escala_activa": 112,
       "color_resaltado": "#99D3DA",
       "resaltador": {}
+    },
+    "dos_fuentes": {
+      "nombre": "Dos fuentes",
+      "descripcion": "Primera línea en Montserrat; la segunda, más grande, en Anton celeste.",
+      "fuente": "Montserrat-Black.ttf",
+      "tamano": 70,
+      "mayusculas": true,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#000000",
+      "borde": 5,
+      "sombra": 2,
+      "color_activo": "#FFE14D",
+      "escala_activa": 106,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {},
+      "linea2": {
+        "activa": true,
+        "fuente": "Anton-Regular.ttf",
+        "escala": 135,
+        "color": "#4DE1FF"
+      }
     }
   },
   "sfx_palabras": {
