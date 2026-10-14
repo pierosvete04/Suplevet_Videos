@@ -611,6 +611,12 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "portada": url_media(motor.S.portadas / f"{c['archivo']}.jpg")})
             elif u.path == "/api/ajustes_video":
                 b = self._cuerpo()
+                if b.get("codigos"):  # varios videos elegidos: solo cambia su plantilla (la altura de cada uno se queda)
+                    for cod in b["codigos"]:
+                        motor.guardar_ajustes_video(cod, {"plantilla": b.get("plantilla") or None})
+                    if b.get("armar"):
+                        lanzar("armar_sel", extra={"codigos": b["codigos"]})
+                    return self._json({"ok": True, "codigos": b["codigos"]})
                 codigos = [b["codigo"]]
                 if b.get("todo_el_cuerpo"):  # la misma plantilla y altura para todos los videos de ese cuerpo
                     cuerpo = next(c["cuerpo"] for c in motor.combinaciones() if c["codigo"] == b["codigo"])

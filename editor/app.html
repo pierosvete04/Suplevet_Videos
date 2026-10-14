@@ -469,7 +469,8 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
           <button data-estado="viejo" aria-pressed="false">Sin armar o por re-armar</button>
         </div>
       </div>
-      <input id="buscar" type="search" placeholder="Buscar: C1, H2, CTA-A…" aria-label="Buscar videos" style="max-width:240px">
+      <div class="fila"><button class="btn sec peq" id="selTodos" title="Elige todos los videos que se ven con el filtro actual">Seleccionar todos</button>
+      <input id="buscar" type="search" placeholder="Buscar: C1, H2, CTA-A…" aria-label="Buscar videos" style="max-width:240px"></div>
     </div>
     <div id="videos"></div>
   </section>
@@ -759,6 +760,8 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   </div>
 </dialog>
 <div id="barraSel" hidden><span id="nSel"></span>
+  <select id="selPlantilla" title="Plantilla de subtítulos para los videos elegidos" style="padding:5px 8px;font-size:12px"></select>
+  <button class="btn sec peq" id="selPlantillaAplicar">Cambiar plantilla y re-armar</button>
   <button class="btn peq" id="selArmar">Armar seleccionados</button>
   <button class="btn sec peq" id="selExportar">Exportar seleccionados</button>
   <button class="btn sec peq" id="selLimpiar">Quitar selección</button></div>
@@ -1790,6 +1793,8 @@ $("vidSubsGuardar").onclick = async () => {
 // ---------- Selección múltiple ----------
 const elegidos = new Set();
 function pintarSeleccion() {
+  const pls = (E && E.plantillas) || {}, actual = $("selPlantilla").value;
+  $("selPlantilla").innerHTML = `<option value="">Plantilla predeterminada</option>` + Object.entries(pls).map(([id, p]) => `<option value="${id}" ${id === actual ? "selected" : ""}>${esc(p.nombre || id)}</option>`).join("");
   $("barraSel").hidden = !elegidos.size;
   $("nSel").textContent = `${elegidos.size} seleccionado${elegidos.size === 1 ? "" : "s"}`;
 }
@@ -1807,6 +1812,18 @@ async function trabajoSel(accion) {
 $("selArmar").onclick = () => trabajoSel("armar_sel");
 $("selExportar").onclick = () => trabajoSel("exportar_sel");
 $("selLimpiar").onclick = () => { elegidos.clear(); pintarVideos(); pintarSeleccion(); };
+$("selTodos").onclick = () => {
+  document.querySelectorAll("#videos [data-sel]").forEach(c => elegidos.add(c.dataset.sel));
+  pintarVideos(); pintarSeleccion();
+};
+$("selPlantillaAplicar").onclick = async () => {
+  const pl = $("selPlantilla").value, nombre = pl ? E.plantillas[pl]?.nombre : "la predeterminada";
+  if (!confirm(`¿Poner la plantilla «${nombre}» a ${elegidos.size} video${elegidos.size === 1 ? "" : "s"} y re-armarlos?`)) return;
+  try { const r = await post("/api/ajustes_video", { codigos: [...elegidos], plantilla: pl, armar: true });
+    avisar(`Re-armando ${r.codigos.length} videos con la plantilla «${nombre}»… lo ves en Procesos (☰).`, "ok");
+    elegidos.clear(); pintarSeleccion(); await cargar(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+};
 
 // ---------- Editor de un video (línea de tiempo) ----------
 let est = null, ed = null, evReproduciendo = false, evSeg = 0;
