@@ -1137,7 +1137,8 @@ def guardar_version(datos, vid=None):
                "recortes": _limpiar_recortes(datos.get("recortes") or {}),
                # zoom por bloque: {"hook": {"tipo": "in|out|punch", "fuerza": 0.15}, "cta": …, "partes": {"2": …}}
                # y tramos de zoom: {"tramos": {"hook": [...], "cuerpo": [...], "cta": [...]}} (ver _limpiar_tramos)
-               "zoom": _limpiar_zoom(datos.get("zoom") or {})}
+               "zoom": _limpiar_zoom(datos.get("zoom") or {}),
+               "cortes": _limpiar_cortes(datos.get("cortes")), "quitar_rangos": _limpiar_rangos(datos.get("quitar_rangos"))}
     S.subs.mkdir(parents=True, exist_ok=True)
     _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
     return vid
@@ -1164,7 +1165,59 @@ def _limpiar_zoom(z):
     out = {k: uno(z.get(k)) for k in ("hook", "cta")}
     out["partes"] = {str(i): uno(v) for i, v in (z.get("partes") or {}).items() if uno(v)}
     out["tramos"] = {k: _limpiar_tramos(v) for k, v in (z.get("tramos") or {}).items() if k in ("hook", "cuerpo", "cta") and _limpiar_tramos(v)}
+    out["puntos"] = {k: _limpiar_puntos(v) for k, v in (z.get("puntos") or {}).items() if k in ("hook", "cuerpo", "cta") and _limpiar_puntos(v)}
     return {k: v for k, v in out.items() if v}
+
+
+# Encuadre con fotogramas clave (como CapCut): en cada punto de la pieza, la escala y hacia dónde mira el cuadro.
+# t en segundos del clip de la pieza; s = 1.0 es sin zoom; x/y = centro de lo que se ve (0–1 del ancho y del alto);
+# curva = cómo va hacia el punto siguiente. Antes del primer punto y después del último se queda igual.
+CURVAS_PUNTO = ("suave", "lineal", "golpe")
+
+
+def _limpiar_puntos(lista):
+    out = {}
+    for k in (lista or [])[:80]:
+        try:
+            t = round(min(3600.0, max(0.0, float(k["t"]))), 3)
+            out[t] = {"t": t, "s": round(min(4.0, max(1.0, float(k.get("s", 1)))), 3),
+                      "x": round(min(1.0, max(0.0, float(k.get("x", 0.5)))), 4), "y": round(min(1.0, max(0.0, float(k.get("y", 0.5)))), 4),
+                      "curva": k.get("curva") if k.get("curva") in CURVAS_PUNTO else "suave"}
+        except (TypeError, ValueError, KeyError):
+            continue
+    return [out[t] for t in sorted(out)]
+
+
+def _limpiar_cortes(c):
+    """Cortes hechos con «Cortar en el cabezal»: {pieza: [segundos del clip]}."""
+    out = {}
+    for k, v in (c or {}).items():
+        if k in ("hook", "cuerpo", "cta"):
+            try:
+                pts = sorted({round(float(t), 3) for t in v if 0 < float(t) < 3600})[:80]
+            except (TypeError, ValueError):
+                continue
+            if pts:
+                out[k] = pts
+    return out
+
+
+def _limpiar_rangos(r):
+    """Pedazos quitados entre cortes: {pieza: [[desde, hasta], …]} en segundos del clip."""
+    out = {}
+    for k, v in (r or {}).items():
+        if k in ("hook", "cuerpo", "cta"):
+            lista = []
+            for x in (v or [])[:80]:
+                try:
+                    a, b = float(x[0]), float(x[1])
+                except (TypeError, ValueError, IndexError):
+                    continue
+                if b - a >= 0.03:
+                    lista.append([round(max(0.0, a), 3), round(b, 3)])
+            if lista:
+                out[k] = sorted(lista)
+    return out
 
 
 # Tramos de zoom (como los fotogramas clave de CapCut): en un tramo de la pieza, el zoom y el punto de foco
@@ -1215,12 +1268,14 @@ def guardar_edicion_piezas(datos):
     y devuelve los códigos de los videos que usan alguna pieza que cambió (hay que re-armarlos)."""
     todo = ajustes_piezas()
     r, z = _limpiar_recortes(datos.get("recortes") or {}), _limpiar_zoom(datos.get("zoom") or {})
+    cortes, rangos = _limpiar_cortes(datos.get("cortes")), _limpiar_rangos(datos.get("quitar_rangos"))
+    propio = lambda pz: {"zoom_tramos": (z.get("tramos") or {}).get(pz), "zoom_puntos": (z.get("puntos") or {}).get(pz),
+                         "cortes": cortes.get(pz), "quitar_rangos": rangos.get(pz)}
     nuevos = {
-        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), "zoom_tramos": (z.get("tramos") or {}).get("hook")},
-        datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {},
-                          "zoom_tramos": (z.get("tramos") or {}).get("cuerpo"),
+        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), **propio("hook")},
+        datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {}, **propio("cuerpo"),
                           "quitar": sorted({int(i) for i in datos.get("quitar", [])})},
-        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta"), "zoom_tramos": (z.get("tramos") or {}).get("cta")},
+        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta"), **propio("cta")},
     }
     cambiadas = []
     for pieza, val in nuevos.items():
@@ -1244,11 +1299,11 @@ def edicion_de(combo):
         return combo["version"]
     a = ajustes_piezas()
     h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
-    return {"quitar": c.get("quitar", []),
+    por_pieza = lambda campo: {k: v for k, v in (("hook", h.get(campo)), ("cuerpo", c.get(campo)), ("cta", t.get(campo))) if v}
+    return {"quitar": c.get("quitar", []), "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"),
             "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
             "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes")),
-                                       ("tramos", {k2: v2 for k2, v2 in (("hook", h.get("zoom_tramos")), ("cuerpo", c.get("zoom_tramos")),
-                                                                           ("cta", t.get("zoom_tramos"))) if v2})) if v}}
+                                       ("tramos", por_pieza("zoom_tramos")), ("puntos", por_pieza("zoom_puntos"))) if v}}
 
 
 def editado_en(combo):
@@ -1277,8 +1332,31 @@ def _expresion_zoom(combo, offs, total):
     base = _expresion_zoom_bloques(combo, offs, total, z) or "1"
     inicio = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
     fin = {"hook": offs[1], "cuerpo": offs[2], "cta": total}
-    segs = []  # (t0, t1, zoom, fx, fy)
+    segs = []  # (t0, t1, zoom, fx, fy) con fx/fy = punto fijo (ancla)
+    puntos_segs = []  # (t0, t1, zoom, cx, cy) con cx/cy = centro de lo que se ve
+    for pieza, puntos in (z.get("puntos") or {}).items():
+        o, tope = inicio[pieza], fin[pieza]
+        ps = sorted(puntos, key=lambda k: k["t"])
+        if not ps:
+            continue
+        primero, ultimo = ps[0], ps[-1]
+        if primero["t"] > 0.02:
+            puntos_segs.append((o, o + primero["t"], f"{primero['s']}", f"{primero['x']}", f"{primero['y']}"))
+        for k1, k2 in zip(ps, ps[1:]):
+            a, b = o + k1["t"], min(tope, o + k2["t"])
+            if b - a < 0.02:
+                continue
+            if k1["curva"] == "golpe":  # se queda igual y salta al llegar al punto siguiente
+                puntos_segs.append((a, b, f"{k1['s']}", f"{k1['x']}", f"{k1['y']}"))
+                continue
+            e = _curva(f"min(1,max(0,(it-{a:.3f})/{b - a:.3f}))", "lineal" if k1["curva"] == "lineal" else "suave")
+            puntos_segs.append((a, b, f"({k1['s']}+({k2['s'] - k1['s']:.4f})*{e})", f"({k1['x']}+({k2['x'] - k1['x']:.4f})*{e})",
+                                f"({k1['y']}+({k2['y'] - k1['y']:.4f})*{e})"))
+        if tope - (o + ultimo["t"]) > 0.02:
+            puntos_segs.append((o + ultimo["t"], tope, f"{ultimo['s']}", f"{ultimo['x']}", f"{ultimo['y']}"))
     for pieza, tramos in (z.get("tramos") or {}).items():
+        if (z.get("puntos") or {}).get(pieza):
+            continue  # en esa pieza ya mandan los puntos
         o, tope = inicio[pieza], fin[pieza]
         tramos = sorted(tramos, key=lambda t: t["a"])
         for k, t in enumerate(tramos):
@@ -1299,13 +1377,17 @@ def _expresion_zoom(combo, offs, total):
                 if c - b > 0.02:
                     q = _curva(f"min(1,max(0,(it-{b:.3f})/{c - b:.3f}))", "suave")
                     segs.append((b, c, f"({t['z1']}+({1 - t['z1']:.3f})*{q})", f"{t['fx1']}", f"{t['fy1']}"))
-    if not segs and base == "1":
+    if not segs and not puntos_segs and base == "1":
         return None
-    zoom, fx, fy = f"({base})", "0.5", "0.38"  # sin tramo: el encuadre de siempre, hacia la cara
-    for t0, t1, ze, xe, ye in sorted(segs, key=lambda s: s[0], reverse=True):
+    # Todo se lleva a «centro de lo que se ve» (cx, cy). Un punto fijo f (tramos y zoom de siempre, hacia la cara)
+    # equivale a un centro f·(1−1/zoom) + 0.5/zoom.
+    ancla = lambda f: f"(({f})*(1-1/zoom)+0.5/zoom)"
+    zoom, cx, cy = f"({base})", ancla("0.5"), ancla("0.38")
+    todos = [(t0, t1, ze, ancla(xe), ancla(ye)) for t0, t1, ze, xe, ye in segs] + puntos_segs
+    for t0, t1, ze, xe, ye in sorted(todos, key=lambda s: s[0], reverse=True):
         cond = f"between(it,{t0:.3f},{t1:.3f})"
-        zoom, fx, fy = f"if({cond},{ze},{zoom})", f"if({cond},{xe},{fx})", f"if({cond},{ye},{fy})"
-    return {"z": f"max(1,{zoom})", "x": f"(iw-iw/zoom)*min(1,max(0,{fx}))", "y": f"(ih-ih/zoom)*min(1,max(0,{fy}))"}
+        zoom, cx, cy = f"if({cond},{ze},{zoom})", f"if({cond},{xe},{cx})", f"if({cond},{ye},{cy})"
+    return {"z": f"max(1,{zoom})", "x": f"iw*min(max({cx}-0.5/zoom,0),1-1/zoom)", "y": f"ih*min(max({cy}-0.5/zoom,0),1-1/zoom)"}
 
 
 def _expresion_zoom_bloques(combo, offs, total, z):
@@ -1390,7 +1472,7 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
     return {"codigo": codigo, "base": not c.get("version"), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
-            "zoom": v.get("zoom", {}),
+            "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}),
             "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
 
 
@@ -1416,6 +1498,10 @@ def _rangos_a_quitar(combo, offs, total):
             ini, fin = offs[1] + p["ini"], offs[1] + p["fin"]
             rangos += [(ini, ini + a)] if a > 0 else []
             rangos += [(ini + b, fin)] if ini + b < fin - 0.02 else []
+    o = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
+    for pz, lista in (v.get("quitar_rangos") or {}).items():
+        if pz in o:
+            rangos += [(o[pz] + a, o[pz] + b) for a, b in lista]
     if v.get("recorte_inicio"):
         rangos.append((0.0, min(float(v["recorte_inicio"]), total - 1)))
     if v.get("recorte_fin"):
