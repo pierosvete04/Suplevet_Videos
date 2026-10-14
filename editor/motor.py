@@ -1120,9 +1120,11 @@ def guardar_edicion_piezas(datos):
     cambiadas = []
     for pieza, val in nuevos.items():
         val = {k: v for k, v in val.items() if v not in (None, {}, [])}
-        antes = {k: v for k, v in todo.get(pieza, {}).items() if k != "editado"}
+        propios = ("editado", "sonidos", "sonidos_quitar")  # los sonidos a mano se guardan aparte (Sonidos del editor)
+        antes = {k: v for k, v in todo.get(pieza, {}).items() if k not in propios}
         if val != antes:
-            todo[pieza] = {**val, "editado": time.time()}  # la fecha queda aunque se deshaga: sus videos se re-arman
+            sonidos = {k: v for k, v in todo.get(pieza, {}).items() if k in ("sonidos", "sonidos_quitar")}
+            todo[pieza] = {**val, **sonidos, "editado": time.time()}  # la fecha queda aunque se deshaga: sus videos se re-arman
             cambiadas.append(pieza)
     todo = {k: v for k, v in todo.items() if v}
     S.subs.mkdir(parents=True, exist_ok=True)
@@ -1588,6 +1590,62 @@ def sfx_de(categoria):
     return out
 
 
+def id_sonido(f):
+    """Nombre estable de un archivo de sonido para la app: b:<ruta en la biblioteca> o p:<ruta en la que trae la sala>."""
+    f = Path(f)
+    for pre, base in (("b:", BIBLIO), ("p:", BIBLIO_BASE)):
+        try:
+            return pre + f.relative_to(base).as_posix()
+        except ValueError:
+            pass
+    return None
+
+
+def ruta_sonido(sid):
+    """El archivo de un id de sonido, solo si está dentro de las bibliotecas (nada de rutas sueltas)."""
+    base = {"b:": BIBLIO, "p:": BIBLIO_BASE}.get(str(sid)[:2])
+    if not base:
+        return None
+    f = (base / str(sid)[2:]).resolve()
+    return f if base.resolve() in f.parents and f.is_file() and f.suffix.lower() in EXT_AUDIO else None
+
+
+def biblioteca_sonidos():
+    """Las categorías de sonido con sus archivos: [{cat, nombre, archivos: [{id, nombre}]}]."""
+    cats = list(CONFIG.get("sfx_mapa", {})) + [d.name for d in (BIBLIO_BASE / "sfx").iterdir() if d.is_dir()]
+    out, vistas = [], set()
+    for cat in cats:
+        if cat in vistas:
+            continue
+        vistas.add(cat)
+        archivos = [{"id": id_sonido(f), "nombre": f.stem} for f in sfx_de(cat) if id_sonido(f)]
+        out.append({"cat": cat, "nombre": NOMBRES_SFX.get(cat, cat.replace("_", " ")), "archivos": archivos})
+    return out
+
+
+def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None):
+    """Sonido puesto o quitado a mano en una pieza (vale para todos los videos que la usan). t = segundo dentro de la pieza.
+    accion: agregar | quitar | cambiar (quita el que había en ese segundo y pone el nuevo). Devuelve los videos a re-armar."""
+    todo = ajustes_piezas()
+    a = todo.setdefault(pieza, {})
+    t = round(float(t), 2)
+    manuales = a.setdefault("sonidos", [])
+    if accion in ("quitar", "cambiar"):
+        antes = len(manuales)
+        manuales[:] = [x for x in manuales if not (abs(x["t"] - t) < 0.2 and x["cat"] == cat)]
+        if len(manuales) == antes:  # era un sonido automático: se recuerda que no va
+            a.setdefault("sonidos_quitar", []).append({"t": t, "cat": cat})
+    if accion in ("agregar", "cambiar"):
+        if sid and not ruta_sonido(sid):
+            raise ValueError("Ese sonido no está en la biblioteca")
+        manuales.append({"t": t, "cat": cat_nuevo or cat, **({"archivo": sid} if sid else {})})
+    a["editado"] = time.time()
+    todo[pieza] = {k: v for k, v in a.items() if v not in ([], None)}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
+    return [c["codigo"] for c in combinaciones() if pieza in (c["hook"], c["cuerpo"], c["cta"])]
+
+
 def elegir_sfx(categoria, semilla):
     """Rota entre las variantes de la categoría para que no suenen iguales en todos los videos."""
     for cat in [categoria] + CONFIG["sonidos"].get("respaldo", {}).get(categoria, []):
@@ -1676,6 +1734,14 @@ def planear_sonidos(combo, offs, total, subs, marcas):
                 elif es_clave(p["w"]):
                     add("pop", t, 1, f"palabra clave «{p['w']}»")
 
+    # Lo que el equipo cambió a mano en cada pieza (Sonidos del editor): se quitan los marcados y se suman los agregados
+    a_mano = ajustes_piezas()
+    for off, n in zip(offs, (hook, cuerpo, cta)):
+        ap = a_mano.get(n, {})
+        for q in ap.get("sonidos_quitar", []):
+            cand = [c for c in cand if not (c["cat"] == q["cat"] and abs(c["t"] - (off + q["t"])) < 0.25)]
+        for sm in ap.get("sonidos", []):
+            cand.append({"cat": sm["cat"], "t": off + sm["t"], "prio": 4, "motivo": "puesto a mano", "archivo": sm.get("archivo")})
     # Filtro de densidad: un efecto opcional no puede caer muy cerca de otro
     elegidos = []
     sep = so["separacion_minima"]
@@ -1684,7 +1750,7 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             continue
         if c["prio"] < 3 and any(abs(c["t"] - e["t"]) < sep for e in elegidos if e["cat"] != "riser"):
             continue
-        f = elegir_sfx(c["cat"], f"{combo['codigo']}|{c['cat']}|{len(elegidos)}")
+        f = (ruta_sonido(c["archivo"]) if c.get("archivo") else None) or elegir_sfx(c["cat"], f"{combo['codigo']}|{c['cat']}|{len(elegidos)}")
         if not f:
             continue
         maxd = so.get("duracion_maxima", {}).get(c["cat"], so.get("duracion_maxima", {}).get("default", 2.5))
@@ -2004,7 +2070,8 @@ def armar_uno(combo, n_musica=0):
     receta = {**combo, "duracion": round(total, 2), "cortes": [round(o, 2) for o in offs[1:]],
               "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos) or None,
               "faltan_musica": faltan_musica,
-              "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "t": e["t"], "motivo": e["motivo"]} for e in eventos],
+              "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "cat": e["cat"], "id": id_sonido(e["archivo"]), "t": e["t"],
+                           "motivo": e["motivo"]} for e in eventos],
               "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "dur": round(o["dur"], 2), "modo": o["modo"]} for o in overlays],
               "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
     (S.recetas / f"{combo['codigo']}.json").write_text(json.dumps(receta, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -263,6 +263,21 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-efectos { height: 40px; }
 .ev-fx { position: absolute; top: 6px; height: 26px; transform: translateX(-1px); display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px;
   border-left: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); border-radius: 0 6px 6px 0; font: 600 10.5px var(--mono); color: var(--ink); white-space: nowrap; cursor: help; }
+.grid-sonidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.cat-sonido summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; list-style: none; }
+.cat-sonido summary::-webkit-details-marker { display: none; }
+.cat-sonido { padding: 12px 14px; }
+.cat-sonido details { border: 0; padding: 0; margin: 0; }
+.lista-sonidos { display: grid; gap: 4px; margin-top: 10px; max-height: 320px; overflow: auto; }
+.fila-sonido { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; }
+.fila-sonido:hover, .fila-sonido.elegido { background: var(--hondo); }
+.fila-sonido.elegido { outline: 1px solid var(--accent); }
+.fila-sonido .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-play { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); cursor: pointer; font-size: 11px; }
+.ev-fx.mano { border-left-style: dashed; }
+.ev-fx.pendiente { outline: 1px dashed var(--warn); }
+.ev-fx.quitado { opacity: .45; text-decoration: line-through; }
+.ev-sonido-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; }
 .ev-fx.img { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
 .ev-fx.mus { border-color: var(--accent2); background: color-mix(in srgb, var(--accent2) 14%, transparent); }
 dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
@@ -388,6 +403,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   <button role="tab" data-tab="piezas" aria-selected="false">Piezas y subtítulos</button>
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
+  <button role="tab" data-tab="sonidos" aria-selected="false">Sonidos</button>
   <button role="tab" data-tab="publicar" aria-selected="false">Exportar</button>
   <button role="tab" data-tab="notas" aria-selected="false" hidden>Configuración</button>
 </nav>
@@ -695,6 +711,18 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     </div>
   </section>
 
+  <section data-panel="sonidos" hidden>
+    <div class="caja" style="margin-bottom:14px">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Sonidos</h2>
+          <span class="muted" style="font-size:12.5px">La biblioteca de efectos por carpeta (de «SOUND FX» en Drive). Escúchalos y elige uno: en el editor del video lo pones en el segundo que quieras, o cambias o quitas los que puso la sala.</span></div>
+        <input id="sonBuscar" type="search" placeholder="Buscar sonido…" style="max-width:240px">
+      </div>
+      <p id="sonElegido" class="muted" style="margin:10px 0 0;font-size:13px">Ningún sonido elegido.</p>
+    </div>
+    <div id="sonLista" class="grid-sonidos"></div>
+  </section>
+
   <section data-panel="publicar" hidden>
     <div class="export-layout">
       <div class="caja export-ajustes">
@@ -899,6 +927,15 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <div class="ev-pista ev-efectos"><span class="ev-etq">Efectos</span><div class="ev-carril" id="evCarrilE"></div></div>
         <div class="ev-pista"><span class="ev-etq">Subtítulos</span><div class="ev-carril" id="evCarrilS"></div></div>
         <div class="ev-cabezal" id="evCabezal"></div>
+      </div>
+      <div class="ev-sonido-barra">
+        <b>Sonidos:</b>
+        <select id="evSonCat" style="padding:5px 8px;font-size:12px"></select>
+        <select id="evSonArch" style="padding:5px 8px;font-size:12px;max-width:260px"></select>
+        <button class="btn sec peq btn-play" id="evSonPlay" title="Escuchar" type="button">▶</button>
+        <button class="btn sec peq" id="evSonAgregar" type="button">+ Agregar en el cabezal</button>
+        <span class="muted" id="evSonInfo">Toca un sonido de la pista «Efectos» para cambiarlo o quitarlo.</span>
+        <button class="btn peq" id="evSonAplicar" type="button" hidden></button>
       </div>
       <div class="fila" style="margin-top:10px">
         <button class="btn" id="evArmar">Guardar y re-armar</button>
@@ -1189,6 +1226,7 @@ function pintarEstadoDlg() {
 }
 
 function abrirVideo(cod, editar) {
+  sonPend = [];
   actual = E.salidas.find(s => s.codigo === cod);
   if (!actual) return;
   $("dlgTitulo").textContent = actual.archivo;
@@ -1538,6 +1576,7 @@ document.addEventListener("click", e => {
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
     if (tab.dataset.tab === "plantillas") pintarPlantillas();
+    if (tab.dataset.tab === "sonidos") pintarSonidos();
     if (tab.dataset.tab === "guion") pintarGuion();
     return;
   }
@@ -1940,12 +1979,108 @@ function pintarEfectos() {
   };
   const nombre = f => f.split("/")[0].replace("_", " ");
   const chips = [];
-  (r.efectos || []).forEach(e => { const t = aEditado(e.t); if (t != null) chips.push({ t, cls: "", txt: "♪ " + nombre(e.sfx), tip: `${e.t.toFixed(2)} s · ${e.sfx} — ${e.motivo}` }); });
+  const enPieza = t => {  // segundo del video armado → {pieza, t dentro de la pieza}
+    const tramos = [[est.hook.nombre, 0, hd], [est.cuerpo.nombre, hd, hd + cd], [est.cta.nombre, hd + cd, 1e9]];
+    const [pieza, o] = tramos.find(([, a, b]) => t >= a && t < b) || tramos[0];
+    return { pieza, tp: +(t - o).toFixed(2) };
+  };
+  (r.efectos || []).forEach((e, i) => {
+    const t = aEditado(e.t); if (t == null) return;
+    const cat = e.cat || e.sfx.split("/")[0], { pieza, tp } = enPieza(e.t);
+    const quitado = sonPend.some(p => p.accion !== "agregar" && p.pieza === pieza && p.cat === cat && Math.abs(p.t - tp) < .2);
+    chips.push({ t, cls: (e.motivo === "puesto a mano" ? "mano " : "") + (quitado ? "quitado" : ""), txt: "♪ " + nombre(e.sfx),
+                 tip: `${e.t.toFixed(2)} s · ${e.sfx} — ${e.motivo}. Toca para cambiarlo o quitarlo.`, dato: JSON.stringify({ pieza, tp, cat, id: e.id || "", nombre: e.sfx }) });
+  });
+  sonPend.filter(p => p.accion !== "quitar").forEach(p => {  // agregados que aún no se arman
+    const s = segs.find(s => s.pieza.nombre === p.pieza && p.t >= s.a - .05 && p.t <= s.b + .05);
+    if (s) chips.push({ t: s.g0 + p.t - s.a, cls: "mano pendiente", txt: "+ " + (p.nuevaCat || p.cat).replace("_", " "), tip: `Por agregar: ${p.nombre || p.cat} (se aplica al re-armar)` });
+  });
   (r.imagenes || []).forEach(i => { const t = aEditado(i.t); if (t != null) chips.push({ t, cls: "img", txt: "▣ " + i.asset.replace(/^B2B_|^\d+_/, ""), tip: `${i.asset} · ${i.dur} s · ${i.modo}` }); });
   (r.faltan_assets || []).length && chips.push({ t: 0, cls: "img", txt: `faltan ${r.faltan_assets.length} imágenes`, tip: r.faltan_assets.join(", ") });
-  $("evCarrilE").innerHTML = chips.map(c => `<span class="ev-fx ${c.cls}" style="left:${xDeTiempo(c.t)}px" title="${esc(c.tip)}">${esc(c.txt)}</span>`).join("")
+  $("evCarrilE").innerHTML = chips.map(c => `<span class="ev-fx ${c.cls}" style="left:${xDeTiempo(c.t)}px" title="${esc(c.tip)}" ${c.dato ? `data-fx='${esc(c.dato)}'` : ""}>${esc(c.txt)}</span>`).join("")
     || `<span class="muted" style="font-size:11px;padding:10px">Sin efectos en este video.</span>`;
 }
+// ---------- Sonidos: biblioteca, escuchar, agregar/cambiar/quitar en el editor ----------
+let biblioteca = null, sonElegido = null, sonPend = [];
+const reproductor = new Audio();
+function tocar(id) { reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.play().catch(() => {}); }
+async function cargarBiblioteca() {
+  if (!biblioteca) { try { biblioteca = await (await fetch("/api/sonidos")).json(); } catch (e) { biblioteca = []; } }
+  return biblioteca;
+}
+async function pintarSonidos() {
+  await cargarBiblioteca();
+  const q = $("sonBuscar").value.trim().toLowerCase();
+  $("sonLista").innerHTML = biblioteca.map(c => {
+    const archivos = c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q));
+    if (q && !archivos.length) return "";
+    return `<div class="caja cat-sonido"><details ${q ? "open" : ""}><summary><span><b style="text-transform:capitalize">${esc(c.nombre)}</b> <span class="muted">· ${esc(c.cat)}</span></span><span class="pill">${archivos.length}</span></summary>
+      <div class="lista-sonidos">${archivos.map(a => `<div class="fila-sonido ${sonElegido?.id === a.id ? "elegido" : ""}">
+        <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar">▶</button><span class="nom" title="${esc(a.nombre)}">${esc(a.nombre)}</span>
+        <button class="btn sec peq" data-elegir-son='${esc(JSON.stringify({ cat: c.cat, id: a.id, nombre: a.nombre }))}'>Elegir</button></div>`).join("") || `<span class="muted">Sin archivos (se bajan de Drive al abrir una sesión).</span>`}</div></details></div>`;
+  }).join("");
+  $("sonElegido").innerHTML = sonElegido ? `Elegido: <b>${esc(sonElegido.nombre)}</b> (${esc(sonElegido.cat)}). Ábrelo en el editor del video y toca «+ Agregar en el cabezal».` : "Ningún sonido elegido.";
+}
+$("sonBuscar").addEventListener("input", pintarSonidos);
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-tocar]"); if (t) { tocar(t.dataset.tocar); return; }
+  const el = e.target.closest("[data-elegir-son]");
+  if (el) { sonElegido = JSON.parse(el.dataset.elegirSon); pintarSonidos(); llenarSelectorSonido(); avisar(`Sonido elegido: ${sonElegido.nombre}`, "ok"); }
+});
+async function llenarSelectorSonido() {
+  await cargarBiblioteca();
+  const cat = sonElegido?.cat || $("evSonCat").value || "whoosh";
+  $("evSonCat").innerHTML = biblioteca.map(c => `<option value="${c.cat}" ${c.cat === cat ? "selected" : ""}>${esc(c.nombre)} (${c.archivos.length})</option>`).join("");
+  pintarArchivosSonido(sonElegido?.id);
+}
+function pintarArchivosSonido(idElegido) {
+  const c = (biblioteca || []).find(x => x.cat === $("evSonCat").value);
+  $("evSonArch").innerHTML = `<option value="">Cualquiera de la carpeta</option>` + (c?.archivos || []).map(a => `<option value="${esc(a.id)}" ${a.id === idElegido ? "selected" : ""}>${esc(a.nombre)}</option>`).join("");
+}
+$("evSonCat").onchange = () => pintarArchivosSonido();
+$("evSonPlay").onclick = () => { const id = $("evSonArch").value || (biblioteca.find(c => c.cat === $("evSonCat").value)?.archivos[0]?.id); if (id) tocar(id); };
+function pintarPendientes() {
+  const n = sonPend.length;
+  $("evSonAplicar").hidden = !n;
+  $("evSonAplicar").textContent = `Re-armar con ${n} cambio${n === 1 ? "" : "s"} de sonido`;
+}
+async function cambiarSonido(cambio) {
+  try {
+    const r = await post("/api/sonido", cambio);
+    sonPend.push({ ...cambio, codigos: r.codigos });
+    pintarPendientes(); pintarEfectos();
+    $("evSonInfo").textContent = `Guardado en ${cambio.pieza}: vale para sus ${r.codigos.length} videos. Re-arma para escucharlo.`;
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("evSonAgregar").onclick = () => {
+  const segs = segmentosEd(), s = segs[evSeg];
+  if (!s) return;
+  const tp = +(s.a + (ed.t - s.g0)).toFixed(2), cat = $("evSonCat").value, id = $("evSonArch").value;
+  cambiarSonido({ pieza: s.pieza.nombre, accion: "agregar", t: tp, cat, id: id || undefined, nombre: $("evSonArch").selectedOptions[0]?.text });
+};
+$("evCarrilE").addEventListener("click", e => {
+  const c = e.target.closest("[data-fx]"); if (!c) return;
+  const fx = JSON.parse(c.dataset.fx);
+  $("evInspector").innerHTML = `<b>Sonido en ${esc(fx.pieza)} · ${fx.tp.toFixed(2)} s</b><span class="muted" style="font-size:12px">${esc(fx.nombre)}</span>
+    <div class="fila"><button class="btn sec peq" id="fxPlay">▶ Escuchar</button>
+      <button class="btn sec peq" id="fxCambiar">Cambiar por el elegido abajo</button>
+      <button class="btn sec peq" id="fxQuitar" style="color:var(--err)">Quitar</button></div>
+    <span class="muted" style="font-size:11.5px">Vale para todos los videos que usan ${esc(fx.pieza)}.</span>`;
+  $("fxPlay").onclick = () => fx.id && tocar(fx.id);
+  $("fxQuitar").onclick = () => cambiarSonido({ pieza: fx.pieza, accion: "quitar", t: fx.tp, cat: fx.cat });
+  $("fxCambiar").onclick = () => {
+    const id = $("evSonArch").value, cat = $("evSonCat").value;
+    cambiarSonido({ pieza: fx.pieza, accion: "cambiar", t: fx.tp, cat: fx.cat, id: id || undefined, nombre: $("evSonArch").selectedOptions[0]?.text, nuevaCat: cat });
+  };
+});
+$("evSonAplicar").onclick = async () => {
+  const codigos = [...new Set(sonPend.flatMap(p => p.codigos || []))];
+  try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos }); sonPend = []; pintarPendientes();
+    if (codigos.includes(actual.codigo)) reabrir = actual.codigo;
+    $("dlgEditor").close(); $("dlg").close(); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Re-armando ${codigos.length} videos con los sonidos nuevos…`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+};
 $("evCarrilA").addEventListener("click", e => {  // tocar el audio lleva el cabezal a ese punto
   const blo = e.target.closest("[data-audio]"); if (!blo) return;
   const s = segmentosEd().find(x => x.key === blo.dataset.audio); if (!s) return;
@@ -2271,6 +2406,7 @@ function abrirEditor() {
   if (!actual) return;
   $("edTitulo").textContent = "Editar " + actual.archivo;
   if (!$("dlgEditor").open) $("dlgEditor").showModal();
+  llenarSelectorSonido(); pintarPendientes();
   setTimeout(() => { pintarEditor(); vistaEd(); }, 50);
 }
 $("irEditor").onclick = abrirEditor;

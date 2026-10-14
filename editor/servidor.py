@@ -422,6 +422,13 @@ class H(BaseHTTPRequestHandler):
             if "ping" in u.query:
                 LATIDO["ultimo"] = time.time()
             self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
+        elif u.path == "/api/sonidos":
+            self._json(motor.biblioteca_sonidos())
+        elif u.path == "/sfx":
+            f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
+            if not f:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
         elif u.path == "/api/guion_doc":
@@ -653,6 +660,12 @@ class H(BaseHTTPRequestHandler):
                 for cod in b.get("codigos") or [b["codigo"]]:
                     motor.guardar_ajustes_video(cod, {"estado": b["estado"]})
                 self._json({"ok": True})
+            elif u.path == "/api/sonido":
+                b = self._cuerpo()
+                if b.get("accion") not in ("agregar", "quitar", "cambiar"):
+                    raise ValueError("Acción no válida")
+                codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"))
+                self._json({"ok": True, "codigos": codigos})
             elif u.path == "/api/edicion":
                 b = self._cuerpo()
                 codigos = motor.guardar_edicion_piezas(b)
