@@ -278,6 +278,10 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-fx.pendiente { outline: 1px dashed var(--warn); }
 .ev-fx.quitado { opacity: .45; text-decoration: line-through; }
 .ev-sonido-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; }
+.por-form { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
+.por-form > .fila { grid-column: 1 / -1; }
+.fila-elem-por { display: grid; grid-template-columns: 1fr repeat(3, 62px) auto; gap: 6px; align-items: center; font-size: 12px; }
+.fila-elem-por input { padding: 4px 6px; font-size: 12px; }
 .ev-fx.img { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
 .ev-fx.mus { border-color: var(--accent2); background: color-mix(in srgb, var(--accent2) 14%, transparent); }
 dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
@@ -869,13 +873,27 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <img id="porVista" alt="Vista de la portada" style="width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:10px;background:#000">
           <span class="muted" style="font-size:11px;text-align:center" id="porEstado">Portada actual</span>
         </div>
-        <div style="display:grid;gap:8px">
-          <label class="muted" style="display:grid;gap:3px;font-size:12px">Momento del hook: <b id="porSeg"></b><input type="range" id="porT" min="0" max="5" step="0.1"></label>
-          <label class="muted" style="display:grid;gap:3px;font-size:12px">Título<input id="porTitulo" placeholder="Heridas que se *complican*"></label>
-          <div class="fila">
-            <label class="muted" style="display:grid;gap:3px;font-size:12px">Posición<select id="porPos"><option value="arriba">Arriba</option><option value="centro">Centro</option><option value="abajo">Abajo</option></select></label>
-            <label class="fila muted" style="font-size:12px;margin-top:16px"><input type="checkbox" id="porLogo"> Logo de Suplevet</label>
-          </div>
+        <div class="form-plant por-form" id="porForm">
+          <fieldset><legend>Imagen de fondo</legend>
+            <label>Momento del hook: <b id="porSeg"></b><input type="range" id="porT" min="0" max="5" step="0.1"></label>
+            <div class="fila"><label class="btn sec peq" style="cursor:pointer">Subir una imagen propia<input type="file" id="porSubir" accept="image/png,image/jpeg,image/webp" hidden></label>
+              <span class="muted" id="porFondoTxt" style="font-size:12px"></span><button class="btn sec peq" id="porFondoQuitar" type="button" hidden>Volver al cuadro del video</button></div>
+            <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porSolo"> Usar la imagen tal cual (sin título ni logo)</label>
+          </fieldset>
+          <fieldset><legend>Título</legend>
+            <label>Texto (*palabra* sale con el color de acento)<input id="porTitulo" placeholder="Heridas que se *complican*"></label>
+            <div class="dos"><label>Letra<select id="porFuente"></select></label><label>Tamaño<input type="number" id="porTam" min="50" max="220" step="2"></label></div>
+            <div class="dos"><label>Color del texto<input type="color" id="porColor"></label><label>Color de acento<input type="color" id="porAcento"></label></div>
+            <div class="dos"><label>Borde<input type="number" id="porBorde" min="0" max="30"></label><label>Color del borde<input type="color" id="porColorBorde"></label></div>
+            <div class="dos"><label class="fila" style="display:flex;color:var(--ink);font-size:12.5px;margin-top:18px"><input type="checkbox" id="porCaja"> Caja de color detrás</label><label>Color de la caja<input type="color" id="porColorCaja"></label></div>
+            <label>Altura del título: <b id="porYTxt"></b><input type="range" id="porY" min="150" max="1780" step="10"></label>
+          </fieldset>
+          <fieldset><legend>Logo e imágenes encima</legend>
+            <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porLogo"> Logo de Suplevet</label>
+            <div id="porElems" style="display:grid;gap:6px"></div>
+            <div class="fila"><select id="porElemSel" style="flex:1"></select><button class="btn sec peq" id="porElemAgregar" type="button">Agregar</button>
+              <label class="btn sec peq" style="cursor:pointer">Subir imagen<input type="file" id="porElemSubir" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
+          </fieldset>
           <div class="fila"><button class="btn" id="porGuardar">Guardar portada</button>
             <button class="btn sec peq" id="porVolver">Ver portada actual</button></div>
         </div>
@@ -1826,38 +1844,94 @@ $("redBoton").onclick = async () => {
 $("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
 // ---------- Portada de un video ----------
 let porTimer = null;
+let porDiseno = {};
 function abrirPortada() {
   const a = actual.ajustes_portada || {};
+  porDiseno = JSON.parse(JSON.stringify(a)); porDiseno.elementos = porDiseno.elementos || [];
   const durHook = (est && est.hook && est.hook.dur) || 5;
   $("porT").max = Math.max(1, durHook - 0.1).toFixed(1);
   $("porT").value = a.segundo ?? 0.5;
   $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s";
   $("porTitulo").value = a.titulo || (actual.titulo_portada || "");
-  $("porPos").value = a.posicion || "centro";
+  $("porFuente").innerHTML = `<option value="">La de la plantilla</option>` + (E.fuentes || []).map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}</option>`).join("");
+  $("porFuente").value = a.fuente || "";
+  $("porTam").value = a.tamano || 128;
+  $("porColor").value = a.color_texto || "#ffffff";
+  $("porAcento").value = a.color_acento || "#99d3da";
+  $("porBorde").value = a.borde ?? 12;
+  $("porColorBorde").value = a.color_borde || "#000000";
+  $("porCaja").checked = !!a.caja; $("porColorCaja").value = a.color_caja || "#1d4ed8";
+  $("porY").value = a.y ?? ({ arriba: 560, centro: 960, abajo: 1380 }[a.posicion || "centro"]);
+  $("porYTxt").textContent = $("porY").value + " px desde arriba";
   $("porLogo").checked = a.logo !== false;
+  $("porSolo").checked = !!a.solo_imagen;
+  $("porElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("");
+  pintarFondoPortada(); pintarElemsPortada();
   $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual";
 }
-// Vista en vivo: cada cambio (momento, título, posición, logo) rehace la portada al instante, sin guardarla
+function leerPortada() {
+  return { ...porDiseno, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
+    tamano: Number($("porTam").value), color_texto: $("porColor").value, color_acento: $("porAcento").value, borde: Number($("porBorde").value),
+    color_borde: $("porColorBorde").value, caja: $("porCaja").checked, color_caja: $("porColorCaja").value, y: Number($("porY").value),
+    logo: $("porLogo").checked, solo_imagen: $("porSolo").checked };
+}
+function pintarFondoPortada() {
+  $("porFondoTxt").textContent = porDiseno.fondo ? "Fondo: " + porDiseno.fondo : "Fondo: el cuadro del video";
+  $("porFondoQuitar").hidden = !porDiseno.fondo;
+  $("porT").disabled = !!porDiseno.fondo;
+}
+function pintarElemsPortada() {
+  $("porElems").innerHTML = porDiseno.elementos.map((e, i) => `<div class="fila-elem-por"><span title="${esc(e.archivo)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.archivo)}</span>
+      <input type="number" data-pe="${i}" data-k="x" value="${e.x}" title="Desde la izquierda (px)"><input type="number" data-pe="${i}" data-k="y" value="${e.y}" title="Desde arriba (px)">
+      <input type="number" data-pe="${i}" data-k="ancho" value="${e.ancho}" title="Ancho (px)"><button class="btn sec peq" data-pe-quitar="${i}" type="button">✕</button></div>`).join("")
+    || `<span class="muted" style="font-size:12px">Sin imágenes encima. Medidas en px del video (1080 × 1920): izquierda, arriba, ancho.</span>`;
+}
+// Vista en vivo: cada cambio rehace la portada al instante, sin guardarla
 function verPortadaEnVivo(espera = 250) {
   clearTimeout(porTimer);
   porTimer = setTimeout(() => {
-    const q = new URLSearchParams({ codigo: actual.codigo, segundo: $("porT").value, titulo: $("porTitulo").value.trim(),
-                                    posicion: $("porPos").value, logo: $("porLogo").checked ? "1" : "0", _: Date.now() });
+    const q = new URLSearchParams({ codigo: actual.codigo, d: JSON.stringify(leerPortada()), _: Date.now() });
     $("porVista").src = `/api/portada_vista?${q}`;
     $("porEstado").innerHTML = `<span class="pill warn">sin guardar</span> Así quedará: toca «Guardar portada»`;
   }, espera);
 }
 $("porT").addEventListener("input", () => { $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s"; verPortadaEnVivo(200); });
-$("porTitulo").addEventListener("input", () => verPortadaEnVivo(600));
-$("porPos").addEventListener("change", () => verPortadaEnVivo(0));
-$("porLogo").addEventListener("change", () => verPortadaEnVivo(0));
+$("porY").addEventListener("input", () => { $("porYTxt").textContent = $("porY").value + " px desde arriba"; verPortadaEnVivo(250); });
+$("porForm").addEventListener("input", e => {
+  const i = e.target.dataset.pe;
+  if (i !== undefined) porDiseno.elementos[i][e.target.dataset.k] = Number(e.target.value);
+  if (!["porT", "porY"].includes(e.target.id)) verPortadaEnVivo(e.target.id === "porTitulo" ? 600 : 300);
+});
+$("porForm").addEventListener("change", e => { if (e.target.type === "checkbox" || e.target.tagName === "SELECT") verPortadaEnVivo(0); });
+$("porElems").addEventListener("click", e => { const i = e.target.dataset.peQuitar; if (i !== undefined) { porDiseno.elementos.splice(Number(i), 1); pintarElemsPortada(); verPortadaEnVivo(0); } });
+$("porElemAgregar").onclick = () => { const a = $("porElemSel").value; if (!a) return; porDiseno.elementos.push({ archivo: a, x: 60, y: 80, ancho: 300, opacidad: 100 }); pintarElemsPortada(); verPortadaEnVivo(0); };
+async function subirImagenPortada(f) {
+  const r = await post(`/api/elemento?nombre=${encodeURIComponent(f.name)}`, f, true);
+  E.elementos = (await (await fetch("/api/estado")).json()).elementos;
+  return r.archivo;
+}
+$("porElemSubir").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const a = await subirImagenPortada(f); porDiseno.elementos.push({ archivo: a, x: 60, y: 80, ancho: 300, opacidad: 100 });
+    $("porElemSel").innerHTML = (E.elementos || []).map(x => `<option value="${esc(x.archivo)}">${esc(x.archivo)}</option>`).join(""); pintarElemsPortada(); verPortadaEnVivo(0); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+  e.target.value = "";
+};
+$("porSubir").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { porDiseno.fondo = await subirImagenPortada(f); pintarFondoPortada(); verPortadaEnVivo(0); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+  e.target.value = "";
+};
+$("porFondoQuitar").onclick = () => { delete porDiseno.fondo; porDiseno.fondo = ""; pintarFondoPortada(); verPortadaEnVivo(0); };
 $("porVolver").onclick = () => { $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; };
 $("porGuardar").onclick = async () => {
   $("porGuardar").disabled = true; $("porEstado").textContent = "Haciendo la portada…";
   try {
-    const r = await post("/api/portada", { codigo: actual.codigo, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), posicion: $("porPos").value, logo: $("porLogo").checked });
-    $("porVista").src = r.portada; actual.portada = r.portada; $("porEstado").innerHTML = `<span class="pill ok">✓ guardada</span>`;
-    actual.ajustes_portada = { segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), posicion: $("porPos").value, logo: $("porLogo").checked };
+    const d = leerPortada();
+    const r = await post("/api/portada", { codigo: actual.codigo, ...d });
+    $("porVista").src = r.portada; actual.portada = r.portada; actual.ajustes_portada = d;
+    $("porEstado").innerHTML = `<span class="pill ok">✓ guardada</span>`;
     cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
   $("porGuardar").disabled = false;

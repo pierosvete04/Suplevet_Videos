@@ -1861,7 +1861,7 @@ def guardar_ajustes_portada(codigo, datos):
         todos = json.loads(_portadas_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         todos = {}
-    limpio = {k: datos[k] for k in ("segundo", "titulo", "posicion", "logo", "oscurecer") if k in datos}
+    limpio = {k: datos[k] for k in CAMPOS_PORTADA if k in datos}
     todos[codigo] = {**todos.get(codigo, {}), **limpio}
     S.subs.mkdir(parents=True, exist_ok=True)
     _portadas_path().write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -1897,49 +1897,80 @@ def cuadro(combo, segundo, destino, ancho=540):
     return destino
 
 
+CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "logo", "oscurecer", "fuente", "tamano", "color_texto", "color_acento",
+                  "borde", "color_borde", "caja", "color_caja", "fondo", "solo_imagen", "elementos")
+
+
 def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
-    """prueba: ajustes sin guardar (para ver la portada mientras se edita); destino: dónde dejar el JPG."""
-    """JPG 1080x1920 a color: un cuadro del hook con el título grande y el logo de Suplevet.
-    *palabra* entre asteriscos sale con el color de la plantilla. Todo queda dentro del recorte 4:5 del perfil."""
+    """JPG 1080x1920: un cuadro del hook (o una imagen propia) con el título y el logo, y los elementos que se agreguen.
+    *palabra* entre asteriscos sale con el color de acento. prueba: ajustes sin guardar (para ver mientras se edita)."""
     S.portadas.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
     cfg = CONFIG["portada"]
     aj = {**ajustes_portada(combo["codigo"]), **(prueba or {})}
     import fuentes
     pl = plantilla_sub(combo)
-    fuente = fuentes.cargar(pl["fuente"]).nombre
-    acento = color_ass((pl.get("resaltador") or {}).get("color") or pl["color_activo"])
+    try:
+        fuente = fuentes.cargar(aj.get("fuente") or pl["fuente"]).nombre
+    except Exception:
+        fuente = fuentes.cargar(pl["fuente"]).nombre
+    acento = color_ass(aj.get("color_acento") or (pl.get("resaltador") or {}).get("color") or pl["color_activo"])
+    blanco = color_ass(aj.get("color_texto") or "#FFFFFF")
     titulo = aj.get("titulo") or texto_portada(combo)
-    if pl.get("mayusculas", True):
+    if pl.get("mayusculas", True) and not aj.get("fuente"):
         titulo = titulo.upper()
-    titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c&H00FFFFFF&}}", limpiar(titulo.replace("{", "")))
-    y = POSICION_TITULO.get(aj.get("posicion", "centro"), 960)
+    titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c{blanco}}}", limpiar(titulo.replace("{", "")))
+    y = int(float(aj["y"])) if aj.get("y") not in (None, "") else POSICION_TITULO.get(aj.get("posicion", "centro"), 960)
+    tam = int(float(aj.get("tamano") or cfg["tamano"]))
+    borde = float(aj["borde"]) if aj.get("borde") not in (None, "") else 12
+    if aj.get("caja"):  # caja de color detrás del título (estilo de borde 3: el borde se vuelve caja)
+        estilo, contorno, sombra = 3, color_ass(aj.get("color_caja") or "#99D3DA"), 0
+        borde = max(borde, 18)
+    else:
+        estilo, contorno, sombra = 1, color_ass(aj.get("color_borde") or pl.get("color_borde", "#000000")), 7
     cab = "\n".join([
         "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: T,{fuente},{cfg['tamano']},&H00FFFFFF&,&H00FFFFFF&,{color_ass(pl.get('color_borde', '#000000'))},&H90000000&,0,0,0,0,100,100,0,0,1,12,7,5,90,90,0,1",
+        f"Style: T,{fuente},{tam},{blanco},&H00FFFFFF&,{contorno},&H90000000&,0,0,0,0,100,100,0,0,{estilo},{borde},{sombra},5,90,90,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos(540,{y})}}{titulo}",
+        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos(540,{y})}}{titulo}",
     ])
     (trabajo / "portada.ass").write_text(cab + "\n", encoding="utf-8")
     salida = destino or S.portadas / f"{combo['archivo']}.jpg"
     oscuro = float(aj.get("oscurecer", 0))
-    filtro = (f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{oscuro}:t=fill," if oscuro > 0 else "") + "subtitles=portada.ass:fontsdir=fuentes"
-    logo = BIBLIO_BASE / "marca" / "logo-blanco.png"
-    segundo = float(aj["segundo"]) if aj.get("segundo") is not None else segundo_portada(combo)
-    cmd = [FFMPEG, "-hide_banner", "-y", "-ss", f"{segundo:.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4")]
-    if aj.get("logo", True) and logo.exists():
-        # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
-        ylogo = 1490 if aj.get("posicion") == "arriba" else 330
-        cmd += ["-i", str(logo), "-filter_complex",
-                f"[0:v]{filtro}[t];[1:v]scale=380:-1,split[l][s];"
-                f"[s]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.6,boxblur=8[sombra];"  # sombra suave para que se lea sobre paredes claras
-                f"[t][sombra]overlay=(W-w)/2+3:{ylogo}+4[t2];[t2][l]overlay=(W-w)/2:{ylogo}[v]", "-map", "[v]"]
+    llenar = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1"
+    fondo = ruta_elemento(aj["fondo"]) if aj.get("fondo") else None
+    if fondo:  # imagen propia de portada
+        cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(fondo)]
     else:
-        cmd += ["-vf", filtro]
-    run(cmd + ["-frames:v", "1", "-q:v", "2", str(salida)], cwd=trabajo)
+        segundo = float(aj["segundo"]) if aj.get("segundo") is not None else segundo_portada(combo)
+        cmd = [FFMPEG, "-hide_banner", "-y", "-ss", f"{segundo:.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4")]
+    f = [f"[0:v]{llenar}" + (f",drawbox=x=0:y=0:w=iw:h=ih:color=black@{oscuro}:t=fill" if oscuro > 0 else "") + "[base]"]
+    previo, k = "base", 1
+    # elementos encima de la imagen (stickers, logos, fotos del producto) y debajo del título
+    for el in aj.get("elementos") or []:
+        arch = ruta_elemento(el.get("archivo", ""))
+        if not arch:
+            continue
+        cmd += ["-i", str(arch)]
+        ancho = max(8, int(float(el.get("ancho", 300))))
+        opac = max(0.0, min(1.0, float(el.get("opacidad", 100)) / 100))
+        f.append(f"[{k}:v]scale={ancho}:-1,format=rgba,colorchannelmixer=aa={opac:.2f}[e{k}]")
+        f.append(f"[{previo}][e{k}]overlay={int(float(el.get('x', 0)))}:{int(float(el.get('y', 0)))}[p{k}]")
+        previo, k = f"p{k}", k + 1
+    f.append(f"[{previo}]subtitles=portada.ass:fontsdir=fuentes[t]")
+    previo = "t"
+    logo = BIBLIO_BASE / "marca" / "logo-blanco.png"
+    if aj.get("logo", True) and logo.exists() and not aj.get("solo_imagen"):
+        # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
+        ylogo = 1490 if y < 900 else 330
+        cmd += ["-i", str(logo)]
+        f.append(f"[{k}:v]scale=380:-1,split[l][s];[s]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.6,boxblur=8[sombra];"  # sombra suave
+                 f"[t][sombra]overlay=(W-w)/2+3:{ylogo}+4[t2];[t2][l]overlay=(W-w)/2:{ylogo}[v]")
+        previo = "v"
+    run(cmd + ["-filter_complex", ";".join(f), "-map", f"[{previo}]", "-frames:v", "1", "-q:v", "2", str(salida)], cwd=trabajo)
     return salida
 
 

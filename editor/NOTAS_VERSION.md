@@ -1,3 +1,5 @@
-Versión 1.8.1 (se actualiza desde la app con «Actualizar ahora»):
-- Nueva pestaña «Sonidos»: toda la biblioteca por carpetas (whoosh, risers, impactos, pop, glitch, caja registradora…). Escucha cada sonido, búscalo y elígelo.
-- En el editor del video: «+ Agregar en el cabezal» pone el sonido elegido en ese segundo; tocando un sonido de la pista «Efectos» lo escuchas, lo cambias por otro o lo quitas. Vale para todos los videos que usan esa pieza. «Re-armar con N cambios de sonido» los aplica.
+Versión 1.8.2 (se actualiza desde la app con «Actualizar ahora»):
+- Editor de portada completo: letra, tamaño, color del texto y de acento (*palabra*), borde, caja de color detrás del título y altura libre.
+- Imágenes encima de la portada (logos, stickers, fotos del producto), con posición y tamaño.
+- Subir una imagen propia como fondo de la portada de ese video, o usarla tal cual como portada.
+- Todo se ve en vivo antes de guardar.

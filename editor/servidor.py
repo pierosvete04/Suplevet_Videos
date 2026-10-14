@@ -117,8 +117,7 @@ def estado():
         viejo = f.exists() and motor.editado_en(c) > f.stat().st_mtime + 1
         salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(), "desactualizado": viejo,
                         "estado": av.get("estado") or "pendiente",
-                        "ajustes_portada": {"segundo": ap.get("segundo"), "titulo": ap.get("titulo"),
-                                            "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
+                        "ajustes_portada": {**ap, "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
                         "ajustes_video": av, "video": url_media(f) if f.exists() else None,
                         "portada": url_media(por) if por.exists() else None,
                         "titulo_portada": motor.texto_portada(c) if (S.proc / f"{c['hook']}.mp4").exists() or prod else "",
@@ -394,9 +393,8 @@ class H(BaseHTTPRequestHandler):
             if not c:
                 return self.send_error(404)
             destino = motor.carpeta_trabajo() / "portada_vista.jpg"
-            motor.hacer_portada(c, prueba={"segundo": float(q2.get("segundo", ["0.5"])[0]), "titulo": q2.get("titulo", [""])[0],
-                                           "posicion": q2.get("posicion", ["centro"])[0], "logo": q2.get("logo", ["1"])[0] == "1"},
-                                destino=destino)
+            d = json.loads(q2.get("d", ["{}"])[0])
+            motor.hacer_portada(c, prueba={k: v for k, v in d.items() if k in motor.CAMPOS_PORTADA}, destino=destino)
             b = destino.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "image/jpeg")
