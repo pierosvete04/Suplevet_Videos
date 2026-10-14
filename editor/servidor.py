@@ -131,6 +131,7 @@ def estado():
     notas = motor.DATOS / "correcciones.md"
     sfx = sorted(set(motor.CONFIG.get("sfx_mapa", {})) | {d.name for d in (motor.BIBLIO_BASE / "sfx").iterdir() if d.is_dir()})
     checklist = motor.checklist()
+    checklist["descartados"] = [{**c, "video": url_media(motor.S.grab / c["rel"])} for c in motor.clips_descartados()]
     for c in checklist["sin_asignar"]:
         c["video"] = url_media(motor.S.grab / c["rel"])
     for m in checklist["musica"]:
@@ -658,6 +659,20 @@ class H(BaseHTTPRequestHandler):
                 for cod in b.get("codigos") or [b["codigo"]]:
                     motor.guardar_ajustes_video(cod, {"estado": b["estado"]})
                 self._json({"ok": True})
+            elif u.path == "/api/descartar":
+                b = self._cuerpo()
+                hechos = motor.descartar_clips(b.get("rels") or [], bool(b.get("recuperar")))
+                if drive.estado()["activo"] and hechos:
+                    def mover_en_drive(lista=hechos):
+                        for sesion, viejo, nuevo in lista:
+                            try:
+                                drive.mover(sesion, viejo, nuevo)
+                            except Exception as e:
+                                print("No se pudo mover en Drive:", e)
+                        for sesion in {h[0] for h in lista}:
+                            drive.subir(sesion, ["asignaciones.json"], avance=lambda m: None)
+                    threading.Thread(target=mover_en_drive, daemon=True).start()
+                self._json({"ok": True, "movidos": len(hechos)})
             elif u.path == "/api/sonido":
                 b = self._cuerpo()
                 if b.get("accion") not in ("agregar", "quitar", "cambiar"):

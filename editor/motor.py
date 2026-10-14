@@ -444,6 +444,39 @@ def piezas():
     return sorted(out, key=lambda p: (orden[p["tipo"]], p["nombre"]))
 
 
+DESCARTADOS = "_DESCARTADOS"  # dentro de Clips/: lo que el equipo descartó (no se borra; se puede recuperar)
+
+
+def descartar_clips(rels, recuperar=False):
+    """Mueve clips a Clips/_DESCARTADOS (o los devuelve a Clips/). Devuelve [(sesión, rel_viejo, rel_nuevo)] para hacer
+    lo mismo en Drive. rel como en clips(): en un grupo empieza con «sesión/»."""
+    hechos = []
+    for rel in rels:
+        sesion, sub = (rel.split("/", 1) if S.es_grupo else (S.semana, rel))
+        if sesion not in S.miembros or ".." in sub:
+            continue
+        origen = S.base / sesion / sub
+        if not origen.is_file():
+            continue
+        nuevo = f"Clips/{origen.name}" if recuperar else f"Clips/{DESCARTADOS}/{origen.name}"
+        destino = S.base / sesion / nuevo
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        origen.replace(destino)
+        guardar_asignacion(rel, "")  # ya no es de ninguna pieza
+        hechos.append((sesion, sub, nuevo))
+    return hechos
+
+
+def clips_descartados():
+    out = []
+    for m in S.miembros:
+        d = S.base / m / "Clips" / DESCARTADOS
+        if d.is_dir():
+            out += [{"rel": (f"{m}/" if S.es_grupo else "") + f"Clips/{DESCARTADOS}/{f.name}", "nombre": f.name}
+                    for f in sorted(d.iterdir()) if f.suffix.lower() in EXT_VID]
+    return out
+
+
 def clips_sin_asignar():
     usados = {r for p in piezas() for r in p["rels"]}
     return [c for c in clips() if c["rel"] not in usados]

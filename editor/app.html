@@ -609,9 +609,18 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <button class="btn sec" id="aceptarSug" title="Asigna cada clip a la pieza que sugirió la sala (solo los de 50 % de parecido o más)">Aceptar lo sugerido</button>
         </div>
       </div>
-      <label class="fila muted" style="font-size:12px;margin:8px 0"><input type="checkbox" id="ocultarTomas" checked> Ocultar otras tomas de piezas ya sugeridas</label>
+      <div class="fila" style="justify-content:space-between;margin:8px 0">
+        <label class="fila muted" style="font-size:12px"><input type="checkbox" id="ocultarTomas" checked> Ocultar otras tomas de piezas ya sugeridas</label>
+        <div class="fila"><button class="btn sec peq" id="descTodos" type="button">Seleccionar todos</button>
+          <button class="btn sec peq" id="descBorrar" type="button" disabled style="color:var(--err)">Descartar seleccionados</button></div>
+      </div>
       <datalist id="codigosPiezas"></datalist>
       <div class="grid-assets" id="sinAsignar"></div>
+    </div>
+    <div class="caja" style="margin-bottom:14px" id="cajaDescartados" hidden>
+      <details><summary>Clips descartados <span class="pill" id="nDescartados"></span></summary>
+        <p class="muted" style="font-size:12px;margin:6px 0">Están en Clips/_DESCARTADOS de la sesión (en Drive también). «Recuperar» los vuelve a la lista.</p>
+        <div id="listaDescartados" style="display:grid;gap:4px"></div></details>
     </div>
     <div class="caja" style="margin-bottom:14px">
       <h2>Piezas por grabar</h2>
@@ -1461,8 +1470,8 @@ function pintarSinAsignar() {
   const esperadas = Object.keys(E.piezas_guion || {});
   $("codigosPiezas").innerHTML = esperadas.map(n => `<option value="${esc(n)}">`).join("");
   const visibles = lista.filter(c => !(ocultar && c.pieza && !c.mejor));
-  $("sinAsignar").innerHTML = visibles.map(c => `<div class="caja asset">
-      <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(c.nombre)}</code></h3>
+  $("sinAsignar").innerHTML = visibles.map(c => `<div class="caja asset ${descElegidos.has(c.rel) ? "brilla" : ""}">
+      <div class="fila" style="justify-content:space-between"><label class="fila" style="margin:0"><input type="checkbox" data-desc="${esc(c.rel)}" ${descElegidos.has(c.rel) ? "checked" : ""}><h3 style="margin:0"><code>${esc(c.nombre)}</code></h3></label>
         <span class="muted" style="font-size:12px">${esc(c.carpeta || "Clips")}</span></div>
       <video src="${c.video}" controls preload="none" style="width:100%;max-height:220px;background:#000;border-radius:8px"></video>
       ${c.texto != null ? `<p class="muted" style="margin:0;font-size:12px">«${esc(c.texto.slice(0, 180))}${c.texto.length > 180 ? "…" : ""}»</p>` : `<p class="muted" style="margin:0;font-size:12px">Sin escuchar todavía.</p>`}
@@ -1470,7 +1479,31 @@ function pintarSinAsignar() {
       <div class="fila"><input list="codigosPiezas" placeholder="C1_H2, C3, CTA-A…" value="${esc(c.pieza && c.mejor ? c.pieza : "")}" data-rel="${esc(c.rel)}" style="flex:1;min-width:120px">
         <button class="btn sec peq" data-asignar="${esc(c.rel)}">Asignar</button></div></div>`).join("")
     || `<p class="muted">Todos los clips sugeridos están identificados.</p>`;
+  $("descBorrar").disabled = !descElegidos.size;
+  $("descBorrar").textContent = descElegidos.size ? `Descartar ${descElegidos.size} seleccionado${descElegidos.size === 1 ? "" : "s"}` : "Descartar seleccionados";
+  const desc = E.checklist.descartados || [];
+  $("cajaDescartados").hidden = !desc.length;
+  $("nDescartados").textContent = desc.length;
+  $("listaDescartados").innerHTML = desc.map(c => `<div class="fila-sonido"><span></span><span class="nom">${esc(c.nombre)}</span>
+      <button class="btn sec peq" data-recuperar="${esc(c.rel)}">Recuperar</button></div>`).join("");
 }
+const descElegidos = new Set();
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-desc]"); if (!c) return;
+  c.checked ? descElegidos.add(c.dataset.desc) : descElegidos.delete(c.dataset.desc);
+  pintarSinAsignar();
+});
+$("descTodos").onclick = () => { document.querySelectorAll("[data-desc]").forEach(c => descElegidos.add(c.dataset.desc)); pintarSinAsignar(); };
+$("descBorrar").onclick = async () => {
+  if (!confirm(`¿Descartar ${descElegidos.size} clip${descElegidos.size === 1 ? "" : "s"}? Se mueven a Clips/_DESCARTADOS (en esta PC y en Drive) y dejan de aparecer. Se pueden recuperar.`)) return;
+  try { const r = await post("/api/descartar", { rels: [...descElegidos] }); descElegidos.clear(); avisar(`${r.movidos} clips descartados.`, "ok"); await cargar(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+};
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-recuperar]"); if (!b) return;
+  try { await post("/api/descartar", { rels: [b.dataset.recuperar], recuperar: true }); avisar("Clip recuperado.", "ok"); await cargar(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
 
 function pintarMusica() {
   const lista = E.checklist.musica || [];

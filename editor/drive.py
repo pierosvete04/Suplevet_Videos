@@ -212,6 +212,11 @@ def subir_en_segundo_plano(nombre, partes):
     threading.Thread(target=tarea, daemon=True).start()
 
 
+def mover(sesion, viejo, nuevo):
+    """Mueve un archivo dentro de la sesión en Drive (para descartar o recuperar clips)."""
+    _rc("moveto", f"{REMOTO}:{sesion}/{viejo}", f"{REMOTO}:{sesion}/{nuevo}", timeout=300)
+
+
 def crear_sesion(nombre):
     for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "Musica", "V.FINALES"):
         _rc("mkdir", f"{REMOTO}:{nombre}/{sub}")
