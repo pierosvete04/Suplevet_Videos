@@ -131,3 +131,12 @@ export function ordenarSesiones(nombres: string[]): string[] {
     return y[0] - x[0] || y[1] - x[1] || x[2].localeCompare(y[2]);
   });
 }
+
+export type TipoVideo = "ads" | "organico";
+/** Ads u orgánico: lo dice el nombre de la producción («P07 ADS …», «P08 ORG …»); si no, el CTA (CTA-A anuncio, CTA-O orgánico). */
+export function tipoVideo(v: Pick<Video, "semana" | "cta">): TipoVideo | null {
+  const m = v.semana.match(/^P\d+\s+(ADS|ORG)\b/i);
+  if (m) return m[1].toUpperCase() === "ADS" ? "ads" : "organico";
+  const cta = (v.cta ?? "").toUpperCase();
+  return /CTA[-_]?A$/.test(cta) ? "ads" : /CTA[-_]?O$/.test(cta) ? "organico" : null;
+}

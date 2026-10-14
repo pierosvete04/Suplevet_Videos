@@ -5,7 +5,7 @@ import { CheckCircle2, Clapperboard, Eye, Film, Search, Send } from "lucide-reac
 import { createClient } from "@/lib/supabase/client";
 import { TarjetaVideo } from "@/components/TarjetaVideo";
 import { VideoDetalle } from "@/components/VideoDetalle";
-import { ESTADOS, ordenarSesiones, posicionHook, ranking, type EstadoVideo, type Video } from "@/lib/videos";
+import { ESTADOS, ordenarSesiones, posicionHook, ranking, tipoVideo, type EstadoVideo, type TipoVideo, type Video } from "@/lib/videos";
 
 type Agrupar = "hook" | "tipo" | "cuerpo" | "cta";
 const AGRUPAR: { valor: Agrupar; etiqueta: string; fn: (v: Video) => string }[] = [
@@ -21,6 +21,7 @@ export default function VideosPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [cargando, setCargando] = useState(true);
   const [semana, setSemana] = useState("todas");
+  const [tipo, setTipo] = useState<TipoVideo | "todos">("todos");
   const [estado, setEstado] = useState<EstadoVideo | "todos">("todos");
   const [buscar, setBuscar] = useState("");
   const [agrupar, setAgrupar] = useState<Agrupar>("hook");
@@ -39,8 +40,9 @@ export default function VideosPage() {
     return () => window.removeEventListener("sesion-renovada", cargar);
   }, [cargar]);
 
-  const semanas = useMemo(() => ordenarSesiones([...new Set(videos.map((v) => v.semana))]), [videos]);
-  const deLaSemana = useMemo(() => videos.filter((v) => semana === "todas" || v.semana === semana), [videos, semana]);
+  const delTipo = useMemo(() => videos.filter((v) => tipo === "todos" || tipoVideo(v) === tipo), [videos, tipo]);
+  const semanas = useMemo(() => ordenarSesiones([...new Set(delTipo.map((v) => v.semana))]), [delTipo]);
+  const deLaSemana = useMemo(() => delTipo.filter((v) => semana === "todas" || v.semana === semana), [delTipo, semana]);
   const visibles = deLaSemana.filter(
     (v) => (estado === "todos" || v.estado === estado) && (!buscar || v.codigo.toLowerCase().includes(buscar.toLowerCase()))
   );
@@ -69,6 +71,15 @@ export default function VideosPage() {
             Revisa la portada y el copy de cada video, apruébalo y anota cómo le fue. Lo que arma la sala aparece aquí solo.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1.5" role="group" aria-label="Tipo de video">
+          {([["todos", "Todos"], ["ads", "Ads"], ["organico", "Orgánico"]] as const).map(([valor, etiqueta]) => (
+            <button key={valor} type="button" className="chip" aria-pressed={tipo === valor}
+              onClick={() => { setTipo(valor); setSemana("todas"); }}>
+              {etiqueta}
+            </button>
+          ))}
+        </div>
         <label className="flex items-center gap-2 text-sm text-navy/70">
           Sesión
           <select className="campo w-auto min-w-[11rem]" value={semana} onChange={(e) => setSemana(e.target.value)}>
@@ -78,6 +89,7 @@ export default function VideosPage() {
             ))}
           </select>
         </label>
+        </div>
       </section>
 
       <section aria-label="Resumen" className="cascada grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

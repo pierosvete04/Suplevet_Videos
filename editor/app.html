@@ -449,9 +449,14 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
             <label class="muted" style="display:grid;gap:4px;font-size:12px">Escribir el guion para
               <select id="clSesion"></select></label>
             <div id="clNuevaCaja" hidden style="margin-top:8px;padding:10px;border:1px dashed var(--accent);border-radius:10px;display:grid;gap:6px">
-              <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre: número de producción + tema (el día de grabación no hace falta)
-                <input id="clNuevaNombre" placeholder="P07 ARTICULACIONES"></label>
-              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas (Guion, Clips, Flow, Música, V.FINALES). Todo lo que se grabe para este guion, el día que sea, va dentro.</span>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+                <label class="muted" style="display:grid;gap:4px;font-size:12px">Para
+                  <select id="clNuevaTipo"><option value="ADS">Ads (anuncios pagados)</option><option value="ORG">Orgánico</option><option value="">Los dos</option></select></label>
+                <label class="muted" style="display:grid;gap:4px;font-size:12px">Tema
+                  <input id="clNuevaNombre" placeholder="ARTICULACIONES"></label>
+              </div>
+              <span style="font-size:12.5px">Se va a llamar: <b id="clNuevaVista"></b></span>
+              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas (Guion, Clips, Flow, Música, V.FINALES). Todo lo que se grabe para este guion, el día que sea, va dentro. El día de grabación no hace falta.</span>
             </div>
             <div class="form-plant" style="margin-top:10px">
               <div class="dos">
@@ -481,6 +486,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
             <div class="fila"><button class="btn sec peq" id="inGrupo" title="Varias grabaciones que son una sola producción (un guion)">Unir en grupo</button>
             <button class="btn sec peq" id="inNueva">+ Nueva sesión</button></div></div>
           <div class="fila" style="margin-bottom:8px"><input id="inBuscar" type="search" placeholder="Buscar sesión…" aria-label="Buscar sesión" style="flex:1;min-width:140px">
+            <select id="inTipo" aria-label="Tipo de producción" style="padding:5px 8px;font-size:12px"><option value="">Todas</option><option value="ads">Ads</option><option value="organico">Orgánico</option></select>
             <label class="fila muted" style="font-size:12px"><input type="checkbox" id="inVerArch"> Ver archivadas <span id="inNArch"></span></label></div>
           <div class="sesiones" id="inSesiones"></div>
           <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
@@ -1056,16 +1062,18 @@ function pintarListaSesiones() {
   const q = $("inBuscar").value.trim().toLowerCase(), verArch = $("inVerArch").checked;
   const nArch = E.semanas.filter(s => arch.has(s)).length;
   $("inNArch").textContent = nArch ? `(${nArch})` : "";
-  const lista = [...E.semanas].reverse().filter(s => q ? s.toLowerCase().includes(q) : verArch || !arch.has(s));
+  const tipo = $("inTipo").value;
+  const lista = [...E.semanas].reverse().filter(s => (q ? s.toLowerCase().includes(q) : verArch || !arch.has(s)) && (!tipo || tipoDe(s) === tipo));
   $("inSesiones").innerHTML = lista.map(s => {
     const a = arch.has(s) ? ` <span class="muted">· archivada</span>` : "";
     return grs[s]
       ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">(${grs[s].sesiones.length})</span>${a}</button>`
       : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}${a}</button>`;
-  }).join("") || `<span class="muted">${q ? "Ninguna sesión con ese nombre." : "Todavía no hay sesiones."}</span>`;
+  }).join("") || `<span class="muted">${q ? "Ninguna sesión con ese nombre." : tipo ? "Ninguna producción de ese tipo todavía." : "Todavía no hay sesiones."}</span>`;
   $("inArchivar").textContent = arch.has(E.semana) ? `Sacar «${E.semana}» del archivo` : `Archivar «${E.semana}»`;
 }
 $("inBuscar").addEventListener("input", pintarListaSesiones);
+$("inTipo").addEventListener("change", pintarListaSesiones);
 $("inVerArch").addEventListener("change", pintarListaSesiones);
 $("inArchivar").onclick = async () => {
   const archivar = !(E.archivadas || []).includes(E.semana);
@@ -1145,8 +1153,13 @@ $("clTemas").onclick = async () => {
 function pedidoGuion() {
   const n = Number($("clCuerpos").value), h = Number($("clHooks").value);
   const temas = [...document.querySelectorAll("[data-tema-cuerpo]")].map((i, k) => `- C${k + 1}: ${i.value.trim() || "(elige tú)"}`);
-  const ctas = { "2": "2 CTAs para todos los cuerpos (CTA-A anuncio y CTA-O orgánico)", "1": "1 CTA para todos los cuerpos", por_cuerpo: "2 CTAs por cada cuerpo (C1_CTA1, C1_CTA2…)" }[$("clCtas").value];
-  return `Estructura: ${n} cuerpos, ${h} hooks por cuerpo (${n * h} videos base), ${ctas}.
+  const tipo = tipoDe($("clSesion").value === "__nueva" ? nombreNuevaProduccion() : $("clSesion").value);
+  const ctas = tipo === "ads" ? "1 CTA de anuncio para todos los cuerpos: CTA-A"
+    : tipo === "organico" ? "1 CTA orgánico para todos los cuerpos: CTA-O"
+    : { "2": "2 CTAs para todos los cuerpos (CTA-A anuncio y CTA-O orgánico)", "1": "1 CTA para todos los cuerpos", por_cuerpo: "2 CTAs por cada cuerpo (C1_CTA1, C1_CTA2…)" }[$("clCtas").value];
+  const para = { ads: "Producción para ADS (anuncios pagados en Meta/TikTok): hooks que frenen el scroll en pauta y CTA de venta directa.\n",
+    organico: "Producción ORGÁNICA (publicaciones de la marca): hooks que inviten a quedarse y comentar, CTA suave.\n" }[tipo] || "";
+  return `${para}Estructura: ${n} cuerpos, ${h} hooks por cuerpo (${n * h} videos base), ${ctas}.
 Público: ${$("clPublico").value === "duenos" ? "dueños de mascotas" : "médicos veterinarios"}.
 ${$("clIdea").value.trim() ? "Idea o enfoque: " + $("clIdea").value.trim() + "\n" : ""}Tema de cada cuerpo:
 ${temas.join("\n")}
@@ -1155,16 +1168,34 @@ ${$("clPedido").value.trim()}`;
 function nombreSesionSugerido() {  // producción numerada: se nombra antes de saber qué día se graba
   return (E?.siguiente_produccion || "P01") + " ";
 }
+// Tipo de producción, escrito en el nombre: «P07 ADS ARTICULACIONES» (anuncios) o «P08 ORG PELAJE» (orgánico); sin tipo = los dos
+function tipoDe(nombre) {
+  const m = /^P\d+\s+(ADS|ORG)\b/i.exec(nombre || "");
+  return m ? (m[1].toUpperCase() === "ADS" ? "ads" : "organico") : null;
+}
+function nombreNuevaProduccion() {
+  const tema = $("clNuevaNombre").value.trim().toUpperCase().replace(/^P\d+\s+/, "").replace(/^(ADS|ORG)\s+/, "");
+  return [nombreSesionSugerido().trim(), $("clNuevaTipo").value, tema].filter(Boolean).join(" ");
+}
+const pintarNuevaVista = () => {
+  $("clNuevaVista").textContent = nombreNuevaProduccion() + ($("clNuevaNombre").value.trim() ? "" : " …tema");
+  const tipo = tipoDe($("clSesion").value === "__nueva" ? nombreNuevaProduccion() : $("clSesion").value);
+  $("clCtas").disabled = !!tipo;
+  $("clCtas").title = tipo ? `Producción ${tipo === "ads" ? "de ads: un CTA de anuncio (CTA-A)" : "orgánica: un CTA orgánico (CTA-O)"}` : "";
+};
+$("clNuevaNombre").addEventListener("input", pintarNuevaVista);
+$("clNuevaTipo").addEventListener("change", pintarNuevaVista);
 $("clSesion").addEventListener("change", () => {
   const nueva = $("clSesion").value === "__nueva";
   $("clNuevaCaja").hidden = !nueva;
-  if (nueva) { if (!$("clNuevaNombre").value.trim()) $("clNuevaNombre").value = nombreSesionSugerido(); $("clNuevaNombre").placeholder = `Ej.: ${nombreSesionSugerido()}ARTICULACIONES`; $("clNuevaNombre").focus(); }
+  pintarNuevaVista();
+  if (nueva) $("clNuevaNombre").focus();
 });
 $("clGuion").onclick = async () => {
   let sesion = $("clSesion").value;
   if (sesion === "__nueva") {
-    const nombre = $("clNuevaNombre").value.trim().toUpperCase();
-    if (!nombre || /^P\d+$/.test(nombre)) { $("clNuevaNombre").focus(); return avisar("Ponle nombre a la nueva sesión (número + tema, ej. P07 ARTICULACIONES).", "err"); }
+    const nombre = nombreNuevaProduccion();
+    if (!$("clNuevaNombre").value.trim()) { $("clNuevaNombre").focus(); return avisar("Escribe el tema de la nueva producción (ej. ARTICULACIONES).", "err"); }
     const clave = t => t.toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g, "");
     if (E.semanas.some(x => clave(x) === clave(nombre))) return avisar("Ya existe una sesión con ese nombre: elígela en la lista.", "err");
     try { await post("/api/semana", { semana: nombre }); sel = null; await cargar(); sesion = E.semana; $("clNuevaCaja").hidden = true; $("clNuevaNombre").value = ""; }
@@ -1204,8 +1235,8 @@ $("formGrupo").addEventListener("submit", async e => {
 });
 $("inNueva").onclick = async () => { const s = await nuevaSesion(); if (s) avisar(`Sesión «${s}» creada.`, "ok"); };
 async function nuevaSesion() {
-  const s = prompt("Nombre de la nueva producción: número + tema (el día de grabación no hace falta).\nEj.: " + nombreSesionSugerido() + "ARTICULACIONES", nombreSesionSugerido());
-  if (!s || /^\s*P\d+\s*$/i.test(s)) return null;
+  const s = prompt("Nombre de la nueva producción: número + ADS u ORG + tema (el día de grabación no hace falta).\nEj.: " + nombreSesionSugerido() + "ADS ARTICULACIONES  ·  " + nombreSesionSugerido() + "ORG PELAJE", nombreSesionSugerido() + "ADS ");
+  if (!s || /^\s*P\d+(\s+(ADS|ORG))?\s*$/i.test(s)) return null;  // falta el tema
   try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); return E.semana; }
   catch (err) { avisar("Error: " + err.message, "err"); return null; }
 }
