@@ -147,6 +147,9 @@ section[hidden] { display: none; }
 .sin-nada { padding: 30px; text-align: center; border: 1px dashed var(--line2); border-radius: 14px; color: var(--muted); }
 
 dialog { border: 1px solid var(--line2); border-radius: 16px; padding: 0; width: min(1180px, 96vw); max-height: 94vh; background: var(--surface); color: var(--ink); box-shadow: 0 30px 80px rgba(0,0,0,.7), var(--glow); }
+/* con una ventana abierta, la página de atrás no se mueve */
+html:has(dialog[open]), html:has(dialog[open]) body { overflow: hidden; }
+dialog { overscroll-behavior: contain; overflow: auto; }
 dialog::backdrop { background: rgba(2,4,8,.75); backdrop-filter: blur(4px); }
 .dlg-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--flotante); backdrop-filter: blur(10px); z-index: 2; }
 .dlg-cuerpo { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 260px) minmax(0, 1fr); gap: 16px; padding: 16px; overflow: auto; }
@@ -2466,6 +2469,16 @@ $("tema").onclick = () => {
   try { localStorage.setItem("sala_tema", t); } catch (e) {}
 };
 pintarTema();
+// Tocar fuera de una ventana (en lo oscuro) la cierra
+document.querySelectorAll("dialog").forEach(d => {
+  let abajo = null;
+  d.addEventListener("pointerdown", e => { abajo = e.target; });
+  d.addEventListener("click", e => {
+    if (e.target !== d || abajo !== d) return;  // solo si se tocó y soltó afuera (no al terminar de arrastrar algo)
+    const r = d.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
+  });
+});
 revisarClaude();
 cargar();
 </script>
