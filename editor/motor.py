@@ -215,13 +215,13 @@ def semanas_disponibles():
 
     hoy = time.localtime()
 
-    def orden(nombre):  # "13 10 SESIÓN" -> (año, 10, 13); luego las producciones «P07 …» por número; el resto al final
+    def orden(nombre):  # de la más vieja a la más nueva: otras, "13 10 SESIÓN" -> (año, 10, 13), luego producciones «P07 …»
         m = re.match(r"^(\d{1,2})\D+(\d{1,2})", nombre)
         p = PRODUCCION.match(nombre)
         if m:  # el nombre no trae año: un mes más de un mes adelante del actual es del año pasado (diciembre visto en enero)
             mes = int(m.group(2))
-            return (0, hoy.tm_year - (mes > hoy.tm_mon + 1), mes, int(m.group(1)), nombre)
-        return (1, int(p.group(1)), 0, 0, nombre) if p else (2, 0, 0, 0, nombre)
+            return (1, hoy.tm_year - (mes > hoy.tm_mon + 1), mes, int(m.group(1)), nombre)
+        return (2, int(p.group(1)), 0, 0, nombre) if p else (0, 0, 0, 0, nombre)  # «P07 …» son las nuevas: al final (arriba en la lista)
 
     nombres = {d.name for d in S.base.iterdir() if es_sesion(d) and not d.name.startswith("_")} if S.base.exists() else set()
     if CONFIG.get("drive", {}).get("activo"):  # también las que están en Drive y aún no se bajaron
