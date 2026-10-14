@@ -1895,12 +1895,51 @@ def calendario():
     return out
 
 
-def exportar(avance=print, codigos=None):
-    """Copia a V.FINALES (listos): video, portada y copy.txt. Sin `codigos`, por días según el calendario (DIA_X);
-    con `codigos`, solo esos videos y directo en la carpeta de finales."""
+AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "codec": "h264", "calidad": "alta", "portada_inicio": True, "por_dia": False}
+RESOLUCIONES = {"720": (720, 1280), "1080": (1080, 1920), "1440": (1440, 2560), "2160": (2160, 3840)}
+CALIDADES = {"ligera": 26, "recomendada": 22, "alta": 19, "maxima": 16}  # CRF: menos = mejor y más pesado
+
+
+def ajustes_exportar():
+    return {**AJUSTES_EXPORTAR, **CONFIG.get("exportar", {})}
+
+
+def render_final(video, portada, destino, aj):
+    """Video final para subir a redes con los ajustes de exportación. Con «portada_inicio», el primer cuadro del video
+    es la portada (Instagram y TikTok la toman como miniatura si eliges el primer cuadro)."""
+    w, h = RESOLUCIONES.get(str(aj["resolucion"]), (1080, 1920))
+    fps = int(aj.get("fps") or 30)
+    crf = CALIDADES.get(aj.get("calidad"), 19)
+    venc = (["-c:v", "libx265", "-tag:v", "hvc1", "-crf", str(crf + 4)] if aj.get("codec") == "hevc"
+            else ["-c:v", "libx264", "-crf", str(crf), "-profile:v", "high"])
+    escala = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps}"
+    if aj.get("portada_inicio") and portada and portada.exists():
+        cuadro = 1 / fps
+        ms = round(cuadro * 1000)
+        cmd = [FFMPEG, "-hide_banner", "-y", "-loop", "1", "-framerate", str(fps), "-t", f"{cuadro:.4f}", "-i", str(portada), "-i", str(video),
+               "-filter_complex", f"[0:v]{escala},format=yuv420p[p];[1:v]{escala},format=yuv420p[v];[p][v]concat=n=2:v=1:a=0[vo];"
+                                  f"[1:a]adelay={ms}:all=1,aresample=48000[ao]",
+               "-map", "[vo]", "-map", "[ao]"]
+    else:
+        cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(video), "-vf", f"{escala},format=yuv420p", "-af", "aresample=48000"]
+    run(cmd + [*venc, "-preset", "fast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ac", "2",
+               "-dn", "-map_chapters", "-1", "-movflags", "+faststart", str(destino)])
+
+
+def exportar(avance=print, codigos=None, ajustes=None):
+    """Deja en V.FINALES (listos) cada video con los ajustes de exportación, su portada (.jpg) y su copy (.txt).
+    Por días según el calendario (DIA_X) si «por_dia» o si no se eligieron videos; si no, todos juntos."""
+    aj = {**ajustes_exportar(), **(ajustes or {})}
     por_codigo = {c["codigo"]: c for c in combinaciones()}
     hechos = []
-    plan = {"": list(codigos)} if codigos else calendario()
+    if codigos and not aj.get("por_dia"):
+        plan = {"": list(codigos)}
+    else:
+        cal = calendario()
+        plan = {d: [c for c in cs if not codigos or c in codigos] for d, cs in cal.items()}
+        sueltos = [c for c in (codigos or []) if not any(c in cs for cs in cal.values())]
+        if sueltos:
+            plan["SIN_DIA"] = sueltos
     for dia, codigos in plan.items():
         destino = S.listos / dia if dia else S.listos
         destino.mkdir(parents=True, exist_ok=True)
@@ -1911,8 +1950,8 @@ def exportar(avance=print, codigos=None):
             v, p = S.salida / f"{c['archivo']}.mp4", S.portadas / f"{c['archivo']}.jpg"
             if not v.exists():
                 continue
-            avance(f"Exportando {dia} · {c['archivo']}")
-            shutil.copy2(v, destino / v.name)
+            avance(f"Exportando {len(hechos) + 1} · {(dia + ' · ') if dia else ''}{c['archivo']}")
+            render_final(v, p, destino / v.name, aj)
             if p.exists():
                 shutil.copy2(p, destino / p.name)
             cp = copy_de(cod)

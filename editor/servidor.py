@@ -163,7 +163,7 @@ def estado():
             "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -208,7 +208,7 @@ def lanzar(accion, pieza=None, extra=None):
                               and not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
                     if faltan:
                         motor.armar(avance=avance, codigos=[c["codigo"] for c in faltan])
-                    hechos = motor.exportar(avance=avance, codigos=extra["codigos"])
+                    hechos = motor.exportar(avance=avance, codigos=extra["codigos"], ajustes=extra.get("ajustes"))
                     if drive.estado()["activo"]:
                         drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
                     avance(f"Exportados {len(hechos)} videos a {motor.S.listos.name}")
@@ -645,7 +645,11 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "codigo": vid})
             elif u.path == "/api/trabajo_sel":
                 b = self._cuerpo()
-                lanzar(b["accion"], extra={"codigos": b["codigos"]})
+                if b.get("ajustes"):  # los ajustes de exportación quedan guardados para la próxima vez
+                    aj = {k: v for k, v in b["ajustes"].items() if k in motor.AJUSTES_EXPORTAR}
+                    motor.guardar_config({"exportar": aj})
+                    b["ajustes"] = aj
+                lanzar(b["accion"], extra={"codigos": b["codigos"], "ajustes": b.get("ajustes")})
                 self._json({"ok": True})
             elif u.path == "/api/asignar":
                 b = self._cuerpo()

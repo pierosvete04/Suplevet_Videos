@@ -1,11 +1,5 @@
-Versión 1.7.0 (se actualiza desde la app con «Actualizar ahora»):
-- Grupos de sesiones: varias grabaciones que son una sola producción (por ejemplo 11/10 + 13/10 = «B2B VETERINARIOS 6X5») se ven juntas: un guion, todos los clips, todos los videos. Se crean en Inicio → «Unir en grupo».
-- Guion en 3 pasos: «Analizar clips» (trae los clips de Drive, pasa el audio a texto en esta PC, gratis, y los identifica solo comparándolos con el guion) → «Ver cambios contra el guion» → «Que Claude reacomode la edición».
-- Procesos (botón ☰ o la rueda de abajo): ves lo que está haciendo la sala, su historial, y puedes cancelarlo.
-- Configuración en la tuerca ⚙ de arriba a la derecha.
-- Plantillas: todas se pueden editar (las de fábrica se pueden restaurar). Lienzo del video donde mueves el cuadro del subtítulo y estiras su ancho; espaciado entre letras, color y opacidad de la sombra, desenfoque; logo, imágenes o GIF dentro de la plantilla (se ven en todo el video).
-- Nueva fuente DM Sans.
-- Carpetas ordenadas por video: Clips/C2/Cuerpo/1.MOV, Clips/C2/Hooks/H1.MOV, Clips/CTA/CTA1.MOV.
-- Estados de cada video: por revisar, editando, aprobado.
-- Claude Code se encuentra aunque la app de Claude venga de la Microsoft Store.
-- Nombres más claros: «Armar todos los videos», «Exportar» (dice dónde queda cada cosa).
+Versión 1.7.1 (se actualiza desde la app con «Actualizar ahora»):
+- Pestaña Exportar nueva: todos los videos armados de la sesión para elegir, «Exportar todo» o «Exportar seleccionados».
+- Ajustes como en CapCut: resolución (720p, 1080p, 2K, 4K), cuadros por segundo, codec (H.264 o HEVC), calidad, con ficha de formato, audio y peso aproximado. Quedan guardados.
+- Cada video exportado empieza con su portada en el primer cuadro (para que Instagram y TikTok la tomen como miniatura). Se puede apagar.
+- Opción de separar en carpetas por día de publicación.

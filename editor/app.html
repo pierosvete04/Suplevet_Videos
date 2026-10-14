@@ -301,6 +301,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .form-plant legend { font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent2); padding: 0 4px; }
 
 /* Publicar */
+.export-layout { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.export-ajustes { position: sticky; top: calc(var(--alto-header, 56px) + 56px); }
+.ficha { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); font-size: 12px; }
+.ficha div { display: grid; } .ficha span { color: var(--muted); font-size: 11px; } .ficha b { font-weight: 650; }
+@media (max-width: 900px) { .export-layout { grid-template-columns: 1fr; } .export-ajustes { position: static; } }
 .dias { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .dia .mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; }
 .dia .mini div { aspect-ratio: 9/16; border-radius: 6px; background: #000 center/cover; position: relative; cursor: pointer; }
@@ -627,19 +632,36 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   </section>
 
   <section data-panel="publicar" hidden>
-    <div class="caja" style="margin-bottom:14px">
-      <div class="fila" style="justify-content:space-between">
-        <div><h2 style="margin:0">Exportar los videos</h2>
-          <span class="muted" style="font-size:12px">Aquí no se publica en redes. <b>Exportar por día</b> deja cada video con su portada y su copy en <code id="rutaListos"></code> (en Drive, carpeta V.FINALES), ordenados por día de publicación.
-          <b>Subir al panel</b> los manda al panel de videos (edicion.suplevet.pe/videos), donde se revisan y aprueban. La publicación en Instagram, TikTok y YouTube se hace desde ahí o a mano.</span></div>
-        <div class="fila">
-          <button class="btn" id="exportar">Exportar por día</button>
-          <button class="btn sec" id="subirPanel">Subir al panel</button>
-          <button class="btn sec" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes</button>
+    <div class="export-layout">
+      <div class="caja export-ajustes">
+        <h2>Exportar</h2>
+        <div class="form-plant">
+          <label>Resolución<select id="exRes"><option value="720">720p (720×1280)</option><option value="1080">1080p (1080×1920) · recomendada</option>
+            <option value="1440">2K (1440×2560)</option><option value="2160">4K (2160×3840)</option></select></label>
+          <label>Cuadros por segundo<select id="exFps"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps · recomendado</option><option value="60">60 fps</option></select></label>
+          <label>Codec<select id="exCodec"><option value="h264">H.264 · funciona en todas las redes</option><option value="hevc">HEVC (H.265) · pesa menos</option></select></label>
+          <label>Calidad<select id="exCalidad"><option value="ligera">Ligera (pesa poco)</option><option value="recomendada">Recomendada</option><option value="alta">Alta</option><option value="maxima">Máxima (pesa más)</option></select></label>
+          <label class="fila" style="display:flex;font-size:13px;color:var(--ink)"><input type="checkbox" id="exPortada"> Portada en el primer cuadro del video</label>
+          <label class="fila" style="display:flex;font-size:13px;color:var(--ink)"><input type="checkbox" id="exPorDia"> Separar en carpetas por día de publicación</label>
+          <div class="ficha" id="exFicha"></div>
         </div>
+        <div style="display:grid;gap:8px;margin-top:12px">
+          <button class="btn" id="exTodo">Exportar todo</button>
+          <button class="btn sec" id="exSel" disabled>Exportar seleccionados</button>
+          <button class="btn sec" id="subirPanel" title="Los manda al panel de videos (edicion.suplevet.pe/videos) para revisarlos y aprobarlos">Subir al panel</button>
+          <button class="btn sec peq" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes al panel</button>
+        </div>
+        <p class="muted" style="font-size:11.5px;margin:10px 0 0">Aquí no se publica en redes: los videos quedan en <code id="rutaListos"></code> (Drive, V.FINALES) con su portada (.jpg) y su copy (.txt). Se publican desde el panel o a mano.</p>
+      </div>
+      <div class="caja">
+        <div class="fila" style="justify-content:space-between;margin-bottom:10px">
+          <h2 style="margin:0">Videos de la sesión <span class="pill" id="exCuenta"></span></h2>
+          <div class="fila"><button class="btn sec peq" id="exMarcarTodos">Seleccionar todos</button><button class="btn sec peq" id="exNinguno">Ninguno</button></div>
+        </div>
+        <div class="grid-portadas" id="exVideos"></div>
+        <details style="margin-top:14px"><summary>Calendario de publicación</summary><div class="dias" id="dias" style="margin-top:10px"></div></details>
       </div>
     </div>
-    <div class="dias" id="dias"></div>
   </section>
 
   <section data-panel="notas" hidden>
@@ -831,7 +853,7 @@ async function cargar() {
   $("subirPanel").hidden = !E.panel;
   $("importarFinales").hidden = !E.panel || !(E.drive || {}).activo;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || E.piezas[0]?.nombre;
-  pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias(); pintarInicio();
+  pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias(); pintarInicio(); pintarExport();
   if (!E.hay_produccion) avisar("Esta sesión no tiene guion todavía: se arma igual, pero sin marcas, copies ni título de portada. Escríbelo con Claude en Inicio.", "muted");
   else avisar("");
   vigilar(E.trabajo);
@@ -1310,7 +1332,7 @@ function vigilar(t) {
   caja.hidden = !t.activo;
   $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["todo", "exportar", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar", "gAnalizar"].forEach(id => $(id).disabled = t.activo);
+  ["todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "gRevisar", "gAnalizar"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -1425,7 +1447,59 @@ $("nuevaMarca").onclick = () => {
 $("guardar").onclick = () => guardar(false);
 $("guardarArmar").onclick = () => guardar(true);
 $("todo").onclick = () => trabajo("todo");
-$("exportar").onclick = () => trabajo("exportar");
+// ---------- Exportar ----------
+const exElegidos = new Set();
+const PESO_MBPS = { ligera: 4, recomendada: 7, alta: 10, maxima: 16 };
+function ajustesExport() {
+  return { resolucion: $("exRes").value, fps: Number($("exFps").value), codec: $("exCodec").value, calidad: $("exCalidad").value,
+           portada_inicio: $("exPortada").checked, por_dia: $("exPorDia").checked };
+}
+function pintarExport() {
+  const aj = E.exportar || {};
+  if (!pintarExport.listo) {  // los ajustes guardados se cargan una vez
+    $("exRes").value = aj.resolucion || "1080"; $("exFps").value = String(aj.fps || 30); $("exCodec").value = aj.codec || "h264";
+    $("exCalidad").value = aj.calidad || "alta"; $("exPortada").checked = aj.portada_inicio !== false; $("exPorDia").checked = !!aj.por_dia;
+    pintarExport.listo = true;
+  }
+  const hechos = E.salidas.filter(s => s.existe);
+  [...exElegidos].forEach(c => { if (!hechos.some(s => s.codigo === c)) exElegidos.delete(c); });
+  $("exCuenta").textContent = `${hechos.length} armados${exElegidos.size ? ` · ${exElegidos.size} elegidos` : ""}`;
+  $("exVideos").innerHTML = hechos.map(s => `<label class="tarjeta ${exElegidos.has(s.codigo) ? "elegida" : ""}" style="position:relative;display:block">
+      <input type="checkbox" class="sel" data-ex="${esc(s.codigo)}" ${exElegidos.has(s.codigo) ? "checked" : ""}>
+      <span class="estado-dot ${s.estado}"></span>
+      ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>` : `<div class="vacia">${esc(s.codigo)}</div>`}
+      <div class="pie">${s.receta ? `<span class="pill">${s.receta.duracion} s</span>` : ""}${s.desactualizado ? '<span class="pill warn">⟳ re-armar</span>' : ""}${s.estado === "listo" ? '<span class="pill ok">aprobado</span>' : ""}</div></label>`).join("")
+    || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todos los videos».</div>`;
+  $("exSel").disabled = !exElegidos.size;
+  $("exSel").textContent = exElegidos.size ? `Exportar ${exElegidos.size} seleccionado${exElegidos.size === 1 ? "" : "s"}` : "Exportar seleccionados";
+  pintarFicha();
+}
+function pintarFicha() {
+  const aj = ajustesExport(), res = { "720": "720×1280", "1080": "1080×1920", "1440": "1440×2560", "2160": "2160×3840" }[aj.resolucion];
+  const lista = exElegidos.size ? E.salidas.filter(s => exElegidos.has(s.codigo)) : E.salidas.filter(s => s.existe);
+  const seg = lista.reduce((a, s) => a + (s.receta?.duracion || 35), 0);
+  const factor = ({ "720": .45, "1080": 1, "1440": 1.7, "2160": 3.6 }[aj.resolucion]) * (aj.fps >= 60 ? 1.5 : 1) * (aj.codec === "hevc" ? .55 : 1);
+  const mb = seg * PESO_MBPS[aj.calidad] * factor / 8;
+  $("exFicha").innerHTML = `<div><span>Formato</span><b>MP4</b></div><div><span>Resolución</span><b>${res}</b></div>
+    <div><span>Velocidad</span><b>${aj.fps} fps</b></div><div><span>Codec de video</span><b>${aj.codec === "hevc" ? "HEVC (H.265)" : "H.264 High"}</b></div>
+    <div><span>Audio</span><b>AAC 192 kbps · 48 kHz</b></div><div><span>Primer cuadro</span><b>${aj.portada_inicio ? "Portada" : "Video"}</b></div>
+    <div><span>Videos</span><b>${lista.length}</b></div><div><span>Peso aprox.</span><b>${mb >= 1000 ? (mb / 1000).toFixed(1) + " GB" : Math.round(mb) + " MB"}</b></div>`;
+}
+["exRes", "exFps", "exCodec", "exCalidad", "exPortada", "exPorDia"].forEach(id => $(id).addEventListener("change", pintarFicha));
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-ex]"); if (!c) return;
+  c.checked ? exElegidos.add(c.dataset.ex) : exElegidos.delete(c.dataset.ex);
+  pintarExport();
+});
+$("exMarcarTodos").onclick = () => { E.salidas.filter(s => s.existe).forEach(s => exElegidos.add(s.codigo)); pintarExport(); };
+$("exNinguno").onclick = () => { exElegidos.clear(); pintarExport(); };
+async function exportarVideos(codigos) {
+  try { await post("/api/trabajo_sel", { accion: "exportar_sel", codigos, ajustes: ajustesExport() }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Exportando ${codigos.length} videos… lo ves en Procesos (☰).`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("exTodo").onclick = () => { const cods = E.salidas.filter(s => s.existe).map(s => s.codigo); if (!cods.length) return avisar("No hay videos armados todavía.", "err"); exportarVideos(cods); };
+$("exSel").onclick = () => exportarVideos([...exElegidos]);
 $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMuestra(); });
 $("plantPredet").onclick = async () => { try { await guardarPlantilla(plantSel, null, true); avisar("Plantilla predeterminada guardada. Re-arma los videos para aplicarla.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
