@@ -301,6 +301,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .z-punto { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5); pointer-events: none; z-index: 2; }
 .z-punto.ini { background: transparent; } .z-punto.fin { background: var(--warn); }
 .ev-visor.eligiendo { cursor: crosshair; outline: 2px dashed var(--warn); outline-offset: 2px; }
+#guionLista mark { background: color-mix(in srgb, var(--warn) 42%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
 .ev-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent2); box-shadow: 0 0 10px var(--accent2); pointer-events: none; z-index: 3; }
 .aviso-alcance { display: flex; gap: 8px; align-items: flex-start; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(61,139,255,.35); background: rgba(61,139,255,.08); font-size: 12.5px; }
 @media (max-width: 680px) { .ev-arriba { grid-template-columns: 1fr; } .ev-visor { max-width: 240px; margin: 0 auto; } }
@@ -571,6 +572,10 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <button data-gvista="cuerpo" aria-pressed="false">Cuerpos</button>
       <button data-gvista="cta" aria-pressed="false">CTAs</button>
       <button data-gvista="video" aria-pressed="false">Hook + cuerpo</button>
+    </div>
+    <div class="fila" id="gBuscarFila" style="margin-bottom:12px">
+      <input id="gBuscar" type="search" placeholder="Buscar palabras que se dicen: «quirófano analgésicos», «ya no es el mismo»…" aria-label="Buscar palabras en el guion" style="flex:1;min-width:220px">
+      <span class="muted" id="gBuscarN" style="font-size:12px"></span>
     </div>
     <div id="guionLista" class="grid-assets" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
   </section>
@@ -1558,7 +1563,8 @@ function pintarSinAsignar() {
       <div class="fila" style="justify-content:space-between"><label class="fila" style="margin:0"><input type="checkbox" data-desc="${esc(c.rel)}" ${descElegidos.has(c.rel) ? "checked" : ""}><h3 style="margin:0"><code>${esc(c.nombre)}</code></h3></label>
         <span class="muted" style="font-size:12px">${esc(c.carpeta || "Clips")}</span></div>
       <video src="${c.video}" controls preload="none" style="width:100%;max-height:220px;background:#000;border-radius:8px"></video>
-      ${c.texto != null ? `<p class="muted" style="margin:0;font-size:12px">«${esc(c.texto.slice(0, 180))}${c.texto.length > 180 ? "…" : ""}»</p>` : `<p class="muted" style="margin:0;font-size:12px">Sin escuchar todavía.</p>`}
+      ${c.texto != null ? `<p class="muted" style="margin:0;font-size:12px">«${esc(c.texto.slice(0, 180))}${c.texto.length > 180 ? "…" : ""}»</p>
+        <button class="btn sec peq" type="button" data-buscar-guion="${esc(c.texto)}" title="Busca en el guion las palabras de este clip para ver a qué pieza pertenece" style="justify-self:start">Buscar en el guion</button>` : `<p class="muted" style="margin:0;font-size:12px">Sin escuchar todavía.</p>`}
       ${c.pieza ? `<span class="pill ${c.mejor ? "ok" : ""}">Sugerido: ${esc(c.pieza)} · ${Math.round(c.parecido * 100)}%${c.mejor ? " · mejor toma" : " · otra toma"}</span>` : ""}
       <div class="fila"><input list="codigosPiezas" placeholder="C1_H2, C3, CTA-A…" value="${esc(c.pieza && c.mejor ? c.pieza : "")}" data-rel="${esc(c.rel)}" style="flex:1;min-width:120px">
         <button class="btn sec peq" data-asignar="${esc(c.rel)}">Asignar</button></div></div>`).join("")
@@ -2842,10 +2848,26 @@ function pintarGuionLista() {
   document.querySelectorAll("[data-gvista]").forEach(b => b.setAttribute("aria-pressed", b.dataset.gvista === vistaGuion));
   const sinAsignar = E.checklist.sin_asignar || [];
   const etq = { cuerpo: "Cuerpo", hook: "Hook", cta: "CTA" };
+  // Buscar palabras: quedan las piezas que las dicen (en el guion o en lo grabado), con las palabras resaltadas.
+  // Si ninguna las dice todas (un clip mal transcrito, por ejemplo), se muestran las que dicen más.
+  const palabras = normTxt($("gBuscar").value).split(/[^a-z0-9ñ]+/).filter(w => w.length > 1);
+  const puntos = p => palabras.filter(w => normTxt([p.texto, ...(p.partes || []), ...(p.diff || []).map(d => d.texto)].join(" ")).includes(w)).length;
+  let parecidas = false;
+  const filtrar = (lista, puntaje = puntos) => {
+    if (!palabras.length) return lista;
+    const todas = lista.filter(p => puntaje(p) === palabras.length);
+    if (todas.length) return todas;
+    parecidas = true;
+    return lista.map(p => [p, puntaje(p)]).filter(([, n]) => n >= Math.ceil(palabras.length / 2)).sort((a, b) => b[1] - a[1]).map(([p]) => p);
+  };
+  const avisoBusqueda = n => { $("gBuscarN").textContent = !palabras.length ? "" : !n ? "Ninguna pieza dice esas palabras."
+    : parecidas ? `Ninguna las dice todas: ${n} que dicen la mayoría.` : `${n} pieza${n === 1 ? "" : "s"}.`; };
   if (vistaGuion === "video") {
     // cada hook seguido de su cuerpo: se lee el video completo como se va a ver
     const cuerpos = Object.fromEntries(g.piezas.filter(p => p.tipo === "cuerpo").map(p => [p.nombre, p]));
-    $("guionLista").innerHTML = g.piezas.filter(p => p.tipo === "hook").map(h => {
+    const hooks = filtrar(g.piezas.filter(p => p.tipo === "hook"), h => Math.max(puntos(h), puntos(cuerpos[h.nombre.split("_")[0]] || {})));
+    avisoBusqueda(hooks.length);
+    $("guionLista").innerHTML = hooks.map(h => {
       const c = cuerpos[h.nombre.split("_")[0]];
       return `<div class="caja g-pieza">
         <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(h.nombre)} + ${esc(c?.nombre || "?")}${h.tipo_hook ? ` <span class="muted" style="font-weight:400">· ${esc(h.tipo_hook)}</span>` : ""}</h3>${estadoGuion(h)}</div>
@@ -2853,10 +2875,12 @@ function pintarGuionLista() {
         <div><span class="etq">Cuerpo</span><div class="texto">${c ? textoGuion(c) : '<span class="muted">Este cuerpo no está en el guion.</span>'}</div></div>
         ${sugeridosGuion(h)}
       </div>`;
-    }).join("") || `<div class="sin-nada">El guion no tiene hooks.</div>`;
+    }).join("") || `<div class="sin-nada">${palabras.length ? "Ningún hook ni cuerpo dice esas palabras." : "El guion no tiene hooks."}</div>`;
+    resaltarGuion(palabras);
     return;
   }
-  const lista = g.piezas.filter(p => vistaGuion === "todo" || p.tipo === vistaGuion);
+  const lista = filtrar(g.piezas.filter(p => vistaGuion === "todo" || p.tipo === vistaGuion));
+  avisoBusqueda(lista.length);
   $("guionLista").innerHTML = lista.map(p => `<div class="caja g-pieza">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span></h3>${estadoGuion(p)}</div>
       <div class="texto">${textoGuion(p)}</div>
@@ -2864,8 +2888,47 @@ function pintarGuionLista() {
       <div class="muted" style="font-size:12px">${p.clips.length ? "Clip: " + p.clips.map(c => esc(c.split("/").pop())).join(" + ") : "Ningún clip asignado todavía."}</div>
       ${sinAsignar.length ? `<div class="fila"><select data-guion-clip="${esc(p.nombre)}" style="flex:1"><option value="">Asignar un clip a ${esc(p.nombre)}…</option>
         ${sinAsignar.map(c => `<option value="${esc(c.rel)}">${esc(c.nombre)}${c.pieza ? ` (sugerido: ${esc(c.pieza)})` : ""}</option>`).join("")}</select></div>` : ""}
-    </div>`).join("") || `<div class="sin-nada">No hay piezas de ese tipo en el guion.</div>`;
+    </div>`).join("") || `<div class="sin-nada">${palabras.length ? "Ninguna pieza dice esas palabras." : "No hay piezas de ese tipo en el guion."}</div>`;
+  resaltarGuion(palabras);
 }
+const normTxt = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+function resaltarGuion(palabras) {  // marca las palabras buscadas dentro del texto ya pintado (sin tocar el diff)
+  if (!palabras.length) return;
+  document.querySelectorAll("#guionLista .texto").forEach(el => {
+    const caminante = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodos = [];
+    while (caminante.nextNode()) nodos.push(caminante.currentNode);
+    nodos.forEach(nodo => {
+      const t = nodo.nodeValue, bajo = Array.from(t, c => normTxt(c)).join("");
+      if (bajo.length !== t.length) return;
+      const rangos = [];
+      palabras.forEach(w => { for (let i = bajo.indexOf(w); i >= 0; i = bajo.indexOf(w, i + w.length)) rangos.push([i, i + w.length]); });
+      if (!rangos.length) return;
+      rangos.sort((a, b) => a[0] - b[0]);
+      const frag = document.createDocumentFragment();
+      let pos = 0;
+      for (const [a, b] of rangos) {
+        if (b <= pos) continue;
+        const ini = Math.max(a, pos);
+        if (ini > pos) frag.append(t.slice(pos, ini));
+        const m = document.createElement("mark"); m.textContent = t.slice(ini, b); frag.append(m);
+        pos = b;
+      }
+      frag.append(t.slice(pos));
+      nodo.replaceWith(frag);
+    });
+  });
+}
+$("gBuscar").addEventListener("input", pintarGuionLista);
+document.addEventListener("click", e => {  // desde un clip por identificar: busca sus palabras más largas en el guion
+  const b = e.target.closest("[data-buscar-guion]"); if (!b) return;
+  const vistas = new Set(), claves = [];
+  for (const w of b.dataset.buscarGuion.split(/\s+/).map(x => x.replace(/[^\p{L}\p{N}]/gu, "")).filter(x => x.length > 4)) {
+    const k = normTxt(w); if (!vistas.has(k)) { vistas.add(k); claves.push(w); }
+  }
+  $("gBuscar").value = claves.sort((a, c) => c.length - a.length).slice(0, 5).join(" ");
+  vistaGuion = "todo"; irTab("guion");
+  avisar("Busqué en el guion las palabras más largas de ese clip: la pieza que más coincide sale primero.", "ok");
+});
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-gvista]");
   if (b) { vistaGuion = b.dataset.gvista; pintarGuionLista(); }
@@ -2906,7 +2969,7 @@ async function pintarVersionGuion() {
   document.querySelectorAll("[data-gver]").forEach(b => b.setAttribute("aria-pressed", b.dataset.gver === gVersion));
   const doc = gVersion !== "revision";
   $("gDoc").hidden = !doc; $("gDocBotones").hidden = !doc;
-  $("filtroGuion").hidden = doc; $("guionLista").hidden = doc;
+  $("filtroGuion").hidden = doc; $("guionLista").hidden = doc; $("gBuscarFila").hidden = doc;
   if (!doc) return;
   $("gDoc").className = "caja documento " + gVersion; $("gDoc").innerHTML = `<p class="muted">Cargando…</p>`;
   $("gHostVista").hidden = gVersion !== "host";

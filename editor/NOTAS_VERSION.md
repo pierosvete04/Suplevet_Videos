@@ -1,5 +1,3 @@
-Versión 1.9.0 (trae instalador nuevo: se baja una sola vez y tus datos no se tocan):
-- La sala ahora es una aplicación de escritorio de verdad: se abre en su propia ventana, con su ícono en la barra de tareas, sin pasar por Edge. Al cerrarla se apaga sola (si estaba armando o exportando, primero termina).
-- El teleprompter, los enlaces de Google y de GitHub se abren en tu navegador.
-- Imprimir el guion funciona dentro de la ventana de la sala.
-- Faltantes: botón «Copiar plan B» en cada imagen de Flow (el mismo plano dicho más neutro, por si Google rechaza el prompt). Los guiones nuevos ya traen prompts escritos para que Flow y Flow Music no los rechacen.
+Versión 1.9.1 (se actualiza desde la app con «Actualizar ahora»):
+- Guion: buscador de palabras. Escribe lo que se escucha en un clip y quedan solo las piezas que lo dicen (en el guion o en lo grabado), con las palabras resaltadas. Si ninguna dice todas, salen primero las que dicen más. Funciona con o sin tildes.
+- Faltantes: botón «Buscar en el guion» en cada clip por identificar; busca sus palabras en el guion para ver a qué hook, cuerpo o CTA pertenece.
