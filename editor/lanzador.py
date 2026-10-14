@@ -7,14 +7,16 @@ Carpeta portable (lo que se instala):
     ffmpeg/            ffmpeg.exe y ffprobe.exe
     datos/             lo de esta PC: configuración, procesados, videos armados (nunca se toca)
 
-La ventana es Microsoft Edge en modo aplicación (viene con Windows): sin barra de direcciones ni pestañas,
-con su propio perfil en datos/ventana. Por dentro la sala sigue siendo un servidor solo de esta PC (127.0.0.1),
-que se apaga al cerrar la ventana. La consola queda oculta; lo que escribe va a datos/sala.log.
+La ventana es del propio programa (pywebview con WebView2, el motor que Windows usa para dibujar páginas
+en sus apps): con el ícono de la sala en la barra de tareas, sin navegador de por medio. Lo que la ventana guarda
+(tema, vista elegida) va a datos/ventana_app. Si a una PC le falta WebView2, se abre con Edge en modo aplicación.
+Por dentro la sala sigue siendo un servidor solo de esta PC (127.0.0.1), que se apaga al cerrar la ventana
+(si estaba armando o exportando, primero termina). La consola queda oculta; lo que escribe va a datos/sala.log.
 
 Si cambias este archivo o las librerías, sube LANZADOR_VERSION y el archivo LANZADOR_MINIMO:
 la sala pedirá bajar la versión completa en vez de actualizar solo el código.
 """
-LANZADOR_VERSION = "1.1.0"
+LANZADOR_VERSION = "2.0.0"
 
 # Imports explícitos para que PyInstaller empaquete lo que usa el código de app/ (que no analiza).
 import argparse, ctypes, glob, hashlib, http.server, io, json, mimetypes, re, runpy, secrets, shutil, socket  # noqa: E401,F401
@@ -25,6 +27,10 @@ from pathlib import Path
 
 import numpy  # noqa: F401
 import faster_whisper  # noqa: F401
+try:
+    import webview  # ventana propia; si falta, se usa Edge
+except Exception:  # noqa: BLE001
+    webview = None
 
 PUERTO = 8765
 URL = f"http://127.0.0.1:{PUERTO}"
@@ -87,6 +93,30 @@ def navegador_app():
     return None
 
 
+def ventana_propia(datos, log):
+    """Abre la sala en su propia ventana y espera a que se cierre. False si en esta PC no se pudo (falta WebView2)."""
+    if webview is None:
+        return False
+    try:
+        webview.settings["ALLOW_DOWNLOADS"] = True
+        webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True  # teleprompter, Drive, Google: en el navegador
+        webview.create_window(TITULO, URL, width=1440, height=920, min_size=(900, 600), text_select=True)
+        webview.start(gui="edgechromium", private_mode=False, storage_path=str(datos / "ventana_app"))
+        return True
+    except Exception:  # noqa: BLE001
+        log.write("No se pudo abrir la ventana propia; se usa Edge.\n" + traceback.format_exc())
+        log.flush()
+        return False
+
+
+def avisar_cierre():
+    """La ventana se cerró: la sala termina lo que esté haciendo y se apaga sola."""
+    try:
+        urllib.request.urlopen(urllib.request.Request(URL + "/api/adios", data=b"", method="POST"), timeout=5).read()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def abrir_ventana(datos):
     exe = navegador_app()
     if not exe:
@@ -105,33 +135,40 @@ def main():
     if "--consola" not in sys.argv:  # para ver errores: SalaSuplevet.exe --consola
         ocultar_consola()
     if en_uso():  # ya estaba abierta: solo otra ventana
-        abrir_ventana(datos)
+        if not ventana_propia(datos, sys.stderr):
+            abrir_ventana(datos)
         return
     log = open(datos / "sala.log", "a", encoding="utf-8", errors="replace")
     log.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} · lanzador {LANZADOR_VERSION} =====\n")
     log.flush()
-    primera = True
-    while True:
-        cmd = [sys.executable, "--servidor"] if getattr(sys, "frozen", False) else [sys.executable, __file__, "--servidor"]
-        proc = subprocess.Popen(cmd, stdout=log, stderr=log)
-        if primera:
-            for _ in range(120):
-                if en_uso() or proc.poll() is not None:
-                    break
-                time.sleep(0.25)
-            if proc.poll() is not None:
-                mensaje(f"La sala no pudo arrancar. Mándale a Claude el archivo:\n{datos / 'sala.log'}")
-                return
-            abrir_ventana(datos)
-            primera = False
-        # Edge pasa la ventana a su propio proceso, así que no se la puede esperar: la página avisa con un latido
-        # y la sala se apaga sola (código 0) cuando se cierra la ventana. Aquí solo se espera al servidor.
-        codigo = proc.wait()
-        if codigo == 42:  # actualización instalada: la ventana sigue abierta y se recarga sola
-            continue
-        if codigo != 0:
-            mensaje(f"La sala se detuvo (código {codigo}). Mándale a Claude el archivo:\n{datos / 'sala.log'}")
+    cmd = [sys.executable, "--servidor"] if getattr(sys, "frozen", False) else [sys.executable, __file__, "--servidor"]
+    estado = {"proc": subprocess.Popen(cmd, stdout=log, stderr=log), "codigo": None}
+    for _ in range(120):
+        if en_uso() or estado["proc"].poll() is not None:
+            break
+        time.sleep(0.25)
+    if estado["proc"].poll() is not None:
+        mensaje(f"La sala no pudo arrancar. Mándale a Claude el archivo:\n{datos / 'sala.log'}")
         return
+
+    def servidor():  # el servidor se reinicia solo cuando se instala una actualización (código 42)
+        while True:
+            codigo = estado["proc"].wait()
+            if codigo != 42:
+                estado["codigo"] = codigo
+                return
+            estado["proc"] = subprocess.Popen(cmd, stdout=log, stderr=log)  # la ventana sigue abierta y se recarga sola
+    hilo = threading.Thread(target=servidor, daemon=True)
+    hilo.start()
+    if ventana_propia(datos, log):  # espera aquí hasta que se cierre la ventana
+        avisar_cierre()
+    else:
+        # Edge pasa la ventana a su propio proceso, así que no se la puede esperar: la página avisa con un latido
+        # y la sala se apaga sola (código 0) cuando se cierra la ventana.
+        abrir_ventana(datos)
+    hilo.join()
+    if estado["codigo"] not in (0, None):
+        mensaje(f"La sala se detuvo (código {estado['codigo']}). Mándale a Claude el archivo:\n{datos / 'sala.log'}")
 
 
 if __name__ == "__main__":

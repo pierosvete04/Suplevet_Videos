@@ -14,7 +14,7 @@ No tienes que hacer nada. Cuando hay una versión nueva, arriba aparece **"Hay u
 
 ## Cada semana
 
-1. Abre `SalaSuplevet.exe`. Se abre la sala en el navegador. No cierres la ventana negra mientras trabajas.
+1. Abre `SalaSuplevet.exe`. La sala se abre en su propia ventana, como cualquier programa. Al cerrarla, la sala se apaga sola (si estaba armando o exportando, primero termina).
 2. Arriba, elige la **semana**.
 3. Pestaña **Faltantes**: qué piezas faltan grabar y qué imágenes de Google Flow faltan. Arrastra cada archivo a su cuadro; se guarda con el nombre correcto.
 4. Botón **Procesar y armar semana**: une hook + cuerpo + CTA y pone subtítulos, imágenes, sonidos, música y la portada de cada video.

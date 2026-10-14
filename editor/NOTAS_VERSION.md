@@ -1,5 +1,5 @@
-Versión 1.8.6 (se actualiza desde la app con «Actualizar ahora»):
-- Zoom por tramos, como los fotogramas clave de CapCut: nueva pista «Zoom» en el editor del video. Arrastra sobre la pista para marcar desde dónde hasta dónde, o elige un tipo y toca «+ Agregar en el cabezal».
-- Cada tramo tiene zoom al empezar y al terminar, el movimiento (suave, parejo, arranca lento, frena al final, con rebote, temblor), qué pasa al terminar (vuelve de golpe, se queda acercado, vuelve suave) y el punto de foco: toca en el video hacia dónde acercar; si el foco al empezar y al terminar es distinto, la cámara además se desplaza.
-- Tipos listos: acercar suave, alejar suave, punch, punch y vuelta, zoom rápido, temblor y deslizar de lado.
-- La vista previa muestra el zoom sin armar el video. Como los recortes, un tramo vale para todos los videos que usan esa pieza (o solo para uno si lo guardas como versión aparte).
+Versión 1.9.0 (trae instalador nuevo: se baja una sola vez y tus datos no se tocan):
+- La sala ahora es una aplicación de escritorio de verdad: se abre en su propia ventana, con su ícono en la barra de tareas, sin pasar por Edge. Al cerrarla se apaga sola (si estaba armando o exportando, primero termina).
+- El teleprompter, los enlaces de Google y de GitHub se abren en tu navegador.
+- Imprimir el guion funciona dentro de la ventana de la sala.
+- Faltantes: botón «Copiar plan B» en cada imagen de Flow (el mismo plano dicho más neutro, por si Google rechaza el prompt). Los guiones nuevos ya traen prompts escritos para que Flow y Flow Music no los rechacen.

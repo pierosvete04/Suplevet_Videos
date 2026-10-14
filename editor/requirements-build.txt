@@ -1,7 +1,10 @@
 # Versiones exactas con las que se probó SalaSuplevet.exe (Python 3.14). Cambiarlas = subir LANZADOR_MINIMO.
 av==19.0.1
+bottle==0.13.4
 certifi==2026.7.22
+cffi==2.1.1
 charset-normalizer==3.5.2
+clr_loader==0.3.1
 colorama==0.4.6
 ctranslate2==4.8.2
 faster-whisper==1.2.1
@@ -15,8 +18,12 @@ numpy==2.5.3
 onnxruntime==1.30.0
 packaging==26.3
 protobuf==7.36.2
-pyinstaller==6.22.3
+proxy_tools==0.1.0
+pycparser==3.11
 pyinstaller-hooks-contrib==2026.8
+pyinstaller==6.22.3
+pythonnet==3.2.1
+pywebview==5.4
 PyYAML==6.0.3
 requests==2.34.2
 tokenizers==0.23.3

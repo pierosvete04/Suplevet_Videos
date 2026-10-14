@@ -1627,7 +1627,7 @@ function pintarFaltan() {
         <span class="pill ${a.listo ? "ok" : "warn"}">${a.listo ? "listo" : "falta"}</span></div>
       <span class="muted" style="font-size:12px">${esc(a.tipo)} · ${esc(a.pieza || "")} en «${esc(a.palabra || "")}»</span>
       <pre>${esc(prompt)}</pre>
-      <div class="fila"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button>
+      <div class="fila"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button>${a.flow?.plan_b ? `<button class="btn sec peq" data-copiar="${esc(a.flow.plan_b)}" title="Por si Flow rechaza el prompt: el mismo plano dicho más neutro">Copiar plan B</button>` : ""}
         <button class="btn sec peq" data-copiar="${esc(prompt)}">Copiar JSON</button></div>
       ${zona("assets", a.id, ya?.url, ya?.es_video, a.tipo === "clip" ? "video/*" : "image/*,video/*")}</div>`;
   }).join("") || `<p class="muted">El guion de esta semana no pide imágenes ni clips.</p>`;
@@ -2921,12 +2921,21 @@ document.addEventListener("click", e => {
 });
 $("gDocCopiar").onclick = () => { navigator.clipboard.writeText(gDocTexto); avisar("Guion copiado.", "ok"); };
 $("gDocImprimir").onclick = () => {
-  const w = window.open("", "_blank");
-  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(E.semana)} — guion ${gVersion}</title>
+  // en un marco oculto: funciona igual en la ventana de la sala (que no abre ventanas nuevas) y en un navegador
+  const marco = document.createElement("iframe");
+  marco.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0";
+  marco.srcdoc = `<!doctype html><meta charset="utf-8"><title>${esc(E.semana)} — guion ${gVersion}</title>
     <style>body{font:${gVersion === "host" ? "18px/1.8" : "13px/1.6"} "Segoe UI",sans-serif;max-width:760px;margin:30px auto;color:#111}h2{border-top:1px solid #ccc;padding-top:10px;margin-top:20px}code{font-family:Consolas,monospace}</style>
-    ${mdAHtml(gDocTexto)}<script>print()<\/script>`);
-  w.document.close();
+    ${mdAHtml(gDocTexto)}`;
+  marco.onload = () => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 60000); };
+  document.body.appendChild(marco);
 };
+// Un enlace de afuera (GitHub, Google) se abre en el navegador de la PC, también desde la ventana de la sala
+function abrirAfuera(url) {
+  const a = document.createElement("a");
+  a.href = url; a.target = "_blank"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+}
 $("gCorroborar").onclick = async () => { corroborado = true; await pintarGuion(); $("guionLista").scrollIntoView({ behavior: "smooth", block: "start" }); };
 document.addEventListener("change", async e => {
   const s = e.target.closest("[data-guion-clip]");
@@ -3128,7 +3137,7 @@ $("actBuscar").onclick = async () => {
   b.disabled = false; b.textContent = "Buscar actualizaciones";
 };
 $("vActualizar").onclick = async () => {
-  if (infoVersion?.requiere_completa) { window.open(infoVersion.url_completa, "_blank"); return avisar("Esta versión trae un instalador nuevo: se está descargando. Ábrelo y sigue los pasos; tus datos no se tocan.", "muted"); }
+  if (infoVersion?.requiere_completa) { abrirAfuera(infoVersion.url_completa); return avisar("Esta versión trae un instalador nuevo: se está descargando. Ábrelo y sigue los pasos; tus datos no se tocan.", "muted"); }
   $("vActualizar").disabled = true; avisar("Descargando la versión nueva… la sala se reinicia sola.");
   try {
     const r = await post("/api/actualizar");

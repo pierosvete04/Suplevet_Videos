@@ -40,7 +40,7 @@ jobs:
           # Se arma desde una carpeta que solo tiene el lanzador: si PyInstaller ve motor.py/panel.py
           # los importa, y motor.py se detiene porque el servidor de GitHub no tiene ffmpeg.
           mkdir -p ../_exe && cp lanzador.py instalador/icono.ico ../_exe/ && cd ../_exe
-          pyinstaller lanzador.py --icon icono.ico --distpath ../editor/dist --noconfirm --onedir --console --name SalaSuplevet             --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime             --collect-all tokenizers --collect-all av --collect-all huggingface_hub 2>&1 | tee ../editor/pyinstaller.log || {
+          pyinstaller lanzador.py --icon icono.ico --distpath ../editor/dist --noconfirm --onedir --console --name SalaSuplevet             --collect-all faster_whisper --collect-all ctranslate2 --collect-all onnxruntime             --collect-all tokenizers --collect-all av --collect-all huggingface_hub --collect-all webview --collect-all clr_loader --collect-all pythonnet 2>&1 | tee ../editor/pyinstaller.log || {
             # El registro de Actions no es público: el error se publica como anotación para poder leerlo.
             # GitHub solo muestra 10 anotaciones por paso: se publica lo que dijo el proceso que falló.
             awk '/failed with:/{n=NR} {l[NR]=$0} END{for(i=n+1;i<=n+12 && i<=NR;i++) print l[i]}' ../editor/pyinstaller.log | grep -v '^\s*$' | head -n 9 | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
