@@ -108,6 +108,37 @@ def guardar_grupos(g):
     GRUPOS_PATH.write_text(json.dumps(g, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+# ---------- Sesiones archivadas: ya terminadas, no salen en las listas (se encuentran buscando) ----------
+# datos/archivadas.json (copia de Drive _SALA/archivadas.json): ["5／10 SESIÓN", …]
+ARCHIVADAS_PATH = DATOS / "archivadas.json"
+
+
+def archivadas():
+    try:
+        return list(json.loads(ARCHIVADAS_PATH.read_text(encoding="utf-8")))
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def guardar_archivadas(lista):
+    ARCHIVADAS_PATH.write_text(json.dumps(sorted(set(lista)), ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+# Producciones nuevas: «P07 ARTICULACIONES» (número + tema). Se nombran al escribir el guion,
+# cuando todavía no se sabe qué día se graba; los clips de todos los días de grabación van dentro.
+PRODUCCION = re.compile(r"^P(\d{1,3})\b", re.I)
+
+
+def es_nombre_sesion(nombre):
+    n = nombre.upper()
+    return "SESI" in n or n.startswith("SEMANA") or bool(PRODUCCION.match(n))
+
+
+def siguiente_produccion():
+    nums = [int(m.group(1)) for m in (PRODUCCION.match(x) for x in semanas_disponibles() + archivadas()) if m]
+    return f"P{(max(nums) + 1) if nums else 1:02d}"
+
+
 class Rutas:
     def __init__(self, semana):
         self.semana = semana
@@ -134,8 +165,10 @@ class Rutas:
         self.transcripciones = DATOS / "transcripciones" / semana
         self.copies_editados = DATOS / "subtitulos" / semana / "_copies_editados.json"
         fecha = re.match(r"^(\d{1,2})\D+(\d{1,2})", self.drive)   # "13 10 SESIÓN" -> 1310
+        prod = PRODUCCION.match(self.drive)                         # "P07 ARTICULACIONES" -> P07
         n = re.search(r"(\d+)", self.drive)
-        self.prefijo = (f"{int(fecha.group(1)):02d}{int(fecha.group(2)):02d}" if fecha
+        self.prefijo = (f"P{int(prod.group(1)):02d}" if prod
+                        else f"{int(fecha.group(1)):02d}{int(fecha.group(2)):02d}" if fecha
                         else f"S{int(n.group(1)):02d}" if n else "S00")
 
     def carpeta(self, tipo):
@@ -178,12 +211,17 @@ def heredar_de_sesiones():
 
 def semanas_disponibles():
     def es_sesion(d):
-        n = d.name.upper()
-        return d.is_dir() and ("SESI" in n or n.startswith("SEMANA") or (d / "Clips").is_dir())
+        return d.is_dir() and (es_nombre_sesion(d.name) or (d / "Clips").is_dir())
 
-    def orden(nombre):  # "13 10 SESIÓN" -> (10, 13); el resto al final por nombre
+    hoy = time.localtime()
+
+    def orden(nombre):  # "13 10 SESIÓN" -> (año, 10, 13); luego las producciones «P07 …» por número; el resto al final
         m = re.match(r"^(\d{1,2})\D+(\d{1,2})", nombre)
-        return (0, int(m.group(2)), int(m.group(1)), nombre) if m else (1, 0, 0, nombre)
+        p = PRODUCCION.match(nombre)
+        if m:  # el nombre no trae año: un mes más de un mes adelante del actual es del año pasado (diciembre visto en enero)
+            mes = int(m.group(2))
+            return (0, hoy.tm_year - (mes > hoy.tm_mon + 1), mes, int(m.group(1)), nombre)
+        return (1, int(p.group(1)), 0, 0, nombre) if p else (2, 0, 0, 0, nombre)
 
     nombres = {d.name for d in S.base.iterdir() if es_sesion(d) and not d.name.startswith("_")} if S.base.exists() else set()
     if CONFIG.get("drive", {}).get("activo"):  # también las que están en Drive y aún no se bajaron
@@ -1250,12 +1288,18 @@ def partes_de(nombre):
     return out
 
 
-def estructura(codigo):
-    """Lo que necesita el editor de un video: sus piezas, las frases del cuerpo y las opciones para cambiarlas."""
+def estructura(codigo, hook=None, cuerpo=None, cta=None):
+    """Lo que necesita el editor de un video: sus piezas, las frases del cuerpo y las opciones para cambiarlas.
+    hook/cuerpo/cta: otra combinación elegida en el editor (aunque ese video todavía no exista)."""
     c = next((x for x in combinaciones() if x["codigo"] == codigo), None)
     if not c:
         raise ValueError("Ese video no existe en esta sesión")
     ps = piezas()
+    original = {"hook": c["hook"], "cuerpo": c["cuerpo"], "cta": c["cta"]}
+    otra = {k: v for k, v in (("hook", hook), ("cuerpo", cuerpo), ("cta", cta))
+            if v and v != c[k] and any(p["nombre"] == v and p["tipo"] == k for p in ps)}
+    if otra:
+        c = {**c, **otra}
 
     def bloque(nombre):
         f = S.proc / f"{nombre}.mp4"
@@ -1264,8 +1308,8 @@ def estructura(codigo):
                 "texto": " ".join(l["texto"] for l in lineas), "archivo": str(f) if f.exists() else None,
                 "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"]} for l in lineas]}
 
-    v = edicion_de(c)
-    return {"codigo": codigo, "base": not c.get("version"), "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
+    v = edicion_de({k: c[k] for k in ("hook", "cuerpo", "cta")} if otra else c)  # otra combinación: parte de lo de sus piezas
+    return {"codigo": codigo, "base": not c.get("version"), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
             "zoom": v.get("zoom", {}),

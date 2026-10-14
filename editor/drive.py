@@ -119,9 +119,10 @@ def desconectar():
 def actualizar_lista():
     """Lista de sesiones que hay en Drive (se guarda para mostrarla aunque no haya internet)."""
     datos = json.loads(_rc("lsjson", f"{REMOTO}:", "--dirs-only", timeout=60) or "[]")
-    nombres = sorted(d["Name"] for d in datos if "SESI" in d["Name"].upper() or d["Name"].upper().startswith("SEMANA"))
+    nombres = sorted(d["Name"] for d in datos if motor.es_nombre_sesion(d["Name"]))
     LISTA.write_text(json.dumps(nombres, ensure_ascii=False), encoding="utf-8")
     bajar_grupos()
+    bajar_archivadas()
     return nombres
 
 
@@ -131,6 +132,19 @@ def bajar_grupos():
         _rc("copyto", f"{REMOTO}:_SALA/grupos.json", motor.GRUPOS_PATH, timeout=60)
     except Exception:
         pass  # todavía no hay grupos en Drive
+
+
+def bajar_archivadas():
+    """Las sesiones archivadas (terminadas) también se comparten: _SALA/archivadas.json."""
+    try:
+        _rc("copyto", f"{REMOTO}:_SALA/archivadas.json", motor.ARCHIVADAS_PATH, timeout=60)
+    except Exception:
+        pass  # todavía nadie archivó nada
+
+
+def subir_archivadas():
+    if estado()["activo"] and motor.ARCHIVADAS_PATH.exists():
+        threading.Thread(target=lambda: _rc("copyto", motor.ARCHIVADAS_PATH, f"{REMOTO}:_SALA/archivadas.json", timeout=60), daemon=True).start()
 
 
 def subir_grupos():

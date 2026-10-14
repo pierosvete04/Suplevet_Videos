@@ -449,9 +449,9 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
             <label class="muted" style="display:grid;gap:4px;font-size:12px">Escribir el guion para
               <select id="clSesion"></select></label>
             <div id="clNuevaCaja" hidden style="margin-top:8px;padding:10px;border:1px dashed var(--accent);border-radius:10px;display:grid;gap:6px">
-              <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre de la nueva sesión (día y mes en que se va a grabar)
-                <input id="clNuevaNombre" placeholder="20 10 SESIÓN"></label>
-              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas (Guion, Clips, Flow, Música, V.FINALES) al escribir el guion.</span>
+              <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre: número de producción + tema (el día de grabación no hace falta)
+                <input id="clNuevaNombre" placeholder="P07 ARTICULACIONES"></label>
+              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas (Guion, Clips, Flow, Música, V.FINALES). Todo lo que se grabe para este guion, el día que sea, va dentro.</span>
             </div>
             <div class="form-plant" style="margin-top:10px">
               <div class="dos">
@@ -476,11 +476,15 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           </div>
           <pre class="salida-claude" id="clSalida" hidden></pre>
         </div>
-        <div class="caja">
+        <div class="caja" id="cajaSesiones">
           <div class="fila" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Sesiones</h2>
             <div class="fila"><button class="btn sec peq" id="inGrupo" title="Varias grabaciones que son una sola producción (un guion)">Unir en grupo</button>
             <button class="btn sec peq" id="inNueva">+ Nueva sesión</button></div></div>
+          <div class="fila" style="margin-bottom:8px"><input id="inBuscar" type="search" placeholder="Buscar sesión…" aria-label="Buscar sesión" style="flex:1;min-width:140px">
+            <label class="fila muted" style="font-size:12px"><input type="checkbox" id="inVerArch"> Ver archivadas <span id="inNArch"></span></label></div>
           <div class="sesiones" id="inSesiones"></div>
+          <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
+            <span class="muted" style="font-size:11.5px">Archiva las que ya terminaste: dejan de salir en las listas y las encuentras buscando.</span></div>
           <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
         </div>
       </div>
@@ -991,7 +995,10 @@ async function cargar() {
   cargarFuentesCSS();
   $("prefijo").textContent = `- ${E.semana}`;
   document.title = `Sala de edición · ${E.semana}`;
-  $("semana").innerHTML = E.semanas.map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("") + `<option value="__nueva">+ Nueva sesión…</option>`;
+  const activas = sesionesActivas();
+  $("semana").innerHTML = [...activas].reverse().map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("")
+    + (activas.includes(E.semana) ? "" : `<option value="${esc(E.semana)}" selected>${esc(E.semana)} (archivada)</option>`)
+    + `<option value="__buscar">Buscar o ver archivadas…</option><option value="__nueva">+ Nueva sesión…</option>`;
   $("notas").value = E.notas;
   $("actVersion").textContent = "v" + E.version;
   pintarRed();
@@ -1001,7 +1008,8 @@ async function cargar() {
   $("importarFinales").hidden = !E.panel || !(E.drive || {}).activo;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || E.piezas[0]?.nombre;
   pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias(); pintarInicio(); pintarExport();
-  if (!E.hay_produccion) avisar("Esta sesión no tiene guion todavía: se arma igual, pero sin marcas, copies ni título de portada. Escríbelo con Claude en Inicio.", "muted");
+  if ((E.drive || {}).activo && !E.sesion_bajada) avisar(`La sesión «${E.semana}» se está bajando de Drive…`);
+  else if (!E.hay_produccion) avisar("Esta sesión no tiene guion todavía: se arma igual, pero sin marcas, copies ni título de portada. Escríbelo con Claude en Inicio.", "muted");
   else avisar("");
   vigilar(E.trabajo);
 }
@@ -1029,12 +1037,8 @@ function pintarInicio() {
   ];
   const ahora = pasos.findIndex(p => !p[0]);
   $("inPasos").innerHTML = pasos.map(([ok, txt, accion], i) => `<li class="${ok ? "hecho" : i === ahora ? "ahora" : ""}"><span>${txt}</span>${accion}</li>`).join("");
-  const grs = E.grupos || {};
-  $("inSesiones").innerHTML = [...E.semanas].reverse().map(s => grs[s]
-      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">(${grs[s].sesiones.length})</span></button>`
-      : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}</button>`).join("")
-    || `<span class="muted">Todavía no hay sesiones.</span>`;
-  const sesionesGuion = [...E.semanas].reverse();
+  pintarListaSesiones();
+  const sesionesGuion = [...sesionesActivas()].reverse();
   const elegida = $("clSesion").value;
   $("clSesion").innerHTML = `<option value="__nueva" ${elegida === "__nueva" ? "selected" : ""}>+ Nueva sesión (ponerle nombre)…</option>`
     + sesionesGuion.map(s => `<option ${elegida !== "__nueva" && s === ((elegida && sesionesGuion.includes(elegida)) ? elegida : E.semana) ? "selected" : ""}>${esc(s)}</option>`).join("");
@@ -1042,6 +1046,33 @@ function pintarInicio() {
   pintarBajada(E.trabajo);
   if (infoClaude) pintarClaudeForm();
 }
+// Sesiones: las archivadas (ya terminadas) no salen en las listas; se encuentran buscando o con «Ver archivadas».
+function sesionesActivas() {
+  const arch = new Set(E.archivadas || []);
+  return E.semanas.filter(s => !arch.has(s));
+}
+function pintarListaSesiones() {
+  const grs = E.grupos || {}, arch = new Set(E.archivadas || []);
+  const q = $("inBuscar").value.trim().toLowerCase(), verArch = $("inVerArch").checked;
+  const nArch = E.semanas.filter(s => arch.has(s)).length;
+  $("inNArch").textContent = nArch ? `(${nArch})` : "";
+  const lista = [...E.semanas].reverse().filter(s => q ? s.toLowerCase().includes(q) : verArch || !arch.has(s));
+  $("inSesiones").innerHTML = lista.map(s => {
+    const a = arch.has(s) ? ` <span class="muted">· archivada</span>` : "";
+    return grs[s]
+      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">(${grs[s].sesiones.length})</span>${a}</button>`
+      : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}${a}</button>`;
+  }).join("") || `<span class="muted">${q ? "Ninguna sesión con ese nombre." : "Todavía no hay sesiones."}</span>`;
+  $("inArchivar").textContent = arch.has(E.semana) ? `Sacar «${E.semana}» del archivo` : `Archivar «${E.semana}»`;
+}
+$("inBuscar").addEventListener("input", pintarListaSesiones);
+$("inVerArch").addEventListener("change", pintarListaSesiones);
+$("inArchivar").onclick = async () => {
+  const archivar = !(E.archivadas || []).includes(E.semana);
+  try { await post("/api/archivar", { sesion: E.semana, archivar }); await cargar();
+    avisar(archivar ? `«${E.semana}» archivada: ya no sale en las listas (búscala aquí cuando la necesites).` : `«${E.semana}» vuelve a las listas.`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+};
 function pintarBajada(t) {
   const bajando = t.activo && t.accion === "bajar";
   $("inBajando").hidden = !bajando;
@@ -1121,19 +1152,19 @@ ${$("clIdea").value.trim() ? "Idea o enfoque: " + $("clIdea").value.trim() + "\n
 ${temas.join("\n")}
 ${$("clPedido").value.trim()}`;
 }
-function nombreSesionSugerido() {
-  return new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" }).replace("/", " ") + " SESIÓN";
+function nombreSesionSugerido() {  // producción numerada: se nombra antes de saber qué día se graba
+  return (E?.siguiente_produccion || "P01") + " ";
 }
 $("clSesion").addEventListener("change", () => {
   const nueva = $("clSesion").value === "__nueva";
   $("clNuevaCaja").hidden = !nueva;
-  if (nueva) { $("clNuevaNombre").placeholder = "Ej.: " + nombreSesionSugerido(); $("clNuevaNombre").focus(); }
+  if (nueva) { if (!$("clNuevaNombre").value.trim()) $("clNuevaNombre").value = nombreSesionSugerido(); $("clNuevaNombre").placeholder = `Ej.: ${nombreSesionSugerido()}ARTICULACIONES`; $("clNuevaNombre").focus(); }
 });
 $("clGuion").onclick = async () => {
   let sesion = $("clSesion").value;
   if (sesion === "__nueva") {
     const nombre = $("clNuevaNombre").value.trim().toUpperCase();
-    if (!nombre) { $("clNuevaNombre").focus(); return avisar("Ponle nombre a la nueva sesión.", "err"); }
+    if (!nombre || /^P\d+$/.test(nombre)) { $("clNuevaNombre").focus(); return avisar("Ponle nombre a la nueva sesión (número + tema, ej. P07 ARTICULACIONES).", "err"); }
     const clave = t => t.toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g, "");
     if (E.semanas.some(x => clave(x) === clave(nombre))) return avisar("Ya existe una sesión con ese nombre: elígela en la lista.", "err");
     try { await post("/api/semana", { semana: nombre }); sel = null; await cargar(); sesion = E.semana; $("clNuevaCaja").hidden = true; $("clNuevaNombre").value = ""; }
@@ -1158,7 +1189,7 @@ $("clOtra").onclick = () => {
 };
 $("gRevisar").onclick = revisarConClaude;
 $("inGrupo").onclick = () => {
-  const libres = E.semanas.filter(s => !(E.grupos || {})[s]);
+  const libres = sesionesActivas().filter(s => !(E.grupos || {})[s]);
   $("grSesiones").innerHTML = libres.map(s => `<label class="fila" style="font-size:13px"><input type="checkbox" value="${esc(s)}"> ${esc(s)}</label>`).join("");
   const pintarGuionSel = () => { const el = [...$("grSesiones").querySelectorAll("input:checked")].map(i => i.value); $("grGuion").innerHTML = el.map(s => `<option>${esc(s)}</option>`).join(""); };
   $("grSesiones").onchange = pintarGuionSel; pintarGuionSel();
@@ -1173,14 +1204,14 @@ $("formGrupo").addEventListener("submit", async e => {
 });
 $("inNueva").onclick = async () => { const s = await nuevaSesion(); if (s) avisar(`Sesión «${s}» creada.`, "ok"); };
 async function nuevaSesion() {
-  const s = prompt("Nombre de la sesión (día y mes de grabación):", new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" }).replace("/", " ") + " SESIÓN");
-  if (!s) return null;
+  const s = prompt("Nombre de la nueva producción: número + tema (el día de grabación no hace falta).\nEj.: " + nombreSesionSugerido() + "ARTICULACIONES", nombreSesionSugerido());
+  if (!s || /^\s*P\d+\s*$/i.test(s)) return null;
   try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); return E.semana; }
   catch (err) { avisar("Error: " + err.message, "err"); return null; }
 }
 async function cambiarSesion(s) {
   clMostrarForm = false;
-  try { await post("/api/semana", { semana: s }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
+  try { await post("/api/semana", { semana: s }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); cargar(); }
 }
 function irTab(nombre) {
   const tab = document.querySelector(`nav button[data-tab="${nombre}"]`);
@@ -1326,7 +1357,7 @@ function pintarPieza() {
   $("lineas").innerHTML = p.lineas.map((l, i) =>
     `<div class="linea" data-i="${i}"><button type="button" data-t="${l.s}">${fmt(l.s)}</button>
      <input id="ln-${i}" value="${esc(l.texto)}" data-orig="${esc(l.texto)}" aria-label="Subtítulo de ${fmt(l.s)} a ${fmt(l.e)}"></div>`).join("")
-    || `<p class="muted">${p.procesada ? "Sin subtítulos." : "Esta pieza aún no se procesa. Usa «Procesar y armar semana»."}</p>`;
+    || `<p class="muted">${p.procesada ? "Sin subtítulos." : "Esta pieza aún no se procesa. Usa «Armar todos los videos» (arriba)."}</p>`;
   marcasTmp = JSON.parse(JSON.stringify(p.marcas));
   pintarMarcas();
 }
@@ -1828,8 +1859,9 @@ $("copiarCopy").onclick = () => {
 };
 $("semana").onchange = async e => {
   let s = e.target.value;
-  if (s === "__nueva") { s = prompt("Nombre de la sesión (día y mes de grabación):", new Date().toLocaleDateString("es-PE", { day: "numeric", month: "numeric" }).replace("/", " ") + " SESIÓN"); if (!s) return cargar(); }
-  try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); }
+  if (s === "__buscar") { irTab("inicio"); await cargar(); $("inBuscar").focus(); $("cajaSesiones").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  if (s === "__nueva") { if (!await nuevaSesion()) cargar(); return; }
+  cambiarSesion(s);
 };
 function pintarDrive() {
   const d = E.drive || {};
@@ -1838,7 +1870,6 @@ function pintarDrive() {
     : `<span class="pill warn">sin conectar</span> Pega el link y toca «Conectar con Google».`;
   if (!$("driveLink").value) $("driveLink").value = d.link || "";
   ["driveLista", "driveBajar", "driveSubir", "driveDesconectar"].forEach(id => $(id).hidden = !d.activo);
-  if (d.activo && !E.sesion_bajada) avisar(`La sesión «${E.semana}» se está bajando de Drive…`);
 }
 async function accionDrive(accion, extra = {}) {
   try { await post("/api/drive", { accion, ...extra }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); if (accion === "desconectar") await cargar(); }
@@ -1874,7 +1905,7 @@ $("redBoton").onclick = async () => {
     avisar("Listo. Cierra y vuelve a abrir la sala para aplicarlo (si Windows pregunta por el firewall, permite «Redes privadas»).", "ok"); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
-$("guardarNotas").onclick = async () => { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); };
+$("guardarNotas").onclick = async () => { try { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
 // ---------- Portada de un video ----------
 let porTimer = null;
 let porDiseno = {};
@@ -2194,9 +2225,9 @@ $("evCarrilA").addEventListener("click", e => {  // tocar el audio lleva el cabe
   const r = blo.getBoundingClientRect();
   irA(s.g0 + Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (s.b - s.a));
 });
-async function cargarEstructura(codigo) {
+async function cargarEstructura(codigo, combo) {
   $("evInspector").innerHTML = `<span class="muted">Cargando…</span>`;
-  est = await (await fetch(`/api/estructura?codigo=${encodeURIComponent(codigo)}`)).json();
+  est = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo, ...(combo || {}) })}`)).json();
   if (est.error) { $("evInspector").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
   const opt = (lista, v) => lista.map(n => `<option ${n === v ? "selected" : ""}>${esc(n)}</option>`).join("");
   $("evHook").innerHTML = opt(est.opciones.hook, est.hook.nombre);
@@ -2213,7 +2244,8 @@ async function cargarEstructura(codigo) {
 function pintarAlcance() {
   if (!est || est.error) return;
   const cuantos = (campo, n) => E.salidas.filter(s => !s.es_version && s[campo] === n).length;
-  const misma = $("evHook").value === est.hook.nombre && $("evCuerpo").value === est.cuerpo.nombre && $("evCta").value === est.cta.nombre;
+  const o = est.original || { hook: est.hook.nombre, cuerpo: est.cuerpo.nombre, cta: est.cta.nombre };
+  const misma = $("evHook").value === o.hook && $("evCuerpo").value === o.cuerpo && $("evCta").value === o.cta;
   $("evAlcance").innerHTML = !est.base
     ? `<span>✎</span><span>Estás editando la versión <b>${esc(est.codigo)}</b>: los cambios solo afectan a esta versión.</span>`
     : !misma ? `<span>⑂</span><span>Elegiste otra combinación de piezas: se guarda como <b>versión aparte</b>.</span>`
@@ -2467,12 +2499,10 @@ $("evPlay").onclick = () => {
   evReproduciendo = true; $("evVideo").muted = false; $("evVideo").play(); $("evPlay").textContent = "❚❚ Pausa"; bucleEd();
 };
 ["evHook", "evCuerpo", "evCta"].forEach(id => $(id).addEventListener("change", async () => {
-  // otra combinación: se carga la estructura de un video que use esas piezas y se mantienen los ajustes posibles
-  const c = E.salidas.find(s => s.hook === $("evHook").value && s.cuerpo === $("evCuerpo").value && s.cta === $("evCta").value)
-         || E.salidas.find(s => s.cuerpo === $("evCuerpo").value);
-  if (c) { const nombre = $("evNombre").value; await cargarEstructura(c.codigo); $("evNombre").value = nombre; }
-  const opt = (sel, v) => { [...$(sel).options].forEach(o => o.selected = o.value === v); };
-  opt("evHook", $("evHook").value); pintarEditor(); pintarAlcance();
+  // otra combinación: se cargan esas piezas sobre este video (aunque esa combinación todavía no exista)
+  const combo = { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value }, nombre = $("evNombre").value;
+  await cargarEstructura(actual.codigo, combo);
+  $("evNombre").value = nombre; pintarEditor(); pintarAlcance();
 }));
 function datosEd() {
   const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes };
@@ -2483,7 +2513,8 @@ function datosEd() {
 // si es una versión o se eligió otra combinación, se guarda como versión.
 async function guardarEdicion() {
   const d = datosEd();
-  const misma = d.hook === est.hook.nombre && d.cuerpo === est.cuerpo.nombre && d.cta === est.cta.nombre;
+  const o = est.original || { hook: est.hook.nombre, cuerpo: est.cuerpo.nombre, cta: est.cta.nombre };
+  const misma = d.hook === o.hook && d.cuerpo === o.cuerpo && d.cta === o.cta;
   if (!est.base || !misma) return guardarVersion(true);
   try {
     pararEditor();
@@ -2522,7 +2553,8 @@ $("dlgEditor").addEventListener("close", pararEditor);
 $("evExportar").onclick = async () => { if (!actual) return; pararEditor(); elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
 $("evBorrar").onclick = async () => {
   if (!est || est.base || !confirm(`¿Borrar la versión ${est.codigo}?`)) return;
-  await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar(); avisar("Versión borrada.", "ok");
+  try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar(); avisar("Versión borrada.", "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("dlg").addEventListener("close", pararEditor);
 
@@ -2531,7 +2563,7 @@ async function pintarGuion() {
   fetch("/api/informe").then(r => r.json()).then(i => { $("cajaInforme").hidden = !i.texto; $("gInforme").textContent = i.texto || ""; }).catch(() => {});
   const g = await (await fetch("/api/guion")).json();
   const sinAsignar = E.checklist.sin_asignar || [];
-  if (!g.hay_guion) { $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Escríbelo con Claude (con sus prompts de Flow y de música) y aparece aquí.</p><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div>`; return; }
+  if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Escríbelo con Claude (con sus prompts de Flow y de música) y aparece aquí.</p><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div>`; return; }
   ultimoGuion = g;
   pintarGuionLista(); pintarEstadoGuion();
 }
@@ -2648,7 +2680,7 @@ $("gCorroborar").onclick = async () => { corroborado = true; await pintarGuion()
 document.addEventListener("change", async e => {
   const s = e.target.closest("[data-guion-clip]");
   if (!s || !s.value) return;
-  try { await post("/api/asignar", { rel: s.value, pieza: s.dataset.guionClip }); avisar(`Clip asignado a ${s.dataset.guionClip}. Procésalo con «Procesar y armar semana» para compararlo.`, "ok"); await cargar(); pintarGuion(); }
+  try { await post("/api/asignar", { rel: s.value, pieza: s.dataset.guionClip }); avisar(`Clip asignado a ${s.dataset.guionClip}. Toca «Analizar clips» para compararlo.`, "ok"); await cargar(); pintarGuion(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
 

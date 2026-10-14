@@ -161,6 +161,7 @@ def estado():
             "elementos": elementos(),
             "claves": [motor.norm(x) for x in motor.CONFIG["palabras_clave"]],
             "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
+            "archivadas": motor.archivadas(), "siguiente_produccion": motor.siguiente_produccion(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
             "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
@@ -407,7 +408,8 @@ class H(BaseHTTPRequestHandler):
             self._json(motor.revision_guion())
         elif u.path == "/api/estructura":
             try:
-                e = motor.estructura(parse_qs(u.query)["codigo"][0])
+                q = parse_qs(u.query)
+                e = motor.estructura(q["codigo"][0], **{k: q[k][0] for k in ("hook", "cuerpo", "cta") if k in q})
                 for k in ("hook", "cuerpo", "cta"):
                     e[k]["url"] = url_media(e[k].pop("archivo")) if e[k].get("archivo") else None
                 self._json(e)
@@ -568,6 +570,15 @@ class H(BaseHTTPRequestHandler):
                 if drive.estado()["activo"] and not all(drive.bajada_completa(m) for m in motor.S.miembros) and not TRABAJO["activo"]:
                     lanzar("bajar")  # se baja sola la primera vez que se abre
                 self._json({"ok": True})
+            elif u.path == "/api/archivar":  # una sesión terminada deja de salir en las listas (se encuentra buscando)
+                b = self._cuerpo()
+                sesion = b.get("sesion")
+                if sesion not in motor.semanas_disponibles():
+                    raise ValueError("Esa sesión no existe")
+                lista = [x for x in motor.archivadas() if x != sesion] + ([sesion] if b.get("archivar") else [])
+                motor.guardar_archivadas(lista)
+                drive.subir_archivadas()
+                self._json({"ok": True})
             elif u.path == "/api/grupo":
                 b = self._cuerpo()
                 nombre = " ".join(str(b.get("nombre", "")).split()).upper()[:60]
@@ -588,7 +599,9 @@ class H(BaseHTTPRequestHandler):
                     motor.usar_semana(nombre)
                     motor.guardar_config({"semana": nombre})
                 elif motor.S.semana == nombre:
-                    motor.usar_semana(motor.semanas_disponibles()[-1])
+                    otra = (motor.semanas_disponibles() or [""])[-1]
+                    motor.usar_semana(otra)
+                    motor.guardar_config({"semana": otra})
                 self._json({"ok": True})
             elif u.path == "/api/subtitulos":
                 motor.guardar_lineas_editadas(q["pieza"][0], self._cuerpo()["lineas"])
