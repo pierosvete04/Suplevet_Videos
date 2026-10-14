@@ -1135,6 +1135,7 @@ def guardar_version(datos, vid=None):
                # recortes por bloque: [entrada, salida] en segundos dentro del hook, del CTA o de cada frase del cuerpo
                "recortes": _limpiar_recortes(datos.get("recortes") or {}),
                # zoom por bloque: {"hook": {"tipo": "in|out|punch", "fuerza": 0.15}, "cta": …, "partes": {"2": …}}
+               # y tramos de zoom: {"tramos": {"hook": [...], "cuerpo": [...], "cta": [...]}} (ver _limpiar_tramos)
                "zoom": _limpiar_zoom(datos.get("zoom") or {})}
     S.subs.mkdir(parents=True, exist_ok=True)
     _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -1161,7 +1162,38 @@ def _limpiar_zoom(z):
         return {"tipo": x["tipo"], "fuerza": round(min(0.5, max(0.03, float(x.get("fuerza") or 0.15))), 2)}
     out = {k: uno(z.get(k)) for k in ("hook", "cta")}
     out["partes"] = {str(i): uno(v) for i, v in (z.get("partes") or {}).items() if uno(v)}
+    out["tramos"] = {k: _limpiar_tramos(v) for k, v in (z.get("tramos") or {}).items() if k in ("hook", "cuerpo", "cta") and _limpiar_tramos(v)}
     return {k: v for k, v in out.items() if v}
+
+
+# Tramos de zoom (como los fotogramas clave de CapCut): en un tramo de la pieza, el zoom y el punto de foco
+# van de su valor inicial al final con una curva. a/b en segundos del archivo de la pieza; z = 1.0 es sin zoom;
+# fx/fy = punto que queda fijo en pantalla (0–1 del ancho y del alto). Después del tramo: vuelve, queda o vuelve suave.
+CURVAS_ZOOM = ("suave", "lineal", "entrada", "salida", "rebote", "temblor")
+SALIDAS_ZOOM = ("vuelve", "queda", "suave")
+
+
+def _limpiar_tramos(lista):
+    def num(x, lo, hi, defecto):
+        try:
+            return round(min(hi, max(lo, float(x))), 3)
+        except (TypeError, ValueError):
+            return defecto
+    out = []
+    for t in (lista or [])[:60]:
+        if not isinstance(t, dict):
+            continue
+        a = num(t.get("a"), 0, 3600, None)
+        b = num(t.get("b"), 0, 3600, None)
+        if a is None or b is None or b - a < 0.05:
+            continue
+        out.append({"a": a, "b": b, "z0": num(t.get("z0"), 1, 3, 1), "z1": num(t.get("z1"), 1, 3, 1.25),
+                    "fx0": num(t.get("fx0"), 0, 1, 0.5), "fy0": num(t.get("fy0"), 0, 1, 0.38),
+                    "fx1": num(t.get("fx1", t.get("fx0")), 0, 1, 0.5), "fy1": num(t.get("fy1", t.get("fy0")), 0, 1, 0.38),
+                    "curva": t.get("curva") if t.get("curva") in CURVAS_ZOOM else "suave",
+                    "salida": t.get("salida") if t.get("salida") in SALIDAS_ZOOM else "vuelve",
+                    **({"nombre": str(t["nombre"])[:30]} if t.get("nombre") else {})})
+    return sorted(out, key=lambda t: t["a"])
 
 
 # ---------- Ediciones por pieza: lo que se cambia en un cuerpo, hook o CTA vale para todos sus videos ----------
@@ -1183,10 +1215,11 @@ def guardar_edicion_piezas(datos):
     todo = ajustes_piezas()
     r, z = _limpiar_recortes(datos.get("recortes") or {}), _limpiar_zoom(datos.get("zoom") or {})
     nuevos = {
-        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook")},
+        datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), "zoom_tramos": (z.get("tramos") or {}).get("hook")},
         datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {},
+                          "zoom_tramos": (z.get("tramos") or {}).get("cuerpo"),
                           "quitar": sorted({int(i) for i in datos.get("quitar", [])})},
-        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta")},
+        datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta"), "zoom_tramos": (z.get("tramos") or {}).get("cta")},
     }
     cambiadas = []
     for pieza, val in nuevos.items():
@@ -1212,7 +1245,9 @@ def edicion_de(combo):
     h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
     return {"quitar": c.get("quitar", []),
             "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
-            "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes"))) if v}}
+            "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes")),
+                                       ("tramos", {k2: v2 for k2, v2 in (("hook", h.get("zoom_tramos")), ("cuerpo", c.get("zoom_tramos")),
+                                                                           ("cta", t.get("zoom_tramos"))) if v2})) if v}}
 
 
 def editado_en(combo):
@@ -1227,11 +1262,53 @@ def editado_en(combo):
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
 
 
+def _curva(p, curva):
+    return {"lineal": p, "entrada": f"({p})*({p})", "salida": f"(1-(1-({p}))*(1-({p})))",
+            "rebote": f"(1+2.70158*pow({p}-1,3)+1.70158*pow({p}-1,2))"}.get(curva, f"({p})*({p})*(3-2*({p}))")
+
+
 def _expresion_zoom(combo, offs, total):
-    """Expresión de zoom para zoompan según el tiempo del video (it): acercar, alejar o «punch» por bloque."""
+    """Expresiones de zoompan (zoom, x, y) según el tiempo del video sin recortes (it): primero los tramos de zoom
+    (fotogramas clave con punto de foco); donde no hay tramo, el zoom por bloque de siempre. None si no hay zoom."""
     z = edicion_de(combo).get("zoom") or {}
     if not z:
         return None
+    base = _expresion_zoom_bloques(combo, offs, total, z) or "1"
+    inicio = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
+    fin = {"hook": offs[1], "cuerpo": offs[2], "cta": total}
+    segs = []  # (t0, t1, zoom, fx, fy)
+    for pieza, tramos in (z.get("tramos") or {}).items():
+        o, tope = inicio[pieza], fin[pieza]
+        tramos = sorted(tramos, key=lambda t: t["a"])
+        for k, t in enumerate(tramos):
+            a, b = o + t["a"], min(tope, o + t["b"])
+            if b - a < 0.05:
+                continue
+            if t["curva"] == "temblor":  # acercado fijo y el encuadre tiembla
+                segs.append((a, b, f"{max(t['z1'], 1.06)}", f"({t['fx0']}+0.015*sin(it*53))", f"({t['fy0']}+0.015*cos(it*47))"))
+                continue
+            e = _curva(f"min(1,max(0,(it-{a:.3f})/{b - a:.3f}))", t["curva"])
+            segs.append((a, b, f"({t['z0']}+({t['z1'] - t['z0']:.3f})*{e})",
+                         f"({t['fx0']}+({t['fx1'] - t['fx0']:.3f})*{e})", f"({t['fy0']}+({t['fy1'] - t['fy0']:.3f})*{e})"))
+            siguiente = o + tramos[k + 1]["a"] if k + 1 < len(tramos) else tope
+            if t["salida"] == "queda" and siguiente - b > 0.02:
+                segs.append((b, min(siguiente, tope), f"{t['z1']}", f"{t['fx1']}", f"{t['fy1']}"))
+            elif t["salida"] == "suave":
+                c = min(b + 0.35, siguiente, tope)
+                if c - b > 0.02:
+                    q = _curva(f"min(1,max(0,(it-{b:.3f})/{c - b:.3f}))", "suave")
+                    segs.append((b, c, f"({t['z1']}+({1 - t['z1']:.3f})*{q})", f"{t['fx1']}", f"{t['fy1']}"))
+    if not segs and base == "1":
+        return None
+    zoom, fx, fy = f"({base})", "0.5", "0.38"  # sin tramo: el encuadre de siempre, hacia la cara
+    for t0, t1, ze, xe, ye in sorted(segs, key=lambda s: s[0], reverse=True):
+        cond = f"between(it,{t0:.3f},{t1:.3f})"
+        zoom, fx, fy = f"if({cond},{ze},{zoom})", f"if({cond},{xe},{fx})", f"if({cond},{ye},{fy})"
+    return {"z": f"max(1,{zoom})", "x": f"(iw-iw/zoom)*min(1,max(0,{fx}))", "y": f"(ih-ih/zoom)*min(1,max(0,{fy}))"}
+
+
+def _expresion_zoom_bloques(combo, offs, total, z):
+    """Zoom por bloque entero: acercar, alejar o «punch» en el hook, una frase del cuerpo o el CTA."""
     tramos = []
     if z.get("hook"):
         tramos.append((0.0, offs[1], z["hook"]))
@@ -2104,8 +2181,8 @@ def armar_uno(combo, n_musica=0):
     f = ["[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[vc][ac]"]
     v_prev = "vc"
     zexpr = _expresion_zoom(combo, offs, total)
-    if zexpr:  # zoom por bloque (antes de imágenes y subtítulos, que no se acercan); encuadre hacia la cara
-        f.append(f"[vc]zoompan=z='{zexpr}':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*0.38':d=1:s=1080x1920:fps=30,setsar=1[vz]")
+    if zexpr:  # zoom (antes de imágenes y subtítulos, que no se acercan); el punto de foco queda fijo en pantalla
+        f.append(f"[vc]zoompan=z='{zexpr['z']}':x='{zexpr['x']}':y='{zexpr['y']}':d=1:s=1080x1920:fps=30,setsar=1[vz]")
         v_prev = "vz"
     for ov in overlays:
         if ov["es_imagen"]:

@@ -291,6 +291,16 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .ev-a.fuera { opacity: .35; }
 .ev-s { position: absolute; top: 8px; bottom: 8px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--line2); font-size: 10.5px; padding: 3px 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
 .ev-s:hover, .ev-s.sel { border-color: var(--accent2); }
+.ev-zoom { height: 34px; }
+.ev-z { position: absolute; top: 4px; bottom: 4px; border-radius: 7px; display: flex; align-items: center; padding: 0 12px; overflow: hidden; white-space: nowrap;
+  font: 600 10.5px var(--mono); color: var(--ink); cursor: grab; touch-action: none;
+  background: color-mix(in srgb, var(--warn) 22%, transparent); border: 1.5px solid var(--warn); }
+.ev-z.sel { border-color: var(--ink); box-shadow: 0 0 12px color-mix(in srgb, var(--warn) 60%, transparent); }
+.ev-z.nuevo { border-style: dashed; background: color-mix(in srgb, var(--warn) 10%, transparent); pointer-events: none; }
+.ev-z .ev-asa { background: color-mix(in srgb, var(--warn) 45%, transparent); }
+.z-punto { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5); pointer-events: none; z-index: 2; }
+.z-punto.ini { background: transparent; } .z-punto.fin { background: var(--warn); }
+.ev-visor.eligiendo { cursor: crosshair; outline: 2px dashed var(--warn); outline-offset: 2px; }
 .ev-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent2); box-shadow: 0 0 10px var(--accent2); pointer-events: none; z-index: 3; }
 .aviso-alcance { display: flex; gap: 8px; align-items: flex-start; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(61,139,255,.35); background: rgba(61,139,255,.08); font-size: 12.5px; }
 @media (max-width: 680px) { .ev-arriba { grid-template-columns: 1fr; } .ev-visor { max-width: 240px; margin: 0 auto; } }
@@ -940,6 +950,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <video id="evVideo" playsinline preload="auto" muted></video>
           <div class="sub sublinea" id="evSub" title="Arrastra para subir o bajar el subtítulo"></div>
           <span class="pista-pos" id="evPos" hidden></span>
+          <span class="z-punto ini" id="zPunto0" hidden></span><span class="z-punto fin" id="zPunto1" hidden></span>
         </div>
         <div class="ev-panel">
           <div class="fila">
@@ -960,10 +971,21 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <div class="ev-tl" id="evTL">
         <div class="ev-regla" id="evRegla"></div>
         <div class="ev-pista"><span class="ev-etq">Video</span><div class="ev-carril" id="evCarrilV"></div></div>
+        <div class="ev-pista ev-zoom"><span class="ev-etq">Zoom</span><div class="ev-carril" id="evCarrilZ" title="Arrastra para marcar un tramo de zoom"></div></div>
         <div class="ev-pista ev-audio"><span class="ev-etq">Audio</span><div class="ev-carril" id="evCarrilA"></div></div>
         <div class="ev-pista ev-efectos"><span class="ev-etq">Efectos</span><div class="ev-carril" id="evCarrilE"></div></div>
         <div class="ev-pista"><span class="ev-etq">Subtítulos</span><div class="ev-carril" id="evCarrilS"></div></div>
         <div class="ev-cabezal" id="evCabezal"></div>
+      </div>
+      <div class="ev-sonido-barra">
+        <b>Zoom:</b>
+        <select id="evZTipo" style="padding:5px 8px;font-size:12px">
+          <option value="acercar">Acercar suave</option><option value="alejar">Alejar suave</option>
+          <option value="punch">Punch</option><option value="punch_vuelta">Punch y vuelta</option>
+          <option value="snap">Zoom rápido</option><option value="temblor">Temblor</option><option value="deslizar">Deslizar de lado</option>
+        </select>
+        <button class="btn sec peq" id="evZAgregar" type="button">+ Agregar en el cabezal</button>
+        <span class="muted">o arrastra sobre la pista «Zoom» para marcar desde dónde hasta dónde.</span>
       </div>
       <div class="ev-sonido-barra">
         <b>Sonidos:</b>
@@ -2270,6 +2292,7 @@ async function cargarEstructura(codigo, combo) {
   ed = { quitar: new Set(est.quitar || []), hook: r.hook || null, cta: r.cta || null, partes: { ...(r.partes || {}) },
          zoom: JSON.parse(JSON.stringify(est.zoom || {})), sel: "hook", subSel: null, t: 0 };
   ed.zoom.partes = ed.zoom.partes || {};
+  ed.zSel = null; ed.focoPick = null; $("evVisor").classList.remove("eligiendo");
   pararEditor(); pintarEditor(); irA(0); pintarAlcance(); cargarOndas();
 }
 function pintarAlcance() {
@@ -2339,7 +2362,8 @@ function pintarEditor() {
     x += w + 3;
   }
   $("evCarrilV").innerHTML = html; $("evCarrilS").innerHTML = subs;
-  $("evCarrilV").style.width = $("evCarrilS").style.width = $("evCarrilA").style.width = x + "px";
+  $("evCarrilV").style.width = $("evCarrilS").style.width = $("evCarrilA").style.width = $("evCarrilZ").style.width = x + "px";
+  pintarZoom();
   pintarAudio();
   $("evRegla").style.width = x + "px";
   let marcas = "";
@@ -2348,6 +2372,7 @@ function pintarEditor() {
   pintarInspector(); moverCabezal();
 }
 function pintarInspector() {
+  if (ed.zSel && tramoSel()) return pintarInspectorZoom();
   const b = bloquesEd().find(x => x.key === ed.sel);
   if (ed.subSel) {
     const [pieza, li] = ed.subSel.split("|"), pz = [est.hook, est.cuerpo, est.cta].find(p => p.nombre === pieza), l = pz?.lineas[li];
@@ -2372,6 +2397,196 @@ function pintarInspector() {
       <label class="muted ev-campo">Intensidad: <b id="evFuerzaTxt">${Math.round((z.fuerza || .15) * 100)}%</b><input type="range" id="evFuerza" min="5" max="40" value="${Math.round((z.fuerza || .15) * 100)}"></label>
     </div><span class="muted" style="font-size:11px">Duración original ${(b.hi - b.lo).toFixed(2)} s · queda ${(b.b - b.a).toFixed(2)} s</span>`;
 }
+// ---------- Tramos de zoom (como los fotogramas clave de CapCut): pista «Zoom» ----------
+// Cada tramo es de una pieza (hook, cuerpo o CTA) y vale para todos sus videos; a/b en segundos del clip de esa pieza.
+const ZOOM_PRESETS = {
+  acercar: { z0: 1, z1: 1.3, dur: 2, curva: "suave", salida: "queda" },
+  alejar: { z0: 1.3, z1: 1, dur: 2, curva: "suave", salida: "vuelve" },
+  punch: { z0: 1.25, z1: 1.25, dur: 0.6, curva: "lineal", salida: "vuelve" },
+  punch_vuelta: { z0: 1, z1: 1.25, dur: 0.15, curva: "salida", salida: "suave" },
+  snap: { z0: 1, z1: 1.5, dur: 0.25, curva: "entrada", salida: "queda" },
+  temblor: { z0: 1.08, z1: 1.08, dur: 0.5, curva: "temblor", salida: "vuelve" },
+  deslizar: { z0: 1.15, z1: 1.15, dur: 3, curva: "lineal", salida: "vuelve", fx0: 0.3, fx1: 0.7 },
+};
+const CURVAS_Z = [["suave", "Suave (lenta al inicio y al final)"], ["lineal", "Pareja"], ["entrada", "Arranca lento"], ["salida", "Frena al final"], ["rebote", "Con rebote"], ["temblor", "Temblor"]];
+const SALIDAS_Z = [["vuelve", "Vuelve de golpe"], ["queda", "Se queda acercado"], ["suave", "Vuelve suave"]];
+const NOMBRE_PIEZA_Z = { hook: "el hook", cuerpo: "el cuerpo", cta: "el CTA" };
+const piezaDeBloque = b => b.key === "hook" ? "hook" : b.key === "cta" ? "cta" : "cuerpo";
+function tramosDe(pieza) { ed.zoom.tramos = ed.zoom.tramos || {}; return (ed.zoom.tramos[pieza] = ed.zoom.tramos[pieza] || []); }
+function tramoSel() { return ed.zSel ? (ed.zoom.tramos?.[ed.zSel.pieza] || [])[ed.zSel.i] : null; }
+function finPieza(pieza) {
+  return pieza === "hook" ? est.hook.dur || 0 : pieza === "cta" ? est.cta.dur || 0 : est.cuerpo.partes.reduce((m, p) => Math.max(m, p.fin), 0);
+}
+function gDePieza(pieza, tp) {  // segundo del clip de la pieza → segundo del video editado (si cae en algo recortado, al borde más cercano)
+  const segs = segmentosEd().filter(s => piezaDeBloque(s) === pieza);
+  if (!segs.length) return null;
+  const dentro = segs.find(s => tp >= s.a - .001 && tp <= s.b + .001);
+  if (dentro) return dentro.g0 + Math.max(0, tp - dentro.a);
+  const despues = segs.find(s => s.a > tp);
+  return despues ? despues.g0 : segs[segs.length - 1].g0 + segs[segs.length - 1].b - segs[segs.length - 1].a;
+}
+function piezaDeG(g) {
+  const segs = segmentosEd();
+  const s = segs.find(x => g >= x.g0 && g <= x.g0 + x.b - x.a + 1e-6) || segs[segs.length - 1];
+  return s ? { pieza: piezaDeBloque(s), tp: s.a + Math.max(0, Math.min(g - s.g0, s.b - s.a)) } : null;
+}
+function gDeX(x) {  // posición en la pista → segundo del video editado
+  let g = 0, xx = 0;
+  for (const b of bloquesEd()) {
+    if (b.fuera) { xx += ANCHO_FUERA + 3; continue; }
+    const w = (b.b - b.a) * escalaEd();
+    if (x <= xx + w) return g + Math.max(0, x - xx) / escalaEd();
+    xx += w + 3; g += b.b - b.a;
+  }
+  return g;
+}
+function curvaZ(p, c) {  // las mismas curvas que usa el motor al armar
+  p = Math.min(1, Math.max(0, p));
+  return c === "lineal" ? p : c === "entrada" ? p * p : c === "salida" ? 1 - (1 - p) * (1 - p)
+    : c === "rebote" ? 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2) : p * p * (3 - 2 * p);
+}
+function zoomEn(pieza, tp) {  // {z, fx, fy} en ese segundo del clip, o null si ahí no hay tramo
+  const ts = [...((ed.zoom.tramos || {})[pieza] || [])].sort((a, b) => a.a - b.a), tope = finPieza(pieza);
+  for (let k = 0; k < ts.length; k++) {
+    const t = ts[k], b = Math.min(t.b, tope), sig = k + 1 < ts.length ? ts[k + 1].a : tope;
+    if (tp >= t.a && tp <= b) {
+      if (t.curva === "temblor") return { z: Math.max(t.z1, 1.06), fx: t.fx0 + .015 * Math.sin(tp * 53), fy: t.fy0 + .015 * Math.cos(tp * 47) };
+      const e = curvaZ((tp - t.a) / Math.max(.05, b - t.a), t.curva);
+      return { z: t.z0 + (t.z1 - t.z0) * e, fx: t.fx0 + (t.fx1 - t.fx0) * e, fy: t.fy0 + (t.fy1 - t.fy0) * e };
+    }
+    if (t.salida === "queda" && tp > b && tp <= sig) return { z: t.z1, fx: t.fx1, fy: t.fy1 };
+    const c = Math.min(b + .35, sig);
+    if (t.salida === "suave" && tp > b && tp <= c) return { z: t.z1 + (1 - t.z1) * curvaZ((tp - b) / Math.max(.02, c - b), "suave"), fx: t.fx1, fy: t.fy1 };
+  }
+  return null;
+}
+let zNuevo = null, arrZ = null;
+function pintarZoom() {
+  const c = $("evCarrilZ"); if (!est || est.error) { c.innerHTML = ""; return; }
+  let html = "";
+  for (const pieza of ["hook", "cuerpo", "cta"]) ((ed.zoom.tramos || {})[pieza] || []).forEach((t, i) => {
+    const g0 = gDePieza(pieza, t.a), g1 = gDePieza(pieza, Math.min(t.b, finPieza(pieza)));
+    if (g0 == null || g1 == null) return;
+    const x0 = xDeTiempo(g0), x1 = xDeTiempo(g1), sel = ed.zSel && ed.zSel.pieza === pieza && ed.zSel.i === i;
+    const etq = t.curva === "temblor" ? "temblor" : `${Math.round(t.z0 * 100)}→${Math.round(t.z1 * 100)}%`;
+    html += `<div class="ev-z ${sel ? "sel" : ""}" data-z="${pieza}|${i}" style="left:${x0}px;width:${Math.max(14, x1 - x0)}px" title="Zoom ${etq} en ${NOMBRE_PIEZA_Z[pieza]} · toca para ajustarlo">
+      <span class="ev-asa izq" data-zasa="izq"></span>${etq}<span class="ev-asa der" data-zasa="der"></span></div>`;
+  });
+  if (zNuevo) html += `<div class="ev-z nuevo" style="left:${Math.min(zNuevo.x0, zNuevo.x1)}px;width:${Math.abs(zNuevo.x1 - zNuevo.x0)}px"></div>`;
+  c.innerHTML = html;
+}
+function nuevoTramo(pieza, a, b, preset) {
+  const pr = ZOOM_PRESETS[preset] || ZOOM_PRESETS.acercar;
+  const t = { a: +a.toFixed(2), b: +Math.min(b, finPieza(pieza)).toFixed(2), z0: pr.z0, z1: pr.z1, curva: pr.curva, salida: pr.salida,
+    fx0: pr.fx0 ?? .5, fy0: .38, fx1: pr.fx1 ?? pr.fx0 ?? .5, fy1: .38 };
+  if (t.b - t.a < .1) t.b = Math.min(finPieza(pieza), t.a + .1);
+  const lista = tramosDe(pieza);
+  lista.push(t); lista.sort((x, y) => x.a - y.a);
+  ed.zSel = { pieza, i: lista.indexOf(t) }; ed.sel = null; ed.subSel = null;
+  pintarEditor(); vistaEd();
+}
+$("evZAgregar").onclick = () => {
+  const s = segmentosEd()[evSeg]; if (!s) return;
+  const pieza = piezaDeBloque(s), tp = s.a + (ed.t - s.g0), pr = ZOOM_PRESETS[$("evZTipo").value];
+  nuevoTramo(pieza, tp, tp + pr.dur, $("evZTipo").value);
+};
+$("evCarrilZ").addEventListener("pointerdown", e => {
+  const r = $("evCarrilZ").getBoundingClientRect(), x = e.clientX - r.left;
+  const blo = e.target.closest("[data-z]");
+  $("evCarrilZ").setPointerCapture(e.pointerId); e.preventDefault();
+  if (blo) {
+    const [pieza, i] = blo.dataset.z.split("|"), t = tramosDe(pieza)[Number(i)];
+    ed.zSel = { pieza, i: Number(i) }; ed.sel = null; ed.subSel = null;
+    arrZ = { pieza, t, modo: e.target.dataset.zasa || "mover", x0: x, a0: t.a, b0: t.b, movio: false };
+    pintarEditor();
+    const g = gDePieza(pieza, t.a); if (g != null) irA(g);
+  } else zNuevo = { x0: x, x1: x };
+});
+$("evCarrilZ").addEventListener("pointermove", e => {
+  const x = e.clientX - $("evCarrilZ").getBoundingClientRect().left;
+  if (zNuevo) { zNuevo.x1 = x; pintarZoom(); return; }
+  if (!arrZ) return;
+  const d = (x - arrZ.x0) / escalaEd(), t = arrZ.t, fin = finPieza(arrZ.pieza);
+  if (Math.abs(x - arrZ.x0) > 3) arrZ.movio = true;
+  if (arrZ.modo === "izq") t.a = +Math.max(0, Math.min(arrZ.a0 + d, t.b - .1)).toFixed(2);
+  else if (arrZ.modo === "der") t.b = +Math.min(fin, Math.max(arrZ.b0 + d, t.a + .1)).toFixed(2);
+  else { const largo = arrZ.b0 - arrZ.a0, a = Math.max(0, Math.min(arrZ.a0 + d, fin - largo)); t.a = +a.toFixed(2); t.b = +(a + largo).toFixed(2); }
+  pintarZoom(); pintarInspectorZoom();
+});
+$("evCarrilZ").addEventListener("pointerup", () => {
+  if (zNuevo) {
+    const { x0, x1 } = zNuevo; zNuevo = null;
+    if (Math.abs(x1 - x0) < 6) { ed.zSel = null; pintarEditor(); return; }  // un toque: no crea nada
+    const ini = piezaDeG(gDeX(Math.min(x0, x1))), fin = piezaDeG(gDeX(Math.max(x0, x1)));
+    if (!ini) return pintarZoom();
+    // un tramo es de una sola pieza: si se arrastró hasta la siguiente, llega al final de la primera
+    nuevoTramo(ini.pieza, ini.tp, fin && fin.pieza === ini.pieza ? fin.tp : finPieza(ini.pieza), $("evZTipo").value);
+    return;
+  }
+  if (arrZ) {
+    const { pieza, t } = arrZ; arrZ = null;
+    const lista = tramosDe(pieza); lista.sort((x, y) => x.a - y.a); ed.zSel = { pieza, i: lista.indexOf(t) };
+    pintarEditor(); vistaEd();
+  }
+});
+function pintarInspectorZoom() {
+  const t = tramoSel(); if (!t) return;
+  const opt = (lista, v) => lista.map(([val, txt]) => `<option value="${val}" ${val === v ? "selected" : ""}>${esc(txt)}</option>`).join("");
+  const elegir = ed.focoPick != null;
+  $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>Zoom en ${NOMBRE_PIEZA_Z[ed.zSel.pieza]}</b>
+      <button class="btn sec peq" id="zQuitar" type="button" style="color:var(--err)">Quitar</button></div>
+    <div class="dos">
+      <label class="muted ev-campo">Empieza (s del clip)<input type="number" id="zA" step="0.05" min="0" value="${t.a.toFixed(2)}"></label>
+      <label class="muted ev-campo">Termina (s del clip)<input type="number" id="zB" step="0.05" min="0" value="${t.b.toFixed(2)}"></label>
+      <label class="muted ev-campo">Zoom al empezar: <b id="zZ0t">${Math.round(t.z0 * 100)}%</b><input type="range" id="zZ0" min="100" max="250" value="${Math.round(t.z0 * 100)}"></label>
+      <label class="muted ev-campo">Zoom al terminar: <b id="zZ1t">${Math.round(t.z1 * 100)}%</b><input type="range" id="zZ1" min="100" max="250" value="${Math.round(t.z1 * 100)}"></label>
+      <label class="muted ev-campo">Movimiento<select id="zCurva">${opt(CURVAS_Z, t.curva)}</select></label>
+      <label class="muted ev-campo">Al terminar<select id="zSalida">${opt(SALIDAS_Z, t.salida)}</select></label>
+    </div>
+    <div class="fila"><button class="btn sec peq" id="zFoco0" type="button" ${ed.focoPick === 0 ? 'aria-pressed="true"' : ""}>○ Foco al empezar</button>
+      <button class="btn sec peq" id="zFoco1" type="button" ${ed.focoPick === 1 ? 'aria-pressed="true"' : ""}>● Foco al terminar</button></div>
+    <span class="muted" style="font-size:11.5px">${elegir ? "Ahora toca en el video el punto hacia donde acercar." : "El foco es el punto que queda fijo al acercar (la cara, el producto). Si es distinto al empezar y al terminar, la cámara además se desplaza."}</span>`;
+}
+$("evInspector").addEventListener("input", e => {
+  const t = tramoSel(); if (!t || !e.target.id.startsWith("z")) return;
+  const v = Number(e.target.value), fin = finPieza(ed.zSel.pieza);
+  if (e.target.id === "zA") t.a = Math.max(0, Math.min(v, t.b - .1));
+  if (e.target.id === "zB") t.b = Math.min(fin, Math.max(v, t.a + .1));
+  if (e.target.id === "zZ0") { t.z0 = v / 100; $("zZ0t").textContent = v + "%"; }
+  if (e.target.id === "zZ1") { t.z1 = v / 100; $("zZ1t").textContent = v + "%"; }
+  if (e.target.id === "zCurva") t.curva = e.target.value;
+  if (e.target.id === "zSalida") t.salida = e.target.value;
+  pintarZoom(); vistaEd();
+});
+$("evInspector").addEventListener("click", e => {
+  const t = tramoSel(); if (!t) return;
+  if (e.target.id === "zQuitar") { tramosDe(ed.zSel.pieza).splice(ed.zSel.i, 1); ed.zSel = null; ed.focoPick = null; pintarEditor(); vistaEd(); }
+  if (e.target.id === "zFoco0" || e.target.id === "zFoco1") {
+    const n = e.target.id === "zFoco0" ? 0 : 1;
+    ed.focoPick = ed.focoPick === n ? null : n;
+    $("evVisor").classList.toggle("eligiendo", ed.focoPick != null);
+    pintarInspectorZoom(); vistaEd();
+  }
+});
+$("evVisor").addEventListener("click", e => {
+  const t = tramoSel(); if (ed.focoPick == null || !t) return;
+  const r = $("evVisor").getBoundingClientRect();
+  const fx = +Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)).toFixed(3), fy = +Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)).toFixed(3);
+  if (ed.focoPick === 0) {
+    if (t.fx1 === t.fx0 && t.fy1 === t.fy0) { t.fx1 = fx; t.fy1 = fy; }  // mientras no tengan focos distintos, se mueven juntos
+    t.fx0 = fx; t.fy0 = fy;
+  } else { t.fx1 = fx; t.fy1 = fy; }
+  ed.focoPick = null; $("evVisor").classList.remove("eligiendo");
+  pintarInspectorZoom(); vistaEd();
+}, true);
+function pintarPuntosFoco() {
+  const t = tramoSel(), mostrar = !!t && (ed.focoPick != null || evReproduciendo === false);
+  [[0, "fx0", "fy0"], [1, "fx1", "fy1"]].forEach(([n, kx, ky]) => {
+    const el = $("zPunto" + n);
+    el.hidden = !mostrar || ed.focoPick == null && t.fx0 === t.fx1 && t.fy0 === t.fy1 && n === 1;
+    if (t) { el.style.left = (t[kx] * 100) + "%"; el.style.top = (t[ky] * 100) + "%"; }
+  });
+}
 function recorteDe(key) { return key === "hook" ? "hook" : key === "cta" ? "cta" : null; }
 function ponerRecorte(b, a, c) {  // a, c en segundos del archivo
   a = Math.max(b.lo, Math.min(a, b.hi - .3)); c = Math.min(b.hi, Math.max(c, a + .3));
@@ -2388,7 +2603,7 @@ $("evCarrilV").addEventListener("pointerdown", e => {
   const asa = e.target.closest("[data-asa]");
   const blo = e.target.closest("[data-b]");
   if (!blo) return;
-  ed.sel = blo.dataset.b; ed.subSel = null;
+  ed.sel = blo.dataset.b; ed.subSel = null; ed.zSel = null;
   if (asa) {
     const b = bloquesEd().find(x => x.key === asa.dataset.b);
     arrastre = { b, lado: asa.dataset.asa, x0: e.clientX, a0: b.a, b0: b.b };
@@ -2408,7 +2623,7 @@ document.addEventListener("pointermove", e => {
 document.addEventListener("pointerup", () => { if (arrastre) { arrastre = null; const s = segmentosEd().find(x => x.key === ed.sel); if (s) irA(s.g0); } });
 $("evCarrilS").addEventListener("click", e => {
   const s = e.target.closest("[data-sub]"); if (!s) return;
-  ed.subSel = s.dataset.sub; ed.sel = null; pintarEditor();
+  ed.subSel = s.dataset.sub; ed.sel = null; ed.zSel = null; pintarEditor();
 });
 $("evRegla").addEventListener("click", e => {  // tocar la regla mueve el cabezal
   const r = $("evRegla").getBoundingClientRect(), x = e.clientX - r.left;
@@ -2475,9 +2690,14 @@ function vistaEd() {
   ed.t = s.g0 + Math.max(0, ct - s.a);
   $("evTiempo").textContent = ed.t.toFixed(1) + " s";
   moverCabezal();
-  let z = 1;
-  if (s.zoom) { const p = Math.min(1, Math.max(0, (ct - s.a) / Math.max(.1, s.b - s.a))); z = 1 + (s.zoom.tipo === "in" ? s.zoom.fuerza * p : s.zoom.tipo === "out" ? s.zoom.fuerza * (1 - p) : s.zoom.fuerza); }
-  v.style.transform = `scale(${z})`;
+  let z = 1, fx = .5, fy = .38;
+  const zt = ed.focoPick != null ? null : zoomEn(piezaDeBloque(s), ct);  // al elegir el foco se ve el cuadro entero
+  if (zt) ({ z, fx, fy } = zt);
+  else if (s.zoom && ed.focoPick == null) { const p = Math.min(1, Math.max(0, (ct - s.a) / Math.max(.1, s.b - s.a))); z = 1 + (s.zoom.tipo === "in" ? s.zoom.fuerza * p : s.zoom.tipo === "out" ? s.zoom.fuerza * (1 - p) : s.zoom.fuerza); }
+  // el punto de foco queda fijo en pantalla, igual que en el video armado
+  v.style.transformOrigin = `${(Math.min(1, Math.max(0, fx)) * 100).toFixed(2)}% ${(Math.min(1, Math.max(0, fy)) * 100).toFixed(2)}%`;
+  v.style.transform = `scale(${Math.max(1, z)})`;
+  pintarPuntosFoco();
   // mientras se arrastra el subtítulo, se muestra la frase más cercana aunque en ese segundo no se hable
   const l = s.pieza.lineas.find(x => ct >= x.s && ct < x.e + .05) || (arrSub ? s.pieza.lineas[0] : null);
   const pl = plantillaEd();
@@ -2536,7 +2756,7 @@ $("evPlay").onclick = () => {
   $("evNombre").value = nombre; pintarEditor(); pintarAlcance();
 }));
 function datosEd() {
-  const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes };
+  const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes, tramos: ed.zoom.tramos || {} };
   return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar],
     recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value };
 }
