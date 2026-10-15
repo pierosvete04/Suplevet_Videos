@@ -1613,7 +1613,7 @@ async function nuevaSesion() {
 }
 async function cambiarSesion(s) {
   clMostrarForm = false;
-  try { await post("/api/semana", { semana: s }); sel = null; await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); cargar(); }
+  try { await post("/api/semana", { semana: s }); sel = null; await cargar(); revisarGuionDrive(true); } catch (err) { avisar("Error: " + err.message, "err"); cargar(); }
 }
 function irTab(nombre) {
   const tab = document.querySelector(`nav button[data-tab="${nombre}"]`);
@@ -2520,6 +2520,24 @@ function pintarDrive() {
   $("driveAcciones").hidden = $("driveDesconectar").closest(".conf-pie").hidden = !d.activo;
   $("confPDrive").className = "punto-estado " + (d.activo ? "ok" : "warn");
 }
+// El guion se trae solo de Drive cuando cambia allá (lo actualizó Claude, el panel u otra PC):
+// al abrir la sesión, cada 90 s y al volver a la ventana.
+let revisandoGuion = false, ultimaRevGuion = 0;
+async function revisarGuionDrive(forzar) {
+  if (revisandoGuion || !E || !(E.drive || {}).activo || document.hidden) return;
+  if (!forzar && Date.now() - ultimaRevGuion < 30000) return;
+  revisandoGuion = true; ultimaRevGuion = Date.now();
+  try {
+    const r = await (await fetch("/api/guion_drive")).json();
+    if (r.cambio) {
+      await cargar();
+      if (!document.querySelector('[data-panel="guion"]').hidden) pintarGuion();
+      avisar("El guion se actualizó desde Drive: ya ves la última versión.", "ok");
+    }
+  } catch (e) {} finally { revisandoGuion = false; }
+}
+setInterval(() => revisarGuionDrive(), 90000);
+window.addEventListener("focus", () => revisarGuionDrive());
 async function accionDrive(accion, extra = {}) {
   try { await post("/api/drive", { accion, ...extra }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); if (accion === "desconectar") await cargar(); }
   catch (e) { avisar("Error: " + e.message, "err"); }
@@ -4721,6 +4739,7 @@ $("vActualizar").onclick = async () => {
   } catch (e) { avisar("No se pudo actualizar: " + e.message, "err"); $("vActualizar").disabled = false; }
 };
 revisarVersion(); setInterval(revisarVersion, 3600 * 1000);
+setTimeout(() => revisarGuionDrive(true), 4000);
 new ResizeObserver(() => document.documentElement.style.setProperty("--alto-header", $("cab").offsetHeight + "px")).observe($("cab"));
 // La ventana avisa que sigue abierta; al cerrarla, la sala se apaga sola (termina antes lo que esté armando)
 const latir = () => fetch("/api/latido?ping").catch(() => {});

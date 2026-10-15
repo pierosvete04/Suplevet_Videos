@@ -543,6 +543,17 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(b)
+        elif u.path == "/api/guion_drive":  # ¿cambió el guion en Drive? si sí, se trae solo
+            cambio = False
+            try:
+                g = motor.S.guion
+                if drive.estado()["activo"] and g.is_relative_to(drive.CACHE) and drive.bajada(motor.S.drive):
+                    cambio = drive.traer_guion(g)
+                    if cambio:
+                        motor._prod_cache = None
+            except Exception as e:  # sin internet: se reintenta en la próxima revisión
+                print("No se pudo revisar el guion en Drive:", e)
+            self._json({"cambio": cambio})
         elif u.path == "/api/guion":
             self._json(motor.revision_guion())
         elif u.path == "/api/estructura":

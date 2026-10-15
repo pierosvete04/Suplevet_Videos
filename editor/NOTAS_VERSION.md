@@ -1,3 +1,6 @@
+Versión 1.18.5 (se actualiza desde la app con «Actualizar ahora»):
+- El guion se actualiza solo: si cambia en Drive (lo actualizó Claude, el panel u otra PC), la sala lo trae al abrir la sesión, cada 90 segundos y al volver a la ventana, y avisa «El guion se actualizó desde Drive». Lo que editaste en esta sala y aún no se subió no se pisa.
+
 Versión 1.18.4 (se actualiza desde la app con «Actualizar ahora»):
 - Armar es más del doble de rápido: cada video se codificaba dos veces (una con los subtítulos y otra solo para aplicar los cortes). Ahora es una sola pasada. En la prueba, un video de 39 s bajó de 39 s a 17 s.
 - Al guardar una plantilla, la pregunta «¿Re-armar ahora…?» sale al instante (antes esperaba a que la sala se recargara entera).

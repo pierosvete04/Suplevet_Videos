@@ -159,6 +159,17 @@ def sesiones_en_drive():
         return []
 
 
+def traer_guion(local):
+    """Trae de Drive el guion de la sesión si allá está más nuevo (lo cambió Claude, el panel u otra PC).
+    Solo reemplaza archivos más viejos que los de Drive: lo editado en esta sala y aún no subido no se pisa.
+    Devuelve True si cambió algo."""
+    rel = Path(local).relative_to(CACHE).as_posix()
+    huella = lambda: {f.name: (f.stat().st_size, int(f.stat().st_mtime)) for f in Path(local).glob("*") if f.is_file()}
+    antes = huella() if Path(local).is_dir() else {}
+    _rc("copy", f"{REMOTO}:{rel}", local, "--update", "--max-depth", "1", "--exclude", "desktop.ini", timeout=60)
+    return huella() != antes
+
+
 def bajada(nombre):
     return (CACHE / nombre).is_dir()
 
