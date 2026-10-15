@@ -1,3 +1,9 @@
+Versión 1.17.0 (se actualiza desde la app con «Actualizar ahora»):
+- 🔔 Notificaciones (arriba, junto a ☰): todos los avisos de la sala (listo, errores) quedan guardados con su hora. El número rojo dice cuántos no leíste.
+- Los avisos ahora se ven aunque esté abierto el detalle del video o el editor. Antes quedaban tapados detrás de la ventana.
+- Procesos (☰) → «Ver todo el historial y los tiempos»: cada trabajo con su fecha, cuánto demoró, cuántos videos hizo y cuánto tardó cada uno, y el promedio por video de armar y de exportar. Al terminar un trabajo, el aviso dice cuánto demoró.
+- Detalle del video → «Qué hizo el editor automático»: los segundos ahora son los del video armado (antes eran los del video sin recortes). Toca uno para ir a ese momento.
+
 Versión 1.16.2 (se actualiza desde la app con «Actualizar ahora»):
 - Cada video dice qué usa. En la tarjeta: la plantilla de subtítulos. Al abrirlo: «Usa: Aa plantilla · ♪ música · ▣ imágenes · 🔊 sonidos» (y si le faltan imágenes o música). Los videos con ajustes solo suyos llevan la etiqueta «solo este».
 

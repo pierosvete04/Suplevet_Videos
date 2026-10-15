@@ -304,6 +304,15 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .conexion .que { flex: 1 1 220px; } .conexion .que small { display: block; color: var(--muted); font-weight: 400; }
 .conexion ol { margin: 10px 0 6px; padding-left: 20px; font-size: 13px; display: grid; gap: 4px; }
 #dlgAviso .usa { font-size: 12px; color: var(--muted); display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+dialog .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); max-width: min(560px, 90vw); padding: 10px 16px; border-radius: 12px;
+  background: var(--surface, #111); border: 1px solid var(--line2); box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 13.5px; z-index: 50;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; color: var(--ink); }
+dialog .toast.ver { opacity: 1; transform: translate(-50%, 0); }
+dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color: var(--ok); }
+.btn.icono .punto.num { width: auto; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font: 700 10px/16px var(--f); color: #fff; background: var(--err); top: -5px; right: -5px; }
+.lista-notifs { display: grid; gap: 6px; max-height: 60vh; overflow: auto; }
+.notif { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--hondo); font-size: 13px; border-left: 3px solid var(--line2); }
+.notif.ok { border-left-color: var(--ok); } .notif.err { border-left-color: var(--err); } .notif.nueva { outline: 1px solid var(--accent2); }
 .leyenda-estado { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
 .leyenda-estado i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; background: var(--muted); }
 .leyenda-estado i.editando { background: var(--warn); } .leyenda-estado i.listo { background: var(--ok); }
@@ -465,6 +474,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <button class="btn sec" id="tema" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro"></button>
     <a class="btn sec" href="/teleprompter" target="_blank">Teleprompter</a>
     <button class="btn" id="todo" title="Recorta los silencios de cada clip, pasa su audio a texto y une cada hook con su cuerpo y su CTA: arma todos los videos de la sesión">Armar todos los videos</button>
+    <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
     <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
     <button class="btn sec icono" id="abrirAjustes" title="Configuración: Drive, teleprompter en la tablet, notas" aria-label="Configuración">⚙</button>
   </div>
@@ -934,11 +944,19 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 </main>
 
 <div id="estadoTrabajo" hidden role="status" aria-live="polite" title="Ver el proceso y cancelarlo"><span class="rueda" aria-hidden="true"></span><span id="trabajo"></span></div>
+<dialog id="dlgNotifs" aria-labelledby="notifTit" style="width:min(560px,94vw)">
+  <div class="dlg-cab"><h2 id="notifTit" style="margin:0">Notificaciones</h2>
+    <div class="fila"><button class="btn sec peq" id="notifBorrar" type="button">Borrar todas</button><button class="btn sec peq" id="notifCerrar" aria-label="Cerrar">✕</button></div></div>
+  <div style="padding:16px"><div id="listaNotifs" class="lista-notifs"></div></div>
+</dialog>
 <dialog id="dlgProcesos" aria-labelledby="procTit" style="width:min(560px,94vw)">
   <div class="dlg-cab"><h2 id="procTit" style="margin:0">Procesos</h2><button class="btn sec peq" id="procCerrar" aria-label="Cerrar">✕</button></div>
   <div style="padding:16px;display:grid;gap:12px">
     <div id="procActual"></div>
-    <div><h3>Últimos procesos</h3><div id="procHistorial" style="display:grid;gap:6px"></div></div>
+    <div><div class="fila" style="justify-content:space-between"><h3 style="margin:0">Últimos procesos</h3>
+      <button class="btn sec peq" id="procTodo" type="button">Ver todo el historial y los tiempos</button></div>
+      <div id="procResumen" class="muted" style="font-size:12.5px;margin:6px 0"></div>
+      <div id="procHistorial" style="display:grid;gap:6px"></div></div>
   </div>
 </dialog>
 <div id="barraSel" hidden><span id="nSel"></span>
@@ -1124,11 +1142,37 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 </dialog>
 
 <script>
+// Notificaciones: cada aviso que importa (listo, error) queda guardado en esta PC; la campana muestra los no leídos
+const NOTIF_IGNORAR = /^(Guardando|Buscando|Revisando|Cargando)/;
+function leerNotifs() { try { return JSON.parse(localStorage.getItem("sala_notifs") || "[]"); } catch (e) { return []; } }
+function guardarNotif(txt, cls) {
+  if (!txt || cls === "muted" || NOTIF_IGNORAR.test(txt)) return;
+  const l = leerNotifs();
+  if (l[0] && l[0].txt === txt && Date.now() - l[0].t < 5000) return;
+  l.unshift({ t: Date.now(), txt, cls, leida: false });
+  try { localStorage.setItem("sala_notifs", JSON.stringify(l.slice(0, 200))); } catch (e) {}
+  pintarCampana();
+}
+function pintarCampana() {
+  const n = leerNotifs().filter(x => !x.leida).length, b = document.getElementById("nNotifs");
+  if (!b) return;
+  b.hidden = !n; b.textContent = n > 99 ? "99+" : n;
+}
 let E = null, sel = null, actual = null, red = "instagram", subTab = "lineas", marcasTmp = [];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = t => Number(t).toFixed(2) + " s";
-const avisar = (txt, cls = "muted") => { const a = $("aviso"); a.textContent = txt; a.className = cls; };
+const avisar = (txt, cls = "muted") => {
+  const a = $("aviso"); a.textContent = txt; a.className = cls;
+  guardarNotif(txt, cls);
+  // con una ventana abierta (detalle del video, editor…) el aviso de arriba queda tapado: se muestra también dentro de ella
+  const dlg = [...document.querySelectorAll("dialog[open]")].pop();
+  if (!dlg || !txt) return;
+  let t = dlg.querySelector(":scope > .toast");
+  if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); dlg.appendChild(t); }
+  t.textContent = txt; t.className = "toast " + cls + " ver";
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("ver"), cls === "err" ? 8000 : 4500);
+};
 const norm = w => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ]/g, "");
 const post = async (url, body, raw) => {
   const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ? body : JSON.stringify(body || {}) });
@@ -1499,9 +1543,11 @@ function abrirVideo(cod, editar) {
   $("dlgReceta").innerHTML = r ? `
     ${r.faltan_assets.length ? `<p class="pill warn">Faltan: ${r.faltan_assets.map(esc).join(", ")}</p>` : ""}
     ${r.marcas_sin_encontrar.length ? `<p class="pill warn">Palabras no encontradas: ${r.marcas_sin_encontrar.map(esc).join(", ")}</p>` : ""}
-    <p class="muted" style="font-size:12px;margin:6px 0 0">Música: ${esc(r.musica || "ninguna")} · cortes en ${r.cortes.map(fmt).join(", ")}</p>
-    <ul class="efectos">${r.imagenes.map(i => `<li>${fmt(i.t)} · imagen ${esc(i.asset)} (${i.dur} s, ${esc(i.modo)})</li>`).join("")}
-    ${r.efectos.map(e => `<li>${fmt(e.t)} · ${esc(e.sfx)} — ${esc(e.motivo)}</li>`).join("")}</ul>` : `<p class="muted">Aún no armado.</p>`;
+    <p class="muted" style="font-size:12px;margin:6px 0 0">Música: ${esc(r.musica || "ninguna")} · ${r.limites ? `el cuerpo va del ${fmt(r.limites[0])} al ${fmt(r.limites[1])}` : `cortes en ${r.cortes.map(fmt).join(", ")}`}</p>
+    <ul class="efectos">${[...r.imagenes.map(i => ({ t: i.te ?? i.t, h: `imagen ${esc(i.asset)} (${i.dur} s, ${esc(i.modo)})` })),
+      ...r.efectos.filter(e => e.te !== null).map(e => ({ t: e.te ?? e.t, h: `${esc(e.sfx)} — ${esc(e.motivo)}` }))]
+      .sort((a, b) => a.t - b.t).map(x => `<li><a href="#" data-ir-seg="${x.t}">${fmt(x.t)}</a> · ${x.h}</li>`).join("")}</ul>
+    <span class="muted" style="font-size:11.5px">Toca un segundo para ir a ese momento del video.</span>` : `<p class="muted">Aún no armado.</p>`;
   pintarTelefono(); contar();
   $("dlg").showModal();
   abrirPortada(); abrirSubsVideo();
@@ -1824,7 +1870,8 @@ function vigilar(t) {
         await cargar();
         if (j.accion === "analizar" && !j.error) corroborado = true;
         if (["revisar", "analizar", "procesar"].includes(j.accion)) pintarGuion();
-        avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || ""), j.error ? "err" : "ok");
+        const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${h0.cantidad} videos` : ""})` : "";
+        avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || "") + cuanto, j.error ? "err" : "ok");
         if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} re-armado. Lo estás viendo actualizado.`, "ok"); }
         reabrir = null;
       }
@@ -2020,14 +2067,47 @@ async function pintarProcesos() {
         <span class="muted">Empezó a las ${hora(t.inicio)} · ${esc(t.mensaje)}</span><span></span>
         <pre>${esc((t.log || []).slice(-25).join("\n"))}</pre></div>`
     : `<p class="muted" style="margin:0">No hay nada corriendo ahora.</p>`;
-  const marca = { listo: '<span class="pill ok">listo</span>', error: '<span class="pill err">error</span>', cancelado: '<span class="pill warn">cancelado</span>' };
-  $("procHistorial").innerHTML = (t.historial || []).map(h => `<div class="proc"><span><b>${esc(NOMBRE_PROCESO[h.accion] || h.accion)}</b> <span class="muted">· ${hora(h.inicio)}–${hora(h.fin)}</span></span>${marca[h.resultado] || ""}
-      <span class="muted" style="grid-column:1/-1">${esc(h.mensaje)}</span></div>`).join("") || `<span class="muted">Todavía nada.</span>`;
+  $("procHistorial").innerHTML = (t.historial || []).map(h => filaHistorial(h, false)).join("") || `<span class="muted">Todavía nada.</span>`;
+  $("procResumen").textContent = t.activo && t.inicio ? `Lleva ${durTxt(Date.now() / 1000 - t.inicio)}.` : "";
 }
 function abrirProcesos() { $("dlgProcesos").showModal(); pintarProcesos(); clearInterval(procTimer); procTimer = setInterval(pintarProcesos, 1500); }
 $("estadoTrabajo").onclick = abrirProcesos;
 $("verProcesos").onclick = abrirProcesos;
 $("procCerrar").onclick = () => $("dlgProcesos").close();
+// ---------- Notificaciones ----------
+function pintarNotifs() {
+  const l = leerNotifs(), hoy = new Date().toDateString();
+  $("listaNotifs").innerHTML = l.map(x => { const d = new Date(x.t);
+    return `<div class="notif ${x.cls} ${x.leida ? "" : "nueva"}"><span class="muted">${d.toDateString() === hoy ? "" : d.toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) + " "}${d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}</span>
+      <span>${x.cls === "err" ? "⚠ " : "✓ "}${esc(x.txt)}</span></div>`; }).join("") || `<p class="muted" style="margin:0">No hay notificaciones.</p>`;
+}
+$("verNotifs").onclick = () => {
+  $("dlgNotifs").showModal(); pintarNotifs();
+  try { localStorage.setItem("sala_notifs", JSON.stringify(leerNotifs().map(x => ({ ...x, leida: true })))); } catch (e) {}
+  pintarCampana();
+};
+$("notifCerrar").onclick = () => $("dlgNotifs").close();
+$("notifBorrar").onclick = () => { try { localStorage.removeItem("sala_notifs"); } catch (e) {} pintarNotifs(); pintarCampana(); };
+pintarCampana();
+// ---------- Historial de procesos con tiempos ----------
+const durTxt = s => { s = Math.round(s || 0); return s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`; };
+function filaHistorial(h, conFecha) {
+  const marca = { listo: '<span class="pill ok">listo</span>', error: '<span class="pill err">error</span>', cancelado: '<span class="pill warn">cancelado</span>' };
+  const d = h.duracion ?? (h.fin && h.inicio ? h.fin - h.inicio : 0);
+  const fecha = conFecha && h.inicio ? new Date(h.inicio * 1000).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) + " " : "";
+  return `<div class="proc"><span><b>${esc(NOMBRE_PROCESO[h.accion] || h.accion)}</b> <span class="muted">· ${fecha}${hora(h.inicio)}–${hora(h.fin)} · <b>${durTxt(d)}</b>${
+      h.cantidad ? ` · ${h.cantidad} video${h.cantidad === 1 ? "" : "s"} · ${durTxt(d / h.cantidad)} c/u` : ""}${h.sesion ? ` · ${esc(h.sesion)}` : ""}</span></span>${marca[h.resultado] || ""}
+    <span class="muted" style="grid-column:1/-1">${esc(h.mensaje)}</span></div>`;
+}
+$("procTodo").onclick = async () => {
+  let l; try { l = await (await fetch("/api/historial")).json(); } catch (e) { return; }
+  // promedio por video de los trabajos terminados, por tipo
+  const prom = {};
+  l.filter(h => h.resultado === "listo" && h.cantidad).forEach(h => { const p = prom[h.accion] = prom[h.accion] || { s: 0, n: 0 }; p.s += h.duracion; p.n += h.cantidad; });
+  $("procResumen").innerHTML = Object.entries(prom).map(([a, p]) => `${esc(NOMBRE_PROCESO[a] || a)}: <b>${durTxt(p.s / p.n)}</b> por video`).join(" · ") || "Todavía no hay tiempos guardados.";
+  $("procHistorial").innerHTML = l.map(h => filaHistorial(h, true)).join("") || `<span class="muted">Todavía nada.</span>`;
+  clearInterval(procTimer);
+};
 $("dlgProcesos").addEventListener("close", () => clearInterval(procTimer));
 $("procActual").addEventListener("click", async e => {
   if (e.target.id !== "procCancelar") return;
@@ -2052,6 +2132,10 @@ $("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los v
 
 $("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; $("dlg").close(); trabajo("uno", cod); } };
 $("cerrar").onclick = () => $("dlg").close();
+$("dlgReceta").addEventListener("click", e => {  // ir al segundo de una imagen o un sonido en el video
+  const a = e.target.closest("[data-ir-seg]"); if (!a) return;
+  e.preventDefault(); const v = $("dlgVideo"); v.currentTime = Number(a.dataset.irSeg); v.play().catch(() => {});
+});
 $("dlg").addEventListener("close", () => { if ($("dlgEditor").open) $("dlgEditor").close(); });
 $("dlg").addEventListener("close", () => $("dlgVideo").pause());
 $("guardarCopy").onclick = async () => {

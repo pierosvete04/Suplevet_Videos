@@ -2773,9 +2773,11 @@ def armar_uno(combo, n_musica=0, extras=None):
               "limites": [round(mapa(offs[1], True), 2), round(mapa(offs[2], True), 2)],
               "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos_ed) or None,
               "faltan_musica": faltan_musica,
+              # t: segundo del video sin recortes (lo usa el editor); te: segundo en el video armado (None si se cortó)
               "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "cat": e["cat"], "id": id_sonido(e["archivo"]), "t": e["t"],
-                           "motivo": e["motivo"]} for e in eventos],
-              "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "dur": round(o["dur"], 2), "modo": o["modo"]} for o in overlays],
+                           "te": None if mapa(e["t"]) is None else round(mapa(e["t"]), 2), "motivo": e["motivo"]} for e in eventos],
+              "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "te": round(mapa(o["t"], True), 2), "dur": round(o["dur"], 2),
+                            "modo": o["modo"]} for o in overlays],
               # pistas de música en el video sin recortes, para escucharlas en la vista previa del editor
               "pistas": [{"t0": round(t["t0"], 2), "t1": round(t["t1"], 2), "desde": t["desde"], "archivo": str(t["archivo"]),
                           "id": t["id"]} for t in tramos],

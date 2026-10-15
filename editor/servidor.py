@@ -77,6 +77,17 @@ def vigilar_ventana():
 
 
 TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "fin": None, "log": [], "historial": [], "inicio": None}
+HISTORIAL = motor.DATOS / "historial_trabajos.json"  # cada trabajo: qué, de qué sesión, cuánto duró y cuántos videos
+
+
+def leer_historial():
+    try:
+        return json.loads(HISTORIAL.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+TRABAJO["historial"] = leer_historial()[:15]
 candado = threading.Lock()
 
 
@@ -372,10 +383,18 @@ def lanzar(accion, pieza=None, extra=None):
             TRABAJO["activo"] = False
             motor.CANCELAR.clear()
             TRABAJO["fin"] = time.time()
-            TRABAJO["historial"] = ([{"accion": accion, "inicio": TRABAJO["inicio"], "fin": TRABAJO["fin"],
-                                      "resultado": "cancelado" if TRABAJO.get("cancelado") else "error" if TRABAJO["error"] else "listo",
-                                      "mensaje": (TRABAJO["error"] or (TRABAJO["log"] or [""])[-1])[:200]}]
-                                    + TRABAJO.get("historial", []))[:15]
+            # cuántos videos (o clips) pasaron por el trabajo, para saber cuánto tarda cada uno
+            pasos = [l for l in TRABAJO["log"] if l.startswith(("Armando ", "Exportando ", "Renombrando ", "Procesando ", "Transcribiendo "))]
+            h = {"accion": accion, "sesion": motor.S.semana, "inicio": TRABAJO["inicio"], "fin": TRABAJO["fin"],
+                 "duracion": round(TRABAJO["fin"] - TRABAJO["inicio"], 1), "cantidad": len(pasos),
+                 "resultado": "cancelado" if TRABAJO.get("cancelado") else "error" if TRABAJO["error"] else "listo",
+                 "mensaje": (TRABAJO["error"] or (TRABAJO["log"] or [""])[-1])[:200]}
+            todo = [h] + leer_historial()
+            try:
+                HISTORIAL.write_text(json.dumps(todo[:300], ensure_ascii=False, indent=1), encoding="utf-8")
+            except OSError:
+                pass
+            TRABAJO["historial"] = todo[:15]
 
     motor.CANCELAR.clear()
     TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "resultado": None,
@@ -519,6 +538,8 @@ class H(BaseHTTPRequestHandler):
             self._archivo(f.parent, f.name)
         elif u.path == "/api/informe_clips":
             self._json(motor.informe_clips())
+        elif u.path == "/api/historial":
+            self._json(leer_historial())
         elif u.path == "/api/renombrar":
             self._json(motor.plan_renombrar())
         elif u.path == "/api/onda":
