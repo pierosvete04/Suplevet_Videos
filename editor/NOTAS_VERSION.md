@@ -1,3 +1,6 @@
+Versión 1.16.2 (se actualiza desde la app con «Actualizar ahora»):
+- Cada video dice qué usa. En la tarjeta: la plantilla de subtítulos. Al abrirlo: «Usa: Aa plantilla · ♪ música · ▣ imágenes · 🔊 sonidos» (y si le faltan imágenes o música). Los videos con ajustes solo suyos llevan la etiqueta «solo este».
+
 Versión 1.16.1 (se actualiza desde la app con «Actualizar ahora»):
 - Plantillas: «Mayúsculas: No» ya se ve en la vista previa (la muestra venía escrita en mayúsculas). En el video sí se aplicaba.
 - La vista previa ahora muestra la sombra como sale en el video: en diagonal, con su color, su opacidad y el desenfoque. También muestra el espacio entre letras.

@@ -303,6 +303,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .conexion summary::-webkit-details-marker { display: none; }
 .conexion .que { flex: 1 1 220px; } .conexion .que small { display: block; color: var(--muted); font-weight: 400; }
 .conexion ol { margin: 10px 0 6px; padding-left: 20px; font-size: 13px; display: grid; gap: 4px; }
+#dlgAviso .usa { font-size: 12px; color: var(--muted); display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .leyenda-estado { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
 .leyenda-estado i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; background: var(--muted); }
 .leyenda-estado i.editando { background: var(--warn); } .leyenda-estado i.listo { background: var(--ok); }
@@ -1409,10 +1410,11 @@ function tarjetaVideo(s) {
     <span class="estado-dot ${s.estado}" title="${ESTADOS[s.estado] || ""}"></span>
     ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>`
       : `<div class="vacia">${esc(s.codigo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
-    <div class="nombre">${esc(s.etiqueta)}${s.es_version ? ' <span class="pill azul">versión</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
+    <div class="nombre">${esc(s.etiqueta)}${s.es_version ? ' <span class="pill azul">versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
     <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">sin armar</span>`}
       ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ re-armar</span>` : ""}
-      ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}</div></button>`;
+      ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}
+      <span class="pill" title="Plantilla de subtítulos">Aa ${esc(plantillaDe(s).nombre)}</span></div></button>`;
 }
 function pintarVideos() {
   const q = $("buscar").value.trim().toLowerCase();
@@ -1459,9 +1461,24 @@ document.addEventListener("click", async e => {
   const tp = e.target.closest("[data-tipo]");
   if (tp) { tipoPieza = tp.dataset.tipo; sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || sel; pintarPiezas(); pintarPieza(); return; }
 });
+// Qué usa cada video: plantilla de subtítulos, música, imágenes y sonidos (del último armado)
+function plantillaDe(s) {
+  const id = (s.ajustes_video || {}).plantilla || E.plantilla;
+  return { id, nombre: (E.plantillas[id] || {}).nombre || id, propia: !!(s.ajustes_video || {}).plantilla };
+}
+function usaDe(s) {
+  const pl = plantillaDe(s), r = s.receta || {};
+  const mus = (r.musica || "").replace(/\s*\([\d.]+ s\)/g, "");
+  return [`<span class="pill" title="Plantilla de subtítulos${pl.propia ? " elegida para este video" : " predeterminada"}">Aa ${esc(pl.nombre)}${pl.propia ? " ·propia" : ""}</span>`,
+    mus ? `<span class="pill" title="Música">♪ ${esc(mus)}</span>` : (r.duracion ? `<span class="pill warn">sin música</span>` : ""),
+    (r.imagenes || []).length ? `<span class="pill" title="Imágenes de Flow">▣ ${r.imagenes.length} imágenes</span>` : "",
+    (r.efectos || []).length ? `<span class="pill" title="Sonidos">🔊 ${r.efectos.length} sonidos</span>` : "",
+    (r.faltan_assets || []).length ? `<span class="pill warn" title="${esc(r.faltan_assets.join(", "))}">faltan ${r.faltan_assets.length} imágenes</span>` : ""].join(" ");
+}
 function pintarEstadoDlg() {
   document.querySelectorAll("#dlgEstado [data-est]").forEach(b => b.setAttribute("aria-pressed", b.dataset.est === actual.estado));
-  $("dlgAviso").innerHTML = actual.desactualizado ? `<span class="pill warn">⟳ hay cambios sin armar</span>` : !actual.existe ? `<span class="pill">sin armar</span>` : "";
+  $("dlgAviso").innerHTML = (actual.desactualizado ? `<span class="pill warn">⟳ hay cambios sin armar</span> ` : !actual.existe ? `<span class="pill">sin armar</span> ` : "")
+    + `<span class="usa">Usa: ${usaDe(actual)}</span>`;
 }
 
 function abrirVideo(cod, editar) {
