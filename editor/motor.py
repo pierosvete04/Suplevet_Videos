@@ -2066,26 +2066,21 @@ def _mapa_tiempo(trozos):
     return f, g
 
 
-def _quitar_tramos(video, rangos, velocidades=(), trozos=None):
-    """Saca del video los tramos indicados (frases quitadas, recortes, pausas): se quedan los que sobran,
-    cortados con trim (preciso al cuadro) y unidos; imagen, voz y subtítulos van juntos. La música y los
-    sonidos se ponen después, sobre el video ya cortado, para que no salten en cada corte.
-    velocidades: [(desde, hasta, factor)] que se aceleran (o frenan) sin cambiar el tono de la voz."""
-    quedan = trozos if trozos is not None else _trozos(duracion(video), rangos, velocidades)
-    if not quedan:
-        return
-    f = []
+def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t"):
+    """Filtros que dejan solo los tramos [(desde, hasta, factor)] de [v_in][a_in] y los unen en [v_out][a_out].
+    Va dentro del filtro del armado: corta en la misma pasada en que pone los subtítulos (un solo codificado).
+    La música y los sonidos se ponen después, sobre el video ya cortado, para que no salten en cada corte."""
+    n = len(quedan)
+    f = [f"[{v_in}]split={n}" + "".join(f"[{pref}sv{k}]" for k in range(n)),
+         f"[{a_in}]asplit={n}" + "".join(f"[{pref}sa{k}]" for k in range(n))] if n > 1 else []
     for k, (a, b, fac) in enumerate(quedan):
         vel_v = f"/{fac:.4f}" if abs(fac - 1) > 0.001 else ""
         vel_a = f",atempo={fac:.4f}" if abs(fac - 1) > 0.001 else ""
-        f.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[v{k}]")
-        f.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}[a{k}]")
-    f.append("".join(f"[v{k}][a{k}]" for k in range(len(quedan))) + f"concat=n={len(quedan)}:v=1:a=1[v][a]")
-    tmp = video.with_name(video.stem + "_corto" + video.suffix)
-    run([FFMPEG, "-hide_banner", "-y", "-i", str(video), "-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-dn", "-map_chapters", "-1",
-         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "pcm_s16le" if video.suffix == ".mkv" else "aac",
-         *([] if video.suffix == ".mkv" else ["-b:a", "192k", "-movflags", "+faststart"]), str(tmp)])
-    tmp.replace(video)
+        vi, ai = (f"{pref}sv{k}", f"{pref}sa{k}") if n > 1 else (v_in, a_in)
+        f.append(f"[{vi}]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[{pref}v{k}]")
+        f.append(f"[{ai}]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}[{pref}a{k}]")
+    f.append("".join(f"[{pref}v{k}][{pref}a{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=1[{v_out}][{a_out}]")
+    return f
 
 
 def t_ass(t):
@@ -3001,19 +2996,22 @@ def armar_uno(combo, n_musica=0, extras=None):
         f.append("[ac]asplit=2[ac1][ac2]")
     else:
         f.append(f"[{v_prev}]subtitles=subs.ass:fontsdir=fuentes[v]")
-    # paso 1: la imagen con la voz (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
+    # cortes, frases quitadas y velocidades: en la misma pasada (antes era otra pasada que volvía a codificar todo
+    # el video y tardaba lo mismo que el armado)
+    rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
+    trozos = _trozos(total, rangos, velocidades)
+    salidas_v = [("v", "ac1" if extras else "ac")] + ([("vlimpio", "ac2")] if extras else [])
+    if (rangos or velocidades) and trozos:
+        for k, (vl, al) in enumerate(salidas_v):
+            f += _filtro_tramos(vl, al, trozos, f"{vl}_c", f"{al}_c", pref=f"q{k}")
+        salidas_v = [(f"{vl}_c", f"{al}_c") for vl, al in salidas_v]
+    # paso 1: la imagen con la voz, ya cortada (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
     base, limpio = trabajo / "base.mkv", trabajo / "limpio.mkv"
     venc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "pcm_s16le", "-t", f"{total:.2f}"]
-    cmd += ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[ac1]" if extras else "[ac]", "-dn", "-map_chapters", "-1", *venc, str(base)]
-    if extras:
-        cmd += ["-map", "[vlimpio]", "-map", "[ac2]", *venc, str(limpio)]
+    cmd += ["-filter_complex", ";".join(f)]
+    for (vl, al), destino in zip(salidas_v, (base, limpio)):
+        cmd += ["-map", f"[{vl}]", "-map", f"[{al}]", "-dn", "-map_chapters", "-1", *venc, str(destino)]
     run(cmd, cwd=trabajo)
-    # paso 2: cortes, frases quitadas y velocidades
-    rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
-    trozos = _trozos(duracion(base), rangos, velocidades)
-    if rangos or velocidades:
-        for v in ([base, limpio] if extras else [base]):
-            _quitar_tramos(v, rangos, velocidades, trozos)
     mapa, total_ed = _mapa_tiempo(trozos) if trozos else ((lambda t, pegar=False: t), total)
     # los tiempos de la música y los sonidos pasan al video editado
     tramos_ed = []

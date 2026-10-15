@@ -302,12 +302,82 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .tabla-renombre code { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .tabla-renombre div { grid-template-columns: 1fr; gap: 0; } .tabla-renombre span { display: none; } }
 .g-editar textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); }
-.conexiones { display: grid; gap: 8px; }
-.conexion { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--hondo); }
-.conexion summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; cursor: pointer; list-style: none; }
-.conexion summary::-webkit-details-marker { display: none; }
-.conexion .que { flex: 1 1 220px; } .conexion .que small { display: block; color: var(--muted); font-weight: 400; }
-.conexion ol { margin: 10px 0 6px; padding-left: 20px; font-size: 13px; display: grid; gap: 4px; }
+/* Configuración */
+.conf { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
+.conf-menu { position: sticky; top: calc(var(--alto-header, 56px) + 60px); display: grid; gap: 2px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--tarjeta); }
+.conf-tit { display: flex; gap: 10px; align-items: center; padding: 4px 6px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.conf-tit small { display: block; color: var(--muted); font-size: 11.5px; }
+.conf-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--surface2); border: 1px solid var(--line2); font-size: 16px; }
+.conf-menu a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 13px; }
+.conf-menu a:hover { background: var(--surface2); color: var(--ink); }
+.conf-menu a.activo { background: var(--surface2); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
+.conf-menu a .pill, .conf-menu a .punto-estado { margin-left: auto; }
+.punto-estado { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); flex: none; }
+.punto-estado.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); } .punto-estado.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.conf-cuerpo { display: grid; gap: 16px; min-width: 0; }
+.conf-sec { scroll-margin-top: calc(var(--alto-header, 56px) + 72px); }
+.conf-cab { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.conf-cab > div:first-child { flex: 1 1 320px; } .conf-cab h2 { margin: 0 0 2px; } .conf-cab p { margin: 0; font-size: 12.5px; }
+.conf-form { max-width: 680px; margin-top: 12px; }
+.conf-avanzado summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.conf-pie { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.estado-grande { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--hondo); border: 1px solid var(--line); font-size: 13.5px; }
+.estado-grande:empty { display: none; }
+.estado-grande b.dato { font: 600 13px var(--mono); color: var(--accent2); padding: 2px 8px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--line2); }
+.conf-acciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 14px; }
+.accion { text-align: left; display: grid; gap: 2px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line2); background: var(--surface2); color: var(--ink); font: 13px var(--f); cursor: pointer; transition: border-color .15s, transform .15s; }
+.accion:hover { border-color: var(--accent); transform: translateY(-1px); } .accion small { color: var(--muted); font-size: 11.5px; }
+.btn-link { background: none; border: 0; padding: 4px 6px; border-radius: 6px; font: 600 12.5px var(--f); color: var(--accent2); cursor: pointer; }
+.btn-link:hover { background: var(--surface2); } .btn-link.peligro { color: var(--err); }
+.conf-progreso { min-width: 210px; display: grid; gap: 6px; font-size: 12.5px; }
+.conf-progreso .barra { height: 8px; border-radius: 99px; background: var(--surface2); border: 1px solid var(--line); overflow: hidden; }
+.conf-progreso .barra i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width .4s; }
+.conexiones { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.conexion { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--hondo); display: grid; gap: 10px; align-content: start; transition: border-color .15s; }
+.conexion:hover { border-color: var(--line2); }
+.conexion.listo { border-color: rgba(74,222,155,.35); }
+.conexion .con-cab { display: flex; gap: 10px; align-items: flex-start; }
+.conexion .con-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; font-size: 17px; background: var(--surface2); border: 1px solid var(--line2); }
+.conexion.listo .con-ico { border-color: rgba(74,222,155,.45); }
+.conexion .que { flex: 1; min-width: 0; } .conexion .que b { display: block; font-size: 13.5px; } .conexion .que small { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.conexion .con-estado, .conexion details { margin-left: 46px; margin-top: -4px; }
+.conexion .con-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.conexion details summary { cursor: pointer; font-size: 12.5px; color: var(--accent2); font-weight: 600; list-style: none; }
+.conexion details summary::-webkit-details-marker { display: none; }
+.conexion details summary::before { content: "▸ "; } .conexion details[open] summary::before { content: "▾ "; }
+.conexion ol { margin: 8px 0 4px; padding-left: 20px; font-size: 12.5px; display: grid; gap: 4px; }
+.conexion .marca { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+@media (max-width: 860px) { .conf { grid-template-columns: 1fr; } .conf-menu { position: static; grid-auto-flow: column; overflow-x: auto; } .conf-tit { display: none; } .conf-menu a { white-space: nowrap; } }
+/* Notificaciones: panel bajo la campana */
+dialog.pop-notifs { position: fixed; inset: calc(var(--alto-header, 56px) + 6px) 16px auto auto; margin: 0; width: min(420px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 90px));
+  padding: 0; border-radius: 16px; border: 1px solid var(--line2); background: var(--flotante); color: var(--ink); box-shadow: 0 24px 60px rgba(0,0,0,.35); display: none; overflow: hidden; }
+dialog.pop-notifs[open] { display: flex; flex-direction: column; animation: pn-entra .16s ease-out; }
+dialog.pop-notifs::backdrop, :root[data-tema] dialog.pop-notifs::backdrop { background: rgba(0,0,0,.04); backdrop-filter: none; -webkit-backdrop-filter: none; }
+@keyframes pn-entra { from { opacity: 0; transform: translateY(-6px); } }
+.pn-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 14px 8px 16px; }
+.pn-cab h2 { margin: 0; } .pn-cab small { font-size: 12px; }
+.icono-x { padding: 3px 8px; }
+.pn-filtros { display: flex; gap: 4px; padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
+.pn-filtros button { border: 1px solid transparent; background: none; color: var(--muted); font: 600 12px var(--f); padding: 4px 10px; border-radius: 99px; cursor: pointer; }
+.pn-filtros button:hover { color: var(--ink); }
+.pn-filtros button[aria-selected="true"] { color: var(--ink); background: var(--surface2); border-color: var(--line2); }
+.pn-filtros span { color: var(--muted); font-weight: 500; }
+.lista-notifs { overflow: auto; padding: 6px 8px; display: grid; gap: 2px; flex: 1; }
+.pn-dia { font: 600 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 10px 8px 4px; }
+.notif { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: start; padding: 9px 8px; border-radius: 10px; font-size: 13px; position: relative; }
+.notif:hover { background: var(--surface2); }
+.notif.ok, .notif.err { color: var(--ink); }
+.notif .ni { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface2); border: 1px solid var(--line2); color: var(--muted); }
+.notif.ok .ni { color: var(--ok); border-color: rgba(74,222,155,.45); background: rgba(74,222,155,.08); }
+.notif.err .ni { color: var(--err); border-color: rgba(255,107,125,.45); background: rgba(255,107,125,.08); }
+.notif .nt { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; } .notif .nt small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.notif.nueva .nt { font-weight: 600; }
+.notif.nueva::after { content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 60%; transform: translateY(-50%); border-radius: 3px; background: var(--accent2); }
+.notif .nx { opacity: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 6px; }
+.notif:hover .nx, .notif .nx:focus-visible { opacity: 1; } .notif .nx:hover { color: var(--ink); background: var(--raise); }
+.pn-vacio { text-align: center; padding: 34px 16px; color: var(--muted); font-size: 13px; }
+.pn-vacio span { display: block; font-size: 28px; margin-bottom: 6px; opacity: .6; }
+.pn-pie { padding: 8px 12px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }
 #dlgAviso .usa { font-size: 12px; color: var(--muted); display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 dialog .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); max-width: min(560px, 90vw); padding: 10px 16px; border-radius: 12px;
   background: var(--surface, #111); border: 1px solid var(--line2); box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 13.5px; z-index: 50;
@@ -315,9 +385,6 @@ dialog .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-
 dialog .toast.ver { opacity: 1; transform: translate(-50%, 0); }
 dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color: var(--ok); }
 .btn.icono .punto.num { width: auto; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font: 700 10px/16px var(--f); color: #fff; background: var(--err); top: -5px; right: -5px; }
-.lista-notifs { display: grid; gap: 6px; max-height: 60vh; overflow: auto; }
-.notif { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--hondo); font-size: 13px; border-left: 3px solid var(--line2); }
-.notif.ok { border-left-color: var(--ok); } .notif.err { border-left-color: var(--err); } .notif.nueva { outline: 1px solid var(--accent2); }
 .pasos-prod { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
 .pasos-prod label { color: var(--ink); }
 .res-prod { display: grid; gap: 2px; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--hondo); border-left: 3px solid var(--line2); }
@@ -534,7 +601,6 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
   <button role="tab" data-tab="sonidos" aria-selected="false">Sonidos</button>
   <button role="tab" data-tab="publicar" aria-selected="false">Exportar</button>
-  <button role="tab" data-tab="resultados" aria-selected="false">Resultados</button>
   <button role="tab" data-tab="notas" aria-selected="false" hidden>Configuración</button>
 </nav>
 <main>
@@ -950,67 +1016,77 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     </div>
   </section>
 
-  <section data-panel="resultados" hidden>
-    <div class="caja" style="margin-bottom:14px">
-      <h2 style="margin:0">¿Qué hook funciona mejor?</h2>
-      <p class="muted" style="margin:4px 0 10px;font-size:12.5px">Escribe las vistas y la retención (el % del video que miran, lo da TikTok o Instagram) de cada video publicado. La sala te dice qué tipo de hook, qué hook y qué cuerpo ganan, y lo deja en el guion para que Claude escriba los próximos con lo que funcionó.</p>
-      <div id="resRanking"></div>
-    </div>
-    <div class="caja" style="margin-bottom:14px">
-      <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Datos de cada video</h2><button class="btn" id="resGuardar" type="button">Guardar resultados</button></div>
-      <details style="margin:8px 0"><summary>Pegar desde Excel o Google Sheets</summary>
-        <p class="muted" style="font-size:12px;margin:6px 0">Columnas en este orden: código o nombre del archivo, vistas, retención %, me gusta, comentarios, compartidos, guardados. Copia las filas y pégalas aquí.</p>
-        <textarea id="resPegado" rows="5" placeholder="1110-C1-H1-CTA	1200	45	30	2	4	3"></textarea>
-        <button class="btn sec peq" id="resPegar" type="button" style="margin-top:6px">Poner en la tabla</button></details>
-      <div id="resTabla"></div>
-    </div>
-  </section>
-
   <section data-panel="notas" hidden>
-    <div class="caja" style="margin-bottom:14px" id="cajaConexiones">
-      <h2 style="margin:0 0 4px">Conexiones para trabajar</h2>
-      <p class="muted" style="margin:0 0 10px;font-size:12.5px">Lo que hay que tener abierto y conectado en esta PC para trabajar con la sala. Hazlo una vez; las marcas ✓ se recuerdan en esta PC.</p>
-      <div id="listaConexiones" class="conexiones"></div>
-    </div>
-    <div class="caja" style="margin-bottom:14px">
-      <div class="fila" style="justify-content:space-between">
-        <div><h2 style="margin:0">Actualizaciones del sistema</h2>
-          <span class="muted" style="font-size:12.5px">Versión instalada: <b id="actVersion">—</b></span></div>
-        <button class="btn" id="actBuscar">Buscar actualizaciones</button>
+    <div class="conf">
+      <aside class="conf-menu" aria-label="Secciones de configuración">
+        <div class="conf-tit"><span class="conf-ico">⚙</span><div><b>Configuración</b><small>De esta PC</small></div></div>
+        <a href="#confConexiones" class="activo">🔌 Conexiones <span class="pill" id="confNCon"></span></a>
+        <a href="#confDrive">☁ Google Drive <span class="punto-estado" id="confPDrive"></span></a>
+        <a href="#confTablet">📱 Teleprompter <span class="punto-estado" id="confPRed"></span></a>
+        <a href="#confAct">⟳ Actualizaciones <span class="punto-estado" id="confPAct"></span></a>
+        <a href="#confNotas">✎ Notas para Claude</a>
+      </aside>
+      <div class="conf-cuerpo">
+        <section class="caja conf-sec" id="confConexiones">
+          <div class="conf-cab">
+            <div><h2>Conexiones para trabajar</h2>
+              <p class="muted">Lo que esta PC necesita tener conectado. Se hace una sola vez y se recuerda.</p></div>
+            <div class="conf-progreso" id="conProgreso"></div>
+          </div>
+          <div id="listaConexiones" class="conexiones"></div>
+        </section>
+
+        <section class="caja conf-sec" id="confDrive">
+          <div class="conf-cab">
+            <div><h2>Google Drive</h2>
+              <p class="muted">La sala trabaja con la carpeta del equipo por internet: baja la sesión que abres y sube sola los videos, la música, las imágenes de Flow y las asignaciones. No hace falta Google Drive para escritorio.</p></div>
+          </div>
+          <div id="driveEstado" class="estado-grande"></div>
+          <div class="form-plant conf-form">
+            <label>Link de la carpeta (EDICIÓN DE VIDEOS)<input id="driveLink" placeholder="https://drive.google.com/drive/folders/…"></label>
+            <details class="conf-avanzado"><summary>Credenciales propias de Google Cloud <span class="muted">(recomendado)</span></summary>
+              <p class="muted" style="font-size:12px;margin:6px 0">Del proyecto «Suplevet Sala» en Google Cloud: cliente OAuth tipo «App de escritorio». Sin ellas se usan las de rclone (sirven para probar).</p>
+              <label class="btn sec peq" style="cursor:pointer;justify-self:start">Cargar archivo JSON de Google Cloud<input type="file" id="driveJson" accept=".json,application/json" hidden></label>
+              <label>ID de cliente<input id="driveCid" placeholder="…apps.googleusercontent.com"></label>
+              <label>Secreto del cliente<input id="driveSecret" type="password" autocomplete="off"></label>
+            </details>
+            <div class="fila"><button class="btn" id="driveConectar">Conectar con Google</button></div>
+          </div>
+          <div class="conf-acciones" id="driveAcciones">
+            <button class="accion" id="driveLista"><b>⟳ Actualizar sesiones</b><small>Trae la lista de sesiones del equipo</small></button>
+            <button class="accion" id="driveBajar"><b>↓ Bajar de nuevo esta sesión</b><small>Vuelve a copiar los clips de Drive</small></button>
+            <button class="accion" id="driveSubir"><b>↑ Subir todo a Drive</b><small>Videos, música, imágenes y asignaciones</small></button>
+          </div>
+          <div class="conf-pie"><button class="btn-link peligro" id="driveDesconectar" type="button">Desconectar Drive de esta PC</button></div>
+        </section>
+
+        <section class="caja conf-sec" id="confTablet">
+          <div class="conf-cab">
+            <div><h2>Teleprompter en la tablet</h2>
+              <p class="muted">Con la tablet en el mismo WiFi que esta PC. Desde la red solo se abre el teleprompter, con PIN; el resto de la sala sigue cerrado.</p></div>
+            <button class="btn sec" id="redBoton"></button>
+          </div>
+          <div id="redInfo" class="estado-grande"></div>
+        </section>
+
+        <section class="caja conf-sec" id="confAct">
+          <div class="conf-cab">
+            <div><h2>Actualizaciones del sistema</h2>
+              <p class="muted">Versión instalada: <b id="actVersion">—</b></p></div>
+            <button class="btn sec" id="actBuscar">Buscar actualizaciones</button>
+          </div>
+          <div id="actResultado" class="estado-grande"></div>
+        </section>
+
+        <section class="caja conf-sec" id="confNotas">
+          <div class="conf-cab">
+            <div><h2>Notas para Claude</h2>
+              <p class="muted">Cambios que no son de subtítulos ni marcas: música, efectos, estilo… Claude los lee desde <code>correcciones.md</code>.</p></div>
+          </div>
+          <textarea id="notas" rows="8" placeholder="Ej.: S02-C1-H2-CTA-A: el impacto del inicio suena muy fuerte."></textarea>
+          <div class="fila" style="margin-top:8px"><button class="btn sec" id="guardarNotas">Guardar notas</button></div>
+        </section>
       </div>
-      <div id="actResultado" style="margin-top:10px;font-size:13.5px"></div>
-    </div>
-    <div class="caja" style="margin-bottom:14px">
-      <h2>Google Drive</h2>
-      <p class="muted" style="margin:0 0 8px">La sala trabaja con la carpeta del equipo por internet: baja la sesión que abres y sube sola los videos finales, la música, las imágenes de Flow y las asignaciones. No hace falta Google Drive para escritorio.</p>
-      <p id="driveEstado" style="margin:0 0 8px"></p>
-      <div class="form-plant" style="max-width:640px">
-        <label>Link de la carpeta (EDICIÓN DE VIDEOS)<input id="driveLink" placeholder="https://drive.google.com/drive/folders/…"></label>
-        <details><summary>Credenciales propias de Google Cloud (recomendado)</summary>
-          <p class="muted" style="font-size:12px">Del proyecto «Suplevet Sala» en Google Cloud: cliente OAuth tipo «App de escritorio». Sin ellas se usan las de rclone (sirven para probar).</p>
-          <label class="btn sec peq" style="cursor:pointer;justify-self:start">Cargar archivo JSON de Google Cloud<input type="file" id="driveJson" accept=".json,application/json" hidden></label>
-          <label>ID de cliente<input id="driveCid" placeholder="…apps.googleusercontent.com"></label>
-          <label>Secreto del cliente<input id="driveSecret" type="password" autocomplete="off"></label>
-        </details>
-        <div class="fila">
-          <button class="btn" id="driveConectar">Conectar con Google</button>
-          <button class="btn sec" id="driveLista">Actualizar sesiones</button>
-          <button class="btn sec" id="driveBajar">Bajar de nuevo esta sesión</button>
-          <button class="btn sec" id="driveSubir">Subir todo a Drive</button>
-          <button class="btn sec" id="driveDesconectar">Desconectar</button>
-        </div>
-      </div>
-    </div>
-    <div class="caja" style="margin-bottom:14px">
-      <h2>Teleprompter en la tablet</h2>
-      <p class="muted" style="margin:0 0 8px">Con la tablet en el mismo WiFi que esta PC. Desde la red solo se abre el teleprompter, con PIN; el resto de la sala sigue cerrado.</p>
-      <div class="fila"><button class="btn sec" id="redBoton"></button><span id="redInfo" class="muted"></span></div>
-    </div>
-    <div class="caja">
-      <h2>Notas para Claude</h2>
-      <p class="muted" style="margin:0 0 6px">Cambios que no son de subtítulos ni marcas: música, efectos, estilo… Claude los lee desde <code>correcciones.md</code>.</p>
-      <textarea id="notas" rows="10" placeholder="Ej.: S02-C1-H2-CTA-A: el impacto del inicio suena muy fuerte."></textarea>
-      <div class="fila" style="margin-top:8px"><button class="btn sec" id="guardarNotas">Guardar notas</button></div>
     </div>
   </section>
 </main>
@@ -1033,10 +1109,21 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <div class="fila"><button class="btn" id="prodEmpezar" type="button">Empezar</button><span class="muted" id="prodEstimado" style="font-size:12.5px"></span></div>
   </div>
 </dialog>
-<dialog id="dlgNotifs" aria-labelledby="notifTit" style="width:min(560px,94vw)">
-  <div class="dlg-cab"><h2 id="notifTit" style="margin:0">Notificaciones</h2>
-    <div class="fila"><button class="btn sec peq" id="notifBorrar" type="button">Borrar todas</button><button class="btn sec peq" id="notifCerrar" aria-label="Cerrar">✕</button></div></div>
-  <div style="padding:16px"><div id="listaNotifs" class="lista-notifs"></div></div>
+<dialog id="dlgNotifs" class="pop-notifs" aria-labelledby="notifTit">
+  <div class="pn-cab">
+    <div><h2 id="notifTit">Notificaciones</h2><small class="muted" id="notifResumen"></small></div>
+    <div class="fila" style="gap:4px">
+      <button class="btn-link" id="notifLeidas" type="button">Marcar leídas</button>
+      <button class="btn sec peq icono-x" id="notifCerrar" aria-label="Cerrar">✕</button>
+    </div>
+  </div>
+  <div class="pn-filtros" role="tablist" aria-label="Filtrar notificaciones">
+    <button role="tab" data-nf="" aria-selected="true">Todas <span id="nfTodas"></span></button>
+    <button role="tab" data-nf="err" aria-selected="false">Errores <span id="nfErr"></span></button>
+    <button role="tab" data-nf="ok" aria-selected="false">Listas <span id="nfOk"></span></button>
+  </div>
+  <div id="listaNotifs" class="lista-notifs"></div>
+  <div class="pn-pie"><button class="btn-link peligro" id="notifBorrar" type="button">Borrar todas</button></div>
 </dialog>
 <dialog id="dlgProcesos" aria-labelledby="procTit" style="width:min(560px,94vw)">
   <div class="dlg-cab"><h2 id="procTit" style="margin:0">Procesos</h2><button class="btn sec peq" id="procCerrar" aria-label="Cerrar">✕</button></div>
@@ -2090,7 +2177,6 @@ document.addEventListener("click", e => {
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
     if (tab.dataset.tab === "plantillas") { pintarPlantillas(); pintarEstiloEdicion(); }
-    if (tab.dataset.tab === "resultados") pintarResultados();
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
     if (tab.dataset.tab === "sonidos") { pintarSonidos(); pintarNivelSonidos(); }
     if (tab.dataset.tab === "guion") pintarGuion();
@@ -2306,20 +2392,49 @@ function abrirProcesos() { $("dlgProcesos").showModal(); pintarProcesos(); clear
 $("estadoTrabajo").onclick = abrirProcesos;
 $("verProcesos").onclick = abrirProcesos;
 $("procCerrar").onclick = () => $("dlgProcesos").close();
-// ---------- Notificaciones ----------
-function pintarNotifs() {
-  const l = leerNotifs(), hoy = new Date().toDateString();
-  $("listaNotifs").innerHTML = l.map(x => { const d = new Date(x.t);
-    return `<div class="notif ${x.cls} ${x.leida ? "" : "nueva"}"><span class="muted">${d.toDateString() === hoy ? "" : d.toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) + " "}${d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}</span>
-      <span>${x.cls === "err" ? "⚠ " : "✓ "}${esc(x.txt)}</span></div>`; }).join("") || `<p class="muted" style="margin:0">No hay notificaciones.</p>`;
+// ---------- Notificaciones: panel bajo la campana, por día, con filtro ----------
+let filtroNotif = "";
+const haceCuanto = t => { const m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? "ahora" : m < 60 ? `hace ${m} min` : m < 360 ? `hace ${Math.floor(m / 60)} h` : new Date(t).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }); };
+function diaNotif(t) {
+  const d = new Date(t), hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const dias = Math.round((hoy - new Date(d).setHours(0, 0, 0, 0)) / 864e5);
+  return dias <= 0 ? "Hoy" : dias === 1 ? "Ayer" : d.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "short" });
 }
+function pintarNotifs() {
+  const todas = leerNotifs(), l = todas.filter(x => !filtroNotif || x.cls === filtroNotif);
+  const nuevas = todas.filter(x => !x.leida).length;
+  $("notifResumen").textContent = todas.length ? (nuevas ? `${nuevas} sin leer de ${todas.length}` : `${todas.length} en total, todas leídas`) : "";
+  $("nfTodas").textContent = todas.length || ""; $("nfErr").textContent = todas.filter(x => x.cls === "err").length || "";
+  $("nfOk").textContent = todas.filter(x => x.cls === "ok").length || "";
+  document.querySelectorAll("[data-nf]").forEach(b => b.setAttribute("aria-selected", b.dataset.nf === filtroNotif));
+  $("notifLeidas").hidden = !nuevas; $("notifBorrar").closest(".pn-pie").hidden = !todas.length;
+  let dia = "";
+  $("listaNotifs").innerHTML = l.map(x => {
+    const d = diaNotif(x.t), cab = d !== dia ? `<div class="pn-dia">${esc(d)}</div>` : ""; dia = d;
+    return `${cab}<div class="notif ${x.cls} ${x.leida ? "" : "nueva"}">
+      <span class="ni" aria-hidden="true">${x.cls === "err" ? "!" : x.cls === "ok" ? "✓" : "i"}</span>
+      <span class="nt">${esc(x.txt.replace(/^Error:\s*/, "").replace(/^./, c => c.toUpperCase()))}<small>${x.cls === "err" ? "Error · " : ""}${haceCuanto(x.t)}</small></span>
+      <button class="nx" type="button" data-nborrar="${x.t}" title="Quitar" aria-label="Quitar esta notificación">✕</button></div>`;
+  }).join("") || `<div class="pn-vacio"><span>🔔</span>${filtroNotif === "err" ? "Ningún error. Todo bien." : filtroNotif ? "Nada por aquí." : "No hay notificaciones."}<br><small>Aquí quedan los avisos de lo que termina o falla.</small></div>`;
+}
+function marcarLeidas() { try { localStorage.setItem("sala_notifs", JSON.stringify(leerNotifs().map(x => ({ ...x, leida: true })))); } catch (e) {} pintarCampana(); }
 $("verNotifs").onclick = () => {
-  $("dlgNotifs").showModal(); pintarNotifs();
-  try { localStorage.setItem("sala_notifs", JSON.stringify(leerNotifs().map(x => ({ ...x, leida: true })))); } catch (e) {}
-  pintarCampana();
+  const d = $("dlgNotifs"); if (d.open) return d.close();
+  filtroNotif = ""; d.showModal(); pintarNotifs();
 };
+// al cerrar, lo visto queda leído (mientras está abierto se ve qué era nuevo)
+$("dlgNotifs").addEventListener("close", marcarLeidas);
+$("dlgNotifs").addEventListener("click", e => {
+  const d = $("dlgNotifs"), r = d.getBoundingClientRect();
+  if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) return d.close();
+  const f = e.target.closest("[data-nf]"); if (f) { filtroNotif = f.dataset.nf; return pintarNotifs(); }
+  const b = e.target.closest("[data-nborrar]");
+  if (b) { try { localStorage.setItem("sala_notifs", JSON.stringify(leerNotifs().filter(x => String(x.t) !== b.dataset.nborrar))); } catch (er) {} pintarNotifs(); pintarCampana(); }
+});
+$("notifLeidas").onclick = () => { marcarLeidas(); pintarNotifs(); };
 $("notifCerrar").onclick = () => $("dlgNotifs").close();
-$("notifBorrar").onclick = () => { try { localStorage.removeItem("sala_notifs"); } catch (e) {} pintarNotifs(); pintarCampana(); };
+$("notifBorrar").onclick = () => { if (!confirm("¿Borrar todas las notificaciones?")) return; try { localStorage.removeItem("sala_notifs"); } catch (e) {} pintarNotifs(); pintarCampana(); };
 pintarCampana();
 // ---------- Historial de procesos con tiempos ----------
 const durTxt = s => { s = Math.round(s || 0); return s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`; };
@@ -2347,6 +2462,13 @@ $("procActual").addEventListener("click", async e => {
   try { await post("/api/cancelar"); } catch (err) { avisar("Error: " + err.message, "err"); }
 });
 $("abrirAjustes").onclick = () => irTab("notas");
+function irConf(id) { irTab("notas"); $(id).scrollIntoView({ behavior: "smooth", block: "start" }); marcarMenuConf(id); }
+function marcarMenuConf(id) { document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id)); }
+document.querySelectorAll(".conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
+// el menú sigue a la sección que se está viendo
+const obsConf = new IntersectionObserver(es => { const v = es.filter(x => x.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (v) marcarMenuConf(v.target.id); },
+  { rootMargin: "-30% 0px -60% 0px" });
+document.querySelectorAll(".conf-sec").forEach(x => obsConf.observe(x));
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
   let cuerpo = cuerpos.length === 1 ? cuerpos[0] : prompt(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
@@ -2390,10 +2512,13 @@ $("semana").onchange = async e => {
 function pintarDrive() {
   const d = E.drive || {};
   $("driveEstado").innerHTML = d.activo
-    ? `<span class="pill ok">conectado</span> ${d.sesiones.length} sesiones en Drive${d.credenciales_propias ? " · credenciales propias" : " · credenciales de rclone"}`
-    : `<span class="pill warn">sin conectar</span> Pega el link y toca «Conectar con Google».`;
+    ? `<span class="pill ok">✓ conectado</span> <b>${d.sesiones.length}</b> sesiones en Drive <span class="muted">· ${d.credenciales_propias ? "credenciales propias" : "credenciales de rclone"}</span>`
+    : `<span class="pill warn">sin conectar</span> Pega el link de la carpeta y toca «Conectar con Google».`;
   if (!$("driveLink").value) $("driveLink").value = d.link || "";
-  ["driveLista", "driveBajar", "driveSubir", "driveDesconectar"].forEach(id => $(id).hidden = !d.activo);
+  $("driveConectar").textContent = d.activo ? "Volver a conectar" : "Conectar con Google";
+  $("driveConectar").className = d.activo ? "btn sec" : "btn";
+  $("driveAcciones").hidden = $("driveDesconectar").closest(".conf-pie").hidden = !d.activo;
+  $("confPDrive").className = "punto-estado " + (d.activo ? "ok" : "warn");
 }
 async function accionDrive(accion, extra = {}) {
   try { await post("/api/drive", { accion, ...extra }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); if (accion === "desconectar") await cargar(); }
@@ -2422,7 +2547,11 @@ $("driveDesconectar").onclick = () => { if (confirm("¿Dejar de trabajar con Dri
 function pintarRed() {
   const r = E.red || {};
   $("redBoton").textContent = r.activa ? "Desactivar acceso por WiFi" : "Activar acceso por WiFi";
-  $("redInfo").innerHTML = r.activa ? `En la tablet abre <b>${esc(r.url)}</b> · PIN <b>${esc(r.pin)}</b>` : "Desactivado.";
+  $("redBoton").className = r.activa ? "btn sec" : "btn";
+  $("redInfo").innerHTML = r.activa
+    ? `<span class="pill ok">✓ activo</span> En la tablet abre <b class="dato">${esc(r.url)}</b> y escribe el PIN <b class="dato">${esc(r.pin)}</b>`
+    : `<span class="pill">apagado</span> <span class="muted">Actívalo para leer el guion desde la tablet, sin internet.</span>`;
+  $("confPRed").className = "punto-estado " + (r.activa ? "ok" : "");
 }
 $("redBoton").onclick = async () => {
   try { const r = await post("/api/red", { activa: !(E.red || {}).activa }); E.red = r; pintarRed();
@@ -4460,7 +4589,9 @@ $("plantListaElems").addEventListener("click", e => { const i = e.target.dataset
 new ResizeObserver(() => { if (plantEdit && !$("plantLienzo").closest("[hidden]")) { colocarCaja(); pintarElementos(); } }).observe($("plantLienzo"));
 async function guardarPlantilla(id, datos, predeterminada) {
   const r = await post("/api/plantilla", { id, datos, predeterminada });
-  await cargar(); plantSel = id; pintarPlantillas();
+  // la sala se recarga por detrás (tarda unos segundos): la pregunta de re-armar sale al instante
+  plantSel = id;
+  cargar().then(() => { plantSel = id; pintarPlantillas(); }).catch(e => avisar("Error: " + e.message, "err"));
   return r;
 }
 // después de guardar: los videos que usan la plantilla se re-arman para verla en el video (no cambian solos)
@@ -4482,34 +4613,41 @@ function pintarConexiones() {
   const items = [
     { id: "drive", t: "Google Drive (carpeta EDICIÓN DE VIDEOS)", d: "Baja los clips de cada sesión y sube los videos, la música y las imágenes.", ok: drive, auto: true,
       pasos: ["Abajo, en «Google Drive», pega el link de la carpeta del equipo.", "Toca «Conectar con Google» e inicia sesión con una cuenta que tenga permiso de <b>Editor</b> en esa carpeta (si solo puede ver, Drive borra lo que la sala sube).", "Toca «Actualizar sesiones» para ver las sesiones del equipo."],
-      boton: ["Ir a Google Drive", () => $("driveLink").scrollIntoView({ behavior: "smooth", block: "center" })] },
+      boton: ["Ir a Google Drive", () => irConf("confDrive")], ico: "☁" },
     { id: "claude", t: "Claude (app de escritorio)", d: "Escribe los guiones y revisa lo grabado, con la suscripción de Claude (sin pagar API).", ok: claude, auto: true,
       pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "En la sala, ve a Inicio → «Claude» y toca «Conectar». La sala usa esa misma cuenta.", "Si dice «sin sesión», vuelve a abrir la app de Claude y toca «Revisar de nuevo»."],
-      boton: ["Ir a Claude", () => { $("dlgAjustes")?.close?.(); irTab("inicio"); }] },
+      boton: ["Ir a Claude", () => { $("dlgAjustes")?.close?.(); irTab("inicio"); }], ico: "✳" },
     { id: "flow", t: "Google Flow (imágenes y clips con IA)", d: "Genera las imágenes y los clips de cada guion con su prompt (están en Faltantes).", ok: marcaConexion("flow"),
       pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI (Pro).", "Crea un proyecto con el nombre de la producción (por ejemplo «P01 B2B VETERINARIOS»).", "En los ajustes del asistente (ícono de deslizadores) elige <b>9:16</b> y <b>x1</b>, y guarda.", "En Faltantes copia el prompt de cada imagen y pídela con su código delante (por ejemplo «C3_IMG1: …»). Si Google rechaza un prompt, usa «Copiar plan B».", "Descarga cada imagen en <b>1K</b>. Luego, en Faltantes → «Buscar en Descargas», toca «Usar» en cada una: la sala la guarda con su nombre y la sube a Drive."],
-      boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")] },
+      boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")], ico: "🖼" },
     { id: "music", t: "Google Flow Music (música)", d: "Crea la música de cada cuerpo con el prompt del guion.", ok: marcaConexion("music"),
       pasos: ["Abre Flow Music con la misma cuenta de Google (también se entra desde Flow, botón «Flow Music»).", "Pega el prompt de la pista (en Faltantes → Música). Empieza con «Instrumental only, no vocals, no lyrics.».", "Cada pedido trae dos versiones: escucha el inicio y quédate con la que no tenga voces.", "Menú «⋯» de la canción → Download → <b>MP3</b>. Luego Faltantes → «Buscar en Descargas» → «Usar».", "Si Flow Music no está disponible, usa Suno (modo Custom, Instrumental) con el prompt de Suno del guion."],
-      boton: ["Abrir Flow Music", () => abrirAfuera("https://www.flowmusic.app/")] },
+      boton: ["Abrir Flow Music", () => abrirAfuera("https://www.flowmusic.app/")], ico: "♫" },
     { id: "chrome", t: "Claude en Chrome (opcional)", d: "Para que Claude haga solo las imágenes y la música en Flow, en tu navegador.", ok: marcaConexion("chrome"),
       pasos: ["En Google Chrome, instala la extensión «Claude» desde la Chrome Web Store e inicia sesión con la cuenta de Claude.", "Deja abierto Chrome con la sesión de Google (Flow y Flow Music) iniciada.", "Pídele a Claude: «genera las imágenes y la música de la sesión P01». Si aparece un inicio de sesión, términos o un captcha, lo haces tú."],
-      boton: ["Abrir Chrome Web Store", () => abrirAfuera("https://chromewebstore.google.com/search/claude")] },
+      boton: ["Abrir Chrome Web Store", () => abrirAfuera("https://chromewebstore.google.com/search/claude")], ico: "◎", opcional: true },
     { id: "panel", t: "Panel web (edicion.suplevet.pe)", d: "Ahí se revisan y aprueban los videos, y está el teleprompter que sigue la voz.", ok: !!E.panel, auto: true,
       pasos: ["Pide el link y el código del panel a quien lo administra; se guardan en la configuración de esta PC.", "Entra a edicion.suplevet.pe con tu usuario para revisar y aprobar.", "En la tablet, abre el teleprompter del panel y en el navegador elige «Agregar a pantalla de inicio»: queda como una app."],
-      boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")] },
+      boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")], ico: "▦" },
     { id: "tablet", t: "Teleprompter en la tablet (por WiFi)", d: "Sin internet: la tablet lee el guion desde esta PC, con PIN.", ok: !!(E.red || {}).activa, auto: true,
       pasos: ["Conecta la tablet al mismo WiFi que esta PC.", "Abajo, en «Teleprompter en la tablet», actívalo y abre en la tablet la dirección que aparece.", "Escribe el PIN. Usa «Líneas: 2 o 3» y «Tamaño» para leer cómodo frente a la cámara."],
-      boton: ["Ir al teleprompter", () => $("redBoton").scrollIntoView({ behavior: "smooth", block: "center" })] },
+      boton: ["Ir al teleprompter", () => irConf("confTablet")], ico: "📱" },
   ];
-  $("listaConexiones").innerHTML = items.map((x, k) => `<details class="conexion" ${x.ok ? "" : k < 4 ? "" : ""}>
-      <summary><span class="pill ${x.ok ? "ok" : "warn"}">${x.ok ? "✓ listo" : x.auto ? "falta conectar" : "por revisar"}</span>
-        <span class="que"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span>
-        <button class="btn sec peq" type="button" data-con-abrir="${x.id}">${esc(x.boton[0])}</button></summary>
-      <ol>${x.pasos.map(p => `<li>${p}</li>`).join("")}</ol>
-      ${x.auto ? `<span class="muted" style="font-size:12px">La sala revisa esto sola.</span>`
-        : `<label class="fila" style="font-size:12.5px"><input type="checkbox" data-con-marca="${x.id}" ${x.ok ? "checked" : ""}> Ya lo tengo listo en esta PC</label>`}
-    </details>`).join("");
+  const abiertos = new Set([...document.querySelectorAll("#listaConexiones details[open]")].map(d => d.dataset.id));
+  // primero lo que falta, luego lo listo
+  const orden = [...items].sort((a, b) => (a.ok - b.ok) || ((a.opcional || 0) - (b.opcional || 0)));
+  $("listaConexiones").innerHTML = orden.map(x => `<div class="conexion ${x.ok ? "listo" : ""}">
+      <div class="con-cab"><span class="con-ico" aria-hidden="true">${x.ico || "•"}</span>
+        <span class="que"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span></div>
+      <div class="con-estado"><span class="pill ${x.ok ? "ok" : x.opcional ? "" : "warn"}">${x.ok ? "✓ listo" : x.opcional ? "opcional" : x.auto ? "falta conectar" : "por revisar"}</span></div>
+      <details data-id="${x.id}" ${abiertos.has(x.id) ? "open" : ""}><summary>Cómo se hace (${x.pasos.length} pasos)</summary><ol>${x.pasos.map(p => `<li>${p}</li>`).join("")}</ol></details>
+      <div class="con-pie">${x.auto ? `<span class="muted" style="font-size:12px">La sala lo revisa sola</span>`
+          : `<label class="marca"><input type="checkbox" data-con-marca="${x.id}" ${x.ok ? "checked" : ""}> Ya lo tengo listo</label>`}
+        <button class="btn ${x.ok ? "sec" : ""} peq" type="button" data-con-abrir="${x.id}">${esc(x.boton[0])}</button></div>
+    </div>`).join("");
+  const nec = items.filter(x => !x.opcional), listos = nec.filter(x => x.ok).length;
+  $("conProgreso").innerHTML = `<span><b>${listos} de ${nec.length}</b> listas${listos === nec.length ? " · todo conectado 🎉" : ""}</span><span class="barra"><i style="width:${listos / nec.length * 100}%"></i></span>`;
+  $("confNCon").textContent = `${listos}/${nec.length}`; $("confNCon").className = "pill " + (listos === nec.length ? "ok" : "warn");
   pintarConexiones.items = items;
 }
 document.addEventListener("click", e => {
@@ -4536,56 +4674,6 @@ async function pintarCalidad() {
 $("calRevisar").onclick = pintarCalidad;
 document.addEventListener("click", e => { const a = e.target.closest("[data-cal-abrir]"); if (a) { e.preventDefault(); abrirVideo(a.dataset.calAbrir); } });
 
-// ---------- Resultados: vistas y retención de cada video, y qué hook funciona ----------
-let resultados = null;
-async function pintarResultados() {
-  try { resultados = await (await fetch("/api/resultados")).json(); } catch (e) { return; }
-  const m = resultados.metricas || {}, vids = E.salidas.filter(s => !s.es_version);
-  const campos = [["vistas", "Vistas"], ["retencion", "Retención %"], ["me_gusta", "Me gusta"], ["comentarios", "Coment."], ["compartidos", "Compart."], ["guardados", "Guard."]];
-  $("resTabla").innerHTML = `<div class="tabla-res"><div class="cab"><span>Video</span>${campos.map(([, t]) => `<span>${t}</span>`).join("")}</div>
-    ${vids.map(s => { const d = m[s.codigo] || {}, tipo = (E.piezas.find(p => p.nombre === s.hook)?.info || {}).tipo || "";
-      return `<div><span title="${esc(s.titulo_portada || "")}"><code>${esc(s.codigo)}</code>${tipo ? ` <span class="muted">· ${esc(tipo)}</span>` : ""}</span>
-        ${campos.map(([k]) => `<input type="number" min="0" step="any" data-met="${esc(s.codigo)}" data-k="${k}" value="${d[k] ?? ""}">`).join("")}</div>`; }).join("")}</div>`;
-  pintarRanking();
-}
-function pintarRanking() {
-  const r = resultados?.ranking; if (!r) return;
-  if (!r.videos) { $("resRanking").innerHTML = `<p class="muted" style="margin:0">Carga las vistas y la retención de algunos videos para ver qué hook funciona mejor.</p>`; return; }
-  const tabla = (titulo, lista, conTexto) => {
-    const max = Math.max(...lista.map(x => x.retencion || 0), 1);
-    return `<div class="caja"><h3 style="margin:0 0 8px">${titulo}</h3>${lista.map((x, i) => `<div class="barra-res">
-      <span><b>${i === 0 ? "🏆 " : ""}${esc(x.clave)}</b>${conTexto && x.texto ? `<br><span class="muted" style="font-size:11.5px">«${esc(x.texto.slice(0, 70))}»</span>` : ""}</span>
-      <span class="barra"><i style="width:${(x.retencion || 0) / max * 100}%"></i></span>
-      <span class="muted" style="font-size:12px">${x.retencion != null ? x.retencion + " % ret." : "—"} · ${x.vistas} vistas${x.interaccion != null ? ` · ${x.interaccion}% interac.` : ""} · ${x.videos} video${x.videos === 1 ? "" : "s"}</span></div>`).join("")}</div>`;
-  };
-  $("resRanking").innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:12.5px">Con ${r.videos} videos cargados. Ordenado por retención (cuánto del video miran), luego por vistas.</p>
-    <div class="grid-res">${tabla("Por tipo de hook", r.tipo_hook)}${tabla("Por cuerpo", r.cuerpo)}</div>${tabla("Por hook", r.hook, true)}`;
-}
-$("resGuardar").onclick = async () => {
-  const datos = {};
-  document.querySelectorAll("[data-met]").forEach(i => { (datos[i.dataset.met] = datos[i.dataset.met] || {})[i.dataset.k] = i.value; });
-  try { resultados = { ...resultados, ...(await post("/api/metricas", { datos })) }; pintarRanking();
-    avisar("Resultados guardados. Claude los usará al escribir los próximos guiones (Guion/resultados.md).", "ok"); }
-  catch (e) { avisar("Error: " + e.message, "err"); }
-};
-// Pegar desde Excel o Google Sheets: código o nombre del archivo, vistas, retención, me gusta, comentarios, compartidos, guardados
-$("resPegar").onclick = () => {
-  const texto = $("resPegado").value.trim(); if (!texto) return avisar("Pega primero las filas copiadas de Excel.", "err");
-  let n = 0;
-  texto.split(/\r?\n/).forEach(fila => {
-    const c = fila.split(/\t|;|,(?=\s*\d)/).map(x => x.trim());
-    const s = E.salidas.find(v => c[0] && (v.codigo.toLowerCase() === c[0].toLowerCase() || v.archivo.toLowerCase() === c[0].replace(/\.mp4$/i, "").toLowerCase()
-      || c[0].toLowerCase().includes(v.codigo.toLowerCase())));
-    if (!s) return;
-    ["vistas", "retencion", "me_gusta", "comentarios", "compartidos", "guardados"].forEach((k, j) => {
-      const inp = document.querySelector(`[data-met="${CSS.escape(s.codigo)}"][data-k="${k}"]`);
-      if (inp && c[j + 1] !== undefined && c[j + 1] !== "") inp.value = c[j + 1].replace(/[%\s]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".");
-    });
-    n++;
-  });
-  avisar(n ? `${n} filas puestas en la tabla. Revisa y toca «Guardar resultados».` : "No reconocí ningún video: la primera columna debe ser el código (C1-H2-CTA) o el nombre del archivo.", n ? "ok" : "err");
-};
-
 // ---------- Actualizaciones ----------
 let infoVersion = null;
 async function revisarVersion() {
@@ -4604,6 +4692,7 @@ $("actBuscar").onclick = async () => {
   try {
     infoVersion = await (await fetch("/api/version?forzar")).json();
     $("actVersion").textContent = "v" + infoVersion.actual;
+    $("confPAct").className = "punto-estado " + (infoVersion.error ? "" : infoVersion.nueva ? "warn" : "ok");
     if (infoVersion.error) $("actResultado").innerHTML = `<span class="pill warn">sin conexión</span> No se pudo revisar: ${esc(infoVersion.error)}`;
     else if (!infoVersion.nueva) $("actResultado").innerHTML = `<span class="pill ok">✓ al día</span> Estás con la última versión del sistema (v${esc(infoVersion.actual)}).`;
     else {

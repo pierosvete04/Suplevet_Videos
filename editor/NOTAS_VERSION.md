@@ -1,3 +1,10 @@
+Versión 1.18.4 (se actualiza desde la app con «Actualizar ahora»):
+- Armar es más del doble de rápido: cada video se codificaba dos veces (una con los subtítulos y otra solo para aplicar los cortes). Ahora es una sola pasada. En la prueba, un video de 39 s bajó de 39 s a 17 s.
+- Al guardar una plantilla, la pregunta «¿Re-armar ahora…?» sale al instante (antes esperaba a que la sala se recargara entera).
+- Se quitó la pestaña Resultados.
+- Configuración (⚙) nueva: menú a la izquierda (Conexiones, Google Drive, Teleprompter, Actualizaciones, Notas) con un punto verde o naranja según el estado de cada una. Las conexiones salen en tarjetas, primero las que faltan, con una barra «3 de 6 listas» y los pasos plegados.
+- Notificaciones nuevas: se abren como panel bajo la campana, agrupadas por día (Hoy, Ayer…), con filtro Todas / Errores / Listas, hora relativa («hace 5 min»), botón para quitar una sola y «Marcar leídas».
+
 Versión 1.18.3 (se actualiza desde la app con «Actualizar ahora»):
 - Si hay dos salas abiertas a la vez en la misma PC, cada una arma en su propia carpeta y ya no se pisan los archivos (antes un video podía fallar con «Invalid data found»).
 
