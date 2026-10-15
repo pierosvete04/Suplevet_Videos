@@ -515,7 +515,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <button class="btn sec" id="tema" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro"></button>
     <a class="btn sec" href="/teleprompter" target="_blank">Teleprompter</a>
     <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir todo</button>
-    <button class="btn sec" id="todo" title="Recorta los silencios de cada clip, pasa su audio a texto y une cada hook con su cuerpo y su CTA: arma todos los videos de la sesión">Armar todos los videos</button>
+    <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar todos los videos</button>
     <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
     <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
     <button class="btn sec icono" id="abrirAjustes" title="Configuración: Drive, teleprompter en la tablet, notas" aria-label="Configuración">⚙</button>
@@ -1026,7 +1026,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <li>Prepara los clips: corta los silencios, iguala el volumen y pasa el audio a texto.</li>
       <li>Arma todos los videos.</li>
       <li>Revisa la calidad de cada video.</li>
-      <li><label><input type="checkbox" id="prodExportar" checked> Exporta por día con los ajustes de Exportar y los sube a V.FINALES.</label>
+      <li><label><input type="checkbox" id="prodExportar"> Exporta por día con los ajustes de Exportar y los sube a V.FINALES.</label>
         <label style="display:block;margin-top:4px"><input type="checkbox" id="prodSaltar" checked> No exportar los videos con problemas graves (faltan imágenes, audio muy bajo…)</label></li>
       <li><label><input type="checkbox" id="prodPanel"> Sube los videos al panel para revisarlos.</label></li>
     </ol>

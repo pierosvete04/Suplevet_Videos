@@ -1,3 +1,7 @@
+Versión 1.18.2 (se actualiza desde la app con «Actualizar ahora»):
+- «Armar todos los videos» ahora solo arma (antes también exportaba y se juntaban copias en V.FINALES). Exportar se hace aparte, en Exportar, cuando decidas publicar.
+- «Producir todo» viene con «Exportar» apagado; lo prendes solo si quieres exportar en el mismo paso.
+
 Versión 1.18.1 (se actualiza desde la app con «Actualizar ahora»):
 - Claqueta fuera: la sala detecta sola el «3, 2, 1, va» del inicio de una toma (y lo que se dijo antes, como el nombre de la toma) y los reinicios cortos en medio («una, pa»), y los quita del video. En P01 salían en los 10 videos de C5 y C6.
 - Sonidos normalizados: la sala mide qué tan fuerte suena cada efecto y los lleva a todos al mismo nivel. En Sonidos eliges si suenan suaves, normales o fuertes, o lo apagas.

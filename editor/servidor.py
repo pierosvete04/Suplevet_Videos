@@ -398,7 +398,7 @@ def lanzar(accion, pieza=None, extra=None):
                     motor.armar_uno(combo)
                 if accion == "portadas":
                     motor.rehacer_portadas(avance=avance)
-                if accion in ("todo", "exportar"):
+                if accion == "exportar":  # «Armar todos los videos» (todo) solo arma: exportar es aparte, cuando se decide publicar
                     hechos = motor.exportar(avance=avance)
                     avance(f"Exportados {len(hechos)} videos a {motor.S.listos}")
                     if drive.estado()["activo"]:
