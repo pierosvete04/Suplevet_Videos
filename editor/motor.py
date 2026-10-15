@@ -522,6 +522,91 @@ def piezas():
 DESCARTADOS = "_DESCARTADOS"  # dentro de Clips/: lo que el equipo descartó (no se borra; se puede recuperar)
 
 
+# ---------- Ordenar la sesión: cada clip con el nombre de su pieza ----------
+
+def _carpeta_de_codigo(codigo):
+    if re.search(r"_H\d", codigo):
+        return "Clips/Hooks"
+    if "CTA" in codigo.upper():
+        return "Clips/CTA"
+    return "Clips/Cuerpo"
+
+
+def plan_renombrar():
+    """Lo que haría «Ordenar y renombrar»: cada clip ya identificado pasa a Clips/Hooks|Cuerpo|CTA con el
+    código de su pieza (IMG_1058.MOV → Clips/Hooks/C2_H3.MOV). [{sesion, viejo, nuevo, pieza}] + los que no se pueden."""
+    asig = leer_asignaciones()
+    cambios, problemas, destinos = [], [], set()
+    usados = {r for p in piezas() for r in p["rels"]}
+    for c in clips():
+        if c["rel"] not in usados:
+            continue
+        codigo = (asig.get(c["rel"]) or nombre_automatico(c) or "").upper()
+        if not codigo:
+            continue
+        sesion, rel = c["rel"].split("/", 1) if S.es_grupo else (S.semana, c["rel"])
+        nuevo = f"{_carpeta_de_codigo(codigo)}/{codigo}{c['ruta'].suffix.upper()}"
+        if rel == nuevo:
+            continue
+        if (sesion, nuevo.lower()) in destinos or (S.base / sesion / nuevo).exists():
+            problemas.append(f"{c['ruta'].name}: ya hay un archivo {nuevo}")
+            continue
+        destinos.add((sesion, nuevo.lower()))
+        cambios.append({"sesion": sesion, "viejo": rel, "nuevo": nuevo, "pieza": codigo, "rel": c["rel"]})
+    return {"cambios": cambios, "problemas": problemas}
+
+
+def aplicar_renombre(cambio):
+    """Ya movido en Drive: mueve la copia local y actualiza todo lo que recordaba el nombre viejo (asignación,
+    procesado y transcripción), para que la sala no lo tome como un clip nuevo ni vuelva a procesarlo."""
+    sesion, viejo, nuevo = cambio["sesion"], cambio["viejo"], cambio["nuevo"]
+    f_viejo, f_nuevo = S.base / sesion / viejo, S.base / sesion / nuevo
+    f_nuevo.parent.mkdir(parents=True, exist_ok=True)
+    if f_viejo.exists():
+        f_viejo.replace(f_nuevo)
+    d = _leer_asig(sesion)
+    d.pop(viejo, None)
+    d[nuevo] = cambio["pieza"]  # el nombre ya lo dice, pero se deja asignado a mano por si acaso
+    _escribir_asig(sesion, d)
+    # la firma del procesado guarda la ruta de cada parte: se cambia la ruta, no se reprocesa
+    for firma in S.proc.glob("*.partes.json"):
+        try:
+            datos = json.loads(firma.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        partes = datos.get("partes") if isinstance(datos, dict) else datos
+        if partes and str(f_viejo) in partes:
+            partes = [str(f_nuevo) if x == str(f_viejo) else x for x in partes]
+            datos = {**datos, "partes": partes} if isinstance(datos, dict) else partes
+            firma.write_text(json.dumps(datos, ensure_ascii=False), encoding="utf-8")
+    rel_nuevo = f"{sesion}/{nuevo}" if S.es_grupo else nuevo
+    t_viejo = _archivo_transcripcion({"rel": cambio["rel"]})
+    if t_viejo.exists():
+        t_viejo.replace(_archivo_transcripcion({"rel": rel_nuevo}))
+
+
+def editar_texto_pieza(nombre, texto, partes=None):
+    """Cambia lo que dice una pieza en el guion (produccion.json): se ve en Guion, en el teleprompter y en el panel."""
+    f = next((x for x in (S.guion / "produccion.json", S.grab / "produccion.json") if x.exists()), None)
+    if not f:
+        raise ValueError("Esta sesión no tiene guion (produccion.json)")
+    prod = json.loads(f.read_text(encoding="utf-8"))
+    pz = prod.get("piezas", {}).get(nombre)
+    if pz is None:
+        raise ValueError(f"{nombre} no está en el guion")
+    partes = [" ".join(str(p).split()) for p in (partes or []) if str(p).strip()]
+    if partes:
+        pz["partes"] = partes
+        pz["texto"] = " ".join(partes)
+    else:
+        pz["texto"] = " ".join(str(texto).split())
+    pz["editado_en_sala"] = time.strftime("%Y-%m-%d %H:%M")
+    f.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
+    global _prod_cache
+    _prod_cache = None
+    return pz
+
+
 def descartar_clips(rels, recuperar=False):
     """Mueve clips a Clips/_DESCARTADOS (o los devuelve a Clips/). Devuelve [(sesión, rel_viejo, rel_nuevo)] para hacer
     lo mismo en Drive. rel como en clips(): en un grupo empieza con «sesión/»."""
@@ -740,6 +825,56 @@ def numerar_hooks(cuerpo=None):
         usados.add(n)
         hechas += 1
     return hechas
+
+
+def informe_clips():
+    """Después de analizar: qué clips no se pudieron identificar solos y por qué, y qué piezas del guion
+    todavía no tienen clip. Todo con lo que ya se escuchó en esta PC (no usa Claude)."""
+    esperadas = {n: i.get("texto", "") for n, i in produccion().get("piezas", {}).items() if i.get("texto")}
+    for n, i in produccion().get("piezas", {}).items():
+        if i.get("tipo") == "cuerpo" and len(i.get("partes") or []) > 1:
+            for k, frase in enumerate(i["partes"], 1):
+                esperadas[f"{n}_P{k}"] = frase
+    dueno = {}  # pieza → nombre del clip que la tiene
+    for p in piezas():
+        for k, r in enumerate(p["rels"], 1):
+            dueno[p["nombre"] if len(p["rels"]) == 1 else f"{p['nombre']}_P{k}"] = Path(r).name
+    sug, rp = sugerencias(), reemplazos()
+    dudas = []
+    for c in clips_sin_asignar():
+        nombre, s = c["ruta"].name, sug.get(c["rel"])
+        texto = transcripcion_clip(c, crear=False)
+        if c["rel"] in rp:
+            r = rp[c["rel"]]
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "reemplazado",
+                          "por_que": f"Era {r['pieza']}; lo cambiaste por {r['por']}. Si ya no sirve, descártalo."})
+            continue
+        if texto is None:
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "sin_escuchar", "por_que": "Todavía no se escuchó: toca «Analizar y renombrar todo»."})
+            continue
+        if len(texto.split()) < 3:
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "sin_voz",
+                          "por_que": "Casi no se habla en el clip (¿toma de prueba o se cortó?)." + (f" Se oyó: «{texto}»." if texto else "")})
+            continue
+        cerca = max(((n, _parecido(texto, t)) for n, t in esperadas.items()), key=lambda x: x[1], default=(None, 0))
+        pct = lambda x: f"{round(x * 100)} %"
+        if cerca[0] and cerca[0] in dueno:
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "otra_toma", "pieza": cerca[0],
+                          "por_que": f"Es otra toma de {cerca[0]} ({pct(cerca[1])} parecido), que ya tiene su clip ({dueno[cerca[0]]}). Si esta es mejor, asígnala y reemplaza."})
+        elif s and s.get("pieza") and not s.get("mejor"):
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "otra_toma", "pieza": s["pieza"],
+                          "por_que": f"Parece {s['pieza']} ({pct(s['parecido'])}), pero hay otra toma más parecida sin asignar."})
+        elif s and s.get("pieza"):
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "poco_parecido", "pieza": s["pieza"],
+                          "por_que": f"Parece {s['pieza']}, pero solo se parece {pct(s['parecido'])} al guion: se dijo con otras palabras. Revísalo y asígnalo a mano."})
+        else:
+            dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "no_se_parece", "pieza": cerca[0],
+                          "por_que": f"No se parece a ninguna pieza del guion" + (f" (lo más cercano: {cerca[0]}, {pct(cerca[1])})" if cerca[0] else "")
+                                     + ". ¿Se improvisó o es de otra sesión?"})
+    hay = set(dueno)
+    faltan = [n for n in esperadas if n not in hay and not any(h.startswith(n + "_P") for h in hay)
+              and not (re.match(r".+_P\d+$", n) and n.rsplit("_P", 1)[0] in hay)]
+    return {"dudas": dudas, "faltan": faltan, "texto": {d["rel"]: (sug.get(d["rel"]) or {}).get("texto") for d in dudas}}
 
 
 def aceptar_sugerencias(minimo=0.5):

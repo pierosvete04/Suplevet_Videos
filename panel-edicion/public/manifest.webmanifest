@@ -1,0 +1,12 @@
+{
+  "name": "Teleprompter Suplevet",
+  "short_name": "Teleprompter",
+  "description": "El guion de la sesión para grabar, en la tablet.",
+  "start_url": "/teleprompter.html",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [{ "src": "/marca/icono-celeste.png", "sizes": "496x512", "type": "image/png", "purpose": "any" }]
+}

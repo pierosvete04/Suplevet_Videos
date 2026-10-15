@@ -36,5 +36,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/contenido|_next/static|_next/image|favicon.ico|icon.svg).*)"],
+  // el manifiesto y los íconos van sin sesión: la tablet los pide al instalar el teleprompter en la pantalla de inicio
+  matcher: ["/((?!api/contenido|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|marca/).*)"],
 };

@@ -291,6 +291,12 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-guia summary { cursor: pointer; font-weight: 600; }
 .ev-guia-pasos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 14px; margin-top: 10px; }
 .ev-guia-pasos div { display: grid; gap: 2px; font-size: 12.5px; } .ev-guia-pasos span { color: var(--muted); }
+.tabla-renombre { display: grid; gap: 3px; max-height: 300px; overflow: auto; font-size: 12.5px; }
+.tabla-renombre div { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr) auto; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 6px; }
+.tabla-renombre div:nth-child(odd) { background: var(--hondo); }
+.tabla-renombre code { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .tabla-renombre div { grid-template-columns: 1fr; gap: 0; } .tabla-renombre span { display: none; } }
+.g-editar textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); }
 .leyenda-estado { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
 .leyenda-estado i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; background: var(--muted); }
 .leyenda-estado i.editando { background: var(--warn); } .leyenda-estado i.listo { background: var(--ok); }
@@ -683,6 +689,17 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button class="btn" id="buscarDescargas" type="button">Buscar en Descargas</button>
       </div>
       <div id="listaDescargas" class="grid-assets" style="margin-top:12px"></div>
+    </div>
+    <div class="caja" style="margin-bottom:14px" id="cajaOrdenar">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Ordenar la sesión en Drive</h2>
+          <span class="muted" style="font-size:12px">Cada clip ya identificado toma el nombre de su pieza del guion y va a su carpeta (IMG_1058.MOV → Clips/Hooks/C2_H3.MOV), en Drive y en esta PC. No se vuelve a procesar nada ni se pierde lo editado.</span></div>
+        <div class="fila"><button class="btn" id="ordenarTodo" type="button" title="Escucha los clips nuevos, los compara con el guion, asigna los que coinciden y los renombra. Se hace en esta PC, sin Claude.">Analizar y renombrar todo</button>
+          <button class="btn sec" id="ordenarVer" type="button">Ver cómo quedarían</button>
+          <button class="btn sec" id="informeVer" type="button">Qué no se identificó</button></div>
+      </div>
+      <div id="ordenarLista" style="margin-top:10px"></div>
+      <div id="informeClips" style="margin-top:10px"></div>
     </div>
     <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
       <div class="fila" style="justify-content:space-between">
@@ -1942,7 +1959,7 @@ $("subirFuente").onchange = async e => {
 $("escuchar").onclick = () => trabajo("analizar");
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
 const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Re-armar videos de una pieza", uno: "Re-armar un video",
-  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", exportar: "Exportar por día", portadas: "Rehacer portadas",
+  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas" };
@@ -3522,7 +3539,9 @@ function pintarGuionLista() {
   $("guionLista").innerHTML = lista.map(p => `<div class="caja g-pieza">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span></h3>${estadoGuion(p)}</div>
       <div class="g-cuerpo">${videoGuion(p.clips.length && videoDePieza(p.nombre))}
-        <div><div class="texto">${textoGuion(p)}</div>${dichoGuion(p)}</div></div>
+        <div><div class="texto" data-gtexto="${esc(p.nombre)}">${textoGuion(p)}</div>
+          <button class="btn sec peq" type="button" data-geditar="${esc(p.nombre)}" style="margin-top:6px" title="Cambia lo que dice esta pieza en el guion: se ve en el teleprompter (sala y tablet)">✎ Editar texto</button>
+          ${dichoGuion(p)}</div></div>
       ${sugeridosGuion(p)}
       <div class="muted" style="font-size:12px">${p.clips.length ? "Clip: " + p.clips.map(c => esc(c.split("/").pop())).join(" + ") : "Ningún clip asignado todavía."}</div>
       ${sinAsignar.length ? `<div><select data-guion-clip="${esc(p.nombre)}"><option value="">Asignar un clip a ${esc(p.nombre)}…</option>
@@ -3530,6 +3549,34 @@ function pintarGuionLista() {
     </div>`).join("") || `<div class="sin-nada">${palabras.length ? "Ninguna pieza dice esas palabras." : "No hay piezas de ese tipo en el guion."}</div>`;
   resaltarGuion(palabras);
 }
+// Editar lo que dice una pieza: un cuadro por frase si el cuerpo se graba por frases
+document.addEventListener("click", async e => {
+  const ed_ = e.target.closest("[data-geditar]");
+  if (ed_) {
+    const p = ultimoGuion.piezas.find(x => x.nombre === ed_.dataset.geditar); if (!p) return;
+    const caja = document.querySelector(`[data-gtexto="${CSS.escape(p.nombre)}"]`);
+    const frases = p.partes.length > 1 ? p.partes : [p.texto];
+    caja.innerHTML = `<div class="g-editar" style="display:grid;gap:6px">${frases.map((f, k) => `<label class="muted" style="font-size:12px">${frases.length > 1 ? `Frase ${k + 1}` : "Texto"}<textarea data-gfrase="${k}">${esc(f)}</textarea></label>`).join("")}
+      <div class="fila"><button class="btn peq" type="button" data-gguardar="${esc(p.nombre)}">Guardar</button>
+        <button class="btn sec peq" type="button" data-gcancelar>Cancelar</button>
+        <span class="muted" style="font-size:12px">Se ve en el teleprompter y en el panel. Si ya se grabó, vuelve a grabarla o deja lo que se dijo.</span></div></div>`;
+    ed_.hidden = true;
+    caja.querySelector("textarea").focus();
+    return;
+  }
+  if (e.target.closest("[data-gcancelar]")) return pintarGuionLista();
+  const gu = e.target.closest("[data-gguardar]");
+  if (gu) {
+    const caja = gu.closest(".g-editar"), frases = [...caja.querySelectorAll("textarea")].map(t => t.value.trim()).filter(Boolean);
+    if (!frases.length) return avisar("El texto no puede quedar vacío.", "err");
+    gu.disabled = true;
+    try {
+      await post("/api/guion_texto", { pieza: gu.dataset.gguardar, texto: frases.join(" "), partes: frases.length > 1 ? frases : null });
+      avisar(`Guion de ${gu.dataset.gguardar} guardado: ya se ve en el teleprompter. Se sube a Drive y al panel.`, "ok");
+      await pintarGuion();
+    } catch (err) { avisar("Error: " + err.message, "err"); gu.disabled = false; }
+  }
+});
 const normTxt = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 function resaltarGuion(palabras) {  // marca las palabras buscadas dentro del texto ya pintado (sin tocar el diff)
   if (!palabras.length) return;
@@ -3717,6 +3764,51 @@ document.addEventListener("click", async e => {
     } else avisar(`${r.archivo} guardado. Cuando quieras, re-arma los videos que lo usan.`, "ok");
   } catch (err) { avisar("Error: " + err.message, "err"); b.disabled = false; b.textContent = "Usar"; }
 });
+
+// ---------- Informe: lo que no se pudo identificar solo, con el porqué ----------
+const ICONO_DUDA = { reemplazado: "↺", sin_escuchar: "…", sin_voz: "🔇", otra_toma: "⧉", poco_parecido: "≈", no_se_parece: "?" };
+async function pintarInforme() {
+  $("informeClips").innerHTML = `<p class="muted" style="margin:0">Revisando…</p>`;
+  try {
+    const r = await (await fetch("/api/informe_clips")).json();
+    $("informeClips").innerHTML = `<h3 style="margin:0 0 6px">${r.dudas.length ? `${r.dudas.length} clip${r.dudas.length === 1 ? "" : "s"} sin identificar` : "✓ Todos los clips quedaron identificados"}</h3>
+      <div class="tabla-renombre">${r.dudas.map(d => `<div><code>${esc(d.clip)}</code><span>${ICONO_DUDA[d.tipo] || "?"}</span><span style="grid-column:span 2">${esc(d.por_que)}${r.texto[d.rel] ? `<br><span class="muted">Se oyó: «${esc(r.texto[d.rel].slice(0, 140))}${r.texto[d.rel].length > 140 ? "…" : ""}»</span>` : ""}</span></div>`).join("")}</div>
+      ${r.faltan.length ? `<p class="muted" style="font-size:12.5px;margin:8px 0 0">Piezas del guion sin clip todavía: <b>${r.faltan.map(esc).join(", ")}</b>. Si se grabaron, revisa los clips de arriba; si no, faltan grabar (o eran opcionales).</p>` : ""}
+      ${r.dudas.length ? `<p class="muted" style="font-size:12px;margin:6px 0 0">Asígnalos abajo en «Clips por identificar» (escribe el código y «Asignar») o descártalos. Luego vuelve a tocar «Analizar y renombrar todo».</p>` : ""}`;
+  } catch (err) { $("informeClips").innerHTML = `<p class="muted" style="margin:0">Error: ${esc(err.message)}</p>`; }
+}
+$("informeVer").onclick = pintarInforme;
+$("ordenarTodo").onclick = async () => {
+  if (!confirm("La sala escucha los clips nuevos, asigna los que coinciden con el guion y renombra todos los identificados en la carpeta de Drive del equipo. ¿Seguir?")) return;
+  try {
+    await post("/api/trabajo", { accion: "ordenar_todo" }); vigilar(await (await fetch("/api/trabajo")).json());
+    $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Analizando y renombrando… lo ves en Procesos (☰). Al terminar aparece aquí lo que no se pudo identificar.</p>`;
+    const esperar = async () => { const t = await (await fetch("/api/trabajo")).json(); if (t.activo) return setTimeout(esperar, 3000);
+      $("ordenarLista").innerHTML = t.error ? `<p class="muted">Error: ${esc(t.error)}</p>` : `<p class="muted" style="margin:0">${esc(t.mensaje === "Listo" ? (t.log || []).at(-1) || "Listo" : t.mensaje)}</p>`;
+      await cargar(); pintarInforme(); };
+    setTimeout(esperar, 3000);
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+
+// ---------- Ordenar la sesión: renombrar los clips con el código de su pieza ----------
+$("ordenarVer").onclick = async () => {
+  $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Revisando los clips…</p>`;
+  try {
+    const r = await (await fetch("/api/renombrar")).json();
+    if (!r.cambios.length && !r.problemas.length) { $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">✓ Todos los clips identificados ya tienen el nombre de su pieza.</p>`; return; }
+    const nom = x => x.split("/").pop();
+    $("ordenarLista").innerHTML = `<div class="tabla-renombre">${r.cambios.map(c => `<div><code>${esc(nom(c.viejo))}</code><span>→</span><code>${esc(c.nuevo)}</code><span class="muted">${esc(c.sesion)}</span></div>`).join("")}</div>
+      ${r.problemas.length ? `<p class="muted" style="font-size:12px">No se tocan: ${r.problemas.map(esc).join(" · ")}</p>` : ""}
+      ${r.cambios.length ? `<div class="fila" style="margin-top:10px"><button class="btn" id="ordenarAplicar" type="button">Renombrar ${r.cambios.length} clips en Drive</button>
+        <span class="muted" style="font-size:12px">Los clips sin pieza y las tomas que no se usan se quedan como están (descártalos abajo si sobran).</span></div>` : ""}`;
+    if (r.cambios.length) $("ordenarAplicar").onclick = async () => {
+      if (!confirm(`¿Renombrar ${r.cambios.length} clips en la carpeta de Drive del equipo? Los links directos a esos archivos dejan de servir; los de las carpetas siguen igual.`)) return;
+      try { await post("/api/trabajo", { accion: "renombrar" }); vigilar(await (await fetch("/api/trabajo")).json());
+        $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Renombrando… lo ves en Procesos (☰).</p>`; }
+      catch (err) { avisar("Error: " + err.message, "err"); }
+    };
+  } catch (err) { $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Error: ${esc(err.message)}</p>`; }
+};
 
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;

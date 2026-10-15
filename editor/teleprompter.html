@@ -31,6 +31,11 @@ input[type=range] { width: 110px; }
 .w.actual { color: var(--actual); }
 .parte { display: inline; }
 .parte + .parte::before { content: " ⏎ "; color: var(--acento); font-size: .6em; vertical-align: middle; }
+header, footer { position: relative; z-index: 3; }
+.velo { position: fixed; left: 0; right: 0; pointer-events: none; z-index: 2; display: none; }
+.velo.arriba { top: 0; background: linear-gradient(to bottom, #000 calc(100% - 18px), rgba(0,0,0,.0)); }
+.velo.abajo { bottom: 0; background: linear-gradient(to top, #000 calc(100% - 18px), rgba(0,0,0,.0)); }
+body.pocas .velo { display: block; } body.pocas #guia { display: none; }
 #guia { position: fixed; left: 0; right: 0; top: 34vh; border-top: 2px dashed rgba(234,140,67,.35); pointer-events: none; }
 #aviso { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #16232a; border: 1px solid #2c3f48; padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 90vw; display: none; }
 .pin { display: grid; place-items: center; height: 100vh; }
@@ -49,11 +54,14 @@ input[type=range] { width: 110px; }
     <option value="hook">Solo hooks</option>
     <option value="cta">Solo CTAs</option>
   </select>
-  <label class="opc">Tamaño <input type="range" id="tam" min="28" max="110" value="56"></label>
+  <label class="opc">Tamaño <input type="range" id="tam" min="28" max="140" value="56"></label>
+  <label>Líneas <select id="lineas" title="En la tablet: solo se ven 2 o 3 líneas, a la altura de la cámara">
+    <option value="0">Todas</option><option value="2">2</option><option value="3">3</option></select></label>
   <button id="espejo" aria-pressed="false" title="Para vidrio de teleprompter">Espejo</button>
 </header>
 <main id="escena" aria-live="polite"></main>
 <div id="guia" aria-hidden="true"></div>
+<div class="velo arriba" id="veloA" aria-hidden="true"></div><div class="velo abajo" id="veloB" aria-hidden="true"></div>
 <footer>
   <button id="voz" class="grande" aria-pressed="false">🎙 Seguir mi voz</button>
   <button id="auto" aria-pressed="false">▶ Desplazar solo</button>
@@ -173,8 +181,21 @@ function pedirPin() {
   };
 }
 
+// ---------- Pocas líneas (tablet): se tapa todo menos una franja de 2 o 3 líneas donde va la palabra actual ----------
+function ponerVelos() {
+  const n = Number($("lineas").value);
+  document.body.classList.toggle("pocas", n > 0);
+  if (!n) return;
+  const e = $("escena"), r = e.getBoundingClientRect(), lh = parseFloat(e.style.fontSize || 56) * 1.3;
+  const arriba = r.top + e.clientHeight * 0.3 - lh * 0.15;  // donde «centrar» deja la línea actual
+  $("veloA").style.height = Math.max(0, arriba) + "px";
+  $("veloB").style.height = Math.max(0, innerHeight - arriba - lh * (n + .3)) + "px";
+}
+addEventListener("resize", ponerVelos);
+
 // ---------- Controles ----------
-$("tam").oninput = e => { $("escena").style.fontSize = e.target.value + "px"; guardar("tam", e.target.value); };
+$("tam").oninput = e => { $("escena").style.fontSize = e.target.value + "px"; guardar("tam", e.target.value); ponerVelos(); };
+$("lineas").onchange = e => { guardar("lineas", e.target.value); ponerVelos(); const w = document.querySelector(`#p${actual} .w.actual`) || document.getElementById("p" + actual); centrar(w); };
 $("espejo").onclick = () => { const on = !$("escena").classList.contains("espejo"); $("escena").classList.toggle("espejo", on); $("espejo").setAttribute("aria-pressed", on); guardar("espejo", on); };
 $("voz").onclick = () => escuchando ? pararVoz() : iniciarVoz();
 $("auto").onclick = () => auto($("auto").getAttribute("aria-pressed") !== "true");
@@ -193,6 +214,7 @@ document.addEventListener("keydown", e => {
 $("tam").value = leer("tam", 56); $("escena").style.fontSize = $("tam").value + "px";
 $("vel").value = leer("vel", 45);
 if (leer("espejo", false)) $("espejo").click();
+$("lineas").value = leer("lineas", "0"); ponerVelos();
 cargar();
 </script>
 </body>

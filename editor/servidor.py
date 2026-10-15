@@ -172,6 +172,13 @@ def estado():
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
 
+def _sin_error(f):
+    try:
+        f(avance=lambda m: None)
+    except Exception as e:  # sin internet o sin panel: se sube la próxima vez
+        print("No se pudo subir:", e)
+
+
 def carpeta_descargas():
     """La carpeta de Descargas de esta PC (la de verdad, aunque Windows la haya movido a otro disco u OneDrive).
     Se puede fijar otra en config.local.json → carpeta_descargas."""
@@ -251,6 +258,25 @@ def lanzar(accion, pieza=None, extra=None):
                     motor.armar(pieza, avance=avance)
                 if accion == "armar_sel":
                     motor.armar(avance=avance, codigos=extra["codigos"])
+                if accion == "ordenar_todo":  # analizar, asignar lo seguro y renombrar, todo de una vez
+                    motor.escuchar_clips(avance=avance)
+                    n = motor.aceptar_sugerencias(0.5)
+                    avance(f"{n} clips identificados solos")
+                    subir_asignaciones()
+                if accion in ("renombrar", "ordenar_todo"):
+                    plan = motor.plan_renombrar()["cambios"]
+                    hechos = 0
+                    for n, cb in enumerate(plan, 1):
+                        motor.revisar_cancelado()
+                        avance(f"Renombrando {Path(cb['viejo']).name} → {cb['nuevo']} ({n}/{len(plan)})")
+                        if drive.estado()["activo"]:
+                            drive.mover(cb["sesion"], cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
+                        motor.aplicar_renombre(cb)
+                        hechos += 1
+                    if drive.estado()["activo"]:
+                        for m in {cb["sesion"] for cb in plan}:
+                            drive.subir(m, ["asignaciones.json"], avance=lambda x: None)
+                    avance(f"Listo: {hechos} clips con el nombre de su pieza")
                 if accion == "partes_sel":
                     hechos = motor.exportar_partes(extra["codigos"], avance=avance)
                     if drive.estado()["activo"]:
@@ -491,6 +517,10 @@ class H(BaseHTTPRequestHandler):
             if not f.is_file():
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/informe_clips":
+            self._json(motor.informe_clips())
+        elif u.path == "/api/renombrar":
+            self._json(motor.plan_renombrar())
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
         elif u.path == "/api/guion_doc":
@@ -770,6 +800,13 @@ class H(BaseHTTPRequestHandler):
                             drive.subir(sesion, ["asignaciones.json"], avance=lambda m: None)
                     threading.Thread(target=mover_en_drive, daemon=True).start()
                 self._json({"ok": True, "movidos": len(hechos)})
+            elif u.path == "/api/guion_texto":  # editar lo que dice una pieza: Drive, panel y teleprompter
+                b = self._cuerpo()
+                pz = motor.editar_texto_pieza(str(b["pieza"]), b.get("texto", ""), b.get("partes"))
+                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                if motor.CONFIG.get("panel", {}).get("token"):
+                    threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
+                self._json({"ok": True, "pieza": pz})
             elif u.path == "/api/silencios":  # cortar solo el silencio del inicio y del final de cada clip
                 b = self._cuerpo()
                 aj = {"auto": bool(b.get("auto", True)), "margen": max(0.0, min(0.5, float(b.get("margen", 0.08))))}
