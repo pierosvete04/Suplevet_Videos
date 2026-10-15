@@ -383,6 +383,25 @@ def _escribir_asig(sesion, d):
         pass
 
 
+def _reemp_archivo(sesion):
+    return DATOS / "asignaciones" / f"{sesion}.reemplazos.json"
+
+
+def _leer_reemp(sesion):
+    try:
+        return json.loads(_reemp_archivo(sesion).read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError, OSError):
+        return {}
+
+
+def reemplazos():
+    """{rel del clip: {pieza, por, fecha}}: clips que eran de una pieza y se cambiaron por otro (vuelven a
+    «Clips por identificar»). Con la misma forma de rel que leer_asignaciones."""
+    if not S.es_grupo:
+        return _leer_reemp(S.semana)
+    return {f"{m}/{rel}": v for m in S.miembros for rel, v in _leer_reemp(m).items()}
+
+
 def guardar_asignacion(rel, pieza):
     """Asigna un clip a una pieza. Si esa pieza ya tenía otro clip, lo reemplaza: el anterior vuelve a
     «Clips por identificar». Devuelve la sesión donde quedó guardada (para subir su asignaciones.json a Drive).
@@ -402,10 +421,16 @@ def guardar_asignacion(rel, pieza):
             if viejos:
                 dm.update({r: "" for r in viejos})
                 _escribir_asig(m, dm)
+                rp = _leer_reemp(m)  # se recuerda de qué pieza era y por cuál se cambió
+                rp.update({r: {"pieza": pieza, "por": Path(rel).name, "fecha": time.time()} for r in viejos})
+                _reemp_archivo(m).write_text(json.dumps(rp, ensure_ascii=False, indent=1), encoding="utf-8")
         # (si la pieza la tenía un clip por su nombre de archivo, H3.MOV…, gana el asignado a mano: ver piezas())
     d = _leer_asig(sesion)
     d[rel] = pieza or ""
     _escribir_asig(sesion, d)
+    rp = _leer_reemp(sesion)
+    if pieza and rp.pop(rel, None):  # volvió a tener pieza: ya no es un clip reemplazado
+        _reemp_archivo(sesion).write_text(json.dumps(rp, ensure_ascii=False, indent=1), encoding="utf-8")
     return sesion
 
 
@@ -2850,7 +2875,9 @@ def checklist():
     musica = [{**m, "listo": bool(buscar_musica(m["id"])), "archivo_actual": (buscar_musica(m["id"]) or Path("")).name or None}
               for m in produccion().get("musica", []) if m.get("id")]
     sug = sugerencias()
-    sin = [{"rel": c["rel"], "nombre": c["ruta"].name, "carpeta": c["tipo_carpeta"], **sug.get(c["rel"], {})}
+    rp = reemplazos()
+    sin = [{"rel": c["rel"], "nombre": c["ruta"].name, "carpeta": c["tipo_carpeta"], **sug.get(c["rel"], {}),
+            **({"reemplazado": rp[c["rel"]]} if c["rel"] in rp else {})}
            for c in clips_sin_asignar()]
     return {"piezas_faltan": falta_piezas, "assets": assets, "sin_asignar": sin, "musica": musica}
 

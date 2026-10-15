@@ -1644,6 +1644,7 @@ function pintarSinAsignar() {
       <video src="${c.video}" controls preload="none" style="width:100%;max-height:220px;background:#000;border-radius:8px"></video>
       ${c.texto != null ? `<p class="muted" style="margin:0;font-size:12px">«${esc(c.texto.slice(0, 180))}${c.texto.length > 180 ? "…" : ""}»</p>
         <button class="btn sec peq" type="button" data-buscar-guion="${esc(c.texto)}" title="Busca en el guion las palabras de este clip para ver a qué pieza pertenece" style="justify-self:start">Buscar en el guion</button>` : `<p class="muted" style="margin:0;font-size:12px">Sin escuchar todavía.</p>`}
+      ${c.reemplazado ? `<span class="pill warn" title="Lo sacaste de ${esc(c.reemplazado.pieza)} al poner otro clip. Si ya no lo necesitas, márcalo y toca «Descartar seleccionados».">↺ Era ${esc(c.reemplazado.pieza)} · lo cambiaste por ${esc(c.reemplazado.por)}</span>` : ""}
       ${c.pieza ? `<span class="pill ${c.mejor ? "ok" : ""}">Sugerido: ${esc(c.pieza)} · ${Math.round(c.parecido * 100)}%${c.mejor ? " · mejor toma" : " · otra toma"}</span>` : ""}
       <div class="fila"><input list="codigosPiezas" placeholder="C1_H2, C3, CTA-A…" value="${esc(c.pieza && c.mejor ? c.pieza : "")}" data-rel="${esc(c.rel)}" style="flex:1;min-width:120px">
         <button class="btn sec peq" data-asignar="${esc(c.rel)}">Asignar</button></div></div>`).join("")
