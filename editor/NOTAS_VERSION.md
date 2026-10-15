@@ -1,3 +1,6 @@
+Versión 1.18.6 (se actualiza desde la app con «Actualizar ahora»):
+- Teleprompter: ahora entra entero en la pantalla. Ya no hay que bajar con la barra lateral para ver los botones de abajo (Seguir mi voz, Desplazar solo, Anterior, Siguiente, Toma buena); siempre están a la vista, con cualquier tamaño de letra.
+
 Versión 1.18.5 (se actualiza desde la app con «Actualizar ahora»):
 - El guion se actualiza solo: si cambia en Drive (lo actualizó Claude, el panel u otra PC), la sala lo trae al abrir la sesión, cada 90 segundos y al volver a la ventana, y avisa «El guion se actualizó desde Drive». Lo que editaste en esta sala y aún no se subió no se pisa.
 
