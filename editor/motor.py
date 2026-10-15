@@ -872,8 +872,11 @@ def informe_clips():
                           "por_que": f"No se parece a ninguna pieza del guion" + (f" (lo más cercano: {cerca[0]}, {pct(cerca[1])})" if cerca[0] else "")
                                      + ". ¿Se improvisó o es de otra sesión?"})
     hay = set(dueno)
+    # los CTA valen como se grabaron: un CTA del guion sin clip no falta si ese cuerpo ya tiene uno grabado
+    con_cta = {h.split("_")[0] for h in hay if "CTA" in h.upper()}
     faltan = [n for n in esperadas if n not in hay and not any(h.startswith(n + "_P") for h in hay)
-              and not (re.match(r".+_P\d+$", n) and n.rsplit("_P", 1)[0] in hay)]
+              and not (re.match(r".+_P\d+$", n) and n.rsplit("_P", 1)[0] in hay)
+              and not ("CTA" in n.upper() and (n.split("_")[0] in con_cta or "_" not in n and con_cta))]
     return {"dudas": dudas, "faltan": faltan, "texto": {d["rel"]: (sug.get(d["rel"]) or {}).get("texto") for d in dudas}}
 
 
@@ -3002,7 +3005,9 @@ def checklist():
     """Qué falta grabar y qué imágenes/clips de Flow faltan."""
     p = produccion()
     hay = {x["nombre"] for x in piezas()}
-    falta_piezas = [n for n in p.get("piezas", {}) if n not in hay]
+    con_cta = {n.split("_")[0] for n in hay if "CTA" in n.upper()}  # los CTA valen como se grabaron
+    falta_piezas = [n for n in p.get("piezas", {}) if n not in hay
+                    and not ("CTA" in n.upper() and (n.split("_")[0] in con_cta or ("_" not in n and con_cta)))]
     assets = []
     for a in p.get("assets", []):
         f = buscar_asset(a["id"])

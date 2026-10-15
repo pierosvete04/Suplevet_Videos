@@ -1,3 +1,6 @@
+Versión 1.15.1 (se actualiza desde la app con «Actualizar ahora»):
+- Los CTA valen como se grabaron: un CTA del guion que no se grabó ya no sale como «falta grabar» si ese cuerpo ya tiene su CTA grabado.
+
 Versión 1.15.0 (se actualiza desde la app con «Actualizar ahora»):
 - Faltantes → «Analizar y renombrar todo»: la sala escucha los clips nuevos, los compara con el guion, asigna los que coinciden y renombra cada clip con el código de su pieza, en Drive y en esta PC (IMG_1058.MOV → Clips/Hooks/C2_H3.MOV). No se vuelve a procesar nada ni se pierde lo editado. Lo hace en esta PC, sin Claude.
 - «Qué no se identificó»: la lista de los clips que no se pudieron asignar solos y por qué (otra toma, se parece poco al guion, casi no se habla, no se parece a nada, clip reemplazado) y las piezas del guion que todavía no tienen clip.
