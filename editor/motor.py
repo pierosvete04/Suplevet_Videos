@@ -1044,7 +1044,10 @@ def guardar_lineas_editadas(pieza, lineas_nuevas):
         s, e = float(ln["s"]), float(ln["e"])
         palabras = texto.split(" ")
         vieja = viejas.get((round(s, 2), round(e, 2)))
-        if vieja and len(vieja["palabras"]) == len(palabras):
+        dadas = ln.get("palabras") or []
+        if len(dadas) == len(palabras) and all("s" in p and "e" in p for p in dadas):  # el editor movió o cortó la línea
+            pal = [{"w": w, "s": round(float(p["s"]), 3), "e": round(float(p["e"]), 3)} for w, p in zip(palabras, dadas)]
+        elif vieja and len(vieja["palabras"]) == len(palabras):
             pal = [{"w": w, "s": v["s"], "e": v["e"]} for w, v in zip(palabras, vieja["palabras"])]
         else:  # cambió el número de palabras: reparte el tiempo de la línea en partes iguales
             paso = (e - s) / len(palabras)
@@ -1367,8 +1370,56 @@ def guardar_edicion_piezas(datos):
             and {c["hook"], c["cuerpo"], c["cta"]} & set(cambiadas)]
 
 
+def ajustes_silencios():
+    return {"auto": True, "margen": 0.08, **CONFIG.get("silencios", {})}
+
+
+def _con_silencios_fuera(combo, v):
+    """Si un bloque no tiene recorte puesto a mano, se le corta el silencio del inicio y del final (según dónde
+    empieza la primera palabra y termina la última, más un margen). Así ningún video arranca mudo."""
+    aj = ajustes_silencios()
+    if not aj["auto"]:
+        return v
+    m = max(0.0, min(0.5, float(aj["margen"])))
+    r = dict(v.get("recortes") or {})
+
+    def limites(nombre):
+        lineas = leer_subs(nombre)["lineas"]
+        f = S.proc / f"{nombre}.mp4"
+        if not lineas or not f.exists():
+            return None
+        return lineas[0]["s"], lineas[-1]["e"], dur_audio(f)
+
+    for clave in ("hook", "cta"):
+        if r.get(clave) or not limites(combo[clave]):
+            continue
+        s0, e1, dur = limites(combo[clave])
+        a = s0 - m if s0 - m > 0.06 else 0.0
+        b = e1 + m * 2 if e1 + m * 2 < dur - 0.06 else dur
+        if a > 0 or b < dur:
+            r[clave] = [round(a, 2), round(b, 2)]
+    partes = partes_de(combo["cuerpo"]) if limites(combo["cuerpo"]) else []
+    if partes:
+        s0, e1, _ = limites(combo["cuerpo"])
+        pr = dict(r.get("partes") or {})
+        p0, pn = partes[0], partes[-1]
+        if str(p0["i"]) not in pr and s0 - m - p0["ini"] > 0.06:
+            pr[str(p0["i"])] = [round(s0 - m - p0["ini"], 2), round(p0["fin"] - p0["ini"], 2)]
+        if str(pn["i"]) not in pr and pn["fin"] - (e1 + m * 2) > 0.06:
+            ini = pr[str(pn["i"])][0] if str(pn["i"]) in pr else 0.0
+            pr[str(pn["i"])] = [ini, round(e1 + m * 2 - pn["ini"], 2)]
+        if pr:
+            r["partes"] = pr
+    return {**v, "recortes": r}
+
+
 def edicion_de(combo):
-    """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas."""
+    """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas.
+    Los bloques sin recorte puesto a mano empiezan justo antes de que se hable (ver _con_silencios_fuera)."""
+    return _con_silencios_fuera(combo, _edicion_guardada(combo))
+
+
+def _edicion_guardada(combo):
     if combo.get("version"):
         return combo["version"]
     a = ajustes_piezas()
@@ -1546,7 +1597,8 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
         lineas = leer_subs(nombre)["lineas"]
         return {"nombre": nombre, "dur": round(duracion(f), 2) if f.exists() else None,
                 "texto": " ".join(l["texto"] for l in lineas), "archivo": str(f) if f.exists() else None,
-                "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"]} for l in lineas]}
+                "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"],
+                            "palabras": [{"s": p["s"], "e": p["e"]} for p in l.get("palabras", [])]} for l in lineas]}
 
     v = edicion_de({k: c[k] for k in ("hook", "cuerpo", "cta")} if otra else c)  # otra combinación: parte de lo de sus piezas
     return {"codigo": codigo, "base": not c.get("version"), "propio": bool((c.get("version") or {}).get("propio")), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
@@ -1999,13 +2051,17 @@ def biblioteca_sonidos():
     return out
 
 
-def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None):
+def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None):
     """Sonido puesto o quitado a mano en una pieza (vale para todos los videos que la usan). t = segundo dentro de la pieza.
-    accion: agregar | quitar | cambiar (quita el que había en ese segundo y pone el nuevo). Devuelve los videos a re-armar."""
+    accion: agregar | quitar | cambiar (quita el que había en ese segundo y pone el nuevo) | mover (a t_nuevo).
+    Devuelve los videos a re-armar."""
     todo = ajustes_piezas()
     a = todo.setdefault(pieza, {})
     t = round(float(t), 2)
     manuales = a.setdefault("sonidos", [])
+    if accion == "mover":  # se quita de donde estaba y se pone el mismo sonido en el segundo nuevo
+        editar_sonido(pieza, "quitar", t, cat)
+        return editar_sonido(pieza, "agregar", max(0.0, float(t_nuevo)), cat, sid if sid and ruta_sonido(sid) else None)
     if accion in ("quitar", "cambiar"):
         antes = len(manuales)
         manuales[:] = [x for x in manuales if not (abs(x["t"] - t) < 0.2 and x["cat"] == cat)]

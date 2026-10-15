@@ -167,7 +167,7 @@ def estado():
             "archivadas": motor.archivadas(), "siguiente_produccion": motor.siguiente_produccion(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -770,11 +770,16 @@ class H(BaseHTTPRequestHandler):
                             drive.subir(sesion, ["asignaciones.json"], avance=lambda m: None)
                     threading.Thread(target=mover_en_drive, daemon=True).start()
                 self._json({"ok": True, "movidos": len(hechos)})
+            elif u.path == "/api/silencios":  # cortar solo el silencio del inicio y del final de cada clip
+                b = self._cuerpo()
+                aj = {"auto": bool(b.get("auto", True)), "margen": max(0.0, min(0.5, float(b.get("margen", 0.08))))}
+                motor.guardar_config({"silencios": aj})
+                self._json({"ok": True, **aj})
             elif u.path == "/api/sonido":
                 b = self._cuerpo()
-                if b.get("accion") not in ("agregar", "quitar", "cambiar"):
+                if b.get("accion") not in ("agregar", "quitar", "cambiar", "mover"):
                     raise ValueError("Acción no válida")
-                codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"))
+                codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"))
                 self._json({"ok": True, "codigos": codigos})
             elif u.path == "/api/edicion":
                 b = self._cuerpo()

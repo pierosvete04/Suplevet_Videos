@@ -1,6 +1,8 @@
-Versión 1.13.0 (se actualiza desde la app con «Actualizar ahora»):
-- Arreglo del audio: la música y los sonidos ahora se ponen después de los cortes. Antes, cada corte, pedazo quitado o «Quitar pausas» hacía saltar la música, y la velocidad la aceleraba. Ahora la música sigue de corrido y a su ritmo.
-- Editor: «Aplicar a todos los videos de C1 (5)» o «Solo a este video». «Solo a este video» guarda los cambios solo en ese video, sin crear otro; «Volver a lo de C1» se los quita.
-- Editor: la vista previa suena con la música (que baja cuando se habla) y con los sonidos del último armado. Se apaga con la casilla «Música y sonidos».
-- «Exportar por partes» (en el editor, en Exportar y en la barra de seleccionados): cada video en su carpeta V.FINALES/POR_PARTES con el hook, el cuerpo y el CTA sueltos, el video completo, el video sin subtítulos, la voz, la música y los efectos en .wav, los subtítulos en .srt y las imágenes que usa.
-- Después de actualizar, re-arma los videos con cortes o velocidad para que tengan la música arreglada.
+Versión 1.14.0 (se actualiza desde la app con «Actualizar ahora»):
+- Silencios fuera: cada clip y cada frase empieza justo antes de que se hable y termina justo después. Se hace solo en todos los videos (los que recortaste a mano se respetan). En el editor, «✂ Quitar silencios» deja elegir el margen en milisegundos y también quitar las pausas largas de en medio.
+- Sonidos en el editor: ahora se arrastran para moverlos. Tocarlos los abre para escucharlos, moverlos al cabezal, cambiarlos o quitarlos.
+- Subtítulos en el editor: se arrastran para moverlos, se estiran de sus bordes y se pueden cortar en dos, unir con el siguiente o borrar.
+- Editor más claro: una guía «¿Cómo se usa el editor?», pistas con nombre claro (Voz, Sonidos, Subtítulos) y las imágenes del guion en la pista «Imágenes».
+- Página de Sonidos ordenada por tipo, con una explicación de cada uno, y bien vista en pantallas chicas.
+- En Videos, una leyenda del punto de color: gris es «Por revisar», naranja es «Editando» (se pone solo al abrir el video en el editor) y verde es «Aprobado».
+- Re-arma los videos para que salgan sin los silencios del inicio.
