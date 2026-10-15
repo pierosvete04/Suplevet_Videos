@@ -800,6 +800,14 @@ class H(BaseHTTPRequestHandler):
                             drive.subir(sesion, ["asignaciones.json"], avance=lambda m: None)
                     threading.Thread(target=mover_en_drive, daemon=True).start()
                 self._json({"ok": True, "movidos": len(hechos)})
+            elif u.path == "/api/renombrar_grupo":
+                if TRABAJO["activo"]:
+                    raise RuntimeError("Espera a que termine el trabajo en curso")
+                b = self._cuerpo()
+                nuevo = motor.renombrar_grupo(str(b["viejo"]), str(b["nuevo"]))
+                drive.subir_grupos()
+                drive.subir_archivadas()
+                self._json({"ok": True, "nuevo": nuevo})
             elif u.path == "/api/guion_texto":  # editar lo que dice una pieza: Drive, panel y teleprompter
                 b = self._cuerpo()
                 pz = motor.editar_texto_pieza(str(b["pieza"]), b.get("texto", ""), b.get("partes"))

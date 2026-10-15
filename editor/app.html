@@ -297,6 +297,12 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .tabla-renombre code { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .tabla-renombre div { grid-template-columns: 1fr; gap: 0; } .tabla-renombre span { display: none; } }
 .g-editar textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); }
+.conexiones { display: grid; gap: 8px; }
+.conexion { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--hondo); }
+.conexion summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; cursor: pointer; list-style: none; }
+.conexion summary::-webkit-details-marker { display: none; }
+.conexion .que { flex: 1 1 220px; } .conexion .que small { display: block; color: var(--muted); font-weight: 400; }
+.conexion ol { margin: 10px 0 6px; padding-left: 20px; font-size: 13px; display: grid; gap: 4px; }
 .leyenda-estado { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
 .leyenda-estado i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; background: var(--muted); }
 .leyenda-estado i.editando { background: var(--warn); } .leyenda-estado i.listo { background: var(--ok); }
@@ -556,6 +562,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
             <label class="fila muted" style="font-size:12px"><input type="checkbox" id="inVerArch"> Ver archivadas <span id="inNArch"></span></label></div>
           <div class="sesiones" id="inSesiones"></div>
           <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
+            <button class="btn sec peq" id="inRenombrarGrupo" type="button" hidden title="Las carpetas de Drive de sus días no cambian">Cambiar nombre del grupo</button>
             <span class="muted" style="font-size:11.5px">Archiva las que ya terminaste: dejan de salir en las listas y las encuentras buscando.</span></div>
           <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
         </div>
@@ -848,6 +855,9 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
             <option value="1440">2K (1440×2560)</option><option value="2160">4K (2160×3840)</option></select></label>
           <label>Cuadros por segundo<select id="exFps"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps · recomendado</option><option value="60">60 fps</option></select></label>
           <label>Codec<select id="exCodec"><option value="h264">H.264 · funciona en todas las redes</option><option value="hevc">HEVC (H.265) · pesa menos</option></select></label>
+          <label>Peso máximo por video<select id="exPeso" title="Si un video sale más pesado, se vuelve a exportar con la calidad justa para no pasarse">
+            <option value="0">Sin límite</option><option value="15">15 MB</option><option value="20">20 MB</option><option value="25">25 MB</option>
+            <option value="30">30 MB</option><option value="50">50 MB</option></select></label>
           <label>Calidad<select id="exCalidad"><option value="ligera">Ligera (pesa poco)</option><option value="recomendada">Recomendada</option><option value="alta">Alta</option><option value="maxima">Máxima (pesa más)</option></select></label>
           <label class="fila" style="display:flex;font-size:13px;color:var(--ink)"><input type="checkbox" id="exPortada"> Portada en el primer cuadro del video</label>
           <label class="fila" style="display:flex;font-size:13px;color:var(--ink)"><input type="checkbox" id="exPorDia"> Separar en carpetas por día de publicación</label>
@@ -874,6 +884,11 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   </section>
 
   <section data-panel="notas" hidden>
+    <div class="caja" style="margin-bottom:14px" id="cajaConexiones">
+      <h2 style="margin:0 0 4px">Conexiones para trabajar</h2>
+      <p class="muted" style="margin:0 0 10px;font-size:12.5px">Lo que hay que tener abierto y conectado en esta PC para trabajar con la sala. Hazlo una vez; las marcas ✓ se recuerdan en esta PC.</p>
+      <div id="listaConexiones" class="conexiones"></div>
+    </div>
     <div class="caja" style="margin-bottom:14px">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Actualizaciones del sistema</h2>
@@ -1174,11 +1189,14 @@ function pintarInicio() {
   $("clNuevaCaja").hidden = $("clSesion").value !== "__nueva";
   pintarBajada(E.trabajo);
   if (infoClaude) pintarClaudeForm();
+  pintarConexiones();
 }
 // Sesiones: las archivadas (ya terminadas) no salen en las listas; se encuentran buscando o con «Ver archivadas».
+// Las sesiones que forman un grupo (los días de grabación) no salen sueltas: se trabajan desde el grupo.
+const dentroDeGrupo = () => new Set(Object.values(E.grupos || {}).flatMap(g => g.sesiones));
 function sesionesActivas() {
-  const arch = new Set(E.archivadas || []);
-  return E.semanas.filter(s => !arch.has(s));
+  const arch = new Set(E.archivadas || []), dentro = dentroDeGrupo();
+  return E.semanas.filter(s => !arch.has(s) && (!dentro.has(s) || s === E.semana));
 }
 function pintarListaSesiones() {
   const grs = E.grupos || {}, arch = new Set(E.archivadas || []);
@@ -1186,16 +1204,24 @@ function pintarListaSesiones() {
   const nArch = E.semanas.filter(s => arch.has(s)).length;
   $("inNArch").textContent = nArch ? `(${nArch})` : "";
   const tipo = $("inTipo").value;
-  const lista = [...E.semanas].reverse().filter(s => (q ? s.toLowerCase().includes(q) : verArch || !arch.has(s)) && (!tipo || tipoDe(s) === tipo));
+  const dentro = dentroDeGrupo();
+  const lista = [...E.semanas].reverse().filter(s => (q ? s.toLowerCase().includes(q) : (verArch || !arch.has(s)) && !dentro.has(s)) && (!tipo || tipoDe(s) === tipo));
   $("inSesiones").innerHTML = lista.map(s => {
     const a = arch.has(s) ? ` <span class="muted">· archivada</span>` : "";
     return grs[s]
-      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">(${grs[s].sesiones.length})</span>${a}</button>`
+      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">· días ${esc(grs[s].sesiones.map(x => x.replace(/\s*SESI[ÓO]N\s*/i, "")).join(" + "))}</span>${a}</button>`
       : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}${a}</button>`;
   }).join("") || `<span class="muted">${q ? "Ninguna sesión con ese nombre." : tipo ? "Ninguna producción de ese tipo todavía." : "Todavía no hay sesiones."}</span>`;
+  $("inRenombrarGrupo").hidden = !grs[E.semana];
   $("inArchivar").textContent = arch.has(E.semana) ? `Sacar «${E.semana}» del archivo` : `Archivar «${E.semana}»`;
 }
 $("inBuscar").addEventListener("input", pintarListaSesiones);
+$("inRenombrarGrupo").onclick = async () => {
+  const nuevo = prompt(`Nuevo nombre para «${E.semana}» (por ejemplo «P01 B2B VETERINARIOS»):`, E.siguiente_produccion ? `${E.siguiente_produccion} ` : "");
+  if (!nuevo || !nuevo.trim()) return;
+  try { const r = await post("/api/renombrar_grupo", { viejo: E.semana, nuevo }); await cargar(); avisar(`El grupo ahora se llama «${r.nuevo}». Los días de grabación y sus carpetas en Drive no cambian.`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+};
 $("inTipo").addEventListener("change", pintarListaSesiones);
 $("inVerArch").addEventListener("change", pintarListaSesiones);
 $("inArchivar").onclick = async () => {
@@ -1228,6 +1254,7 @@ function pintarClaudeForm() {
 }
 async function revisarClaude(forzar) {
   try { infoClaude = await (await fetch("/api/claude" + (forzar ? "?forzar" : ""))).json(); } catch (e) { return; }
+  pintarConexiones();
   const c = infoClaude;
   pintarClaudeForm();
   $("clConfig").hidden = c.instalado && c.sesion;
@@ -1887,13 +1914,14 @@ const exElegidos = new Set();
 const PESO_MBPS = { ligera: 4, recomendada: 7, alta: 10, maxima: 16 };
 function ajustesExport() {
   return { resolucion: $("exRes").value, fps: Number($("exFps").value), codec: $("exCodec").value, calidad: $("exCalidad").value,
-           portada_inicio: $("exPortada").checked, por_dia: $("exPorDia").checked };
+           portada_inicio: $("exPortada").checked, por_dia: $("exPorDia").checked, peso_max: Number($("exPeso").value) };
 }
 function pintarExport() {
   const aj = E.exportar || {};
   if (!pintarExport.listo) {  // los ajustes guardados se cargan una vez
     $("exRes").value = aj.resolucion || "1080"; $("exFps").value = String(aj.fps || 30); $("exCodec").value = aj.codec || "h264";
     $("exCalidad").value = aj.calidad || "alta"; $("exPortada").checked = aj.portada_inicio !== false; $("exPorDia").checked = !!aj.por_dia;
+    $("exPeso").value = String(aj.peso_max || 0);
     pintarExport.listo = true;
   }
   const hechos = E.salidas.filter(s => s.existe);
@@ -1914,13 +1942,16 @@ function pintarFicha() {
   const lista = exElegidos.size ? E.salidas.filter(s => exElegidos.has(s.codigo)) : E.salidas.filter(s => s.existe);
   const seg = lista.reduce((a, s) => a + (s.receta?.duracion || 35), 0);
   const factor = ({ "720": .45, "1080": 1, "1440": 1.7, "2160": 3.6 }[aj.resolucion]) * (aj.fps >= 60 ? 1.5 : 1) * (aj.codec === "hevc" ? .55 : 1);
-  const mb = seg * PESO_MBPS[aj.calidad] * factor / 8;
+  const porVideo = s => Math.min(aj.peso_max || 1e9, (s.receta?.duracion || 35) * PESO_MBPS[aj.calidad] * factor / 8);
+  const mb = lista.reduce((a, s) => a + porVideo(s), 0), max = lista.reduce((a, s) => Math.max(a, porVideo(s)), 0);
   $("exFicha").innerHTML = `<div><span>Formato</span><b>MP4</b></div><div><span>Resolución</span><b>${res}</b></div>
     <div><span>Velocidad</span><b>${aj.fps} fps</b></div><div><span>Codec de video</span><b>${aj.codec === "hevc" ? "HEVC (H.265)" : "H.264 High"}</b></div>
     <div><span>Audio</span><b>AAC 192 kbps · 48 kHz</b></div><div><span>Primer cuadro</span><b>${aj.portada_inicio ? "Portada" : "Video"}</b></div>
-    <div><span>Videos</span><b>${lista.length}</b></div><div><span>Peso aprox.</span><b>${mb >= 1000 ? (mb / 1000).toFixed(1) + " GB" : Math.round(mb) + " MB"}</b></div>`;
+    <div><span>Videos</span><b>${lista.length}</b></div><div><span>Peso aprox.</span><b>${mb >= 1000 ? (mb / 1000).toFixed(1) + " GB" : Math.round(mb) + " MB"}</b></div>
+    <div><span>Por video</span><b>${lista.length ? `~${Math.round(mb / lista.length)} MB (máx. ~${Math.round(max)} MB)` : "—"}</b></div>
+    ${aj.peso_max ? `<div><span>Límite</span><b>${aj.peso_max} MB por video</b></div>` : ""}`;
 }
-["exRes", "exFps", "exCodec", "exCalidad", "exPortada", "exPorDia"].forEach(id => $(id).addEventListener("change", pintarFicha));
+["exRes", "exFps", "exCodec", "exCalidad", "exPortada", "exPorDia", "exPeso"].forEach(id => $(id).addEventListener("change", pintarFicha));
 document.addEventListener("change", e => {
   const c = e.target.closest("[data-ex]"); if (!c) return;
   c.checked ? exElegidos.add(c.dataset.ex) : exElegidos.delete(c.dataset.ex);
@@ -3971,6 +4002,54 @@ async function guardarPlantilla(id, datos, predeterminada) {
   await post("/api/plantilla", { id, datos, predeterminada });
   await cargar(); plantSel = id; pintarPlantillas();
 }
+
+// ---------- Conexiones: guía de lo que hay que tener listo (Drive, Claude, Flow, Flow Music, panel, tablet) ----------
+const marcaConexion = (id, v) => { try { if (v === undefined) return localStorage.getItem("con_" + id) === "1"; localStorage.setItem("con_" + id, v ? "1" : "0"); } catch (e) { return false; } };
+function pintarConexiones() {
+  if (!$("listaConexiones") || !E) return;
+  const drive = (E.drive || {}).activo, claude = infoClaude && infoClaude.instalado && infoClaude.sesion;
+  const items = [
+    { id: "drive", t: "Google Drive (carpeta EDICIÓN DE VIDEOS)", d: "Baja los clips de cada sesión y sube los videos, la música y las imágenes.", ok: drive, auto: true,
+      pasos: ["Abajo, en «Google Drive», pega el link de la carpeta del equipo.", "Toca «Conectar con Google» e inicia sesión con una cuenta que tenga permiso de <b>Editor</b> en esa carpeta (si solo puede ver, Drive borra lo que la sala sube).", "Toca «Actualizar sesiones» para ver las sesiones del equipo."],
+      boton: ["Ir a Google Drive", () => $("driveLink").scrollIntoView({ behavior: "smooth", block: "center" })] },
+    { id: "claude", t: "Claude (app de escritorio)", d: "Escribe los guiones y revisa lo grabado, con la suscripción de Claude (sin pagar API).", ok: claude, auto: true,
+      pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "En la sala, ve a Inicio → «Claude» y toca «Conectar». La sala usa esa misma cuenta.", "Si dice «sin sesión», vuelve a abrir la app de Claude y toca «Revisar de nuevo»."],
+      boton: ["Ir a Claude", () => { $("dlgAjustes")?.close?.(); irTab("inicio"); }] },
+    { id: "flow", t: "Google Flow (imágenes y clips con IA)", d: "Genera las imágenes y los clips de cada guion con su prompt (están en Faltantes).", ok: marcaConexion("flow"),
+      pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI (Pro).", "Crea un proyecto con el nombre de la producción (por ejemplo «P01 B2B VETERINARIOS»).", "En los ajustes del asistente (ícono de deslizadores) elige <b>9:16</b> y <b>x1</b>, y guarda.", "En Faltantes copia el prompt de cada imagen y pídela con su código delante (por ejemplo «C3_IMG1: …»). Si Google rechaza un prompt, usa «Copiar plan B».", "Descarga cada imagen en <b>1K</b>. Luego, en Faltantes → «Buscar en Descargas», toca «Usar» en cada una: la sala la guarda con su nombre y la sube a Drive."],
+      boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")] },
+    { id: "music", t: "Google Flow Music (música)", d: "Crea la música de cada cuerpo con el prompt del guion.", ok: marcaConexion("music"),
+      pasos: ["Abre Flow Music con la misma cuenta de Google (también se entra desde Flow, botón «Flow Music»).", "Pega el prompt de la pista (en Faltantes → Música). Empieza con «Instrumental only, no vocals, no lyrics.».", "Cada pedido trae dos versiones: escucha el inicio y quédate con la que no tenga voces.", "Menú «⋯» de la canción → Download → <b>MP3</b>. Luego Faltantes → «Buscar en Descargas» → «Usar».", "Si Flow Music no está disponible, usa Suno (modo Custom, Instrumental) con el prompt de Suno del guion."],
+      boton: ["Abrir Flow Music", () => abrirAfuera("https://www.flowmusic.app/")] },
+    { id: "chrome", t: "Claude en Chrome (opcional)", d: "Para que Claude haga solo las imágenes y la música en Flow, en tu navegador.", ok: marcaConexion("chrome"),
+      pasos: ["En Google Chrome, instala la extensión «Claude» desde la Chrome Web Store e inicia sesión con la cuenta de Claude.", "Deja abierto Chrome con la sesión de Google (Flow y Flow Music) iniciada.", "Pídele a Claude: «genera las imágenes y la música de la sesión P01». Si aparece un inicio de sesión, términos o un captcha, lo haces tú."],
+      boton: ["Abrir Chrome Web Store", () => abrirAfuera("https://chromewebstore.google.com/search/claude")] },
+    { id: "panel", t: "Panel web (edicion.suplevet.pe)", d: "Ahí se revisan y aprueban los videos, y está el teleprompter que sigue la voz.", ok: !!E.panel, auto: true,
+      pasos: ["Pide el link y el código del panel a quien lo administra; se guardan en la configuración de esta PC.", "Entra a edicion.suplevet.pe con tu usuario para revisar y aprobar.", "En la tablet, abre el teleprompter del panel y en el navegador elige «Agregar a pantalla de inicio»: queda como una app."],
+      boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")] },
+    { id: "tablet", t: "Teleprompter en la tablet (por WiFi)", d: "Sin internet: la tablet lee el guion desde esta PC, con PIN.", ok: !!(E.red || {}).activa, auto: true,
+      pasos: ["Conecta la tablet al mismo WiFi que esta PC.", "Abajo, en «Teleprompter en la tablet», actívalo y abre en la tablet la dirección que aparece.", "Escribe el PIN. Usa «Líneas: 2 o 3» y «Tamaño» para leer cómodo frente a la cámara."],
+      boton: ["Ir al teleprompter", () => $("redBoton").scrollIntoView({ behavior: "smooth", block: "center" })] },
+  ];
+  $("listaConexiones").innerHTML = items.map((x, k) => `<details class="conexion" ${x.ok ? "" : k < 4 ? "" : ""}>
+      <summary><span class="pill ${x.ok ? "ok" : "warn"}">${x.ok ? "✓ listo" : x.auto ? "falta conectar" : "por revisar"}</span>
+        <span class="que"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span>
+        <button class="btn sec peq" type="button" data-con-abrir="${x.id}">${esc(x.boton[0])}</button></summary>
+      <ol>${x.pasos.map(p => `<li>${p}</li>`).join("")}</ol>
+      ${x.auto ? `<span class="muted" style="font-size:12px">La sala revisa esto sola.</span>`
+        : `<label class="fila" style="font-size:12.5px"><input type="checkbox" data-con-marca="${x.id}" ${x.ok ? "checked" : ""}> Ya lo tengo listo en esta PC</label>`}
+    </details>`).join("");
+  pintarConexiones.items = items;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-con-abrir]"); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  pintarConexiones.items?.find(x => x.id === b.dataset.conAbrir)?.boton[1]();
+});
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-con-marca]"); if (!c) return;
+  marcaConexion(c.dataset.conMarca, c.checked); pintarConexiones();
+});
 
 // ---------- Actualizaciones ----------
 let infoVersion = null;

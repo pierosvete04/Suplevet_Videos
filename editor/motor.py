@@ -108,6 +108,34 @@ def guardar_grupos(g):
     GRUPOS_PATH.write_text(json.dumps(g, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+def renombrar_grupo(viejo, nuevo):
+    """Cambia el nombre de un grupo (la producción). Las carpetas de Drive de sus días no cambian; en esta PC se
+    mueven sus ediciones, procesados y videos armados a carpetas con el nombre nuevo. Los archivos de video
+    conservan su prefijo (el del día que tiene el guion)."""
+    nuevo = " ".join(str(nuevo).split()).upper()
+    g = grupos()
+    if viejo not in g:
+        raise ValueError("Ese grupo no existe")
+    if not nuevo or len(nuevo) > 60 or re.search(r'[\\/:*?"<>|]', nuevo):
+        raise ValueError('Nombre no válido (sin / \\ : * ? " < > |)')
+    if nuevo in g or nuevo in semanas_disponibles():
+        raise ValueError("Ya hay una sesión o un grupo con ese nombre")
+    for sub in ("procesado", "subtitulos", "salidas", "recetas", "transcripciones"):
+        a, b = DATOS / sub / viejo, DATOS / sub / nuevo
+        if a.exists() and not b.exists():
+            a.rename(b)
+    g[nuevo] = g.pop(viejo)
+    guardar_grupos(g)
+    arch = archivadas()
+    if viejo in arch:
+        guardar_archivadas([nuevo if x == viejo else x for x in arch])
+    if CONFIG.get("semana") == viejo:
+        guardar_config({"semana": nuevo})
+    if S.semana == viejo:
+        usar_semana(nuevo)
+    return nuevo
+
+
 # ---------- Sesiones archivadas: ya terminadas, no salen en las listas (se encuentran buscando) ----------
 # datos/archivadas.json (copia de Drive _SALA/archivadas.json): ["5／10 SESIÓN", …]
 ARCHIVADAS_PATH = DATOS / "archivadas.json"
@@ -2446,9 +2474,11 @@ def filtro_broll(i, ov):
     n = max(1, int(dur * 30))
     if ov["es_imagen"]:
         mov = ov.get("mov", "zoom_in")
-        z = {"zoom_in": f"1+0.12*on/{n}", "zoom_out": f"1.12-0.12*on/{n}"}.get(mov, "1")
-        cadena = (f"[{i}:v]scale={int(W * 1.2)}:{int(H * 1.2)}:force_original_aspect_ratio=increase,"
-                  f"crop={int(W * 1.2)}:{int(H * 1.2)},zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        # zoom lento (10 % en toda la duración). Se agranda 3 veces antes del zoompan para que el movimiento
+        # sea suave (zoompan mueve de a pixel entero: en tamaño normal la imagen tiembla)
+        z = {"zoom_in": f"1+0.10*on/{n}", "zoom_out": f"1.10-0.10*on/{n}"}.get(mov, "1")
+        cadena = (f"[{i}:v]scale={W * 3}:{H * 3}:force_original_aspect_ratio=increase,"
+                  f"crop={W * 3}:{H * 3},zoompan=z='{z}':x='trunc(iw/2-(iw/zoom/2))':y='trunc(ih/2-(ih/zoom/2))'"
                   f":d=1:s={W}x{H}:fps=30,setsar=1")
     else:
         cadena = f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1"
@@ -2931,7 +2961,8 @@ def calendario():
     return out
 
 
-AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "codec": "h264", "calidad": "alta", "portada_inicio": True, "por_dia": False}
+AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "codec": "h264", "calidad": "alta", "portada_inicio": True, "por_dia": False,
+                    "peso_max": 0}  # MB por video; 0 = sin límite
 RESOLUCIONES = {"720": (720, 1280), "1080": (1080, 1920), "1440": (1440, 2560), "2160": (2160, 3840)}
 CALIDADES = {"ligera": 26, "recomendada": 22, "alta": 19, "maxima": 16}  # CRF: menos = mejor y más pesado
 
@@ -2941,6 +2972,17 @@ def ajustes_exportar():
 
 
 def render_final(video, portada, destino, aj):
+    """Exporta con la calidad elegida. Con «peso_max» (MB), si el video sale más pesado se vuelve a exportar
+    en dos pasadas con el bitrate justo para que quede por debajo de ese peso."""
+    _render_final(video, portada, destino, aj)
+    limite = float(aj.get("peso_max") or 0)
+    if limite > 0 and destino.stat().st_size > limite * 1048576:
+        dur = max(1.0, duracion(destino))
+        kbps = int((limite * 0.94 * 8 * 1024) / dur - 192)  # deja margen para el contenedor y el audio de 192 kbps
+        _render_final(video, portada, destino, {**aj, "bitrate": max(400, kbps)})
+
+
+def _render_final(video, portada, destino, aj):
     """Video final para subir a redes con los ajustes de exportación. Con «portada_inicio», el primer cuadro del video
     es la portada (Instagram y TikTok la toman como miniatura si eliges el primer cuadro)."""
     w, h = RESOLUCIONES.get(str(aj["resolucion"]), (1080, 1920))
@@ -2948,6 +2990,10 @@ def render_final(video, portada, destino, aj):
     crf = CALIDADES.get(aj.get("calidad"), 19)
     venc = (["-c:v", "libx265", "-tag:v", "hvc1", "-crf", str(crf + 4)] if aj.get("codec") == "hevc"
             else ["-c:v", "libx264", "-crf", str(crf), "-profile:v", "high"])
+    if aj.get("bitrate"):  # peso máximo: bitrate fijo con tope (una pasada con maxrate es precisa y rápida)
+        b = int(aj["bitrate"])
+        venc = [*venc[:2], *(["-tag:v", "hvc1"] if aj.get("codec") == "hevc" else ["-profile:v", "high"]),
+                "-b:v", f"{b}k", "-maxrate", f"{int(b * 1.15)}k", "-bufsize", f"{b * 2}k"]
     escala = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps}"
     if aj.get("portada_inicio") and portada and portada.exists():
         cuadro = 1 / fps

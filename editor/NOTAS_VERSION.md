@@ -1,3 +1,9 @@
+Versión 1.16.0 (se actualiza desde la app con «Actualizar ahora»):
+- Configuración (⚙) → «Conexiones para trabajar»: los pasos para dejar lista una PC nueva (Google Drive, Claude, Google Flow, Flow Music, Claude en Chrome, el panel y el teleprompter de la tablet), con botones para abrir cada uno. La sala marca sola lo que ya está conectado.
+- Exportar: «Peso máximo por video» (15, 20, 25, 30 o 50 MB). Si un video sale más pesado, se vuelve a exportar con la calidad justa para no pasarse. La ficha muestra el peso aproximado de cada video.
+- Las imágenes de Flow se mueven con un zoom lento y suave (ya no tiemblan).
+- Sesiones: los días que forman un grupo ya no salen sueltos en la lista; se trabajan desde el grupo. Nuevo botón «Cambiar nombre del grupo».
+
 Versión 1.15.1 (se actualiza desde la app con «Actualizar ahora»):
 - Los CTA valen como se grabaron: un CTA del guion que no se grabó ya no sale como «falta grabar» si ese cuerpo ya tiene su CTA grabado.
 
