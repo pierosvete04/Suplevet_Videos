@@ -1105,15 +1105,21 @@ def combinaciones():
     cuerpos = [p["nombre"] for p in ps if p["tipo"] == "cuerpo"]
     hooks = [p["nombre"] for p in ps if p["tipo"] == "hook"]
     ctas = [p["nombre"] for p in ps if p["tipo"] == "cta"]
+    vs = leer_versiones()
     for c in cuerpos:
         # Un CTA con prefijo (P1_CTA1) es solo de ese cuerpo; uno sin prefijo (CTA-O) sirve para todos
         propios = [x for x in ctas if "_" not in x or x.split("_")[0] == c]
         for h in [h for h in hooks if h.split("_")[0] == c]:
             for cta in propios:
                 codigo = f"{c}-{h.split('_')[1]}-{cta.split('_')[-1]}"
-                yield {"codigo": codigo, "archivo": f"{S.prefijo}-{codigo}", "hook": h, "cuerpo": c, "cta": cta}
+                propio = vs.get(codigo) if (vs.get(codigo) or {}).get("propio") else None
+                # con ajustes propios («solo a este video») el video usa los suyos y no los de sus piezas
+                yield {"codigo": codigo, "archivo": f"{S.prefijo}-{codigo}", "hook": h, "cuerpo": c, "cta": cta,
+                       **({"version": propio} if propio else {})}
     nombres = {p["nombre"] for p in ps}
-    for vid, v in leer_versiones().items():
+    for vid, v in vs.items():
+        if v.get("propio"):
+            continue
         if {v.get("hook"), v.get("cuerpo"), v.get("cta")} <= nombres:
             yield {"codigo": vid, "archivo": f"{S.prefijo}-{vid}", "hook": v["hook"], "cuerpo": v["cuerpo"], "cta": v["cta"],
                    "version": v}
@@ -1133,9 +1139,19 @@ def leer_versiones():
 
 
 def guardar_version(datos, vid=None):
-    """Crea o actualiza una versión. Devuelve su código (C1-H2-CTA-v2)."""
+    """Crea o actualiza una versión. Devuelve su código (C1-H2-CTA-v2).
+    Con datos["propio"] y el código de un video, guarda los ajustes solo para ese video (no crea otro):
+    deja de seguir lo que se edite en sus piezas hasta que se borren sus ajustes propios."""
     vs = leer_versiones()
     base = f"{datos['cuerpo']}-{datos['hook'].split('_')[-1]}-{datos['cta'].split('_')[-1]}"
+    propio = bool(datos.get("propio")) or bool((vs.get(vid) or {}).get("propio"))
+    if propio:
+        vid = vid or datos.get("codigo")
+        c = next((x for x in combinaciones() if x["codigo"] == vid and (not x.get("version") or x["version"].get("propio"))), None)
+        if not c:
+            raise ValueError("Ese video no existe en esta sesión")
+        if (datos["hook"], datos["cuerpo"], datos["cta"]) != (c["hook"], c["cuerpo"], c["cta"]):
+            raise ValueError("Para cambiar el hook, el cuerpo o el CTA, guárdalo como versión aparte")
     if not vid:
         n = 1
         while f"{base}-v{n}" in vs:
@@ -1152,6 +1168,8 @@ def guardar_version(datos, vid=None):
                "zoom": _limpiar_zoom(datos.get("zoom") or {}),
                "cortes": _limpiar_cortes(datos.get("cortes")), "quitar_rangos": _limpiar_rangos(datos.get("quitar_rangos")),
                "capas": _limpiar_capas(datos.get("capas")), "velocidad": _limpiar_velocidad(datos.get("velocidad"))}
+    if propio:
+        vs[vid]["propio"] = True
     S.subs.mkdir(parents=True, exist_ok=True)
     _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
     return vid
@@ -1468,9 +1486,14 @@ def _expresion_zoom_bloques(combo, offs, total, z):
 
 
 def borrar_version(vid):
+    """Borra una versión. Si eran los ajustes propios de un video, el video vuelve a seguir a sus piezas
+    (su archivo se queda; hay que re-armarlo). Devuelve True si eran ajustes propios."""
     vs = leer_versiones()
-    if vs.pop(vid, None) is not None:
+    v = vs.pop(vid, None)
+    if v is not None:
         _versiones_path().write_text(json.dumps(vs, ensure_ascii=False, indent=1), encoding="utf-8")
+        if v.get("propio"):
+            return True
         for f in (S.salida / f"{S.prefijo}-{vid}.mp4", S.portadas / f"{S.prefijo}-{vid}.jpg", S.recetas / f"{vid}.json"):
             f.unlink(missing_ok=True)
 
@@ -1526,7 +1549,7 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
                 "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"]} for l in lineas]}
 
     v = edicion_de({k: c[k] for k in ("hook", "cuerpo", "cta")} if otra else c)  # otra combinación: parte de lo de sus piezas
-    return {"codigo": codigo, "base": not c.get("version"), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
+    return {"codigo": codigo, "base": not c.get("version"), "propio": bool((c.get("version") or {}).get("propio")), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
             "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
@@ -1584,11 +1607,8 @@ def _rangos_velocidad(combo, offs, total):
     return out
 
 
-def _quitar_tramos(video, rangos, velocidades=()):
-    """Saca del video ya armado los tramos indicados (frases quitadas, recortes): se quedan los tramos que
-    sobran, cortados con trim (preciso al cuadro) y unidos; voz, música y subtítulos van juntos.
-    velocidades: [(desde, hasta, factor)] que se aceleran (o frenan) sin cambiar el tono de la voz."""
-    total = duracion(video)
+def _trozos(total, rangos, velocidades=()):
+    """Lo que queda del video armado sin recortes: [(desde, hasta, factor)], partido donde cambia la velocidad."""
     juntos = []
     for a, b in sorted((max(0.0, a), min(total, b)) for a, b in rangos):
         if juntos and a <= juntos[-1][1] + 0.01:
@@ -1602,9 +1622,6 @@ def _quitar_tramos(video, rangos, velocidades=()):
         t = max(t, b)
     if total - t > 0.05:
         quedan.append((t, total))
-    if not quedan:
-        return
-    # cada tramo que queda se parte donde cambia la velocidad
     trozos = []
     for a, b in quedan:
         cortes = sorted({a, b, *(x for va, vb, _ in velocidades for x in (va, vb) if a < x < b)})
@@ -1614,7 +1631,35 @@ def _quitar_tramos(video, rangos, velocidades=()):
             medio = (x + y) / 2
             fac = next((fv for va, vb, fv in velocidades if va <= medio <= vb), 1.0)
             trozos.append((x, y, fac))
-    quedan = trozos
+    return trozos
+
+
+def _mapa_tiempo(trozos):
+    """(f, duración): f(t) pasa un segundo del video sin recortes al video editado (con las velocidades).
+    Si ese segundo se quitó, devuelve None; con pegar=True, el inicio de lo que sigue."""
+    tabla, g = [], 0.0
+    for a, b, fac in trozos:
+        tabla.append((a, b, fac, g))
+        g += (b - a) / fac
+
+    def f(t, pegar=False):
+        for a, b, fac, g0 in tabla:
+            if t < a - 1e-6:
+                return g0 if pegar else None
+            if t <= b + 1e-6:
+                return g0 + (min(t, b) - a) / fac
+        return g if pegar else None
+    return f, g
+
+
+def _quitar_tramos(video, rangos, velocidades=(), trozos=None):
+    """Saca del video los tramos indicados (frases quitadas, recortes, pausas): se quedan los que sobran,
+    cortados con trim (preciso al cuadro) y unidos; imagen, voz y subtítulos van juntos. La música y los
+    sonidos se ponen después, sobre el video ya cortado, para que no salten en cada corte.
+    velocidades: [(desde, hasta, factor)] que se aceleran (o frenan) sin cambiar el tono de la voz."""
+    quedan = trozos if trozos is not None else _trozos(duracion(video), rangos, velocidades)
+    if not quedan:
+        return
     f = []
     for k, (a, b, fac) in enumerate(quedan):
         vel_v = f"/{fac:.4f}" if abs(fac - 1) > 0.001 else ""
@@ -1622,9 +1667,10 @@ def _quitar_tramos(video, rangos, velocidades=()):
         f.append(f"[0:v]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[v{k}]")
         f.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}[a{k}]")
     f.append("".join(f"[v{k}][a{k}]" for k in range(len(quedan))) + f"concat=n={len(quedan)}:v=1:a=1[v][a]")
-    tmp = video.with_name(video.stem + "_corto.mp4")
+    tmp = video.with_name(video.stem + "_corto" + video.suffix)
     run([FFMPEG, "-hide_banner", "-y", "-i", str(video), "-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-dn", "-map_chapters", "-1",
-         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(tmp)])
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "pcm_s16le" if video.suffix == ".mkv" else "aac",
+         *([] if video.suffix == ".mkv" else ["-b:a", "192k", "-movflags", "+faststart"]), str(tmp)])
     tmp.replace(video)
 
 
@@ -2331,7 +2377,10 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
 
 # ---------- Armar un video ----------
 
-def armar_uno(combo, n_musica=0):
+def armar_uno(combo, n_musica=0, extras=None):
+    """Arma un video. Paso 1: imagen (zoom, imágenes, subtítulos) con la voz. Paso 2: cortes y velocidades.
+    Paso 3: música y sonidos sobre el video ya cortado (así la música sigue de corrido y no se acelera).
+    extras: carpeta donde dejar además los elementos por separado (sin subtítulos, voz, música, efectos, .srt)."""
     for d in (S.salida, S.recetas):
         d.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
@@ -2388,12 +2437,7 @@ def armar_uno(combo, n_musica=0):
     cmd = [FFMPEG, "-hide_banner", "-y"]
     for a in archivos:
         cmd += ["-i", str(a)]
-    idx = 3
-    i_mus = []
-    for tr in tramos:
-        cmd += ["-stream_loop", "-1", "-i", str(tr["archivo"])]
-        i_mus.append(idx)
-        idx += 1
+    idx = 3  # la música y los sonidos entran en el paso 3
     f = ["[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[vc][ac]"]
     v_prev = "vc"
     zexpr = _expresion_zoom(combo, offs, total)
@@ -2425,10 +2469,76 @@ def armar_uno(combo, n_musica=0):
         f.append(f"[{v_prev}][e{idx}]overlay={int(float(el.get('x', 0)))}:{int(float(el.get('y', 0)))}:eof_action=pass[v{idx}]")
         v_prev = f"v{idx}"
         idx += 1
-    f.append(f"[{v_prev}]subtitles=subs.ass:fontsdir=fuentes[v]")
-    mezcla = []
+    if extras:
+        f.append(f"[{v_prev}]split=2[vlimpio][vs]")
+        f.append("[vs]subtitles=subs.ass:fontsdir=fuentes[v]")
+        f.append("[ac]asplit=2[ac1][ac2]")
+    else:
+        f.append(f"[{v_prev}]subtitles=subs.ass:fontsdir=fuentes[v]")
+    # paso 1: la imagen con la voz (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
+    base, limpio = trabajo / "base.mkv", trabajo / "limpio.mkv"
+    venc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "pcm_s16le", "-t", f"{total:.2f}"]
+    cmd += ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[ac1]" if extras else "[ac]", "-dn", "-map_chapters", "-1", *venc, str(base)]
+    if extras:
+        cmd += ["-map", "[vlimpio]", "-map", "[ac2]", *venc, str(limpio)]
+    run(cmd, cwd=trabajo)
+    # paso 2: cortes, frases quitadas y velocidades
+    rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
+    trozos = _trozos(duracion(base), rangos, velocidades)
+    if rangos or velocidades:
+        for v in ([base, limpio] if extras else [base]):
+            _quitar_tramos(v, rangos, velocidades, trozos)
+    mapa, total_ed = _mapa_tiempo(trozos) if trozos else ((lambda t, pegar=False: t), total)
+    # los tiempos de la música y los sonidos pasan al video editado
+    tramos_ed = []
+    for tr in tramos:
+        t0, t1 = mapa(tr["t0"], True), mapa(tr["t1"], True)
+        if t1 - t0 > 0.3:
+            tramos_ed.append({**tr, "t0": t0, "t1": t1})
+    silencios_ed = [(mapa(a, True), mapa(b, True)) for a, b in silencios]
+    silencios_ed = [(a, b) for a, b in silencios_ed if b - a > 0.05]
+    eventos_ed = [{**e, "t": mapa(e["t"])} for e in eventos]
+    eventos_ed = [e for e in eventos_ed if e["t"] is not None]
+    _mezclar_audio(base, S.salida / f"{combo['archivo']}.mp4", tramos_ed, silencios_ed, eventos_ed, total_ed, extras)
+    if extras:
+        _elementos_por_separado(extras, limpio, combo, orden, offs, subs, mapa, overlays)
+    total = duracion(S.salida / f"{combo['archivo']}.mp4")
+    hacer_portada(combo)
+
+    receta = {**combo, "duracion": round(total, 2), "cortes": [round(o, 2) for o in offs[1:]],
+              # dónde termina el hook y dónde empieza el CTA en el video editado
+              "limites": [round(mapa(offs[1], True), 2), round(mapa(offs[2], True), 2)],
+              "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos_ed) or None,
+              "faltan_musica": faltan_musica,
+              "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "cat": e["cat"], "id": id_sonido(e["archivo"]), "t": e["t"],
+                           "motivo": e["motivo"]} for e in eventos],
+              "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "dur": round(o["dur"], 2), "modo": o["modo"]} for o in overlays],
+              # pistas de música en el video sin recortes, para escucharlas en la vista previa del editor
+              "pistas": [{"t0": round(t["t0"], 2), "t1": round(t["t1"], 2), "desde": t["desde"], "archivo": str(t["archivo"]),
+                          "id": t["id"]} for t in tramos],
+              "volumen_musica": CONFIG["musica"]["volumen"],
+              "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
+    (S.recetas / f"{combo['codigo']}.json").write_text(json.dumps(receta, ensure_ascii=False, indent=1), encoding="utf-8")
+    for v in (base, limpio):
+        v.unlink(missing_ok=True)
+    return receta
+
+
+def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None):
+    """Paso 3 del armado: a la voz del video ya cortado se le suman la música (baja sola cuando se habla)
+    y los sonidos. La imagen se copia tal cual. Con extras, deja también voz, música y efectos en .wav."""
+    cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(base)]
+    idx = 1
+    i_mus = []
+    for tr in tramos:
+        cmd += ["-stream_loop", "-1", "-i", str(tr["archivo"])]
+        i_mus.append(idx)
+        idx += 1
+    f = []
+    salidas_voz = ["[voz]"] + (["[sc]"] if tramos else []) + (["[vozx]"] if extras else [])
+    f.append(f"[0:a]asplit={len(salidas_voz)}{''.join(salidas_voz)}" if len(salidas_voz) > 1 else "[0:a]anull[voz]")
+    mezcla = ["[voz]"]
     if tramos:
-        f.append("[ac]asplit=2[voz][sc]")
         cruce = 0.4  # segundos de fundido cuando cambia la música
         for k, (tr, i) in enumerate(zip(tramos, i_mus)):
             largo = tr["t1"] - tr["t0"] + (cruce if k < len(tramos) - 1 else 0)
@@ -2442,41 +2552,90 @@ def armar_uno(combo, n_musica=0):
                  if len(tramos) > 1 else f"[mt0]atrim=0:{total:.2f}[mraw]")
         mute = "".join(f",volume=0:enable='between(t,{a:.2f},{b:.2f})'" for a, b in silencios)
         f.append(f"[mraw]volume={CONFIG['musica']['volumen']}{mute}[m0]")
-        f.append("[m0][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[mus]")
-        mezcla += ["[voz]", "[mus]"]
-    else:
-        mezcla.append("[ac]")
+        if extras:
+            f.append("[m0][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350,asplit=2[mus][musx]")
+        else:
+            f.append("[m0][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[mus]")
+        mezcla.append("[mus]")
     vol = CONFIG["sonidos"]["volumen_sfx"]
+    sfx = []
     for k, e in enumerate(eventos):
         cmd += ["-i", str(e["archivo"])]
         ms = int(e["t"] * 1000)
         vk = vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0)
         recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
                    f"afade=t=out:st={max(0, e['largo'] - 0.15):.2f}:d=0.15,")
-        f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}[s{k}]")
+        f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}"
+                 + (f",asplit=2[s{k}][sx{k}]" if extras else f"[s{k}]"))
         mezcla.append(f"[s{k}]")
+        sfx.append(f"[sx{k}]")
         idx += 1
     f.append(f"{''.join(mezcla)}amix=inputs={len(mezcla)}:normalize=0:duration=first,alimiter=limit=0.95[a]")
-    salida = S.salida / f"{combo['archivo']}.mp4"
-    cmd += ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-dn", "-map_chapters", "-1", "-t", f"{total:.2f}",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
-            "-movflags", "+faststart", str(salida)]
-    run(cmd, cwd=trabajo)
-    rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
-    if rangos or velocidades:
-        _quitar_tramos(salida, rangos, velocidades)
-        total = duracion(salida)
-    hacer_portada(combo)
+    cmd += ["-filter_complex", ";".join(f), "-map", "0:v", "-map", "[a]", "-dn", "-map_chapters", "-1", "-t", f"{total:.2f}",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(salida)]
+    if extras:  # las pistas por separado, del largo del video
+        extras.mkdir(parents=True, exist_ok=True)
+        wav = ["-t", f"{total:.2f}", "-c:a", "pcm_s16le", "-ar", "48000"]
+        cmd += ["-map", "[vozx]", *wav, str(extras / "voz.wav")]
+        if tramos:
+            cmd += ["-map", "[musx]", *wav, str(extras / "musica.wav")]
+        if sfx:
+            f2 = f"{''.join(sfx)}amix=inputs={len(sfx)}:normalize=0:duration=longest,apad[fx]" if len(sfx) > 1 else f"{sfx[0]}apad[fx]"
+            cmd[cmd.index("-filter_complex") + 1] += ";" + f2
+            cmd += ["-map", "[fx]", *wav, str(extras / "efectos.wav")]
+    run(cmd)
 
-    receta = {**combo, "duracion": round(total, 2), "cortes": [round(o, 2) for o in offs[1:]],
-              "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos) or None,
-              "faltan_musica": faltan_musica,
-              "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "cat": e["cat"], "id": id_sonido(e["archivo"]), "t": e["t"],
-                           "motivo": e["motivo"]} for e in eventos],
-              "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "dur": round(o["dur"], 2), "modo": o["modo"]} for o in overlays],
-              "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
-    (S.recetas / f"{combo['codigo']}.json").write_text(json.dumps(receta, ensure_ascii=False, indent=1), encoding="utf-8")
-    return receta
+
+def _t_srt(t):
+    ms = int(round(max(0.0, t) * 1000))
+    return f"{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d},{ms % 1000:03d}"
+
+
+def _elementos_por_separado(destino, limpio, combo, orden, offs, subs, mapa, overlays):
+    """Video sin subtítulos, subtítulos en .srt (para CapCut o Premiere) y las imágenes que usa el video."""
+    destino.mkdir(parents=True, exist_ok=True)
+    run([FFMPEG, "-hide_banner", "-y", "-i", str(limpio), "-map", "0:v", "-map", "0:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+         "-movflags", "+faststart", str(destino / "video_sin_subtitulos_solo_voz.mp4")])
+    filas = []
+    for off, lineas in zip(offs, subs):
+        for ln in lineas:
+            a, b = mapa(off + ln["s"]), mapa(off + ln["e"], True)
+            a = mapa(off + ln["s"], True) if a is None else a
+            if b - a > 0.05:
+                filas.append((a, b, ln["texto"]))
+    (destino / "subtitulos.srt").write_text(
+        "".join(f"{k}\n{_t_srt(a)} --> {_t_srt(b)}\n{t}\n\n" for k, (a, b, t) in enumerate(filas, 1)), encoding="utf-8")
+    if overlays:
+        (destino / "imagenes").mkdir(exist_ok=True)
+        for o in overlays:
+            shutil.copy2(o["archivo"], destino / "imagenes" / o["archivo"].name)
+
+
+def exportar_partes(codigos, avance=print):
+    """«Exportar por partes»: cada video en su carpeta (Listos/POR_PARTES/<video>) con el video completo, el hook,
+    el cuerpo y el CTA sueltos, el video sin subtítulos, voz, música y efectos en .wav, los subtítulos en .srt
+    y las imágenes que usa. Sirve para terminarlo en CapCut, Premiere o pasarlo a otro editor."""
+    por_codigo = {c["codigo"]: c for c in combinaciones()}
+    hechos = []
+    for n, cod in enumerate(codigos):
+        c = por_codigo.get(cod)
+        if not c:
+            continue
+        destino = S.listos / "POR_PARTES" / c["archivo"]
+        if destino.exists():
+            shutil.rmtree(destino)
+        avance(f"Exportando por partes {c['archivo']} ({n + 1}/{len(codigos)})")
+        r = armar_uno(c, extras=destino)
+        video = S.salida / f"{c['archivo']}.mp4"
+        shutil.copy2(video, destino / "video_completo.mp4")
+        a, b = r["limites"]
+        for nombre, desde, hasta in (("1_hook", 0.0, a), ("2_cuerpo", a, b), ("3_cta", b, r["duracion"])):
+            if hasta - desde > 0.2:
+                run([FFMPEG, "-hide_banner", "-y", "-i", str(video), "-ss", f"{desde:.3f}", "-to", f"{hasta:.3f}",
+                     "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
+                     str(destino / f"{nombre}_{c[nombre[2:]]}.mp4")])
+        hechos.append(cod)
+    return hechos
 
 
 def armar(pieza=None, avance=print, codigos=None):

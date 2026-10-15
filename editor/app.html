@@ -818,6 +818,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <div style="display:grid;gap:8px;margin-top:12px">
           <button class="btn" id="exTodo">Exportar todo</button>
           <button class="btn sec" id="exSel" disabled>Exportar seleccionados</button>
+          <button class="btn sec" id="exPartes" disabled title="Cada video en su carpeta (V.FINALES/POR_PARTES): hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes">Exportar por partes</button>
           <button class="btn sec" id="subirPanel" title="Los manda al panel de videos (edicion.suplevet.pe/videos) para revisarlos y aprobarlos">Subir al panel</button>
           <button class="btn sec peq" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes al panel</button>
         </div>
@@ -891,6 +892,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   <button class="btn sec peq" id="selPlantillaAplicar">Cambiar plantilla y re-armar</button>
   <button class="btn peq" id="selArmar">Armar seleccionados</button>
   <button class="btn sec peq" id="selExportar">Exportar seleccionados</button>
+  <button class="btn sec peq" id="selPartes" title="Hook, cuerpo y CTA sueltos, voz, música, efectos, subtítulos e imágenes de cada video">Exportar por partes</button>
   <button class="btn sec peq" id="selLimpiar">Quitar selección</button></div>
 <dialog id="dlgGrupo" aria-labelledby="dlgGrupoTit" style="width:min(460px,94vw)">
   <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formGrupo">
@@ -1016,6 +1018,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button class="btn sec peq" id="evMover" type="button" aria-pressed="false" title="Arrastra el video para moverlo y usa la rueda para acercar o alejar (tecla M)">✥ Mover y escalar</button>
         <button class="btn sec peq" id="evImagen" type="button" title="Pone una imagen o un clip en el cabezal (tecla I)">🖼 Imagen o escena</button>
         <label class="btn sec peq" title="Sube una imagen o un clip nuevo y lo pone en el cabezal">⬆ Subir<input type="file" id="evImagenSubir" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" hidden></label>
+        <label class="muted fila" style="font-size:12px" title="La vista previa suena con la música y los sonidos del último armado"><input type="checkbox" id="evConMusica" checked> Música y sonidos</label>
         <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="6" max="400" value="34"></label>
         <span class="muted" style="font-size:11px">Touchpad: pellizca (o Ctrl + rueda) para acercar · desliza con dos dedos para moverte</span>
       </div>
@@ -1043,8 +1046,10 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       </div>
       <div class="fila" style="margin-top:10px">
         <button class="btn" id="evArmar">Guardar y re-armar</button>
+        <button class="btn sec" id="evSolo" type="button" title="Los cambios quedan solo en este video; los demás videos del cuerpo no cambian">Solo a este video</button>
         <button class="btn sec" id="evGuardar">Guardar como versión aparte</button>
         <button class="btn sec" id="evExportar">Exportar este video</button>
+        <button class="btn sec" id="evPartes" type="button" title="Hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes">Exportar por partes</button>
         <button class="btn sec" id="evBorrar" hidden>Borrar esta versión</button>
       </div>
     </div>
@@ -1848,7 +1853,7 @@ function pintarExport() {
       ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>` : `<div class="vacia">${esc(s.codigo)}</div>`}
       <div class="pie">${s.receta ? `<span class="pill">${s.receta.duracion} s</span>` : ""}${s.desactualizado ? '<span class="pill warn">⟳ re-armar</span>' : ""}${s.estado === "listo" ? '<span class="pill ok">aprobado</span>' : ""}</div></label>`).join("")
     || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todos los videos».</div>`;
-  $("exSel").disabled = !exElegidos.size;
+  $("exSel").disabled = $("exPartes").disabled = !exElegidos.size;
   $("exSel").textContent = exElegidos.size ? `Exportar ${exElegidos.size} seleccionado${exElegidos.size === 1 ? "" : "s"}` : "Exportar seleccionados";
   pintarFicha();
 }
@@ -1878,6 +1883,12 @@ async function exportarVideos(codigos) {
 }
 $("exTodo").onclick = () => { const cods = E.salidas.filter(s => s.existe).map(s => s.codigo); if (!cods.length) return avisar("No hay videos armados todavía.", "err"); exportarVideos(cods); };
 $("exSel").onclick = () => exportarVideos([...exElegidos]);
+async function exportarPartes(codigos) {
+  try { await post("/api/trabajo_sel", { accion: "partes_sel", codigos }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Exportando por partes ${codigos.length} video${codigos.length === 1 ? "" : "s"}… quedan en V.FINALES/POR_PARTES (lo ves en Procesos ☰).`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("exPartes").onclick = () => exportarPartes([...exElegidos]);
 $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMuestra(); });
 $("plantPredet").onclick = async () => { try { await guardarPlantilla(plantSel, null, true); avisar("Plantilla predeterminada guardada. Re-arma los videos para aplicarla.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
@@ -1896,7 +1907,7 @@ $("subirFuente").onchange = async e => {
 $("escuchar").onclick = () => trabajo("analizar");
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
 const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Re-armar videos de una pieza", uno: "Re-armar un video",
-  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", exportar: "Exportar por día", portadas: "Rehacer portadas",
+  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas" };
@@ -2144,6 +2155,7 @@ async function trabajoSel(accion) {
 }
 $("selArmar").onclick = () => trabajoSel("armar_sel");
 $("selExportar").onclick = () => trabajoSel("exportar_sel");
+$("selPartes").onclick = () => trabajoSel("partes_sel");
 $("selLimpiar").onclick = () => { elegidos.clear(); pintarVideos(); pintarSeleccion(); };
 $("selTodos").onclick = () => {
   document.querySelectorAll("#videos [data-sel]").forEach(c => elegidos.add(c.dataset.sel));
@@ -2331,7 +2343,6 @@ async function cargarEstructura(codigo, combo) {
   $("evCuerpo").innerHTML = opt(est.opciones.cuerpo, est.cuerpo.nombre);
   $("evCta").innerHTML = opt(est.opciones.cta, est.cta.nombre);
   $("evNombre").value = est.nombre || "";
-  $("evBorrar").hidden = est.base;
   const r = est.recortes || {};
   ed = { quitar: new Set(est.quitar || []), hook: r.hook || null, cta: r.cta || null, partes: { ...(r.partes || {}) },
          zoom: JSON.parse(JSON.stringify(est.zoom || {})), sel: "hook", subSel: null, t: 0 };
@@ -2352,13 +2363,24 @@ async function cargarEstructura(codigo, combo) {
 }
 function pintarAlcance() {
   if (!est || est.error) return;
-  const cuantos = (campo, n) => E.salidas.filter(s => !s.es_version && s[campo] === n).length;
+  const cuantos = (campo, n) => E.salidas.filter(s => !s.es_version && !s.propio && s[campo] === n).length;
   const o = est.original || { hook: est.hook.nombre, cuerpo: est.cuerpo.nombre, cta: est.cta.nombre };
   const misma = $("evHook").value === o.hook && $("evCuerpo").value === o.cuerpo && $("evCta").value === o.cta;
-  $("evAlcance").innerHTML = !est.base
+  const nCuerpo = cuantos("cuerpo", est.cuerpo.nombre);
+  // botones: «Aplicar a todos los videos de C1» o «Solo a este video»
+  $("evArmar").textContent = est.propio ? "Guardar en este video" : !est.base ? "Guardar esta versión"
+    : !misma ? "Guardar como versión aparte" : `Aplicar a todos los videos de ${est.cuerpo.nombre} (${nCuerpo})`;
+  $("evArmar").title = est.base && misma ? "Lo que cambies en el cuerpo vale para todos sus videos; en el hook o el CTA, para los videos que los usan" : "";
+  $("evSolo").hidden = !est.base || !misma;
+  $("evGuardar").hidden = est.base && !misma;
+  $("evBorrar").hidden = est.base;
+  $("evBorrar").textContent = est.propio ? `Volver a lo de ${est.cuerpo.nombre}` : "Borrar esta versión";
+  $("evAlcance").innerHTML = est.propio
+    ? `<span>✎</span><span><b>${esc(est.codigo)}</b> tiene ajustes propios: lo que cambies aquí queda solo en este video, y lo que se edite en ${esc(est.cuerpo.nombre)} ya no le llega. «Volver a lo de ${esc(est.cuerpo.nombre)}» le quita sus ajustes propios.</span>`
+    : !est.base
     ? `<span>✎</span><span>Estás editando la versión <b>${esc(est.codigo)}</b>: los cambios solo afectan a esta versión.</span>`
     : !misma ? `<span>⑂</span><span>Elegiste otra combinación de piezas: se guarda como <b>versión aparte</b>.</span>`
-    : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se re-arman solos. Para un cambio solo en este video: «Guardar como versión aparte».</span>`;
+    : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se re-arman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`;
 }
 // Bloques en orden: hook, frases del cuerpo, CTA. a/b = entrada/salida en segundos del archivo de esa pieza.
 function bloquesEd() {
@@ -3099,10 +3121,58 @@ function bucleEd() {
     if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; v.play(); }, { once: true }); }
     else v.currentTime = n.a;
   }
-  vistaEd();
+  vistaEd(); sonarPrevia();
   requestAnimationFrame(bucleEd);
 }
-function pararEditor() { evReproduciendo = false; $("evVideo").pause(); $("evPlay").textContent = "▶ Reproducir"; }
+function pararEditor() { evReproduciendo = false; $("evVideo").pause(); evMusica.pause(); evFxPrev = null; $("evPlay").textContent = "▶ Reproducir"; }
+// Música y sonidos en la vista previa: la pista del último armado suena debajo de la voz siguiendo el cabezal, de corrido
+// aunque haya cortes (igual que en el video armado), y baja cuando se habla. Los sonidos suenan en su segundo.
+const evMusica = new Audio(); evMusica.preload = "auto";
+let evFxPrev = null;
+function inicioPieza(pz) {  // dónde empieza la pieza en el video armado sin recortes
+  const hd = est.hook.dur || 0, cd = est.cuerpo.partes.reduce((a, p) => Math.max(a, p.fin), 0);
+  return pz === "hook" ? 0 : pz === "cta" ? hd + cd : hd;
+}
+function realDe(tOrig, pegar = true) {  // segundo del video sin recortes → segundo del video editado (con velocidades)
+  let g = 0;
+  for (const s of segmentosEd()) {
+    const o = inicioPieza(s.pz) + s.a, d = s.b - s.a, v = s.vel || 1;
+    if (tOrig < o - .01) return pegar ? g : null;
+    if (tOrig <= o + d + .01) return g + Math.min(d, Math.max(0, tOrig - o)) / v;
+    g += d / v;
+  }
+  return pegar ? g : null;
+}
+function realEnCabezal() {
+  const segs = segmentosEd(); let g = 0;
+  for (let k = 0; k < evSeg && k < segs.length; k++) g += (segs[k].b - segs[k].a) / (segs[k].vel || 1);
+  const s = segs[evSeg]; return s ? g + Math.max(0, ed.t - s.g0) / (s.vel || 1) : g;
+}
+function sonarPrevia() {
+  const r = actual?.receta;
+  if (!evReproduciendo || !$("evConMusica").checked || !r) { evMusica.pause(); return; }
+  const tr = realEnCabezal();
+  const k = (r.pistas || []).findIndex(p => tr >= realDe(p.t0) - .01 && tr < realDe(p.t1));
+  if (k < 0) evMusica.pause();
+  else {
+    const url = `/pista?codigo=${encodeURIComponent(actual.codigo)}&k=${k}`;
+    if (!evMusica.src.endsWith(url)) evMusica.src = url;
+    const p = r.pistas[k], dur = evMusica.duration || 1e9, pos = (p.desde + tr - realDe(p.t0)) % dur;
+    if (Math.abs(evMusica.currentTime - pos) > .35) { try { evMusica.currentTime = pos; } catch (e) {} }
+    // baja sola cuando hay voz (como el ducking del armado)
+    const s = segmentosEd()[evSeg], o = s && ondas[s.pieza.nombre], v = $("evVideo");
+    const voz = o ? (o.picos[Math.floor(v.currentTime * o.por_seg)] || 0) : 0;
+    evMusica.volume = Math.min(1, (r.volumen_musica || .22) * (voz > .06 ? .45 : 1));
+    if (evMusica.paused) evMusica.play().catch(() => {});
+  }
+  if (evFxPrev != null && tr > evFxPrev && tr - evFxPrev < .5) {
+    for (const e of r.efectos || []) {
+      const te = realDe(e.t, false);
+      if (te != null && te > evFxPrev && te <= tr && e.id) { const a = new Audio("/sfx?id=" + encodeURIComponent(e.id)); a.volume = .6; a.play().catch(() => {}); }
+    }
+  }
+  evFxPrev = tr;
+}
 $("evPlay").onclick = () => {
   if (evReproduciendo) return pararEditor();
   evReproduciendo = true; $("evVideo").muted = false; $("evVideo").play(); $("evPlay").textContent = "❚❚ Pausa"; bucleEd();
@@ -3147,6 +3217,16 @@ async function guardarVersion(armar, nueva) {
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 $("evArmar").onclick = () => guardarEdicion();
+$("evSolo").onclick = async () => {  // los cambios quedan solo en este video (no crea otro ni toca los demás del cuerpo)
+  try {
+    pararEditor();
+    const r = await post("/api/version", { ...datosEd(), propio: true, codigo: est.codigo, id: est.codigo, armar: true });
+    $("dlg").close(); await cargar();
+    reabrir = r.codigo; vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Guardado solo en ${r.codigo}. Re-armándolo… los demás videos de ${est.cuerpo.nombre} no cambian.`, "ok");
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+};
+$("evPartes").onclick = async () => { if (!actual) return; pararEditor(); $("dlg").close(); await exportarPartes([actual.codigo]); };
 $("evGuardar").onclick = () => guardarVersion(true, true);
 // «Editar» abre el editor en su propia ventana grande (línea de tiempo + subtítulos de este video)
 $("edCuerpo").append($("editorVideo"), $("editorSubs"));
@@ -3160,10 +3240,13 @@ function abrirEditor() {
 $("irEditor").onclick = abrirEditor;
 $("edCerrar").onclick = () => $("dlgEditor").close();
 $("dlgEditor").addEventListener("close", pararEditor);
+$("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checked) evMusica.pause(); });
 $("evExportar").onclick = async () => { if (!actual) return; pararEditor(); elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
 $("evBorrar").onclick = async () => {
-  if (!est || est.base || !confirm(`¿Borrar la versión ${est.codigo}?`)) return;
-  try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar(); avisar("Versión borrada.", "ok"); }
+  if (!est || est.base || !confirm(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se re-arma.` : `¿Borrar la versión ${est.codigo}?`)) return;
+  try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar();
+    if (est.propio) { reabrir = est.codigo; vigilar(await (await fetch("/api/trabajo")).json()); }
+    avisar(est.propio ? `${est.codigo} vuelve a lo de ${est.cuerpo.nombre}. Re-armándolo…` : "Versión borrada.", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("dlg").addEventListener("close", pararEditor);

@@ -117,7 +117,8 @@ def estado():
         av = motor.ajustes_video(c["codigo"])
         # desactualizado: se cambió algo de sus piezas (subtítulos, recortes, zoom) o sus ajustes después de armarlo
         viejo = f.exists() and motor.editado_en(c) > f.stat().st_mtime + 1
-        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v), "existe": f.exists(), "desactualizado": viejo,
+        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v) and not v.get("propio"), "propio": bool(v.get("propio")),
+                        "existe": f.exists(), "desactualizado": viejo,
                         "estado": av.get("estado") or "pendiente",
                         "ajustes_portada": {**ap, "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
                         "ajustes_video": av, "video": url_media(f) if f.exists() else None,
@@ -250,6 +251,11 @@ def lanzar(accion, pieza=None, extra=None):
                     motor.armar(pieza, avance=avance)
                 if accion == "armar_sel":
                     motor.armar(avance=avance, codigos=extra["codigos"])
+                if accion == "partes_sel":
+                    hechos = motor.exportar_partes(extra["codigos"], avance=avance)
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
+                    avance(f"Exportados por partes {len(hechos)} videos a {motor.S.listos.name}/POR_PARTES")
                 if accion == "exportar_sel":
                     faltan = [c for c in motor.combinaciones() if c["codigo"] in extra["codigos"]
                               and not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
@@ -473,6 +479,16 @@ class H(BaseHTTPRequestHandler):
         elif u.path == "/sfx":
             f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
             if not f:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
+        elif u.path == "/pista":  # la música de un video, para escucharla en la vista previa del editor
+            q = parse_qs(u.query)
+            try:
+                r = json.loads((motor.S.recetas / f"{q['codigo'][0]}.json").read_text(encoding="utf-8"))
+                f = Path(r["pistas"][int(q["k"][0])]["archivo"])
+            except (KeyError, ValueError, IndexError, FileNotFoundError):
+                return self.send_error(404)
+            if not f.is_file():
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
         elif u.path == "/api/onda":
@@ -787,7 +803,8 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/version":
                 b = self._cuerpo()
                 if b.get("borrar"):
-                    motor.borrar_version(b["borrar"])
+                    if motor.borrar_version(b["borrar"]):  # eran ajustes propios: vuelve a lo de sus piezas
+                        lanzar("uno", b["borrar"])
                     return self._json({"ok": True})
                 vid = motor.guardar_version(b, b.get("id") or None)
                 if b.get("armar"):
