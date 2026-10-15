@@ -1973,14 +1973,14 @@ async function exportarPartes(codigos) {
 }
 $("exPartes").onclick = () => exportarPartes([...exElegidos]);
 $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMuestra(); });
-$("plantPredet").onclick = async () => { try { await guardarPlantilla(plantSel, null, true); avisar("Plantilla predeterminada guardada. Re-arma los videos para aplicarla.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantPredet").onclick = async () => { try { ofrecerRearmar(await guardarPlantilla(plantSel, null, true), "Plantilla predeterminada guardada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
   const nombre = prompt("Nombre de la nueva plantilla:", (E.plantillas[plantSel].nombre || plantSel) + " (mía)");
   if (!nombre) return;
   const id = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
   try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(E.plantillas[plantSel])), nombre, descripcion: "Plantilla propia" }); avisar("Plantilla creada: edítala a la derecha.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
 };
-$("plantGuardar").onclick = async () => { leerFormPlantilla(); try { await guardarPlantilla(plantSel, plantEdit); avisar("Plantilla guardada.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantGuardar").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit), "Plantilla guardada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantBorrar").onclick = async () => { if (!confirm(E.fabrica.includes(plantSel) ? "¿Volver esta plantilla a como venía de fábrica?" : "¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); if (!E.fabrica.includes(plantSel)) plantSel = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("subirFuente").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -3843,7 +3843,7 @@ $("ordenarVer").onclick = async () => {
 
 // ---------- Plantillas de subtítulos ----------
 let plantSel = null, plantEdit = null, plantTimer = null;
-const MUESTRA = ["LA", "RECUPERACIÓN", "PASA", "EN", "CASA"];
+const MUESTRA = ["La", "recuperación", "pasa", "en", "casa"];  // como sale de la transcripción: «Mayúsculas» decide
 const CLAVES_MUESTRA = new Set([1]);
 function cargarFuentesCSS() {
   let st = document.getElementById("ffaces");
@@ -3860,6 +3860,10 @@ function partirRenglones(palabras, pl) {
   for (let k = 1; k < n; k++) { suma += largos[k - 1]; const d = Math.abs(suma - (total - suma)); if (d < dif) { dif = d; mejor = k; } }
   return [todos.slice(0, mejor), todos.slice(mejor)];
 }
+function rgba(hex, a) {
+  const h = String(hex || "#000000").replace("#", "").padEnd(6, "0");
+  return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${Math.max(0, Math.min(1, a))})`;
+}
 function pintarLinea(el, palabras, activa, claves, pl, ancho) {
   const k = ancho / 1080, res = pl.resaltador || {}, modo = res.modo || "", l2 = pl.linea2 || {};
   el.style.fontFamily = `"F_${pl.fuente}", "Arial Black", sans-serif`;
@@ -3870,9 +3874,11 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
     const color = caja ? res.texto : j === activa ? pl.color_activo : claves.has(j) ? (pl.color_resaltado || "#99D3DA") : base;
     const escala = (j === activa ? (pl.escala_activa || 108) / 100 : 1) * (segunda ? (l2.escala || 100) / 100 : 1);
     const borde = caja ? 0 : (pl.borde || 0) * k * 2;
-    const sombra = caja || !pl.sombra ? "none" : `0 ${pl.sombra * k}px ${pl.sombra * k}px rgba(0,0,0,.6)`;
+    // como en el video (ASS): la sombra es una copia corrida en diagonal, del color y la opacidad elegidos
+    const sombra = caja || !pl.sombra ? "none" : `${pl.sombra * k}px ${pl.sombra * k}px ${(pl.desenfoque || 0) * k}px ${rgba(pl.color_sombra || "#000000", (pl.opacidad_sombra ?? 50) / 100)}`;
+    const extra = `letter-spacing:${(Number(pl.espaciado) || 0) / 100}em;${pl.desenfoque && !caja ? `filter:blur(${Math.min(3, pl.desenfoque * k * .5)}px);` : ""}`;
     const fuente = segunda && l2.fuente ? `font-family:'F_${l2.fuente}','Arial Black',sans-serif;` : "";
-    return `<span class="${caja ? "caja" : ""}" style="${fuente}color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio || .22)}em` : ""}">${esc(pl.mayusculas === false ? w : w.toUpperCase())}</span>`;
+    return `<span class="${caja ? "caja" : ""}" style="${fuente}${extra}color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio || .22)}em` : ""}">${esc(pl.mayusculas === false ? w : w.toUpperCase())}</span>`;
   };
   el.innerHTML = partirRenglones(palabras, pl).map((idx, r) => `<div class="renglon">${idx.map(j => span(palabras[j], j, r === 1)).join("")}</div>`).join("");
   // igual que en el video: si la línea no entra, se achica entera
@@ -3880,6 +3886,7 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
   for (let n = 0; n < 4 && disponible && el.scrollWidth > disponible + 1; n++) el.style.fontSize = (parseFloat(el.style.fontSize) * disponible / el.scrollWidth * 0.99) + "px";
 }
 function pintarPlantillas() {
+  if (!E) return;  // se abrió la pestaña antes de que la sala termine de cargar: se pinta al llegar los datos
   cargarFuentesCSS();
   const ids = Object.keys(E.plantillas);
   if (!plantSel || !E.plantillas[plantSel]) plantSel = E.plantilla;
@@ -3890,7 +3897,7 @@ function pintarPlantillas() {
       <div class="muestra" style="${fondo ? `background-image:url('${fondo}')` : ""}"><div class="sublinea" data-linea="${id}"></div></div>
       <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">predeterminada</span>' : ""} ${editada ? '<span class="pill azul">editada</span>' : !E.fabrica.includes(id) ? '<span class="pill">propia</span>' : ""}</b>
       <span class="muted" style="font-size:11px">${esc(pl.descripcion || "")}</span></button>`; }).join("");
-  ids.forEach(id => { const el = document.querySelector(`[data-linea="${id}"]`); pintarLinea(el, ["LA", "RECUPERACIÓN", "PASA"], 1, new Set([1]), E.plantillas[id], el.parentElement.clientWidth || 200); });
+  ids.forEach(id => { const el = document.querySelector(`[data-linea="${id}"]`); pintarLinea(el, ["La", "recuperación", "pasa"], 1, new Set([1]), E.plantillas[id], el.parentElement.clientWidth || 200); });
   $("plantFuente").innerHTML = $("plantFuente2").innerHTML = E.fuentes.map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}${f.propia ? " (propia)" : ""}</option>`).join("");
   $("plantElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("") || `<option value="">Sube una imagen primero</option>`;
   $("plantLienzo").style.backgroundImage = fondo ? `url('${fondo}')` : "";
@@ -3917,10 +3924,11 @@ function elegirPlantilla(id) {
   pintarElementos(); animarMuestra();
 }
 function leerFormPlantilla() {
+  if (!plantEdit) return;
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
     const [a, b] = el.dataset.p.split(".");
     let v = el.value;
-    if (el.type === "number" || el.type === "range") v = Number(v);
+    if (el.type === "number" || el.type === "range") v = v === "" ? Number(DEFECTO_PLANT[el.dataset.p] ?? (b ? (plantEdit[a] || {})[b] : plantEdit[a]) ?? 0) : Number(v);
     if (a === "mayusculas" || el.dataset.p === "linea2.activa") v = v === "true";
     if (b) { plantEdit[a] = plantEdit[a] || {}; plantEdit[a][b] = v; } else plantEdit[a] = v;
   });
@@ -3999,8 +4007,19 @@ $("plantListaElems").addEventListener("input", e => { const i = e.target.dataset
 $("plantListaElems").addEventListener("click", e => { const i = e.target.dataset.elemQuitar; if (i !== undefined) { plantEdit.elementos.splice(Number(i), 1); pintarElementos(); } });
 new ResizeObserver(() => { if (plantEdit && !$("plantLienzo").closest("[hidden]")) { colocarCaja(); pintarElementos(); } }).observe($("plantLienzo"));
 async function guardarPlantilla(id, datos, predeterminada) {
-  await post("/api/plantilla", { id, datos, predeterminada });
+  const r = await post("/api/plantilla", { id, datos, predeterminada });
   await cargar(); plantSel = id; pintarPlantillas();
+  return r;
+}
+// después de guardar: los videos que usan la plantilla se re-arman para verla en el video (no cambian solos)
+async function ofrecerRearmar(r, que) {
+  const n = (r && r.codigos || []).length;
+  if (!n) return avisar(`${que} Ningún video la usa todavía.`, "ok");
+  if (!confirm(`${que} ¿Re-armar ahora los ${n} video${n === 1 ? "" : "s"} que la usan para verla en el video?`))
+    return avisar(`${que} Los ${n} videos que la usan quedaron marcados «⟳ re-armar».`, "ok");
+  try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`${que} Re-armando ${n} videos… lo ves en Procesos (☰).`, "ok"); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
 }
 
 // ---------- Conexiones: guía de lo que hay que tener listo (Drive, Claude, Flow, Flow Music, panel, tablet) ----------

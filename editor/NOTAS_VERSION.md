@@ -1,3 +1,10 @@
+Versión 1.16.1 (se actualiza desde la app con «Actualizar ahora»):
+- Plantillas: «Mayúsculas: No» ya se ve en la vista previa (la muestra venía escrita en mayúsculas). En el video sí se aplicaba.
+- La vista previa ahora muestra la sombra como sale en el video: en diagonal, con su color, su opacidad y el desenfoque. También muestra el espacio entre letras.
+- Al guardar una plantilla (o elegir otra predeterminada), la sala ofrece re-armar los videos que la usan, y si no, los deja marcados «⟳ re-armar».
+- Un número vacío (por ejemplo, borrar el tamaño) ya no rompe el armado: vuelve al valor por defecto.
+- Abrir Plantillas antes de que la sala termine de cargar ya no da error.
+
 Versión 1.16.0 (se actualiza desde la app con «Actualizar ahora»):
 - Configuración (⚙) → «Conexiones para trabajar»: los pasos para dejar lista una PC nueva (Google Drive, Claude, Google Flow, Flow Music, Claude en Chrome, el panel y el teleprompter de la tablet), con botones para abrir cada uno. La sala marca sola lo que ya está conectado.
 - Exportar: «Peso máximo por video» (15, 20, 25, 30 o 50 MB). Si un video sale más pesado, se vuelve a exportar con la calidad justa para no pasarse. La ficha muestra el peso aproximado de cada video.

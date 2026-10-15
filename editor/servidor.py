@@ -729,10 +729,14 @@ class H(BaseHTTPRequestHandler):
                     propias = {k: v for k, v in motor.CONFIG.get("plantillas_propias", {}).items() if k != pid}
                     motor.guardar_config({"plantillas_propias": propias})
                 if b.get("datos"):  # una de fábrica editada se guarda encima (con «Restaurar» vuelve a la original)
-                    motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: b["datos"]}})
+                    datos = {**b["datos"], "editado": time.time()}  # así los videos que la usan quedan «por re-armar»
+                    motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: datos}})
                 if b.get("predeterminada"):
-                    motor.guardar_config({"plantilla_activa": pid})
-                self._json({"ok": True})
+                    motor.guardar_config({"plantilla_activa": pid, "plantilla_activa_cambio": time.time()})
+                # los videos que usan esta plantilla (para ofrecer re-armarlos)
+                usan = [c["codigo"] for c in motor.combinaciones()
+                        if (motor.ajustes_video(c["codigo"]).get("plantilla") or motor.id_plantilla()) == pid]
+                self._json({"ok": True, "codigos": usan})
             elif u.path == "/api/elemento":
                 nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])[-80:]
                 if not nombre.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):

@@ -1632,6 +1632,10 @@ def editado_en(combo):
         f = S.subs / f"{n}.json"
         if f.exists():
             t = max(t, f.stat().st_mtime)
+    # también si se cambió su plantilla de subtítulos o cuál es la predeterminada
+    t = max(t, float(plantilla_sub(combo).get("editado") or 0))
+    if not ajustes_video(combo["codigo"]).get("plantilla"):
+        t = max(t, float(CONFIG.get("plantilla_activa_cambio") or 0))
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
 
 
@@ -1984,12 +1988,22 @@ def id_plantilla():
     return next(iter(todas))
 
 
+# lo mínimo que necesita el armado: una plantilla propia vieja o a medio llenar no lo rompe
+PLANTILLA_BASE = {"fuente": "Anton-Regular.ttf", "tamano": 80, "mayusculas": True, "color_texto": "#FFFFFF", "color_activo": "#FFFFFF",
+                  "color_borde": "#000000", "borde": 3, "sombra": 2, "color_sombra": "#000000", "opacidad_sombra": 50,
+                  "escala_activa": 108, "espaciado": 0, "desenfoque": 0, "x_centro": 540, "ancho_max": 960}
+
+
 def plantilla_sub(combo=None):
     """Plantilla de subtítulos (fuente, colores, resaltador, posición). Si el video tiene una propia, esa."""
     todas = plantillas()
     propia = ajustes_video(combo["codigo"]).get("plantilla") if combo else None
     base = todas.get(propia) or todas[id_plantilla()]
-    return {**base, **(ajustes_video(combo["codigo"]).get("ajustes_sub", {}) if combo else {})}
+    pl = {**PLANTILLA_BASE, **{k: v for k, v in base.items() if v not in (None, "")},
+          **(ajustes_video(combo["codigo"]).get("ajustes_sub", {}) if combo else {})}
+    if not float(pl.get("tamano") or 0):
+        pl["tamano"] = PLANTILLA_BASE["tamano"]
+    return pl
 
 
 def _ajustes_video_path():
