@@ -3906,7 +3906,12 @@ $("actBuscar").onclick = async () => {
       $("actInstalar").onclick = () => $("vActualizar").click();
       revisarVersion();
     }
-  } catch (e) { $("actResultado").innerHTML = `<span class="pill warn">error</span> ${esc(e.message)}`; }
+  } catch (e) {
+    // «Failed to fetch»: la ventana está abierta pero el motor de la sala no responde (se apagó o lo cerraron)
+    $("actResultado").innerHTML = /fetch|network|load/i.test(e.message)
+      ? `<span class="pill warn">sin motor</span> La sala no responde: su motor se apagó. Cierra esta ventana y vuelve a abrir la sala; después busca la actualización otra vez.`
+      : `<span class="pill warn">error</span> ${esc(e.message)}`;
+  }
   b.disabled = false; b.textContent = "Buscar actualizaciones";
 };
 $("vActualizar").onclick = async () => {
