@@ -1,3 +1,9 @@
+Versión 1.18.1 (se actualiza desde la app con «Actualizar ahora»):
+- Claqueta fuera: la sala detecta sola el «3, 2, 1, va» del inicio de una toma (y lo que se dijo antes, como el nombre de la toma) y los reinicios cortos en medio («una, pa»), y los quita del video. En P01 salían en los 10 videos de C5 y C6.
+- Sonidos normalizados: la sala mide qué tan fuerte suena cada efecto y los lleva a todos al mismo nivel. En Sonidos eliges si suenan suaves, normales o fuertes, o lo apagas.
+- Portadas: la sala elige sola el mejor cuadro del hook (nítido, quieto, sin parpadeo ni mano movida). El que elijas a mano se respeta.
+- La portada mantiene su propio estilo (letra gruesa en mayúsculas), aunque el subtítulo sea más sobrio.
+
 Versión 1.18.0 (se actualiza desde la app con «Actualizar ahora»):
 - ▶ Producir todo (arriba): de los clips subidos a los videos exportados en un paso. Identifica, renombra, prepara, arma, revisa la calidad, exporta (y sube al panel, si quieres). Al final muestra un resumen. Con los 30 videos de P01 tardó 1 h 2 min.
 - Exportar → Revisión de calidad: videos muy largos, sin música, con imágenes que faltan, audio saturado o muy bajo, silencios largos, subtítulo donde lo tapan los botones de TikTok o cambios sin armar.

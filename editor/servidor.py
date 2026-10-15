@@ -178,7 +178,7 @@ def estado():
             "archivadas": motor.archivadas(), "siguiente_produccion": motor.siguiente_produccion(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "estilo_edicion": motor.estilo_edicion(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -899,6 +899,11 @@ class H(BaseHTTPRequestHandler):
                 if motor.CONFIG.get("panel", {}).get("token"):
                     threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
                 self._json({"ok": True, "pieza": pz})
+            elif u.path == "/api/sonidos_nivel":  # normalizar el volumen de los efectos (página Sonidos)
+                b = self._cuerpo()
+                aj = {"normalizar": bool(b.get("normalizar", True)), "objetivo_lufs": max(-30.0, min(-10.0, float(b.get("objetivo_lufs", -20))))}
+                motor.guardar_config({"sonidos_nivel": aj, "estilo_cambio": time.time()})
+                self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
             elif u.path == "/api/estilo_edicion":  # zoom alternado y fundido de imágenes (Plantillas → Estilo de edición)
                 b = self._cuerpo()
                 aj = {"zoom_alterno": bool(b.get("zoom_alterno")), "fundido": max(0.05, min(1.0, float(b.get("fundido", 0.12))))}

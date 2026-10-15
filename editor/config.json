@@ -135,7 +135,10 @@
     "oscurecer": 0.35,
     "tamano": 128,
     "marca": "SUPLEVET",
-    "margen_marca": 420
+    "margen_marca": 420,
+    "fuente": "Montserrat-Black.ttf",
+    "mayusculas": true,
+    "auto": true
   },
   "transcripcion": {
     "modelo": "small",

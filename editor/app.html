@@ -898,6 +898,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <span class="muted" style="font-size:12.5px">Los efectos que la sala pone en los videos, por tipo (vienen de «SOUND FX» en Drive). Toca ▶ para escuchar y «Elegir» para usarlo: luego, en el editor del video, lo pones donde está el cabezal.</span></div>
         <input id="sonBuscar" type="search" placeholder="Buscar sonido…">
       </div>
+      <div class="fila" style="margin-top:10px;font-size:13px" id="sonNivel"></div>
       <div class="son-chips" id="sonChips"></div>
       <p id="sonElegido" class="muted" style="margin:10px 0 0;font-size:13px">Ningún sonido elegido.</p>
     </div>
@@ -2091,7 +2092,7 @@ document.addEventListener("click", e => {
     if (tab.dataset.tab === "plantillas") { pintarPlantillas(); pintarEstiloEdicion(); }
     if (tab.dataset.tab === "resultados") pintarResultados();
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
-    if (tab.dataset.tab === "sonidos") pintarSonidos();
+    if (tab.dataset.tab === "sonidos") { pintarSonidos(); pintarNivelSonidos(); }
     if (tab.dataset.tab === "guion") pintarGuion();
     return;
   }
@@ -2722,6 +2723,19 @@ async function pintarSonidos() {
   $("sonElegido").innerHTML = sonElegido ? `Elegido: <b>${esc(sonElegido.nombre)}</b> (${esc(sonElegido.cat)}). Ábrelo en el editor del video y toca «+ Agregar en el cabezal».` : "Ningún sonido elegido.";
 }
 $("sonBuscar").addEventListener("input", pintarSonidos);
+function pintarNivelSonidos() {
+  const n = E.sonidos_nivel || { normalizar: true, objetivo_lufs: -20 };
+  $("sonNivel").innerHTML = `<label class="fila"><input type="checkbox" id="snNorm" ${n.normalizar ? "checked" : ""}> <b>Normalizar:</b>&nbsp;todos los efectos al mismo volumen</label>
+    <select id="snNivel" ${n.normalizar ? "" : "disabled"}>${[[-24, "suaves"], [-20, "normales (recomendado)"], [-16, "fuertes"]].map(([v, t]) =>
+      `<option value="${v}" ${Math.round(n.objetivo_lufs) === v ? "selected" : ""}>${t}</option>`).join("")}</select>
+    <button class="btn sec peq" id="snGuardar" type="button">Guardar</button>`;
+  $("snNorm").onchange = () => { $("snNivel").disabled = !$("snNorm").checked; };
+  $("snGuardar").onclick = async () => {
+    try { const r = await post("/api/sonidos_nivel", { normalizar: $("snNorm").checked, objetivo_lufs: Number($("snNivel").value) });
+      await cargar(); pintarNivelSonidos(); ofrecerRearmar(r, "Volumen de los sonidos guardado."); }
+    catch (e) { avisar("Error: " + e.message, "err"); }
+  };
+}
 $("sonChips").addEventListener("click", e => { const b = e.target.closest("[data-son-cat]"); if (b) { sonCat = b.dataset.sonCat; pintarSonidos(); } });
 document.addEventListener("click", e => {
   const t = e.target.closest("[data-tocar]"); if (t) { tocar(t.dataset.tocar); return; }

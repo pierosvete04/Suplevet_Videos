@@ -1015,6 +1015,39 @@ def guion_para_grabar_actual():
 
 # ---------- Forma de onda del audio (para cortar guiándose por la voz) ----------
 
+def sonoridad(f):
+    """Qué tan fuerte suena un sonido (LUFS integrados; si es muy corto, su promedio en dB). En caché."""
+    f = Path(f)
+    cache = DATOS / "ondas" / "sonoridad.json"
+    try:
+        tabla = json.loads(cache.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        tabla = {}
+    firma = f"{f}|{f.stat().st_size}|{int(f.stat().st_mtime)}"
+    if firma in tabla:
+        return tabla[firma]
+    r = run([FFMPEG, "-hide_banner", "-i", str(f), "-vn", "-af", "ebur128,volumedetect", "-f", "null", "-"])
+    i = re.findall(r"I:\s+(-?[\d.]+) LUFS", r.stderr)
+    prom = re.search(r"mean_volume: (-?[\d.]+) dB", r.stderr)
+    valor = float(i[-1]) if i and float(i[-1]) > -60 else (float(prom.group(1)) - 3 if prom else -20.0)
+    tabla[firma] = valor
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(tabla), encoding="utf-8")
+    return valor
+
+
+def ganancia_normalizada(f):
+    """Factor de volumen para que todos los sonidos suenen al mismo nivel (config sonidos.normalizar / objetivo_lufs)."""
+    so = {**CONFIG["sonidos"], **CONFIG.get("sonidos_nivel", {})}  # sonidos_nivel: lo elegido en la página Sonidos
+    if not so.get("normalizar", True):
+        return 1.0
+    try:
+        db = float(so.get("objetivo_lufs", -20)) - sonoridad(f)
+    except Exception:  # noqa: BLE001 — si no se puede medir, queda como está
+        return 1.0
+    return 10 ** (max(-15.0, min(12.0, db)) / 20)
+
+
 def onda_archivo(f, por_seg=50):
     """Picos de volumen de un archivo de audio cualquiera (un sonido de la biblioteca), en caché."""
     import numpy as np
@@ -1660,7 +1693,67 @@ def _con_silencios_fuera(combo, v):
 def edicion_de(combo):
     """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas.
     Los bloques sin recorte puesto a mano empiezan justo antes de que se hable (ver _con_silencios_fuera)."""
-    return _con_zoom_alterno(combo, _con_silencios_fuera(combo, _edicion_guardada(combo)))
+    return _con_zoom_alterno(combo, _con_silencios_fuera(combo, _sin_claqueta(combo, _edicion_guardada(combo))))
+
+
+_CUENTA = [{"3", "tres"}, {"2", "dos"}, {"1", "uno", "una"}]
+_YA = {"pa", "va", "ya", "accion", "vamos", "dale", "go", "pum"}
+
+
+def claquetas(nombre):
+    """Lo que se dice para arrancar una toma y no debe salir en el video: la cuenta «3, 2, 1, va» (y lo que se dijo
+    antes, como el nombre de la toma) y los reinicios cortos en medio («una, pa»). [(desde, hasta)] en s de la pieza."""
+    pal = [w for ln in leer_subs(nombre)["lineas"] for w in ln["palabras"]]
+    k = [norm(w["w"]) for w in pal]
+    out = []
+    j = 0
+    while j < len(pal):
+        cuenta = j + 2 < len(pal) and all(k[j + n] in _CUENTA[n] for n in range(3))
+        corto = not cuenta and k[j] in {"1", "uno", "una"} and j + 1 < len(pal) and k[j + 1] in _YA
+        if cuenta or corto:
+            fin = j + (2 if cuenta else 1)
+            if fin + 1 < len(pal) and k[fin + 1] in _YA:
+                fin += 1
+            sigue = pal[fin + 1]["s"] if fin + 1 < len(pal) else pal[fin]["e"]
+            desde = 0.0 if cuenta and pal[j]["s"] < 12 else max(0.0, pal[j]["s"] - 0.05)  # al inicio, todo lo de antes también
+            out.append((round(desde, 2), round(max(desde + 0.05, sigue - 0.08), 2)))
+            j = fin + 1
+            continue
+        j += 1
+    return out
+
+
+def _sin_claqueta(combo, v):
+    """Quita la claqueta de cada pieza (si no se recortó a mano): al inicio, recorte; en medio, tramo quitado."""
+    if not CONFIG.get("quitar_claqueta", True):
+        return v
+    r, qr = dict(v.get("recortes") or {}), {k: list(x) for k, x in (v.get("quitar_rangos") or {}).items()}
+    cambio = False
+    for clave, nombre in (("hook", combo["hook"]), ("cuerpo", combo["cuerpo"]), ("cta", combo["cta"])):
+        cl = claquetas(nombre)
+        if not cl:
+            continue
+        f = S.proc / f"{nombre}.mp4"
+        dur = dur_audio(f) if f.exists() else None
+        for a, b in cl:
+            if a == 0.0:  # al inicio: el clip arranca después de la cuenta
+                if clave == "cuerpo":
+                    partes = partes_de(nombre)
+                    pr = dict(r.get("partes") or {})
+                    p0 = next((p for p in partes if p["ini"] <= b < p["fin"]), partes[0] if partes else None)
+                    if p0 and str(p0["i"]) not in pr:
+                        pr[str(p0["i"])] = [round(b - p0["ini"], 2), round(p0["fin"] - p0["ini"], 2)]
+                        quitar_antes = [p["i"] for p in partes if p["fin"] <= b]
+                        r["partes"] = pr
+                        v = {**v, "quitar": sorted(set(v.get("quitar") or []) | set(quitar_antes))}
+                        cambio = True
+                elif not r.get(clave) and dur:
+                    r[clave] = [b, round(dur, 2)]
+                    cambio = True
+            else:
+                qr.setdefault(clave, []).append([a, b])
+                cambio = True
+    return {**v, "recortes": r, "quitar_rangos": qr} if cambio else v
 
 
 def estilo_edicion():
@@ -2667,9 +2760,56 @@ def texto_portada(combo):
     return t
 
 
+def mejor_cuadro(hook):
+    """El segundo del hook que mejor sirve de portada: el cuadro más nítido y quieto (sin mano movida ni parpadeo a
+    medias), dentro de la parte con voz. Se calcula una vez por clip."""
+    import numpy as np
+    f = S.proc / f"{hook}.mp4"
+    if not f.exists():
+        return CONFIG["portada"]["segundo"]
+    cache = S.proc / f"{hook}.portada.json"
+    firma = f"{f.stat().st_size}-{int(f.stat().st_mtime)}"
+    try:
+        d = json.loads(cache.read_text(encoding="utf-8"))
+        if d.get("firma") == firma:
+            return d["segundo"]
+    except (FileNotFoundError, ValueError):
+        pass
+    fps, w, h = 6, 90, 160
+    crudo = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vf", f"fps={fps},scale={w}:{h},format=gray",
+                            "-f", "rawvideo", "-"], capture_output=True).stdout
+    n = len(crudo) // (w * h)
+    if n < 3:
+        return CONFIG["portada"]["segundo"]
+    cuadros = np.frombuffer(crudo[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float32)
+    lineas = leer_subs(hook)["lineas"]
+    ini = max(0.3, (lineas[0]["s"] if lineas else 0.3))
+    fin = (lineas[-1]["e"] if lineas else n / fps) - 0.2
+    mejor, puntos = None, -1.0
+    for i in range(1, n - 1):
+        t = i / fps
+        if not (ini <= t <= fin):
+            continue
+        c = cuadros[i][: h * 2 // 3]  # la parte de arriba (la cara), no las manos sobre la mesa
+        nitidez = float(np.var(np.diff(c, axis=0)) + np.var(np.diff(c, axis=1)))
+        mov = float(np.mean(np.abs(cuadros[i] - cuadros[i - 1])) + np.mean(np.abs(cuadros[i + 1] - cuadros[i])))
+        p = nitidez / (1.0 + mov * 0.8)
+        if p > puntos:
+            mejor, puntos = round(t, 2), p
+    segundo = mejor if mejor is not None else CONFIG["portada"]["segundo"]
+    cache.write_text(json.dumps({"firma": firma, "segundo": segundo}), encoding="utf-8")
+    return segundo
+
+
 def segundo_portada(combo):
+    """El elegido a mano; si no, el mejor cuadro del hook (config portada.auto, sí por defecto). El segundo que trae el
+    guion solo se usa sin auto: se escribió antes de grabar y no sabe qué cuadro sirve."""
     a = ajustes_portada(combo["codigo"])
-    return float(a.get("segundo", info_pieza(combo["hook"]).get("portada_segundo", CONFIG["portada"]["segundo"])))
+    if a.get("segundo") is not None:
+        return float(a["segundo"])
+    if CONFIG["portada"].get("auto", True):
+        return mejor_cuadro(combo["hook"])
+    return float(info_pieza(combo["hook"]).get("portada_segundo", CONFIG["portada"]["segundo"]))
 
 
 def cuadro(combo, segundo, destino, ancho=540):
@@ -2692,15 +2832,18 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     aj = {**ajustes_portada(combo["codigo"]), **(prueba or {})}
     import fuentes
     pl = plantilla_sub(combo)
+    # la portada tiene su propio estilo (config portada.fuente / mayusculas): no cambia si el subtítulo es más sobrio
     try:
-        fuente = fuentes.cargar(aj.get("fuente") or pl["fuente"]).nombre
+        fuente = fuentes.cargar(aj.get("fuente") or cfg.get("fuente") or pl["fuente"]).nombre
     except Exception:
         fuente = fuentes.cargar(pl["fuente"]).nombre
     acento = color_ass(aj.get("color_acento") or (pl.get("resaltador") or {}).get("color") or pl["color_activo"])
     blanco = color_ass(aj.get("color_texto") or "#FFFFFF")
     titulo = aj.get("titulo") or texto_portada(combo)
-    if pl.get("mayusculas", True) and not aj.get("fuente"):
+    if cfg.get("mayusculas", pl.get("mayusculas", True)) and not aj.get("fuente"):
         titulo = titulo.upper()
+    else:  # en minúsculas, la primera letra va en mayúscula (también después de ¿ o ¡)
+        titulo = re.sub(r"^([¿¡*\s]*)(\w)", lambda m: m.group(1) + m.group(2).upper(), titulo)
     titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c{blanco}}}", limpiar(titulo.replace("{", "")))
     y = int(float(aj["y"])) if aj.get("y") not in (None, "") else POSICION_TITULO.get(aj.get("posicion", "centro"), 960)
     tam = int(float(aj.get("tamano") or cfg["tamano"]))
@@ -2948,7 +3091,8 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None)
     for k, e in enumerate(eventos):
         cmd += ["-i", str(e["archivo"])]
         ms = int(e["t"] * 1000)
-        vk = vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0) * float(e.get("vol", 1.0))
+        vk = (vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0) * float(e.get("vol", 1.0))
+              * ganancia_normalizada(e["archivo"]))  # todos al mismo nivel; luego el volumen de su tipo y el puesto a mano
         recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
                    f"afade=t=out:st={max(0, e['largo'] - 0.15):.2f}:d=0.15,")
         f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}"
