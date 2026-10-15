@@ -2118,8 +2118,9 @@ ESCALA_ESTILO = {"normal": 1.0, "arriba": 1.0, "centro_grande": 1.35, "sobre_ima
 
 
 def carpeta_trabajo():
-    """Carpeta temporal de armado, con las fuentes al lado (ffmpeg no acepta bien rutas con espacios y ':')."""
-    trabajo = DATOS / "_trabajo"
+    """Carpeta temporal de armado, con las fuentes al lado (ffmpeg no acepta bien rutas con espacios y ':').
+    Una por proceso: si hay dos salas abiertas a la vez (o la sala y una prueba), no se pisan los archivos."""
+    trabajo = DATOS / "_trabajo" / f"p{os.getpid()}"
     (trabajo / "fuentes").mkdir(parents=True, exist_ok=True)
     import fuentes
     for f in [*(RAIZ / "fuentes").glob("*.ttf"), *fuentes.PROPIAS.glob("*.[ot]tf")]:

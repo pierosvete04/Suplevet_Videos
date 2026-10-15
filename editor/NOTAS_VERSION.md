@@ -1,3 +1,6 @@
+Versión 1.18.3 (se actualiza desde la app con «Actualizar ahora»):
+- Si hay dos salas abiertas a la vez en la misma PC, cada una arma en su propia carpeta y ya no se pisan los archivos (antes un video podía fallar con «Invalid data found»).
+
 Versión 1.18.2 (se actualiza desde la app con «Actualizar ahora»):
 - «Armar todos los videos» ahora solo arma (antes también exportaba y se juntaban copias en V.FINALES). Exportar se hace aparte, en Exportar, cuando decidas publicar.
 - «Producir todo» viene con «Exportar» apagado; lo prendes solo si quieres exportar en el mismo paso.
