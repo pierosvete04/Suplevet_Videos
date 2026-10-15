@@ -1,3 +1,18 @@
+Versión 1.18.0 (se actualiza desde la app con «Actualizar ahora»):
+- ▶ Producir todo (arriba): de los clips subidos a los videos exportados en un paso. Identifica, renombra, prepara, arma, revisa la calidad, exporta (y sube al panel, si quieres). Al final muestra un resumen. Con los 30 videos de P01 tardó 1 h 2 min.
+- Exportar → Revisión de calidad: videos muy largos, sin música, con imágenes que faltan, audio saturado o muy bajo, silencios largos, subtítulo donde lo tapan los botones de TikTok o cambios sin armar.
+- Resultados (pestaña nueva): carga las vistas y la retención de cada video (o pégalas de Excel). La sala te dice qué tipo de hook, qué hook y qué cuerpo ganan, y Claude lo usa al escribir los próximos guiones.
+- Editor: un solo botón «💾 Guardar cambios», que guarda y re-arma solo los videos que cambian (lo del cuerpo va a todos sus videos).
+- Editor, pista «Sonidos»: cada sonido con su largo real y su onda. Se arrastra y se mueve de verdad (ya no queda una copia tachada), se recorta desde sus bordes y tiene su propio volumen. En la vista previa suena recortado.
+- Editor, pista «Imágenes»: las imágenes del guion con su miniatura. Se pueden arrastrar (pasan a ser tuyas) y se ven en la vista previa.
+- Arreglo: «◆ Fotograma clave» e «Imagen o escena en el cabezal» habían dejado de funcionar en la 1.14.0.
+- Arreglo: el riser automático no se podía mover ni quitar (quedaba duplicado).
+- Piezas y subtítulos → Marcas, rediseñada: el texto dicho palabra por palabra con su segundo. Tocas una palabra y le pones imagen, sonido, estilo o música. Filtros por tipo, lista en orden y, si una marca del guion no encuentra su palabra, te sugiere la más parecida («✨ Arreglar solas»).
+- Las marcas del guion se ubican solas en la palabra más parecida si la persona dijo otra («veterinaria» por «veterinario»).
+- Plantillas: «Guardar y usar como predeterminada» ahora guarda tus cambios (antes se perdían y el cuadro volvía al medio).
+- Estilo del editor del equipo: plantilla «Editor (limpio)» (la frase completa en 1 o 2 líneas, blanca, sin cajas) y, en Plantillas → Estilo de edición, «zoom alternado» por frase y «fundido suave» en imágenes y clips.
+- Audio con más margen (sin llegar al tope).
+
 Versión 1.17.0 (se actualiza desde la app con «Actualizar ahora»):
 - 🔔 Notificaciones (arriba, junto a ☰): todos los avisos de la sala (listo, errores) quedan guardados con su hora. El número rojo dice cuántos no leíste.
 - Los avisos ahora se ven aunque esté abierto el detalle del video o el editor. Antes quedaban tapados detrás de la ventana.

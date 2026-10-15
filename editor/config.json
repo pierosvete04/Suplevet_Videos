@@ -370,6 +370,30 @@
         "escala": 135,
         "color": "#4DE1FF"
       }
+    },
+    "editor_limpio": {
+      "nombre": "Editor (limpio)",
+      "descripcion": "Como edita el equipo: DM Sans Bold blanca, minúsculas normales, la frase entera en 1 o 2 líneas, sin cajas ni colores.",
+      "fuente": "DMSans-Bold.ttf",
+      "tamano": 54,
+      "mayusculas": false,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#000000",
+      "borde": 3,
+      "sombra": 2,
+      "color_sombra": "#000000",
+      "opacidad_sombra": 60,
+      "color_activo": "#FFFFFF",
+      "escala_activa": 100,
+      "color_resaltado": "#FFFFFF",
+      "resaltador": {
+        "modo": ""
+      },
+      "salto_auto": true,
+      "ancho_max": 900,
+      "x_centro": 540,
+      "altura_desde_abajo": 470,
+      "frase_completa": true
     }
   },
   "sfx_palabras": {
@@ -457,5 +481,9 @@
       "resultados",
       "lo logramos"
     ]
+  },
+  "estilo_edicion": {
+    "zoom_alterno": false,
+    "fundido": 0.12
   }
 }

@@ -1015,6 +1015,36 @@ def guion_para_grabar_actual():
 
 # ---------- Forma de onda del audio (para cortar guiándose por la voz) ----------
 
+def onda_archivo(f, por_seg=50):
+    """Picos de volumen de un archivo de audio cualquiera (un sonido de la biblioteca), en caché."""
+    import numpy as np
+    f = Path(f)
+    if not f.is_file():
+        return {"por_seg": por_seg, "picos": [], "dur": 0}
+    firma = f"{f.stat().st_size}-{int(f.stat().st_mtime)}-{por_seg}"
+    cache = DATOS / "ondas" / (hashlib.md5(str(f).encode("utf-8")).hexdigest() + ".json")
+    if cache.exists():
+        try:
+            d = json.loads(cache.read_text(encoding="utf-8"))
+            if d.get("firma") == firma:
+                return d
+        except ValueError:
+            pass
+    sr = 8000
+    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
+                          "-f", "s16le", "-"], capture_output=True).stdout
+    x = np.abs(np.frombuffer(pcm, dtype=np.int16).astype(np.float32)) / 32768
+    paso = sr // por_seg
+    n = len(x) // paso
+    picos = x[:n * paso].reshape(n, paso).max(axis=1) if n else np.zeros(0)
+    tope = float(picos.max()) if n else 1.0
+    picos = np.clip(picos / max(tope, 1e-4), 0, 1)
+    d = {"firma": firma, "por_seg": por_seg, "dur": round(len(x) / sr, 3), "picos": [round(float(v), 3) for v in picos]}
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(d), encoding="utf-8")
+    return d
+
+
 def onda(nombre, por_seg=50):
     """Picos de volumen de una pieza procesada: {por_seg, picos: [0–1]} (en caché mientras no cambie el video)."""
     import numpy as np
@@ -1279,12 +1309,35 @@ def ubicar(lineas, palabra, n=1):
     return None
 
 
+def ubicar_parecida(lineas, palabra, minimo=0.72):
+    """Si la palabra exacta del guion no se dijo (se grabó «veterinaria» y el guion dice «veterinario»), la más
+    parecida que sí se dijo. Devuelve (linea, indice, parecido, lo_que_se_dijo) o None."""
+    import difflib
+    objetivo = [norm(x) for x in palabra.split() if norm(x)]
+    if not objetivo:
+        return None
+    plano = [(li, wi, norm(p["w"]), p["w"]) for li, ln in enumerate(lineas) for wi, p in enumerate(ln["palabras"])]
+    n, mejor = len(objetivo), None
+    for k in range(len(plano) - n + 1):
+        trozo = plano[k:k + n]
+        r = difflib.SequenceMatcher(None, " ".join(objetivo), " ".join(x[2] for x in trozo)).ratio()
+        if r >= minimo and (not mejor or r > mejor[2]):
+            mejor = (trozo[0][0], trozo[0][1], round(r, 2), " ".join(x[3] for x in trozo))
+    return mejor
+
+
 def resolver_marcas(pieza, lineas):
-    """Convierte las marcas en eventos con tiempo (relativo a la pieza)."""
+    """Convierte las marcas en eventos con tiempo (relativo a la pieza). Si la palabra exacta no se dijo, se usa
+    la más parecida (así la imagen, el sonido o la música salen igual aunque la persona cambie una palabra)."""
     out, perdidas = [], []
     for m in marcas_de(pieza):
         pos = ubicar(lineas, m.get("palabra", ""), m.get("n", 1))
         if pos is None:
+            cerca = ubicar_parecida(lineas, m.get("palabra", ""))
+            if cerca:
+                li, wi, _, dicho = cerca
+                out.append({**m, "linea": li, "indice": wi, "t": lineas[li]["palabras"][wi]["s"], "aproximada": dicho})
+                continue
             perdidas.append(f"{pieza}: «{m.get('palabra')}»")
             continue
         li, wi = pos
@@ -1607,7 +1660,28 @@ def _con_silencios_fuera(combo, v):
 def edicion_de(combo):
     """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas.
     Los bloques sin recorte puesto a mano empiezan justo antes de que se hable (ver _con_silencios_fuera)."""
-    return _con_silencios_fuera(combo, _edicion_guardada(combo))
+    return _con_zoom_alterno(combo, _con_silencios_fuera(combo, _edicion_guardada(combo)))
+
+
+def estilo_edicion():
+    return {"zoom_alterno": False, "fundido": 0.12, **CONFIG.get("estilo_edicion", {})}
+
+
+def _con_zoom_alterno(combo, v):
+    """«Zoom alternado» (como edita el equipo): una frase del cuerpo de lejos y la siguiente más cerca, en cada corte.
+    Solo en las frases sin zoom puesto a mano y si el cuerpo no tiene fotogramas clave."""
+    if not estilo_edicion()["zoom_alterno"]:
+        return v
+    z = dict(v.get("zoom") or {})
+    if (z.get("puntos") or {}).get("cuerpo"):
+        return v
+    partes = dict(z.get("partes") or {})
+    visibles = [p["i"] for p in partes_de(combo["cuerpo"]) if p["i"] not in (v.get("quitar") or [])]
+    for k, i in enumerate(visibles):
+        if k % 2 == 1 and str(i) not in partes:
+            partes[str(i)] = {"tipo": "punch", "fuerza": 0.14}
+    z["partes"] = partes
+    return {**v, "zoom": z}
 
 
 def _edicion_guardada(combo):
@@ -1633,7 +1707,7 @@ def editado_en(combo):
         if f.exists():
             t = max(t, f.stat().st_mtime)
     # también si se cambió su plantilla de subtítulos o cuál es la predeterminada
-    t = max(t, float(plantilla_sub(combo).get("editado") or 0))
+    t = max(t, float(plantilla_sub(combo).get("editado") or 0), float(CONFIG.get("estilo_cambio") or 0))
     if not ajustes_video(combo["codigo"]).get("plantilla"):
         t = max(t, float(CONFIG.get("plantilla_activa_cambio") or 0))
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
@@ -2056,6 +2130,27 @@ def cabecera_ass(fuente_nombre, pl):
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", ""])
 
 
+def _frases(lineas, max_pal=8, max_car=44, pausa=0.6):
+    """Junta las líneas cortas de la transcripción en frases completas (como subtitula el editor del equipo):
+    hasta un punto, una pausa o un largo máximo. Devuelve (lineas_nuevas, {(li, wi): (li_nueva, wi_nueva)})."""
+    out, mapa = [], {}
+    for li, ln in enumerate(lineas):
+        act = out[-1] if out else None
+        texto = (act["texto"] + " " + ln["texto"]) if act else ln["texto"]
+        junta = (act and act["palabras"] and not re.search(r"[.?!…]$", act["texto"].strip())
+                 and ln["s"] - act["e"] < pausa and len(texto.split()) <= max_pal and len(texto) <= max_car)
+        if junta:
+            base = len(act["palabras"])
+            act["palabras"] = act["palabras"] + ln["palabras"]
+            act["texto"], act["e"] = texto, ln["e"]
+        else:
+            base = 0
+            out.append({**ln, "palabras": list(ln["palabras"])})
+        for wi in range(len(ln["palabras"])):
+            mapa[(li, wi)] = (len(out) - 1, base + wi)
+    return out, mapa
+
+
 def escribir_ass(segmentos, ruta, tapas=(), combo=None):
     """segmentos: [(offset, lineas, marcas_resueltas)]. tapas: [(ini, fin)] donde hay imagen a pantalla completa.
 
@@ -2073,6 +2168,10 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
 
     todas = []
     for off, lineas, marcas in segmentos:
+        if pl.get("frase_completa"):  # la frase entera en pantalla, no de a 2 o 3 palabras
+            lineas, mapa_li = _frases(lineas)
+            marcas = [{**m, "linea": mapa_li.get((m["linea"], m["indice"]), (m["linea"], m["indice"]))[0],
+                       "indice": mapa_li.get((m["linea"], m["indice"]), (m["linea"], m["indice"]))[1]} for m in marcas]
         estilo_linea, solas, resaltadas = {}, set(), set()
         for m in marcas:
             sub = m.get("sub")
@@ -2100,10 +2199,14 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
     ancho_max = max(200.0, min(1080.0, float(pl.get("ancho_max", 960))))
     blur = f"\\blur{float(pl['desenfoque']):.1f}" if pl.get("desenfoque") else ""
 
-    def partir(textos):
-        """Índices de cada renglón: un solo renglón, o dos parejos por cantidad de letras."""
+    def partir(textos, tam0=None):
+        """Índices de cada renglón: un solo renglón, o dos parejos por cantidad de letras (con «segunda línea», o con
+        «salto_auto» cuando la frase no entra en el ancho del cuadro)."""
         n = len(textos)
-        if not l2.get("activa") or n < 2:
+        if n < 2:
+            return [list(range(n))]
+        no_entra = pl.get("salto_auto") and tam0 and fu.ancho(" ".join(textos), tam0) * 1.05 > ancho_max
+        if not l2.get("activa") and not no_entra:
             return [list(range(n))]
         largos = [len(t) for t in textos]
         mejor = min(range(1, n), key=lambda k: abs(sum(largos[:k]) - sum(largos[k:])))
@@ -2112,11 +2215,12 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
     def poner_linea(palabras, activa, estilo, ini, fin, cajas, coloreadas, pop):
         tam0 = pl["tamano"] * ESCALA_ESTILO[estilo]
         textos = [limpiar(w.upper() if pl.get("mayusculas", True) else w) for w in palabras]
-        filas = partir(textos) if estilo != "palabra_sola" else [list(range(len(textos)))]
+        filas = partir(textos, tam0) if estilo != "palabra_sola" else [list(range(len(textos)))]
         medidas = []
         for r, idx in enumerate(filas):
-            f_ = fu2 if r == 1 else fu
-            tam = tam0 * (l2.get("escala", 100) / 100 if r == 1 else 1)
+            otra = r == 1 and l2.get("activa")  # la segunda línea con su propia letra (si no, es la misma frase en dos renglones)
+            f_ = fu2 if otra else fu
+            tam = tam0 * (l2.get("escala", 100) / 100 if otra else 1)
             esp = f_.ancho(" ", tam) * 1.1
             # la palabra activa se ve más grande: se le reserva ese espacio para que no pise a sus vecinas
             crece = {j: (pl.get("escala_activa", 108) / 100 if j == activa else 1.0) for j in idx}
@@ -2126,9 +2230,9 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
             if total > ancho_max:  # no entra en el cuadro de texto: se achica el renglón entero
                 f = ancho_max / total
                 tam, esp, anchos, total = tam * f, esp * f, [a * f for a in anchos], ancho_max
-            medidas.append({"fu": f_, "tam": tam, "esp": esp, "anchos": anchos, "total": total, "idx": idx, "crece": crece, "r": r,
-                            "fsp": letras * tam / (tam0 * (l2.get("escala", 100) / 100 if r == 1 else 1))})
-        altos = [m["tam"] * 1.02 for m in medidas]
+            medidas.append({"fu": f_, "tam": tam, "esp": esp, "anchos": anchos, "total": total, "idx": idx, "crece": crece, "r": r if otra or r == 0 else 0,
+                            "fsp": letras * tam / (tam0 * (l2.get("escala", 100) / 100 if otra else 1))})
+        altos = [m["tam"] * (1.02 if len(medidas) == 1 or l2.get("activa") else 1.12) for m in medidas]
         bloque = sum(altos)
         # la altura del subtítulo normal se mueve desde la plantilla (o desde el ajuste del video)
         if estilo == "normal":
@@ -2256,17 +2360,19 @@ def biblioteca_sonidos():
     return out
 
 
-def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None):
+def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None, desde=None, largo=None, vol=None):
     """Sonido puesto o quitado a mano en una pieza (vale para todos los videos que la usan). t = segundo dentro de la pieza.
-    accion: agregar | quitar | cambiar (quita el que había en ese segundo y pone el nuevo) | mover (a t_nuevo).
-    Devuelve los videos a re-armar."""
+    accion: agregar | quitar | cambiar (quita el que había en ese segundo y pone el nuevo) | mover (a t_nuevo) |
+    ajustar (mover y/o recortar: t_nuevo, desde, largo, vol). t es el segundo con el que la sala conoce ese sonido
+    (para los automáticos, el de su marca). Devuelve los videos a re-armar."""
     todo = ajustes_piezas()
     a = todo.setdefault(pieza, {})
     t = round(float(t), 2)
     manuales = a.setdefault("sonidos", [])
-    if accion == "mover":  # se quita de donde estaba y se pone el mismo sonido en el segundo nuevo
+    if accion in ("mover", "ajustar"):  # se quita de donde estaba y se pone el mismo sonido (recortado) en el segundo nuevo
         editar_sonido(pieza, "quitar", t, cat)
-        return editar_sonido(pieza, "agregar", max(0.0, float(t_nuevo)), cat, sid if sid and ruta_sonido(sid) else None)
+        return editar_sonido(pieza, "agregar", max(0.0, float(t if t_nuevo is None else t_nuevo)), cat,
+                             sid if sid and ruta_sonido(sid) else None, desde=desde, largo=largo, vol=vol)
     if accion in ("quitar", "cambiar"):
         antes = len(manuales)
         manuales[:] = [x for x in manuales if not (abs(x["t"] - t) < 0.2 and x["cat"] == cat)]
@@ -2275,7 +2381,8 @@ def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None)
     if accion in ("agregar", "cambiar"):
         if sid and not ruta_sonido(sid):
             raise ValueError("Ese sonido no está en la biblioteca")
-        manuales.append({"t": t, "cat": cat_nuevo or cat, **({"archivo": sid} if sid else {})})
+        extra = {k: round(float(v), 3) for k, v in (("desde", desde), ("largo", largo), ("vol", vol)) if v not in (None, "")}
+        manuales.append({"t": t, "cat": cat_nuevo or cat, **({"archivo": sid} if sid else {}), **extra})
     a["editado"] = time.time()
     todo[pieza] = {k: v for k, v in a.items() if v not in ([], None)}
     S.subs.mkdir(parents=True, exist_ok=True)
@@ -2378,7 +2485,8 @@ def planear_sonidos(combo, offs, total, subs, marcas):
         for q in ap.get("sonidos_quitar", []):
             cand = [c for c in cand if not (c["cat"] == q["cat"] and abs(c["t"] - (off + q["t"])) < 0.25)]
         for sm in ap.get("sonidos", []):
-            cand.append({"cat": sm["cat"], "t": off + sm["t"], "prio": 4, "motivo": "puesto a mano", "archivo": sm.get("archivo")})
+            cand.append({"cat": sm["cat"], "t": off + sm["t"], "prio": 4, "motivo": "puesto a mano", "archivo": sm.get("archivo"),
+                         "a_mano": {k: sm[k] for k in ("desde", "largo", "vol") if k in sm}})
     # Filtro de densidad: un efecto opcional no puede caer muy cerca de otro
     elegidos = []
     sep = so["separacion_minima"]
@@ -2392,11 +2500,18 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             continue
         maxd = so.get("duracion_maxima", {}).get(c["cat"], so.get("duracion_maxima", {}).get("default", 2.5))
         d = dur_audio(f)
-        t, desde = c["t"], 0.0
-        if c["cat"] == "riser":  # el riser termina en el corte; si es largo se usa solo su final
+        t, desde, largo = c["t"], 0.0, min(d, maxd)
+        if c["cat"] == "riser" and c["prio"] < 4:
+            # el riser automático termina en el corte; si es largo se usa solo su final
             desde = max(0.0, d - maxd)
-            t = max(0.0, c["t"] - min(d, maxd))
-        elegidos.append({**c, "t": round(t, 2), "archivo": f, "desde": round(desde, 2), "largo": round(min(d, maxd), 2)})
+            t = max(0.0, c["t"] - largo)
+        am = c.get("a_mano") or {}
+        if "desde" in am:  # recortado a mano en el editor
+            desde = max(0.0, min(float(am["desde"]), d - 0.05))
+        if "largo" in am:
+            largo = max(0.05, min(float(am["largo"]), d - desde))
+        elegidos.append({**c, "t": round(t, 2), "tm": round(c["t"], 2), "archivo": f, "desde": round(desde, 2), "largo": round(largo, 2),
+                         "dur_archivo": round(d, 2), "vol": float(am.get("vol", 1.0))})
     return sorted(elegidos, key=lambda e: e["t"]), silencios
 
 
@@ -2499,7 +2614,10 @@ def filtro_broll(i, ov):
     if modo != "completa":
         cadena += f",pad={W + 16}:{H + 16}:8:8:white"
         x, y = x - 8, y - 8
-    cadena += f",format=yuva420p,fade=t=in:st=0:d=0.12:alpha=1,setpts=PTS-STARTPTS+{t:.3f}/TB[o{i}]"
+    fd = max(0.05, min(float(estilo_edicion().get("fundido", 0.12)), dur / 3))  # «fundido»: entra y sale suave
+    cadena += (f",format=yuva420p,fade=t=in:st=0:d={fd:.2f}:alpha=1"
+               + (f",fade=t=out:st={max(0, dur - fd):.2f}:d={fd:.2f}:alpha=1" if fd > 0.15 else "")
+               + f",setpts=PTS-STARTPTS+{t:.3f}/TB[o{i}]")
     return cadena, x, y
 
 
@@ -2661,9 +2779,10 @@ def armar_uno(combo, n_musica=0, extras=None):
 
     # Imágenes y clips de Flow
     overlays, faltan = [], []
+    en_capas = {c["id"].lower() for cs in (edicion_de(combo).get("capas") or {}).values() for c in cs}
     for off, ms in zip(offs, marcas):
         for m in ms:
-            if not m.get("asset"):
+            if not m.get("asset") or m["asset"].lower() in en_capas:  # movida a mano en el editor: va como capa
                 continue
             f = buscar_asset(m["asset"])
             if not f:
@@ -2775,6 +2894,8 @@ def armar_uno(combo, n_musica=0, extras=None):
               "faltan_musica": faltan_musica,
               # t: segundo del video sin recortes (lo usa el editor); te: segundo en el video armado (None si se cortó)
               "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "cat": e["cat"], "id": id_sonido(e["archivo"]), "t": e["t"],
+                           "tm": e.get("tm", e["t"]), "desde": e.get("desde", 0), "largo": e.get("largo"), "dur_archivo": e.get("dur_archivo"),
+                           "vol": e.get("vol", 1.0),
                            "te": None if mapa(e["t"]) is None else round(mapa(e["t"]), 2), "motivo": e["motivo"]} for e in eventos],
               "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "te": round(mapa(o["t"], True), 2), "dur": round(o["dur"], 2),
                             "modo": o["modo"]} for o in overlays],
@@ -2827,7 +2948,7 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None)
     for k, e in enumerate(eventos):
         cmd += ["-i", str(e["archivo"])]
         ms = int(e["t"] * 1000)
-        vk = vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0)
+        vk = vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0) * float(e.get("vol", 1.0))
         recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
                    f"afade=t=out:st={max(0, e['largo'] - 0.15):.2f}:d=0.15,")
         f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}"
@@ -2835,7 +2956,7 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None)
         mezcla.append(f"[s{k}]")
         sfx.append(f"[sx{k}]")
         idx += 1
-    f.append(f"{''.join(mezcla)}amix=inputs={len(mezcla)}:normalize=0:duration=first,alimiter=limit=0.95[a]")
+    f.append(f"{''.join(mezcla)}amix=inputs={len(mezcla)}:normalize=0:duration=first,alimiter=limit=0.89:level=disabled[a]")
     cmd += ["-filter_complex", ";".join(f), "-map", "0:v", "-map", "[a]", "-dn", "-map_chapters", "-1", "-t", f"{total:.2f}",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(salida)]
     if extras:  # las pistas por separado, del largo del video
@@ -3059,6 +3180,170 @@ def exportar(avance=print, codigos=None, ajustes=None):
                 encoding="utf-8")
             hechos.append(cod)
     return hechos
+
+
+# ---------- Revisión de calidad antes de exportar ----------
+
+def _calidad_path():
+    return S.recetas / "_calidad.json"
+
+
+def _medir_audio(video):
+    """(pico dB, promedio dB, [(desde, dura)] silencios de más de 1 s) del video armado."""
+    r = run([FFMPEG, "-hide_banner", "-i", str(video), "-vn", "-af", "volumedetect,silencedetect=n=-42dB:d=1.0", "-f", "null", "-"])
+    pico = re.search(r"max_volume: (-?[\d.]+) dB", r.stderr)
+    prom = re.search(r"mean_volume: (-?[\d.]+) dB", r.stderr)
+    ini = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", r.stderr)]
+    dur = [float(x) for x in re.findall(r"silence_duration: ([\d.]+)", r.stderr)]
+    return (float(pico.group(1)) if pico else None, float(prom.group(1)) if prom else None, list(zip(ini, dur)))
+
+
+def revisar_calidad(codigos=None, avance=print):
+    """Revisa cada video armado antes de exportar y dice qué tiene mal: muy largo, sin música, faltan imágenes,
+    volumen muy bajo o saturado, silencios largos, subtítulo donde lo tapan los botones de TikTok o Instagram,
+    o cambios sin armar. Se guarda (y se recalcula solo si el video cambió)."""
+    try:
+        cache = json.loads(_calidad_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        cache = {}
+    out = {}
+    lista = [c for c in combinaciones() if not codigos or c["codigo"] in codigos]
+    for n, c in enumerate(lista, 1):
+        v = S.salida / f"{c['archivo']}.mp4"
+        if not v.exists():
+            out[c["codigo"]] = {"problemas": [{"nivel": "err", "txt": "Todavía no está armado"}]}
+            continue
+        firma = f"{int(v.stat().st_mtime)}-{v.stat().st_size}"
+        if cache.get(c["codigo"], {}).get("firma") == firma:
+            out[c["codigo"]] = cache[c["codigo"]]
+        else:
+            avance(f"Revisando calidad {c['archivo']} ({n}/{len(lista)})")
+            p = []
+            try:
+                r = json.loads((S.recetas / f"{c['codigo']}.json").read_text(encoding="utf-8"))
+            except (FileNotFoundError, ValueError):
+                r = {}
+            dur = r.get("duracion") or duracion(v)
+            if dur > 90:
+                p.append({"nivel": "err", "txt": f"Dura {dur:.0f} s: muy largo para Reels o TikTok (ideal menos de 60 s)"})
+            elif dur > 60:
+                p.append({"nivel": "warn", "txt": f"Dura {dur:.0f} s: más de 60 s"})
+            if not r.get("musica"):
+                p.append({"nivel": "warn", "txt": "No tiene música"})
+            if r.get("faltan_musica"):
+                p.append({"nivel": "warn", "txt": "Falta la música del guion: " + ", ".join(r["faltan_musica"]) + " (usó otra pista)"})
+            if r.get("faltan_assets"):
+                p.append({"nivel": "err", "txt": "Faltan imágenes: " + ", ".join(r["faltan_assets"])})
+            if r.get("marcas_sin_encontrar"):
+                p.append({"nivel": "warn", "txt": "Marcas del guion sin su palabra (no salió la imagen o el efecto): "
+                          + ", ".join(r["marcas_sin_encontrar"][:4])})
+            pico, prom, silencios = _medir_audio(v)
+            if pico is not None and pico > -0.3:
+                p.append({"nivel": "warn", "txt": f"El audio llega al tope ({pico:.1f} dB): puede sonar saturado"})
+            if prom is not None and prom < -30:
+                p.append({"nivel": "err", "txt": f"El audio está muy bajo (promedio {prom:.0f} dB)"})
+            largos = [(a, d) for a, d in silencios if d >= 1.2 and a > 0.3]
+            if largos:
+                p.append({"nivel": "warn", "txt": "Silencio largo: " + ", ".join(f"{d:.1f} s en el segundo {a:.0f}" for a, d in largos[:3])})
+            out[c["codigo"]] = {"firma": firma, "problemas": p}
+        # lo que depende de la plantilla o de cambios pendientes se mira siempre (no se guarda)
+        extra = []
+        pl = plantilla_sub(c)
+        altura = float(ajustes_video(c["codigo"]).get("altura") or pl.get("altura_desde_abajo") or 560)
+        if altura < 330:
+            extra.append({"nivel": "warn", "txt": f"Subtítulo muy abajo ({altura:.0f} px): lo tapan el texto y los botones de TikTok o Instagram (mínimo ~330 px)"})
+        if editado_en(c) > v.stat().st_mtime + 1:
+            extra.append({"nivel": "warn", "txt": "Tiene cambios sin armar: re-ármalo antes de exportar"})
+        out[c["codigo"]] = {**out[c["codigo"]], "problemas": out[c["codigo"]]["problemas"] + extra}
+    guardar = {k: {**v, "problemas": [x for x in v["problemas"] if x.get("nivel") != "info" and "cambios sin armar" not in x["txt"]
+                                      and "Subtítulo muy abajo" not in x["txt"]]} for k, v in out.items() if v.get("firma")}
+    S.recetas.mkdir(parents=True, exist_ok=True)
+    _calidad_path().write_text(json.dumps({**cache, **guardar}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return out
+
+
+# ---------- Resultados: qué hook funciona mejor ----------
+# Las vistas y la retención que tuvo cada video en redes. Se guardan en la sesión (Drive) para todo el equipo.
+
+def _metricas_path():
+    return S.principal / "metricas.json"
+
+
+def metricas():
+    try:
+        return json.loads(_metricas_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def guardar_metricas(datos):
+    """datos: {codigo: {"vistas": 1200, "retencion": 45, "me_gusta": 30, "compartidos": 4, "guardados": 2, "red": "tiktok"}}."""
+    m = metricas()
+    for cod, v in datos.items():
+        limpio = {}
+        for k in ("vistas", "retencion", "me_gusta", "comentarios", "compartidos", "guardados"):
+            try:
+                if v.get(k) not in (None, ""):
+                    limpio[k] = round(float(str(v[k]).replace(",", ".").replace("%", "")), 2)
+            except ValueError:
+                pass
+        if limpio:
+            m[cod] = {**m.get(cod, {}), **limpio, "actualizado": time.strftime("%Y-%m-%d")}
+        elif cod in m and v == {}:
+            m.pop(cod)
+    _metricas_path().write_text(json.dumps(m, ensure_ascii=False, indent=1), encoding="utf-8")
+    escribir_resumen_resultados()
+    return m
+
+
+def ranking():
+    """Promedios por tipo de hook, por hook y por cuerpo, con lo que ya se cargó. Lo que gana sale primero."""
+    m = metricas()
+    filas = []
+    for c in combinaciones():
+        if c.get("version") and not c["version"].get("propio"):
+            continue
+        d = m.get(c["codigo"])
+        if not d or not d.get("vistas"):
+            continue
+        filas.append({**d, "codigo": c["codigo"], "hook": c["hook"], "cuerpo": c["cuerpo"], "cta": c["cta"],
+                      "tipo_hook": info_pieza(c["hook"]).get("tipo") or "sin tipo",
+                      "texto_hook": info_pieza(c["hook"]).get("texto", "")})
+
+    def agrupar(campo):
+        g = {}
+        for f in filas:
+            g.setdefault(f[campo], []).append(f)
+        out = []
+        for k, fs in g.items():
+            ret = [f["retencion"] for f in fs if f.get("retencion") is not None]
+            inter = [(f.get("me_gusta", 0) + f.get("comentarios", 0) + f.get("compartidos", 0) + f.get("guardados", 0)) / f["vistas"] * 100
+                     for f in fs if f.get("vistas")]
+            out.append({"clave": k, "videos": len(fs), "vistas": round(sum(f["vistas"] for f in fs) / len(fs)),
+                        "retencion": round(sum(ret) / len(ret), 1) if ret else None,
+                        "interaccion": round(sum(inter) / len(inter), 2) if inter else None,
+                        "texto": fs[0].get("texto_hook", "") if campo == "hook" else ""})
+        return sorted(out, key=lambda x: (x["retencion"] if x["retencion"] is not None else -1, x["vistas"]), reverse=True)
+    return {"videos": len(filas), "tipo_hook": agrupar("tipo_hook"), "hook": agrupar("hook"), "cuerpo": agrupar("cuerpo")}
+
+
+def escribir_resumen_resultados():
+    """Guion/resultados.md: lo que funcionó en esta sesión, para que Claude lo use al escribir los próximos guiones."""
+    r = ranking()
+    if not r["videos"]:
+        (S.guion / "resultados.md").unlink(missing_ok=True)
+        return
+    lineas = [f"# Resultados de {S.semana}", "", f"Videos con datos: {r['videos']}. Ordenado por retención (y vistas).", "",
+              "## Por tipo de hook", ""]
+    lineas += [f"- {x['clave']}: retención {x['retencion']} % · {x['vistas']} vistas promedio · {x['videos']} videos" for x in r["tipo_hook"]]
+    lineas += ["", "## Hooks que mejor funcionaron", ""]
+    lineas += [f"- {x['clave']} («{x['texto']}»): retención {x['retencion']} % · {x['vistas']} vistas" for x in r["hook"][:5]]
+    lineas += ["", "## Hooks que peor funcionaron", ""]
+    lineas += [f"- {x['clave']} («{x['texto']}»): retención {x['retencion']} % · {x['vistas']} vistas" for x in r["hook"][-3:]]
+    lineas += ["", "## Por cuerpo", ""]
+    lineas += [f"- {x['clave']}: retención {x['retencion']} % · {x['vistas']} vistas" for x in r["cuerpo"]]
+    S.guion.mkdir(parents=True, exist_ok=True)
+    (S.guion / "resultados.md").write_text("\n".join(lineas) + "\n", encoding="utf-8")
 
 
 # ---------- Checklist ----------

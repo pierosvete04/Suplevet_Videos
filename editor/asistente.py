@@ -142,6 +142,8 @@ En produccion.json deja decidido todo: estilos de subtítulo, imágenes de Flow 
 Escribe los tres archivos (guiones.md, hoja_de_grabacion.md y produccion.json) directamente en:
 {guion}
 Las sesiones anteriores (para no repetir cuerpos ni hooks) están en {anteriores} (cada una con su carpeta Guion).
+Si alguna tiene Guion/resultados.md, son las vistas y la retención reales de sus videos: usa más los tipos de hook
+y los temas que ganaron, y evita los que peor funcionaron (dilo en tu resumen final).
 Los prompts de Flow y de música van siempre. Al terminar responde en 5 líneas: ideas, ángulos y cuántas imágenes y pistas hay que generar."""
     texto = correr(prompt, [carpeta, anteriores], avance=avance)
     prod = guion / "produccion.json"
@@ -164,6 +166,7 @@ def proponer_temas(cuerpos, publico, idea, avance=print):
 en {motor.S.base} (cada una con Guion/), y propone temas para {cuerpos} cuerpos de video para {publico}.
 {('Idea del equipo: ' + idea.strip()) if idea.strip() else 'Elige tú las ideas según lo que más vende y lo que no se ha hecho.'}
 Sigue la skill suplevet-guionista-modular para elegir ideas y ángulos (no repitas temas ya hechos).
+Si alguna sesión tiene Guion/resultados.md (vistas y retención reales), prioriza los temas y ángulos que mejor funcionaron.
 Responde SOLO con JSON, sin texto antes ni después: una lista de {cuerpos * 2} objetos, 2 opciones por cuerpo, en orden
 (cuerpo 1 opción A, cuerpo 1 opción B, cuerpo 2 opción A…), cada uno así:
 {{"cuerpo": 1, "tema": "frase corta", "angulo": "qué es | cómo se hace | error común | caso real | mito | pregunta frecuente", "por_que": "una línea"}}"""

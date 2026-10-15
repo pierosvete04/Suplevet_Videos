@@ -178,7 +178,7 @@ def estado():
             "archivadas": motor.archivadas(), "siguiente_produccion": motor.siguiente_produccion(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "estilo_edicion": motor.estilo_edicion(), "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -259,6 +259,21 @@ def lanzar(accion, pieza=None, extra=None):
         TRABAJO["mensaje"] = msg
         TRABAJO["log"] = (TRABAJO["log"] + [msg])[-200:]
 
+    def renombrar_todo():
+        plan = motor.plan_renombrar()["cambios"]
+        hechos = 0
+        for n, cb in enumerate(plan, 1):
+            motor.revisar_cancelado()
+            avance(f"Renombrando {Path(cb['viejo']).name} → {cb['nuevo']} ({n}/{len(plan)})")
+            if drive.estado()["activo"]:
+                drive.mover(cb["sesion"], cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
+            motor.aplicar_renombre(cb)
+            hechos += 1
+        if drive.estado()["activo"]:
+            for m in {cb["sesion"] for cb in plan}:
+                drive.subir(m, ["asignaciones.json"], avance=lambda x: None)
+        return hechos
+
     def correr():
         motor.HILO_TRABAJO["id"] = threading.get_ident()
         try:
@@ -275,19 +290,45 @@ def lanzar(accion, pieza=None, extra=None):
                     avance(f"{n} clips identificados solos")
                     subir_asignaciones()
                 if accion in ("renombrar", "ordenar_todo"):
-                    plan = motor.plan_renombrar()["cambios"]
-                    hechos = 0
-                    for n, cb in enumerate(plan, 1):
-                        motor.revisar_cancelado()
-                        avance(f"Renombrando {Path(cb['viejo']).name} → {cb['nuevo']} ({n}/{len(plan)})")
-                        if drive.estado()["activo"]:
-                            drive.mover(cb["sesion"], cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
-                        motor.aplicar_renombre(cb)
-                        hechos += 1
-                    if drive.estado()["activo"]:
-                        for m in {cb["sesion"] for cb in plan}:
-                            drive.subir(m, ["asignaciones.json"], avance=lambda x: None)
+                    hechos = renombrar_todo()
                     avance(f"Listo: {hechos} clips con el nombre de su pieza")
+                if accion == "producir":  # «Producir todo»: de los clips subidos a los videos exportados, en un solo paso
+                    op, t0, res = extra or {}, time.time(), {}
+                    avance("1/6 · Escuchando los clips nuevos y comparándolos con el guion")
+                    motor.escuchar_clips(avance=avance)
+                    res["identificados"] = motor.aceptar_sugerencias(0.5)
+                    subir_asignaciones()
+                    if op.get("renombrar", True):
+                        avance("2/6 · Renombrando los clips con el código de su pieza")
+                        res["renombrados"] = renombrar_todo()
+                    avance("3/6 · Preparando los clips (recortar, volumen, transcribir)")
+                    motor.procesar(avance=avance)
+                    avance("4/6 · Armando los videos")
+                    res["armados"] = len(motor.armar(avance=avance))
+                    avance("5/6 · Revisando la calidad")
+                    calidad = motor.revisar_calidad(avance=avance)
+                    res["con_problemas"] = sorted(k for k, v in calidad.items() if any(p["nivel"] == "err" for p in v["problemas"]))
+                    res["con_avisos"] = sorted(k for k, v in calidad.items() if any(p["nivel"] == "warn" for p in v["problemas"]))
+                    if op.get("exportar", True):
+                        avance("6/6 · Exportando")
+                        listos = [c for c in calidad if c not in res["con_problemas"]] if op.get("saltar_errores", True) else None
+                        res["exportados"] = 0 if listos == [] else len(motor.exportar(avance=avance, codigos=listos, ajustes={"por_dia": True}))
+                        if drive.estado()["activo"]:
+                            drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
+                    if op.get("panel") and motor.CONFIG.get("panel", {}).get("token"):
+                        avance("Subiendo al panel")
+                        res["panel"] = panel.subir_semana(avance=avance)
+                    inf = motor.informe_clips()
+                    res["sin_identificar"] = [d["clip"] for d in inf["dudas"]]
+                    res["faltan_grabar"] = inf["faltan"]
+                    res["faltan_flow"] = [a["id"] for a in motor.checklist()["assets"] if not a["listo"]]
+                    res["faltan_musica"] = [m["id"] for m in motor.checklist()["musica"] if not m["listo"]]
+                    res["duracion"] = round(time.time() - t0)
+                    TRABAJO["resultado"] = res
+                    avance(f"Producción lista: {res['armados']} videos armados"
+                           + (f", {res.get('exportados', 0)} exportados" if op.get("exportar", True) else "")
+                           + (f", {len(res['con_problemas'])} con problemas" if res["con_problemas"] else "")
+                           + (f", {len(res['sin_identificar'])} clips sin identificar" if res["sin_identificar"] else ""))
                 if accion == "partes_sel":
                     hechos = motor.exportar_partes(extra["codigos"], avance=avance)
                     if drive.estado()["activo"]:
@@ -385,6 +426,8 @@ def lanzar(accion, pieza=None, extra=None):
             TRABAJO["fin"] = time.time()
             # cuántos videos (o clips) pasaron por el trabajo, para saber cuánto tarda cada uno
             pasos = [l for l in TRABAJO["log"] if l.startswith(("Armando ", "Exportando ", "Renombrando ", "Procesando ", "Transcribiendo "))]
+            if accion == "producir":
+                pasos = [l for l in TRABAJO["log"] if l.startswith("Armando ")]
             h = {"accion": accion, "sesion": motor.S.semana, "inicio": TRABAJO["inicio"], "fin": TRABAJO["fin"],
                  "duracion": round(TRABAJO["fin"] - TRABAJO["inicio"], 1), "cantidad": len(pasos),
                  "resultado": "cancelado" if TRABAJO.get("cancelado") else "error" if TRABAJO["error"] else "listo",
@@ -538,10 +581,18 @@ class H(BaseHTTPRequestHandler):
             self._archivo(f.parent, f.name)
         elif u.path == "/api/informe_clips":
             self._json(motor.informe_clips())
+        elif u.path == "/api/calidad":
+            q2 = parse_qs(u.query)
+            self._json(motor.revisar_calidad(q2["codigos"][0].split(",") if q2.get("codigos") else None, avance=lambda m: None))
+        elif u.path == "/api/resultados":
+            self._json({"metricas": motor.metricas(), "ranking": motor.ranking()})
         elif u.path == "/api/historial":
             self._json(leer_historial())
         elif u.path == "/api/renombrar":
             self._json(motor.plan_renombrar())
+        elif u.path == "/api/onda_sonido":  # forma de onda de un sonido de la biblioteca (pista «Sonidos» del editor)
+            f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
+            self._json(motor.onda_archivo(f) if f else {"por_seg": 50, "picos": [], "dur": 0})
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
         elif u.path == "/api/guion_doc":
@@ -833,6 +884,14 @@ class H(BaseHTTPRequestHandler):
                 drive.subir_grupos()
                 drive.subir_archivadas()
                 self._json({"ok": True, "nuevo": nuevo})
+            elif u.path == "/api/producir":
+                b = self._cuerpo()
+                lanzar("producir", extra={k: bool(b.get(k)) for k in ("renombrar", "exportar", "saltar_errores", "panel")})
+                self._json({"ok": True})
+            elif u.path == "/api/metricas":  # vistas y retención de cada video (para saber qué hook funciona)
+                m = motor.guardar_metricas(self._cuerpo().get("datos") or {})
+                drive.subir_en_segundo_plano(motor.S.drive, ["metricas.json", "Guion"])
+                self._json({"ok": True, "metricas": m, "ranking": motor.ranking()})
             elif u.path == "/api/guion_texto":  # editar lo que dice una pieza: Drive, panel y teleprompter
                 b = self._cuerpo()
                 pz = motor.editar_texto_pieza(str(b["pieza"]), b.get("texto", ""), b.get("partes"))
@@ -840,6 +899,11 @@ class H(BaseHTTPRequestHandler):
                 if motor.CONFIG.get("panel", {}).get("token"):
                     threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
                 self._json({"ok": True, "pieza": pz})
+            elif u.path == "/api/estilo_edicion":  # zoom alternado y fundido de imágenes (Plantillas → Estilo de edición)
+                b = self._cuerpo()
+                aj = {"zoom_alterno": bool(b.get("zoom_alterno")), "fundido": max(0.05, min(1.0, float(b.get("fundido", 0.12))))}
+                motor.guardar_config({"estilo_edicion": aj, "estilo_cambio": time.time()})
+                self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
             elif u.path == "/api/silencios":  # cortar solo el silencio del inicio y del final de cada clip
                 b = self._cuerpo()
                 aj = {"auto": bool(b.get("auto", True)), "margen": max(0.0, min(0.5, float(b.get("margen", 0.08))))}
@@ -847,13 +911,16 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, **aj})
             elif u.path == "/api/sonido":
                 b = self._cuerpo()
-                if b.get("accion") not in ("agregar", "quitar", "cambiar", "mover"):
+                if b.get("accion") not in ("agregar", "quitar", "cambiar", "mover", "ajustar"):
                     raise ValueError("Acción no válida")
-                codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"))
+                codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"),
+                                              b.get("desde"), b.get("largo"), b.get("vol"))
                 self._json({"ok": True, "codigos": codigos})
             elif u.path == "/api/edicion":
                 b = self._cuerpo()
                 codigos = motor.guardar_edicion_piezas(b)
+                # más los videos con sonidos cambiados en el editor (ya guardados, falta re-armarlos)
+                codigos = sorted(set(codigos) | set(b.get("extra_codigos") or []))
                 if b.get("armar") and codigos:
                     lanzar("armar_sel", extra={"codigos": codigos})
                 self._json({"ok": True, "codigos": codigos})
