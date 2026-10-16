@@ -199,6 +199,6 @@ La sala aplica el plan sola cuando termines."""
     plan = trabajo / "plan.json"
     if plan.exists():
         r = motor.aplicar_plan(json.loads(plan.read_text(encoding="utf-8")))
-        avance("Plan aplicado. Re-arma los videos para verlo.")
+        avance("Plan aplicado. Rearma los videos para verlo.")
         return {"texto": texto, "aplicado": r}
     return {"texto": texto, "aplicado": None}

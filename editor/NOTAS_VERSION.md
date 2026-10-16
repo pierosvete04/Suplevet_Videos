@@ -1,3 +1,8 @@
+Versión 1.21.4 (se actualiza desde la app con «Actualizar ahora»):
+- Editar sonido → «Sin silencios»: quita todos los silencios del sonido (al inicio, en medio y al final) y deja solo lo que suena. Compáralo con «▶ Original» y quédate con el que prefieras. La onda «Resultado» lo muestra más corto.
+- Ecualizador: graves y agudos pueden ir en «Estante» (suben o bajan todo hacia ese extremo) o en «Campana» (solo alrededor de su frecuencia). La rueda del mouse sobre una campana la hace más ancha o más fina. La ayuda ya no tapa la curva.
+- Textos de toda la sala revisados: etiquetas y estados con la primera letra en mayúscula («Guion listo», «Sin armar», «Aprobado»), «Claude listo» en vez de «conectado», «Drive conectado», «rearmar» sin guion, plurales correctos («1 cuerpo») y tipos de sonido sin mayúscula en cada palabra.
+
 Versión 1.21.3 (se actualiza desde la app con «Actualizar ahora»):
 - Teleprompter, «Seguir mi voz»: ya no salta de la nada. Sigue lo que vas leyendo en orden, solo hacia adelante, no se va a una frase repetida más abajo ni reacciona a palabras sueltas o ruido, y desliza suave. Si mueves tú la pantalla, no se pelea contigo. (También en el teleprompter del panel, cuando el panel se publique.)
 - Sonidos: la página queda fija; solo se desplazan la lista, los tipos y el panel, cada uno por dentro.

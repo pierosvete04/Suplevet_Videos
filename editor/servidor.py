@@ -392,7 +392,7 @@ def lanzar(accion, pieza=None, extra=None):
                     if r["aplicado"]:
                         avance("Ojo: estas palabras del plan no se dijeron: " + ", ".join(r["aplicado"][:5]))
                     motor.armar(avance=avance)
-                    avance("Revisión de Claude aplicada y videos re-armados")
+                    avance("Revisión de Claude aplicada y videos rearmados")
                 if accion == "uno":
                     combo = next(c for c in motor.combinaciones() if c["codigo"] == pieza)
                     avance(f"Armando {combo['archivo']}")

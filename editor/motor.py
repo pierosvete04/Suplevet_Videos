@@ -2608,7 +2608,8 @@ def biblioteca_sonidos():
         vistas.add(cat)
         archivos = [{"id": id_sonido(f), "nombre": f.stem, **({"aj": aj} if (aj := ajustes_sonido(id_sonido(f))) else {})}
                     for f in sfx_de(cat) if id_sonido(f)]
-        out.append({"cat": cat, "nombre": NOMBRES_SFX.get(cat, cat.replace("_", " ")), "archivos": archivos})
+        nombre = NOMBRES_SFX.get(cat, cat.replace("_", " "))
+        out.append({"cat": cat, "nombre": nombre[:1].upper() + nombre[1:], "archivos": archivos})  # tipo oración
     return out
 
 
@@ -2623,8 +2624,12 @@ AJUSTES_SONIDO = {  # campo: (mínimo, máximo, neutro)
     "graves": (-15.0, 15.0, 0.0), "graves_f": (40.0, 600.0, 150.0),
     "medios": (-15.0, 15.0, 0.0), "medios_f": (150.0, 10000.0, 1000.0), "medios_q": (0.3, 6.0, 1.0),
     "agudos": (-15.0, 15.0, 0.0), "agudos_f": (1500.0, 14000.0, 4000.0),
+    "graves_q": (0.3, 6.0, 1.0), "agudos_q": (0.3, 6.0, 1.0),  # ancho, solo cuando la banda va en campana
     "fade_in": (0.0, 3.0, 0.0), "fade_out": (0.0, 3.0, 0.0), "vol": (0.0, 3.0, 1.0),
 }
+
+
+AJUSTES_SONIDO_SI_NO = ("invertir", "sin_silencios", "graves_campana", "agudos_campana")  # opciones de sí o no
 
 
 def ajustes_sonido(sid):
@@ -2643,8 +2648,9 @@ def guardar_ajustes_sonido(sid, aj):
         v = round(max(lo, min(hi, float(aj[k]))), 3)
         if v != neutro:
             limpio[k] = v
-    if aj.get("invertir"):
-        limpio["invertir"] = True
+    for k in AJUSTES_SONIDO_SI_NO:
+        if aj.get(k):
+            limpio[k] = True
     todos = dict(CONFIG.get("ajustes_sonidos") or {})
     if limpio:
         todos[sid] = limpio
@@ -2701,6 +2707,22 @@ def sonido_editado(f, prueba=None):
     desde = min(float(aj.get("desde", 0)), max(0.0, d - 0.05))
     hasta = float(aj.get("hasta", 0)) or d
     hasta = max(desde + 0.05, min(hasta, d))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    if aj.get("sin_silencios"):
+        # pasada previa: el recorte sin ningún silencio (ni al inicio, ni en medio, ni al final); umbral relativo al
+        # pico del propio sonido, y deja 15 ms en cada unión para que no haga clic
+        r = run([FFMPEG, "-hide_banner", "-i", str(f), "-vn", "-af", f"atrim={desde:.3f}:{hasta:.3f},volumedetect", "-f", "null", "-"])
+        pico = float((re.findall(r"max_volume: (-?[\d.]+) dB", r.stderr) or ["0"])[-1])
+        umbral = max(-70.0, pico - 40)
+        previa = destino.with_name(destino.stem + ".sin_silencios.wav")
+        run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", str(f), "-vn", "-af",
+             f"atrim={desde:.3f}:{hasta:.3f},asetpts=N/SR/TB,"
+             f"silenceremove=start_periods=1:start_threshold={umbral:.0f}dB:start_silence=0.01:"
+             f"stop_periods=-1:stop_duration=0.06:stop_threshold={umbral:.0f}dB:stop_silence=0.015",
+             "-c:a", "pcm_s16le", "-ar", str(sr), str(previa)])
+        if previa.exists() and previa.stat().st_size > 1000:
+            f, desde = previa, 0.0
+            hasta = duracion(previa)
     vel, tono = float(aj.get("vel", 1)), float(aj.get("tono", 0))
     largo = (hasta - desde) / vel
     fil = [f"atrim={desde:.3f}:{hasta:.3f}", "asetpts=N/SR/TB", f"aformat=sample_rates={sr}:channel_layouts=stereo"]
@@ -2717,11 +2739,16 @@ def sonido_editado(f, prueba=None):
     # ecualizador (los mismos filtros que dibuja la curva de la página Sonidos: biquads de 2 polos)
     if aj.get("corte_graves"):
         fil.append(f"highpass=f={float(aj['corte_graves']):.0f}:p=2:t=q:w=0.707")
-    if aj.get("graves"):
+    # graves y agudos: en estante (sube o baja todo desde esa frecuencia hacia el extremo) o en campana (solo alrededor)
+    if aj.get("graves") and aj.get("graves_campana"):
+        fil.append(f"equalizer=f={float(aj.get('graves_f', 150)):.0f}:t=q:w={float(aj.get('graves_q', 1)):.2f}:g={aj['graves']}")
+    elif aj.get("graves"):
         fil.append(f"lowshelf=g={aj['graves']}:f={float(aj.get('graves_f', 150)):.0f}:t=s:w=1")
     if aj.get("medios"):
         fil.append(f"equalizer=f={float(aj.get('medios_f', 1000)):.0f}:t=q:w={float(aj.get('medios_q', 1)):.2f}:g={aj['medios']}")
-    if aj.get("agudos"):
+    if aj.get("agudos") and aj.get("agudos_campana"):
+        fil.append(f"equalizer=f={float(aj.get('agudos_f', 4000)):.0f}:t=q:w={float(aj.get('agudos_q', 1)):.2f}:g={aj['agudos']}")
+    elif aj.get("agudos"):
         fil.append(f"highshelf=g={aj['agudos']}:f={float(aj.get('agudos_f', 4000)):.0f}:t=s:w=1")
     if aj.get("corte_agudos"):
         fil.append(f"lowpass=f={float(aj['corte_agudos']):.0f}:p=2:t=q:w=0.707")

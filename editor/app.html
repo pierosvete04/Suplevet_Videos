@@ -48,7 +48,7 @@ h1 { font: 700 16px var(--fd); margin: 0; letter-spacing: .01em; }
 h1 .muted { font-weight: 600; }
 h2 { font: 650 15px var(--fd); margin: 0 0 10px; letter-spacing: .01em; }
 h3 { font: 650 13px var(--fd); margin: 0 0 6px; }
-.etq { font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent2); }
+.etq { font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--accent2); }
 .muted { color: var(--muted); }
 .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 select, input, textarea { font: 14px var(--f); color: var(--ink); background: var(--bg2); border: 1px solid var(--line2); border-radius: 9px; padding: 7px 10px; }
@@ -172,7 +172,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 /* Piezas */
 .piezas-layout { display: grid; grid-template-columns: 210px minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
 .grupo { margin-bottom: 12px; }
-.grupo h3 { font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.grupo h3 { font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); }
 .pieza { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 5px; border-radius: 9px;
   border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font: 13px var(--mono); cursor: pointer; }
 .pieza:hover { border-color: var(--line2); }
@@ -247,7 +247,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-regla { position: relative; height: 18px; margin-left: 78px; font: 10px var(--mono); color: var(--muted); cursor: pointer; }
 .ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line2); padding-left: 3px; }
 .ev-pista { display: flex; align-items: center; height: 46px; margin-top: 4px; }
-.ev-etq { width: 78px; flex: none; font: 600 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-left: 8px; position: sticky; left: 0; background: var(--bg2); z-index: 2; height: 100%; display: flex; align-items: center; }
+.ev-etq { width: 78px; flex: none; font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); padding-left: 8px; position: sticky; left: 0; background: var(--bg2); z-index: 2; height: 100%; display: flex; align-items: center; }
 .ev-carril { position: relative; height: 100%; cursor: pointer; }
 .ev-b { position: absolute; top: 3px; bottom: 3px; border-radius: 8px; color: #fff; font: 700 11px var(--f); padding: 4px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; border: 2px solid transparent; }
 .ev-b.h { background: var(--hook); color: #04101f; } .ev-b.c { background: var(--body); } .ev-b.t { background: var(--cta); color: #04101f; }
@@ -278,13 +278,13 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-bottom: 0; }
 .sb-cats, .sb-lista, .sb-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .sb-cats { padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start; overflow-x: hidden; }
 .sb-cats button { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 9px; border: 0; border-radius: 8px; background: none;
-  color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; text-transform: capitalize; }
+  color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
 .sb-cats button span { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
 .sb-cats button .n { color: inherit; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-cats button:hover { background: var(--hondo); }
 .sb-cats button[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--ink); font-weight: 600; }
 .sb-lista { padding: 4px; min-height: 240px; }
-.sb-grupo { position: sticky; top: 0; z-index: 1; padding: 8px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+.sb-grupo { position: sticky; top: 0; z-index: 1; padding: 8px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: .02em;
   color: var(--muted); background: var(--surface); }
 .sb-fila { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 3px 8px 3px 4px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
 .sb-fila:hover { background: var(--hondo); }
@@ -303,11 +303,11 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-bottom: 0; }
 .sb-elegido[hidden] { display: none; }
 .ds-form { display: grid; gap: 10px; }
 .ds-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.ds-cab h2 { margin: 0; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; } .ds-cab .muted { font-size: 12px; text-transform: capitalize; }
+.ds-cab h2 { margin: 0; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; } .ds-cab .muted { font-size: 12px; }
 .ds-transporte { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ds-inv { display: flex; align-items: center; gap: 5px; margin-left: auto; font-size: 12.5px; }
 .ds-grupo { border-top: 1px solid var(--line); padding-top: 8px; }
-.ds-grupo h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.ds-grupo h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--muted); }
 .ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
 .ds-grid .ev-campo { font-size: 11.5px; } .ds-grid .ev-campo b { font-weight: 600; }
 .ds-h3 { display: flex; justify-content: space-between; align-items: center; }
@@ -315,6 +315,13 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-bottom: 0; }
 .ds-eq { position: relative; height: 150px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; touch-action: none; cursor: crosshair; }
 .ds-eq canvas { display: block; width: 100%; height: 100%; }
 .ds-eq.agarra { cursor: grab; } .ds-eq.moviendo { cursor: grabbing; }
+.ds-ops { display: flex; gap: 12px; margin-left: auto; font-size: 12.5px; }
+.ds-ops label { display: flex; align-items: center; gap: 5px; }
+.ds-eq-tipos { display: grid; grid-template-columns: auto 1fr auto 1fr; align-items: center; gap: 6px 8px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+.ds-seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 8px; overflow: hidden; width: max-content; }
+.ds-seg button { border: 0; background: none; color: var(--ink); font: inherit; font-size: 11.5px; padding: 3px 9px; cursor: pointer; }
+.ds-seg button[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 22%, transparent); font-weight: 600; }
+.ds-eq-ayuda { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
 .ds-eq-ley { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ds-eq-ley b { color: var(--ink); font-weight: 600; }
 .ds-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--err, #ef4444); box-shadow: 0 0 6px var(--err, #ef4444); pointer-events: none; display: none; z-index: 2; }
@@ -328,7 +335,7 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-bottom: 0; }
   .sb-barra input[type=search] { flex: 1 1 100%; }
 }
 .son-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.son-chips button { border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; text-transform: capitalize; }
+.son-chips button { border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; }
 .son-chips button[aria-pressed=true] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--bg2)); }
 .da-detalle { display: grid; gap: 6px; font-size: 13px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--bg2); }
 .da-detalle code { font-size: 12px; word-break: break-all; }
@@ -427,7 +434,7 @@ dialog.pop-notifs::backdrop, :root[data-tema] dialog.pop-notifs::backdrop { back
 .pn-filtros button[aria-selected="true"] { color: var(--ink); background: var(--surface2); border-color: var(--line2); }
 .pn-filtros span { color: var(--muted); font-weight: 500; }
 .lista-notifs { overflow: auto; padding: 6px 8px; display: grid; gap: 2px; flex: 1; }
-.pn-dia { font: 600 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 10px 8px 4px; }
+.pn-dia { font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); padding: 10px 8px 4px; }
 .notif { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: start; padding: 9px 8px; border-radius: 10px; font-size: 13px; position: relative; }
 .notif:hover { background: var(--surface2); }
 .notif.ok, .notif.err { color: var(--ink); }
@@ -472,7 +479,7 @@ dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color:
 @media (max-width: 640px) { .tabla-calidad > div { grid-template-columns: 1fr; } }
 .tabla-res { display: grid; gap: 3px; overflow-x: auto; }
 .tabla-res > div { display: grid; grid-template-columns: minmax(170px, 1.6fr) repeat(6, minmax(70px, 1fr)); gap: 6px; align-items: center; min-width: 640px; }
-.tabla-res .cab { font: 600 11px var(--mono); color: var(--muted); text-transform: uppercase; }
+.tabla-res .cab { font: 600 11px var(--mono); color: var(--muted); }
 .tabla-res input { padding: 5px 6px; font-size: 12.5px; }
 .grid-res { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-bottom: 12px; }
 .barra-res { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(60px, 1fr); gap: 2px 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); }
@@ -545,7 +552,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .ev-z.nuevo { border-style: dashed; background: color-mix(in srgb, var(--warn) 10%, transparent); pointer-events: none; }
 .ev-z .ev-asa { background: color-mix(in srgb, var(--warn) 45%, transparent); }
 .g-dicho { margin-top: 6px; padding: 6px 9px; border-left: 3px solid var(--accent2); border-radius: 0 8px 8px 0; background: var(--hondo); font-size: 13px; color: var(--muted); }
-.g-dicho .etq { display: block; font: 600 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2px; }
+.g-dicho .etq { display: block; font: 600 10px var(--mono); letter-spacing: .02em; margin-bottom: 2px; }
 #guionLista mark { background: color-mix(in srgb, var(--warn) 42%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
 .ev-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent2); box-shadow: 0 0 10px var(--accent2); pointer-events: none; z-index: 3; }
 .aviso-alcance { display: flex; gap: 8px; align-items: flex-start; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(61,139,255,.35); background: rgba(61,139,255,.08); font-size: 12.5px; }
@@ -605,7 +612,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .form-plant .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .form-plant input[type=color] { height: 34px; padding: 2px; }
 .form-plant fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 8px; margin: 0; }
-.form-plant legend { font: 600 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent2); padding: 0 4px; }
+.form-plant legend { font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--accent2); padding: 0 4px; }
 
 /* Publicar */
 .export-layout { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -780,7 +787,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <button data-estado="pendiente" aria-pressed="false">Por revisar</button>
           <button data-estado="editando" aria-pressed="false">Editando</button>
           <button data-estado="listo" aria-pressed="false">Aprobados</button>
-          <button data-estado="viejo" aria-pressed="false">Sin armar o por re-armar</button>
+          <button data-estado="viejo" aria-pressed="false">Sin armar o por rearmar</button>
         </div>
         <div class="leyenda-estado" title="El punto de color de cada video">Punto de cada video: <span><i></i>Por revisar</span>
           <span><i class="editando"></i>Editando (se pone solo al abrirlo en el editor)</span><span><i class="listo"></i>Aprobado</span></div>
@@ -877,7 +884,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <button class="btn sec peq" id="nuevaMarca" style="margin-top:8px" title="Elige la palabra que suena en este momento del video">+ Marca en el segundo actual</button>
         </div>
         <div class="fila" style="margin-top:12px">
-          <button class="btn" id="guardarArmar">Guardar y re-armar sus videos</button>
+          <button class="btn" id="guardarArmar">Guardar y rearmar sus videos</button>
           <button class="btn sec" id="guardar">Solo guardar</button>
         </div>
       </div>
@@ -888,7 +895,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <div class="caja" style="margin-bottom:14px" id="cajaDescargas">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Descargas recientes</h2>
-          <span class="muted" style="font-size:12px">La música, imágenes y clips que bajaste de Flow, Flow Music o Suno en los últimos 7 días. Elige a qué pieza va cada uno: la sala lo guarda con su nombre, lo sube a Drive y re-arma solo los videos que lo usan.</span></div>
+          <span class="muted" style="font-size:12px">La música, imágenes y clips que bajaste de Flow, Flow Music o Suno en los últimos 7 días. Elige a qué pieza va cada uno: la sala lo guarda con su nombre, lo sube a Drive y rearma solo los videos que lo usan.</span></div>
         <button class="btn" id="buscarDescargas" type="button">Buscar en Descargas</button>
       </div>
       <div id="listaDescargas" class="grid-assets" style="margin-top:12px"></div>
@@ -1056,16 +1063,21 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <div class="ds-onda ds-res" id="dsResCaja"><canvas id="dsRes"></canvas><div class="ds-asa" id="dsResAsa" title="Estira o encoge: cambia la velocidad"></div><div class="ds-cabezal" id="dsCabR"></div></div>
           <div class="ds-transporte"><button class="btn sec peq" type="button" id="dsPlayOrig">▶ Original</button>
             <button class="btn peq" type="button" id="dsPlay">▶ Con los cambios</button>
-            <label class="ds-inv"><input type="checkbox" id="dsInv"> Al revés</label></div>
+            <span class="ds-ops"><label title="Quita todos los silencios: al inicio, en medio y al final. Compara con «▶ Original»."><input type="checkbox" id="dsSinSil"> Sin silencios</label>
+              <label><input type="checkbox" id="dsInv"> Al revés</label></span></div>
           <div class="ds-grupo"><h3>Tiempo</h3><div class="ds-grid">
             <label class="ev-campo">Empieza <b id="dsDesdeTxt"></b><input type="range" id="dsDesde" min="0" step="0.01"></label>
             <label class="ev-campo">Termina <b id="dsHastaTxt"></b><input type="range" id="dsHasta" min="0" step="0.01"></label>
             <label class="ev-campo">Velocidad <b id="dsVelTxt"></b><input type="range" id="dsVel" min="0.5" max="2" step="0.05"></label>
             <label class="ev-campo">Tono <b id="dsTonoTxt"></b><input type="range" id="dsTono" min="-12" max="12" step="1"></label></div></div>
-          <div class="ds-grupo"><h3 class="ds-h3">Ecualizador <button class="ds-link" type="button" id="dsEqPlano">dejar plano</button></h3>
-            <div class="ds-eq" id="dsEqCaja" title="Arrastra los puntos. Rueda del mouse sobre «M» = más ancho o más fino. Doble clic en un punto = lo apaga.">
-              <canvas id="dsEq"></canvas></div>
-            <div class="ds-eq-ley" id="dsEqTxt"></div></div>
+          <div class="ds-grupo"><h3 class="ds-h3">Ecualizador <button class="ds-link" type="button" id="dsEqPlano">Dejar plano</button></h3>
+            <div class="ds-eq" id="dsEqCaja"><canvas id="dsEq"></canvas></div>
+            <div class="ds-eq-tipos">
+              <span>Graves</span><span class="ds-seg" role="group" aria-label="Forma de los graves"><button type="button" data-eqtipo="graves" data-v="0">Estante</button><button type="button" data-eqtipo="graves" data-v="1">Campana</button></span>
+              <span>Agudos</span><span class="ds-seg" role="group" aria-label="Forma de los agudos"><button type="button" data-eqtipo="agudos" data-v="0">Estante</button><button type="button" data-eqtipo="agudos" data-v="1">Campana</button></span>
+            </div>
+            <div class="ds-eq-ley" id="dsEqTxt"></div>
+            <p class="ds-eq-ayuda">Arrastra los puntos. Rueda del mouse sobre una campana: más ancha o más fina. Doble clic: apaga el punto.</p></div>
           <div class="ds-grupo"><h3>Volumen y eco</h3><div class="ds-grid">
             <label class="ev-campo">Volumen <b id="dsVolTxt"></b><input type="range" id="dsVol" min="0" max="3" step="0.05"></label>
             <label class="ev-campo">Eco <b id="dsEcoTxt"></b><input type="range" id="dsEco" min="0" max="1" step="0.05"></label>
@@ -1252,7 +1264,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 </dialog>
 <div id="barraSel" hidden><span id="nSel"></span>
   <select id="selPlantilla" title="Plantilla de subtítulos para los videos elegidos" style="padding:5px 8px;font-size:12px"></select>
-  <button class="btn sec peq" id="selPlantillaAplicar">Cambiar plantilla y re-armar</button>
+  <button class="btn sec peq" id="selPlantillaAplicar">Cambiar plantilla y rearmar</button>
   <button class="btn peq" id="selArmar">Armar seleccionados</button>
   <button class="btn sec peq" id="selExportar">Exportar seleccionados</button>
   <button class="btn sec peq" id="selPartes" title="Hook, cuerpo y CTA sueltos, voz, música, efectos, subtítulos e imágenes de cada video">Exportar por partes</button>
@@ -1298,7 +1310,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button data-est="listo" aria-pressed="false">Aprobado</button>
       </div>
       <button class="btn sec peq" id="irEditor">Editar ↓</button>
-      <button class="btn sec peq" id="rearmarUno">Re-armar este video</button>
+      <button class="btn sec peq" id="rearmarUno">Rearmar este video</button>
       <button class="btn sec peq" id="cerrar" aria-label="Cerrar">✕</button></div></div>
   <div class="dlg-cuerpo">
     <div><video id="dlgVideo" controls playsinline preload="metadata"></video>
@@ -1362,7 +1374,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <label class="muted" style="display:grid;gap:3px;font-size:12px">Plantilla<select id="vidPlantilla"></select></label>
         <label class="muted" style="display:grid;gap:3px;font-size:12px;min-width:220px">Altura del subtítulo: <b id="vidAlturaTxt"></b><input type="range" id="vidAltura" min="150" max="1500" step="10"></label>
         <label class="fila muted" style="font-size:12px"><input type="checkbox" id="vidTodoCuerpo"> Igual en todos los videos de <b id="vidCuerpoNom"></b></label>
-        <button class="btn sec" id="vidSubsGuardar">Guardar y re-armar</button>
+        <button class="btn sec" id="vidSubsGuardar">Guardar y rearmar</button>
       </div>
     </div>
     <div class="caja" style="grid-column:1/-1" id="editorVideo">
@@ -1413,7 +1425,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <div><b>5 · Efectos</b><span>Los sonidos (whoosh, pop…) del último armado. <b>Arrástralos</b> para moverlos y tócalos para cambiarlos o quitarlos. Abajo, en «Agregar un sonido», pones uno nuevo.</span></div>
           <div><b>6 · Subtítulos</b><span>Toca uno para corregirlo, cortarlo en dos, unirlo o borrarlo. Arrástralo para moverlo.</span></div>
         </div>
-        <p class="muted" style="margin:8px 0 0;font-size:12px">Los cambios del <b>cuerpo</b> valen para todos los videos con ese cuerpo; los del <b>hook</b> o el <b>CTA</b>, para los videos que los usan. Para un solo video, usa «Solo a este video». Al terminar, toca el botón verde para guardar y re-armar.</p>
+        <p class="muted" style="margin:8px 0 0;font-size:12px">Los cambios del <b>cuerpo</b> valen para todos los videos con ese cuerpo; los del <b>hook</b> o el <b>CTA</b>, para los videos que los usan. Para un solo video, usa «Solo a este video». Al terminar, toca el botón verde para guardar y rearmar.</p>
       </details>
       <div class="ev-tl" id="evTL">
         <div class="ev-regla" id="evRegla"></div>
@@ -1438,7 +1450,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button class="btn peq" id="evSonAplicar" type="button" hidden></button>
       </div>
       <div class="fila" style="margin-top:10px">
-        <button class="btn" id="evArmar">Guardar y re-armar</button>
+        <button class="btn" id="evArmar">Guardar y rearmar</button>
         <button class="btn sec" id="evSolo" type="button" title="Los cambios quedan solo en este video; los demás videos del cuerpo no cambian">Solo a este video</button>
         <button class="btn sec" id="evGuardar">Guardar como versión aparte</button>
         <button class="btn sec" id="evExportar">Exportar este video</button>
@@ -1469,6 +1481,10 @@ function pintarCampana() {
 let E = null, sel = null, actual = null, red = "instagram", subTab = "lineas", marcasTmp = [];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Textos de la sala en tipo oración: primera letra en mayúscula y el resto como viene («Riser (sube la tensión)»)
+const cap = s => { s = String(s ?? ""); return s.charAt(0).toUpperCase() + s.slice(1); };
+// «1 cuerpo», «5 cuerpos» (sin «1 cuerpos»)
+const plural = (n, uno, varios = uno + "s") => `${n} ${n === 1 ? uno : varios}`;
 const fmt = t => Number(t).toFixed(2) + " s";
 const avisar = (txt, cls = "muted") => {
   const a = $("aviso"); a.textContent = txt; a.className = cls;
@@ -1519,10 +1535,10 @@ function pintarInicio() {
   const tipos = t => E.piezas.filter(p => p.tipo === t).length;
   const faltan = E.checklist.assets.filter(a => !a.listo).length + (E.checklist.musica || []).filter(m => !m.listo).length;
   const sinId = (E.checklist.sin_asignar || []).length;
-  $("inSub").textContent = `${tipos("cuerpo")} cuerpos · ${tipos("hook")} hooks · ${tipos("cta")} CTAs grabados${E.hay_produccion ? " · con guion" : " · sin guion"}`;
+  $("inSub").textContent = `Grabado: ${plural(tipos("cuerpo"), "cuerpo")}, ${plural(tipos("hook"), "hook")} y ${plural(tipos("cta"), "CTA", "CTA")} · ${E.hay_produccion ? "Con guion" : "Sin guion"}`;
   const stat = (n, txt, cls = "") => `<div class="stat ${cls}"><b>${n}</b><span>${txt}</span></div>`;
-  $("inStats").innerHTML = stat(vids.length, "videos posibles", "azul") + stat(armados, "armados") + stat(listos, "aprobados", listos ? "ok" : "")
-    + stat(viejos, "por re-armar", viejos ? "warn" : "") + stat(faltan, "imágenes y música por generar", faltan ? "warn" : "");
+  $("inStats").innerHTML = stat(vids.length, "Videos posibles", "azul") + stat(armados, "Armados") + stat(listos, "Aprobados", listos ? "ok" : "")
+    + stat(viejos, "Por rearmar", viejos ? "warn" : "") + stat(faltan, "Imágenes y música por generar", faltan ? "warn" : "");
   const pasos = [
     [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : `<button class="btn peq blanco" data-ir="claude">Escribir con Claude</button>`],
     [E.piezas.length > 0 || sinId > 0, "Grabar y subir los clips a Drive", E.piezas.length || sinId ? `<span class="pill">${E.piezas.length + sinId} clips</span>` : `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
@@ -1561,7 +1577,7 @@ function pintarListaSesiones() {
   const dentro = dentroDeGrupo();
   const lista = [...E.semanas].reverse().filter(s => (q ? s.toLowerCase().includes(q) : (verArch || !arch.has(s)) && !dentro.has(s)) && (!tipo || tipoDe(s) === tipo));
   $("inSesiones").innerHTML = lista.map(s => {
-    const a = arch.has(s) ? ` <span class="muted">· archivada</span>` : "";
+    const a = arch.has(s) ? ` <span class="muted">· Archivada</span>` : "";
     return grs[s]
       ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="${grs[s].carpeta ? "Carpeta de Drive con sus días dentro" : "Grupo"}: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">· días ${esc(grs[s].sesiones.map(x => x.replace(/\s*SESI[ÓO]N\s*/i, "")).join(" + "))}</span>${a}</button>`
       : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}${a}</button>`;
@@ -1603,7 +1619,7 @@ function pintarClaudeForm() {
   $("clListo").hidden = !conectado || yaHay;
   if (conectado && yaHay) {
     const n = t => E.piezas.filter(p => p.tipo === t).length;
-    $("clYaHayTxt").innerHTML = `<span class="pill ok">✓ guion listo</span> <b>${esc(E.semana)}</b> ya tiene su guion: ${E.salidas.length} videos posibles con lo grabado (${n("cuerpo")} cuerpos, ${n("hook")} hooks).`;
+    $("clYaHayTxt").innerHTML = `<span class="pill ok">✓ Guion listo</span> <b>${esc(E.semana)}</b> ya tiene su guion: ${plural(E.salidas.length, "video posible", "videos posibles")} con lo grabado (${plural(n("cuerpo"), "cuerpo")} y ${plural(n("hook"), "hook")}).`;
   }
 }
 async function revisarClaude(forzar) {
@@ -1612,8 +1628,8 @@ async function revisarClaude(forzar) {
   const c = infoClaude;
   pintarClaudeForm();
   $("clConfig").hidden = c.instalado && c.sesion;
-  $("clEstado").innerHTML = c.instalado && c.sesion ? `<span class="pill ok">conectado</span> con tu suscripción de Claude`
-    : c.instalado ? `<span class="pill warn">falta iniciar sesión</span>` : `<span class="pill warn">no instalado</span>`;
+  $("clEstado").innerHTML = c.instalado && c.sesion ? `<span class="pill ok">✓ Claude listo</span> Escribe y revisa guiones con tu suscripción de Claude.`
+    : c.instalado ? `<span class="pill warn">Falta iniciar sesión</span>` : `<span class="pill warn">Claude no está instalado</span>`;
   $("clConfig").innerHTML = !c.instalado
     ? `<p style="margin:0 0 8px">Para escribir guiones aquí, esta PC necesita <b>Claude Code</b> (viene con la app de escritorio de Claude, o se instala aparte). Sin API: usa tu suscripción.</p>
        <ol style="margin:0 0 10px;padding-left:18px;color:var(--muted)"><li>Instala la app de Claude para Windows (claude.ai/download) y abre una vez la pestaña <b>Code</b>, o en PowerShell: <code>irm https://claude.ai/install.ps1 | iex</code></li><li>Vuelve aquí y toca «Revisar de nuevo».</li></ol>
@@ -1710,7 +1726,7 @@ $("clGuion").onclick = async () => {
   catch (err) { $("clSalida").textContent = "Error: " + err.message; }
 };
 const revisarConClaude = async () => {
-  if (!confirm(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y re-armar los videos. ¿Seguir?`)) return;
+  if (!confirm(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y rearmar los videos. ¿Seguir?`)) return;
   if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
   try { await post("/api/claude", { accion: "revisar" }); vigilar(await (await fetch("/api/trabajo")).json()); }
@@ -1763,9 +1779,9 @@ function tarjetaVideo(s) {
     <span class="estado-dot ${s.estado}" title="${ESTADOS[s.estado] || ""}"></span>
     ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>`
       : `<div class="vacia">${esc(s.codigo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
-    <div class="nombre">${esc(s.etiqueta)}${s.es_version ? ' <span class="pill azul">versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
-    <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">sin armar</span>`}
-      ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ re-armar</span>` : ""}
+    <div class="nombre">${esc(s.etiqueta)}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
+    <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "Armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">Sin armar</span>`}
+      ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ Rearmar</span>` : ""}
       ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}
       <span class="pill" title="Plantilla de subtítulos">Aa ${esc(plantillaDe(s).nombre)}</span></div></button>`;
 }
@@ -1792,7 +1808,7 @@ function pintarVideos() {
           <div class="resumen" title="${esc(texto)}">${esc(texto)}</div></div></div>
         <div class="fila"><div class="progreso" title="${listos} de ${vs.length} aprobados"><i style="width:${vs.length ? listos / vs.length * 100 : 0}%"></i></div>
           <button class="btn peq" data-grupo-editar="${esc(vs[0].codigo)}" title="Lo que cambies en ${esc(k)} se aplica a sus ${vs.length} videos">Editar ${nombreTipo.toLowerCase()}</button>
-          <button class="btn sec peq" data-grupo-armar="${esc(vs.map(s => s.codigo).join(","))}">${viejos ? `Armar ${viejos}` : "Re-armar todos"}</button>
+          <button class="btn sec peq" data-grupo-armar="${esc(vs.map(s => s.codigo).join(","))}">${viejos ? `Armar ${viejos}` : "Rearmar todos"}</button>
           <button class="btn sec peq" data-grupo-listos="${esc(vs.map(s => s.codigo).join(","))}">Aprobar todos</button></div></div>
       <div class="grid-portadas">${vs.map(tarjetaVideo).join("")}</div></div>`;
   }).join("") || `<div class="sin-nada">Ningún video con ese filtro.</div>`;
@@ -1823,14 +1839,14 @@ function usaDe(s) {
   const pl = plantillaDe(s), r = s.receta || {};
   const mus = (r.musica || "").replace(/\s*\([\d.]+ s\)/g, "");
   return [`<span class="pill" title="Plantilla de subtítulos${pl.propia ? " elegida para este video" : " predeterminada"}">Aa ${esc(pl.nombre)}${pl.propia ? " ·propia" : ""}</span>`,
-    mus ? `<span class="pill" title="Música">♪ ${esc(mus)}</span>` : (r.duracion ? `<span class="pill warn">sin música</span>` : ""),
+    mus ? `<span class="pill" title="Música">♪ ${esc(mus)}</span>` : (r.duracion ? `<span class="pill warn">Sin música</span>` : ""),
     (r.imagenes || []).length ? `<span class="pill" title="Imágenes de Flow">▣ ${r.imagenes.length} imágenes</span>` : "",
     (r.efectos || []).length ? `<span class="pill" title="Sonidos">🔊 ${r.efectos.length} sonidos</span>` : "",
-    (r.faltan_assets || []).length ? `<span class="pill warn" title="${esc(r.faltan_assets.join(", "))}">faltan ${r.faltan_assets.length} imágenes</span>` : ""].join(" ");
+    (r.faltan_assets || []).length ? `<span class="pill warn" title="${esc(r.faltan_assets.join(", "))}">Faltan ${r.faltan_assets.length} imágenes</span>` : ""].join(" ");
 }
 function pintarEstadoDlg() {
   document.querySelectorAll("#dlgEstado [data-est]").forEach(b => b.setAttribute("aria-pressed", b.dataset.est === actual.estado));
-  $("dlgAviso").innerHTML = (actual.desactualizado ? `<span class="pill warn">⟳ hay cambios sin armar</span> ` : !actual.existe ? `<span class="pill">sin armar</span> ` : "")
+  $("dlgAviso").innerHTML = (actual.desactualizado ? `<span class="pill warn">⟳ Hay cambios sin armar</span> ` : !actual.existe ? `<span class="pill">Sin armar</span> ` : "")
     + `<span class="usa">Usa: ${usaDe(actual)}</span>`;
 }
 
@@ -2017,13 +2033,13 @@ function pintarMarcas() {
           ${m.palabra ? `<button class="btn sec peq" type="button" data-borrar="${marcasTmp.indexOf(m)}" style="color:var(--err)">Quitar todo</button>` : ""}</span></div>
         <div class="marca-campos">
           <fieldset><legend>🖼 Imagen o clip</legend>
-            <div class="fila">${a ? (a.es_video ? "🎬" : `<img src="${a.url}" alt="" class="mini">`) : ""}<select data-mk="asset" style="flex:1">${opt([["", "— ninguna"], ...assets.map(x => [x, x])], m.asset)}</select></div>
+            <div class="fila">${a ? (a.es_video ? "🎬" : `<img src="${a.url}" alt="" class="mini">`) : ""}<select data-mk="asset" style="flex:1">${opt([["", "Ninguna"], ...assets.map(x => [x, x])], m.asset)}</select></div>
             ${m.asset ? `<div class="dos"><label>Dura (s)<input data-mk="dur" type="number" min="0.5" max="6" step="0.1" value="${m.dur ?? 1.5}"></label>
-              <label>Cómo<select data-mk="modo">${opt([["completa", "pantalla completa"], ["ventana", "ventana"]], m.modo || "completa")}</select></label>
-              <label>Movimiento<select data-mk="mov">${opt([["zoom_in", "acercar despacio"], ["zoom_out", "alejar despacio"], ["fijo", "fijo"]], m.mov || "zoom_in")}</select></label></div>` : ""}</fieldset>
-          <fieldset><legend>♪ Sonido</legend><select data-mk="sfx">${opt([["", "automático (lo elige la sala)"], ["corte_silencio", "corte de silencio (música en pausa)"], ...E.sfx.map(x => [x, x.replace("_", " ")])], m.sfx)}</select></fieldset>
-          <fieldset><legend>Aa Subtítulo</legend><select data-mk="sub">${opt([["", "— normal"], ...E.estilos.map(x => [x, x.replace("_", " ")])], m.sub)}</select></fieldset>
-          <fieldset><legend>🎵 Música desde aquí</legend><select data-mk="musica">${opt([["", "— sigue la misma"], ...(E.musica_ids || []).map(x => [x, x])], m.musica)}</select></fieldset>
+              <label>Cómo<select data-mk="modo">${opt([["completa", "Pantalla completa"], ["ventana", "En ventana"]], m.modo || "completa")}</select></label>
+              <label>Movimiento<select data-mk="mov">${opt([["zoom_in", "Acercar despacio"], ["zoom_out", "Alejar despacio"], ["fijo", "Fijo"]], m.mov || "zoom_in")}</select></label></div>` : ""}</fieldset>
+          <fieldset><legend>♪ Sonido</legend><select data-mk="sfx">${opt([["", "Automático (lo elige la sala)"], ["corte_silencio", "Corte de silencio (música en pausa)"], ...E.sfx.map(x => [x, cap(x.replace(/_/g, " "))])], m.sfx)}</select></fieldset>
+          <fieldset><legend>Aa Subtítulo</legend><select data-mk="sub">${opt([["", "Normal"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
+          <fieldset><legend>🎵 Música desde aquí</legend><select data-mk="musica">${opt([["", "Sigue la misma"], ...(E.musica_ids || []).map(x => [x, x])], m.musica)}</select></fieldset>
         </div></div>`;
     }
   } else html += `<p class="muted" style="font-size:12.5px;margin:8px 0 0">Toca una palabra del texto para editar lo que pasa ahí.</p>`;
@@ -2127,7 +2143,7 @@ async function guardar(armar) {
     if (p.lineas.length) await post(`/api/subtitulos?pieza=${encodeURIComponent(sel)}`, { lineas: lineasEditadas() });
     leerMarcas();
     await post(`/api/marcas?pieza=${encodeURIComponent(sel)}`, { marcas: marcasTmp });
-    if (armar) { await post("/api/trabajo", { accion: "armar", pieza: sel }); avisar("Re-armando los videos que usan " + sel + "…"); }
+    if (armar) { await post("/api/trabajo", { accion: "armar", pieza: sel }); avisar("Rearmando los videos que usan " + sel + "…"); }
     else avisar("Guardado.", "ok");
     await cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
@@ -2194,7 +2210,7 @@ function pintarMusica() {
     const campos = Object.entries(pr).filter(([k, v]) => typeof v === "string" && !["herramienta", "modo"].includes(k));
     return `<div class="caja asset">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(m.id)}</code></h3>
-        <span class="pill ${m.listo ? "ok" : "warn"}">${m.listo ? "lista" : "falta"}</span></div>
+        <span class="pill ${m.listo ? "ok" : "warn"}">${m.listo ? "Lista" : "Falta"}</span></div>
       <span class="muted" style="font-size:12px">${esc(pr.herramienta || (m.suno ? "Suno" : "Google Flow Music"))} · ${esc(m.uso || "")}</span>
       <pre>${esc(JSON.stringify(pr, null, 2))}</pre>
       <div class="fila">${campos.map(([k, v]) => `<button class="btn sec peq" data-copiar="${esc(v)}">Copiar ${esc(k.replace("_", " "))}</button>`).join("")}</div>
@@ -2221,7 +2237,7 @@ function pintarFaltan() {
     const prompt = JSON.stringify(a.flow || {}, null, 2);
     return `<div class="caja asset">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(a.id)}</code></h3>
-        <span class="pill ${a.listo ? "ok" : "warn"}">${a.listo ? "listo" : "falta"}</span></div>
+        <span class="pill ${a.listo ? "ok" : "warn"}">${a.listo ? "Listo" : "Falta"}</span></div>
       <span class="muted" style="font-size:12px">${esc(a.tipo)} · ${esc(a.pieza || "")} en «${esc(a.palabra || "")}»</span>
       <pre>${esc(prompt)}</pre>
       <div class="fila"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button>${a.flow?.plan_b ? `<button class="btn sec peq" data-copiar="${esc(a.flow.plan_b)}" title="Por si Flow rechaza el prompt: el mismo plano dicho más neutro">Copiar plan B</button>` : ""}
@@ -2277,13 +2293,13 @@ function vigilar(t) {
         if (j.accion === "producir" && j.resultado && !j.error) setTimeout(() => mostrarResumenProduccion(j.resultado), 300);
         const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${h0.cantidad} videos` : ""})` : "";
         avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || "") + cuanto, j.error ? "err" : "ok");
-        if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} re-armado. Lo estás viendo actualizado.`, "ok"); }
+        if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} rearmado. Lo estás viendo actualizado.`, "ok"); }
         reabrir = null;
       }
     }, 1000);
   }
 }
-let reabrir = null;  // al terminar de re-armar un video, se vuelve a abrir con el resultado
+let reabrir = null;  // al terminar de rearmar un video, se vuelve a abrir con el resultado
 function pintarClaudeTrabajo(t) {
   if (t.accion === "temas" && !t.activo && Array.isArray(t.resultado)) {
     if (JSON.stringify(t.resultado) !== JSON.stringify(propuestas)) { propuestas = t.resultado; pintarTemas(); }
@@ -2444,7 +2460,7 @@ function pintarExport() {
       <input type="checkbox" class="sel" data-ex="${esc(s.codigo)}" ${exElegidos.has(s.codigo) ? "checked" : ""}>
       <span class="estado-dot ${s.estado}"></span>
       ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>` : `<div class="vacia">${esc(s.codigo)}</div>`}
-      <div class="pie">${s.receta ? `<span class="pill">${s.receta.duracion} s</span>` : ""}${s.desactualizado ? '<span class="pill warn">⟳ re-armar</span>' : ""}${s.estado === "listo" ? '<span class="pill ok">aprobado</span>' : ""}</div></label>`).join("")
+      <div class="pie">${s.receta ? `<span class="pill">${s.receta.duracion} s</span>` : ""}${s.desactualizado ? '<span class="pill warn">⟳ Rearmar</span>' : ""}${s.estado === "listo" ? '<span class="pill ok">Aprobado</span>' : ""}</div></label>`).join("")
     || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todos los videos».</div>`;
   $("exSel").disabled = $("exPartes").disabled = !exElegidos.size;
   $("exSel").textContent = exElegidos.size ? `Exportar ${exElegidos.size} seleccionado${exElegidos.size === 1 ? "" : "s"}` : "Exportar seleccionados";
@@ -2504,7 +2520,7 @@ $("subirFuente").onchange = async e => {
 };
 $("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("analizar"); };
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
-const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Re-armar videos de una pieza", uno: "Re-armar un video",
+const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Rearmar videos de una pieza", uno: "Rearmar un video",
   armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
@@ -2561,7 +2577,7 @@ const haceCuanto = t => { const m = Math.round((Date.now() - t) / 60000);
 function diaNotif(t) {
   const d = new Date(t), hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const dias = Math.round((hoy - new Date(d).setHours(0, 0, 0, 0)) / 864e5);
-  return dias <= 0 ? "Hoy" : dias === 1 ? "Ayer" : d.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "short" });
+  return dias <= 0 ? "Hoy" : dias === 1 ? "Ayer" : cap(d.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "short" }));
 }
 function pintarNotifs() {
   const todas = leerNotifs(), l = todas.filter(x => !filtroNotif || x.cls === filtroNotif);
@@ -2576,7 +2592,7 @@ function pintarNotifs() {
     const d = diaNotif(x.t), cab = d !== dia ? `<div class="pn-dia">${esc(d)}</div>` : ""; dia = d;
     return `${cab}<div class="notif ${x.cls} ${x.leida ? "" : "nueva"}">
       <span class="ni" aria-hidden="true">${x.cls === "err" ? "!" : x.cls === "ok" ? "✓" : "i"}</span>
-      <span class="nt">${esc(x.txt.replace(/^Error:\s*/, "").replace(/^./, c => c.toUpperCase()))}<small>${x.cls === "err" ? "Error · " : ""}${haceCuanto(x.t)}</small></span>
+      <span class="nt">${esc(x.txt.replace(/^Error:\s*/, "").replace(/^./, c => c.toUpperCase()))}<small>${x.cls === "err" ? "Error · " + haceCuanto(x.t) : cap(haceCuanto(x.t))}</small></span>
       <button class="nx" type="button" data-nborrar="${x.t}" title="Quitar" aria-label="Quitar esta notificación">✕</button></div>`;
   }).join("") || `<div class="pn-vacio"><span>🔔</span>${filtroNotif === "err" ? "Ningún error. Todo bien." : filtroNotif ? "Nada por aquí." : "No hay notificaciones."}<br><small>Aquí quedan los avisos de lo que termina o falla.</small></div>`;
 }
@@ -2666,8 +2682,8 @@ $("semana").onchange = async e => {
 function pintarDrive() {
   const d = E.drive || {};
   $("driveEstado").innerHTML = d.activo
-    ? `<span class="pill ok">✓ conectado</span> <b>${d.sesiones.length}</b> sesiones en Drive <span class="muted">· ${d.credenciales_propias ? "credenciales propias" : "credenciales de rclone"}</span>`
-    : `<span class="pill warn">sin conectar</span> Pega el link de la carpeta y toca «Conectar con Google».`;
+    ? `<span class="pill ok">✓ Drive conectado</span> <b>${d.sesiones.length}</b> sesiones en la carpeta <span class="muted">· ${d.credenciales_propias ? "credenciales propias" : "credenciales de rclone"}</span>`
+    : `<span class="pill warn">Drive sin conectar</span> Pega el link de la carpeta y toca «Conectar con Google».`;
   if (!$("driveLink").value) $("driveLink").value = d.link || "";
   $("driveConectar").textContent = d.activo ? "Volver a conectar" : "Conectar con Google";
   $("driveConectar").className = d.activo ? "btn sec" : "btn";
@@ -2721,8 +2737,8 @@ function pintarRed() {
   $("redBoton").textContent = r.activa ? "Desactivar acceso por WiFi" : "Activar acceso por WiFi";
   $("redBoton").className = r.activa ? "btn sec" : "btn";
   $("redInfo").innerHTML = r.activa
-    ? `<span class="pill ok">✓ activo</span> En la tablet abre <b class="dato">${esc(r.url)}</b> y escribe el PIN <b class="dato">${esc(r.pin)}</b>`
-    : `<span class="pill">apagado</span> <span class="muted">Actívalo para leer el guion desde la tablet, sin internet.</span>`;
+    ? `<span class="pill ok">✓ Activo</span> En la tablet abre <b class="dato">${esc(r.url)}</b> y escribe el PIN <b class="dato">${esc(r.pin)}</b>`
+    : `<span class="pill">Apagado</span> <span class="muted">Actívalo para leer el guion desde la tablet, sin internet.</span>`;
   $("confPRed").className = "punto-estado " + (r.activa ? "ok" : "");
 }
 $("redBoton").onclick = async () => {
@@ -2781,7 +2797,7 @@ function verPortadaEnVivo(espera = 250) {
   porTimer = setTimeout(() => {
     const q = new URLSearchParams({ codigo: actual.codigo, d: JSON.stringify(leerPortada()), _: Date.now() });
     $("porVista").src = `/api/portada_vista?${q}`;
-    $("porEstado").innerHTML = `<span class="pill warn">sin guardar</span> Así quedará: toca «Guardar portada»`;
+    $("porEstado").innerHTML = `<span class="pill warn">Sin guardar</span> Así quedará: toca «Guardar portada»`;
   }, espera);
 }
 $("porT").addEventListener("input", () => { $("porSeg").textContent = Number($("porT").value).toFixed(1) + " s"; verPortadaEnVivo(200); });
@@ -2820,7 +2836,7 @@ $("porGuardar").onclick = async () => {
     const d = leerPortada();
     const r = await post("/api/portada", { codigo: actual.codigo, ...d });
     $("porVista").src = r.portada; actual.portada = r.portada; actual.ajustes_portada = d;
-    $("porEstado").innerHTML = `<span class="pill ok">✓ guardada</span>`;
+    $("porEstado").innerHTML = `<span class="pill ok">✓ Guardada</span>`;
     cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
   $("porGuardar").disabled = false;
@@ -2847,7 +2863,7 @@ $("vidSubsGuardar").onclick = async () => {
     $("dlg").close();
     if (r.codigos.length === 1) reabrir = cod;
     vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Re-armando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} con la nueva posición del subtítulo…`, "ok");
+    avisar(`Rearmando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} con la nueva posición del subtítulo…`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 
@@ -2880,9 +2896,9 @@ $("selTodos").onclick = () => {
 };
 $("selPlantillaAplicar").onclick = async () => {
   const pl = $("selPlantilla").value, nombre = pl ? E.plantillas[pl]?.nombre : "la predeterminada";
-  if (!confirm(`¿Poner la plantilla «${nombre}» a ${elegidos.size} video${elegidos.size === 1 ? "" : "s"} y re-armarlos?`)) return;
+  if (!confirm(`¿Poner la plantilla «${nombre}» a ${elegidos.size} video${elegidos.size === 1 ? "" : "s"} y rearmarlos?`)) return;
   try { const r = await post("/api/ajustes_video", { codigos: [...elegidos], plantilla: pl, armar: true });
-    avisar(`Re-armando ${r.codigos.length} videos con la plantilla «${nombre}»… lo ves en Procesos (☰).`, "ok");
+    avisar(`Rearmando ${r.codigos.length} videos con la plantilla «${nombre}»… lo ves en Procesos (☰).`, "ok");
     elegidos.clear(); pintarSeleccion(); await cargar(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
@@ -2969,7 +2985,7 @@ function pintarEfectos() {
     const a = assetDe(im.asset), x0 = xDeTiempo(g0), x1 = g1 == null ? x0 + im.dur * px : xDeTiempo(g1);
     return `<div class="ev-img guion ${a ? "" : "falta"}" data-gimg="${i}" style="left:${x0}px;width:${Math.max(16, x1 - x0)}px"
       title="${esc(im.asset)} · ${im.dur} s · imagen del guion. Arrástrala para moverla (pasa a ser tuya y la puedes estirar).">${a ? (a.es_video ? "🎬" : `<img src="${a.url}" alt="">`) : "⚠"}${esc(im.asset.replace(/^B2B_|^\d+_/, ""))}</div>`;
-  }).join("") + ((r.faltan_assets || []).length ? `<span class="ev-fx img guion" style="left:0" title="${esc(r.faltan_assets.join(", "))}">faltan ${r.faltan_assets.length} imágenes</span>` : "");
+  }).join("") + ((r.faltan_assets || []).length ? `<span class="ev-fx img guion" style="left:0" title="${esc(r.faltan_assets.join(", "))}">Faltan ${r.faltan_assets.length} imágenes</span>` : "");
   $("evCarrilI").insertAdjacentHTML("beforeend", imgs);
 }
 async function cargarOndaSon(id) {
@@ -3019,7 +3035,7 @@ async function pintarSonidos() {
     c, archivos: c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)) })).filter(g => g.archivos.length);
   const fila = (c, a) => `<div class="sb-fila" role="option" aria-selected="${dsSon?.id === a.id}" data-sel-son='${esc(JSON.stringify({ id: a.id, nombre: a.nombre, cat: c.cat, catNombre: c.nombre }))}'>
       <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar" aria-label="Escuchar ${esc(a.nombre)}">▶</button>
-      <span class="nom" title="${esc(a.nombre)}">${esc(a.nombre)}</span>${a.aj ? `<span class="marca" title="Editado"></span>` : "<span></span>"}</div>`;
+      <span class="nom" title="${esc(a.nombre)}">${esc(cap(a.nombre))}</span>${a.aj ? `<span class="marca" title="Editado"></span>` : "<span></span>"}</div>`;
   $("sonLista").innerHTML = grupos.map(g => (grupos.length > 1 || !sonCat ? `<div class="sb-grupo">${esc(g.c.nombre)}</div>` : "") + g.archivos.map(a => fila(g.c, a)).join("")).join("")
     || `<div class="sb-vacio">${q ? `Nada con «${esc(q)}».` : "Sin archivos (se bajan de Drive al abrir una sesión)."}</div>`;
   $("sonElegido").hidden = !sonElegido;
@@ -3045,7 +3061,7 @@ $("sonBuscar").addEventListener("input", pintarSonidos);
 function pintarNivelSonidos() {
   const n = E.sonidos_nivel || { normalizar: true, objetivo_lufs: -20 };
   $("sonNivel").innerHTML = `<label class="fila"><input type="checkbox" id="snNorm" ${n.normalizar ? "checked" : ""}> <b>Normalizar:</b>&nbsp;todos los efectos al mismo volumen</label>
-    <select id="snNivel" ${n.normalizar ? "" : "disabled"}>${[[-24, "suaves"], [-20, "normales (recomendado)"], [-16, "fuertes"]].map(([v, t]) =>
+    <select id="snNivel" ${n.normalizar ? "" : "disabled"}>${[[-24, "Suaves"], [-20, "Normales (recomendado)"], [-16, "Fuertes"]].map(([v, t]) =>
       `<option value="${v}" ${Math.round(n.objetivo_lufs) === v ? "selected" : ""}>${t}</option>`).join("")}</select>
     <button class="btn sec peq" id="snGuardar" type="button">Guardar</button>`;
   $("snNorm").onchange = () => { $("snNivel").disabled = !$("snNorm").checked; };
@@ -3068,17 +3084,22 @@ const DS_CAMPOS = [  // input, campo, neutro, cómo se lee
   ["dsEco", "eco", 0, v => `${Math.round(v * 100)}%`], ["dsVol", "vol", 1, v => `${Math.round(v * 100)}%`],
   ["dsFin", "fade_in", 0, v => `${(+v).toFixed(2)} s`], ["dsFout", "fade_out", 0, v => `${(+v).toFixed(2)} s`]];
 // Ecualizador paramétrico: mismos filtros que aplica el motor al armar (biquads de 2 polos)
-const EQ_NEUTRO = { corte_graves: 0, graves: 0, graves_f: 150, medios: 0, medios_f: 1000, medios_q: 1, agudos: 0, agudos_f: 4000, corte_agudos: 0 };
+const EQ_NEUTRO = { corte_graves: 0, graves: 0, graves_f: 150, graves_q: 1, graves_campana: false, medios: 0, medios_f: 1000, medios_q: 1,
+  agudos: 0, agudos_f: 4000, agudos_q: 1, agudos_campana: false, corte_agudos: 0 };
 let dsEq = { ...EQ_NEUTRO }, dsEsp = null;
 function dsLeer() {
-  const dur = dsOndaO?.dur || 0, aj = { invertir: $("dsInv").checked };
+  const dur = dsOndaO?.dur || 0, aj = { invertir: $("dsInv").checked, sin_silencios: $("dsSinSil").checked };
   const desde = +$("dsDesde").value, hasta = +$("dsHasta").value;
   if (desde > 0.005) aj.desde = desde;
   if (dur && hasta < dur - 0.02) aj.hasta = hasta;
   DS_CAMPOS.forEach(([id, k, neutro]) => { const v = +$(id).value; if (v !== neutro) aj[k] = v; });
   // la frecuencia de una banda solo cuenta si la banda está subida o bajada
-  const usa = { graves_f: "graves", medios_f: "medios", medios_q: "medios", agudos_f: "agudos" };
-  Object.entries(dsEq).forEach(([k, v]) => { if (v !== EQ_NEUTRO[k] && (!usa[k] || dsEq[usa[k]])) aj[k] = +(+v).toFixed(k.endsWith("_q") ? 2 : 1); });
+  const usa = { graves_f: "graves", graves_q: "graves", graves_campana: "graves", medios_f: "medios", medios_q: "medios",
+    agudos_f: "agudos", agudos_q: "agudos", agudos_campana: "agudos" };
+  Object.entries(dsEq).forEach(([k, v]) => {
+    if (v === EQ_NEUTRO[k] || (usa[k] && !dsEq[usa[k]])) return;
+    aj[k] = typeof v === "boolean" ? v : +(+v).toFixed(k.endsWith("_q") ? 2 : 1);
+  });
   return aj;
 }
 const EQ_FMIN = 20, EQ_FMAX = 20000, EQ_DB = 18;
@@ -3093,9 +3114,9 @@ function eqRespuesta(frecs) {  // dB de la cadena de filtros en cada frecuencia 
   const fr = new Float32Array(frecs), total = new Float32Array(frecs.length).fill(0), mag = new Float32Array(frecs.length), fase = new Float32Array(frecs.length);
   const filtros = [];
   if (dsEq.corte_graves) filtros.push(["highpass", dsEq.corte_graves, .707, 0]);
-  if (dsEq.graves) filtros.push(["lowshelf", dsEq.graves_f, 1, dsEq.graves]);
+  if (dsEq.graves) filtros.push(dsEq.graves_campana ? ["peaking", dsEq.graves_f, dsEq.graves_q, dsEq.graves] : ["lowshelf", dsEq.graves_f, 1, dsEq.graves]);
   if (dsEq.medios) filtros.push(["peaking", dsEq.medios_f, dsEq.medios_q, dsEq.medios]);
-  if (dsEq.agudos) filtros.push(["highshelf", dsEq.agudos_f, 1, dsEq.agudos]);
+  if (dsEq.agudos) filtros.push(dsEq.agudos_campana ? ["peaking", dsEq.agudos_f, dsEq.agudos_q, dsEq.agudos] : ["highshelf", dsEq.agudos_f, 1, dsEq.agudos]);
   if (dsEq.corte_agudos) filtros.push(["lowpass", dsEq.corte_agudos, .707, 0]);
   for (const [tipo, f, q, g] of filtros) {
     const b = eqCtx.createBiquadFilter(); b.type = tipo; b.frequency.value = f; b.Q.value = q; b.gain.value = g;
@@ -3146,12 +3167,13 @@ function dsPintarEq() {
     g.fillStyle = p.on ? "#fff" : acento; g.font = "bold 8.5px system-ui"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(p.et, p.x, p.y + .5);
     g.textAlign = "start"; g.textBaseline = "alphabetic";
   }
-  const sg = v => `${v > 0 ? "+" : ""}${(+v).toFixed(1)} dB`;
-  $("dsEqTxt").innerHTML = [dsEq.corte_graves ? `Corte graves <b>${fmtHz(dsEq.corte_graves)}</b>` : "",
-    dsEq.graves ? `Graves <b>${sg(dsEq.graves)}</b> · ${fmtHz(dsEq.graves_f)}` : "",
+  document.querySelectorAll("[data-eqtipo]").forEach(b => b.setAttribute("aria-pressed", !!dsEq[b.dataset.eqtipo + "_campana"] === (b.dataset.v === "1")));
+  const sg = v => `${v > 0 ? "+" : ""}${(+v).toFixed(1)} dB`, ancho = k => dsEq[k + "_campana"] ? ` · Q ${(+dsEq[k + "_q"]).toFixed(1)}` : "";
+  $("dsEqTxt").innerHTML = [dsEq.corte_graves ? `Corte de graves <b>${fmtHz(dsEq.corte_graves)}</b>` : "",
+    dsEq.graves ? `Graves <b>${sg(dsEq.graves)}</b> · ${fmtHz(dsEq.graves_f)}${ancho("graves")}` : "",
     dsEq.medios ? `Medios <b>${sg(dsEq.medios)}</b> · ${fmtHz(dsEq.medios_f)} · Q ${(+dsEq.medios_q).toFixed(1)}` : "",
-    dsEq.agudos ? `Agudos <b>${sg(dsEq.agudos)}</b> · ${fmtHz(dsEq.agudos_f)}` : "",
-    dsEq.corte_agudos ? `Corte agudos <b>${fmtHz(dsEq.corte_agudos)}</b>` : ""].filter(Boolean).map(x => `<span>${x}</span>`).join("")
+    dsEq.agudos ? `Agudos <b>${sg(dsEq.agudos)}</b> · ${fmtHz(dsEq.agudos_f)}${ancho("agudos")}` : "",
+    dsEq.corte_agudos ? `Corte de agudos <b>${fmtHz(dsEq.corte_agudos)}</b>` : ""].filter(Boolean).map(x => `<span>${x}</span>`).join("")
     || "Plano: arrastra un punto para ecualizar.";
 }
 let eqArr = null;
@@ -3178,11 +3200,16 @@ $("dsEqCaja").addEventListener("pointermove", e => {
   dsPintarEq(); dsCambio();
 });
 ["pointerup", "pointercancel"].forEach(ev => $("dsEqCaja").addEventListener(ev, () => { eqArr = null; $("dsEqCaja").classList.remove("moviendo"); }));
-$("dsEqCaja").addEventListener("wheel", e => {  // rueda sobre los medios: campana más ancha o más fina
-  const p = eqCerca(e); if (p?.k !== "medios") return;
-  e.preventDefault(); dsEq.medios_q = Math.max(.3, Math.min(6, +(dsEq.medios_q * (e.deltaY > 0 ? .85 : 1.18)).toFixed(2)));
+$("dsEqCaja").addEventListener("wheel", e => {  // rueda sobre una campana (medios, o graves/agudos en campana): más ancha o más fina
+  const p = eqCerca(e); if (!p || !(p.k === "medios" || dsEq[p.k + "_campana"])) return;
+  e.preventDefault(); const k = p.k + "_q";
+  dsEq[k] = Math.max(.3, Math.min(6, +(dsEq[k] * (e.deltaY > 0 ? .85 : 1.18)).toFixed(2)));
   dsPintarEq(); dsCambio();
 }, { passive: false });
+document.querySelectorAll("[data-eqtipo]").forEach(b => b.addEventListener("click", () => {
+  dsEq[b.dataset.eqtipo + "_campana"] = b.dataset.v === "1"; dsPintarEq(); dsCambio();
+}));
+$("dsSinSil").addEventListener("change", () => { dsPintarResultado(); dsCambio(); });
 $("dsEqCaja").addEventListener("dblclick", e => {  // doble clic: apaga esa banda
   const p = eqCerca(e); if (!p) return;
   if (p.k.startsWith("corte")) dsEq[p.k] = 0; else dsEq[p.k] = 0;
@@ -3213,16 +3240,26 @@ function dsPintarResultado() {
   const p = dsOndaO?.picos || [], dur = dsOndaO?.dur || 0, ps = dsOndaO?.por_seg || 50;
   const d = +$("dsDesde").value, h = +$("dsHasta").value, vel = +$("dsVel").value, eco = +$("dsEco").value;
   const fin = +$("dsFin").value, fout = +$("dsFout").value, vol = +$("dsVol").value;
-  const largo = Math.max(0, h - d) / vel, cola = eco ? .4 + eco : 0, total = largo + cola;
-  $("dsResTxt").textContent = `dura ${total.toFixed(2)} s${vel !== 1 ? ` (${vel > 1 ? "más rápido" : "más lento"})` : ""}`;
+  let tramo = p.slice(Math.floor(d * ps), Math.ceil(h * ps));
+  if ($("dsSinSil").checked && tramo.length) {  // como el motor: fuera todo tramo de silencio de más de 60 ms
+    const umbral = Math.max(...tramo) * .01, max = Math.ceil(.06 * ps), sin = [];
+    let hueco = [];
+    for (const v of tramo) {
+      if (v >= umbral) { if (sin.length && hueco.length <= max) sin.push(...hueco); hueco = []; sin.push(v); } else hueco.push(v);
+    }
+    tramo = sin.length ? sin : tramo;
+  }
+  if ($("dsInv").checked) tramo = tramo.reverse();
+  const fuente = tramo.length / ps || Math.max(0, h - d);  // segundos de sonido antes de la velocidad
+  dsPintarResultado.fuente = fuente;
+  const largo = fuente / vel, cola = eco ? .4 + eco : 0, total = largo + cola;
+  $("dsResTxt").textContent = `Dura ${total.toFixed(2)} s${vel !== 1 ? ` (${vel > 1 ? "más rápido" : "más lento"})` : ""}`;
   const cv = $("dsRes"), w = cv.clientWidth, hh = cv.clientHeight, dpr = devicePixelRatio || 1;
   cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
   const g = cv.getContext("2d"); g.scale(dpr, dpr);
   if (!p.length || !dur) return;
   const escala = Math.max(dur / .5, total) || 1, ancho = Math.max(2, total / escala * w), anchoSon = largo / escala * w;
   dsPintarResultado.escala = escala; $("dsResAsa").style.left = anchoSon + "px";
-  let tramo = p.slice(Math.floor(d * ps), Math.ceil(h * ps));
-  if ($("dsInv").checked) tramo = tramo.reverse();
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#3b82f6";
   for (let x = 0; x < ancho; x++) {
     const t = x / ancho * total;  // segundo del resultado
@@ -3250,7 +3287,7 @@ function dsPoner(aj) {
   $("dsDesde").value = aj.desde || 0; $("dsHasta").value = aj.hasta || dur;
   DS_CAMPOS.forEach(([id, k, neutro]) => { $(id).value = aj[k] ?? neutro; });
   dsEq = Object.fromEntries(Object.entries(EQ_NEUTRO).map(([k, v]) => [k, aj[k] ?? v]));
-  $("dsInv").checked = !!aj.invertir; dsPintar(); dsPintarEq(); dsCambio();
+  $("dsInv").checked = !!aj.invertir; $("dsSinSil").checked = !!aj.sin_silencios; dsPintar(); dsPintarEq(); dsCambio();
 }
 // ---- Escuchar al instante: el original se baja una vez al elegir el sonido, y la versión con cambios se va preparando
 // sola mientras mueves los controles (así el ▶ suena enseguida) ----
@@ -3275,7 +3312,7 @@ function dsSeguirCabezal() {
   } else {
     const d = +$("dsDesde").value, h = +$("dsHasta").value, vel = +$("dsVel").value, largo = (h - d) / vel;
     cr.style.display = "block"; cr.style.left = t / (dsPintarResultado.escala || 1) * $("dsResCaja").clientWidth + "px";
-    if (t < largo && dur) {  // el mismo punto en la onda de arriba (el archivo original)
+    if (t < largo && dur && !$("dsSinSil").checked) {  // el mismo punto en la onda de arriba (sin silencios ya no coincide)
       const src = $("dsInv").checked ? h - t * vel : d + t * vel;
       co.style.display = "block"; co.style.left = src / dur * 100 + "%";
     } else co.style.display = "none";
@@ -3300,7 +3337,7 @@ async function abrirEditorSonido(s, { ventana } = {}) {
   const c = biblioteca.find(x => x.archivos.some(a => a.id === s.id));
   dsSon = { ...s, cat: s.cat || c?.cat, catNombre: s.catNombre || c?.nombre }; dsOndaO = null;
   dsGuardado = c?.archivos.find(a => a.id === s.id)?.aj || {};
-  $("dsTit").textContent = s.nombre;
+  $("dsTit").textContent = cap(s.nombre);
   $("dsCat").textContent = (dsSon.catNombre || "") + (Object.keys(dsGuardado).length ? " · editado" : "");
   $("dsForm").hidden = false; $("dsVacio").hidden = true;
   if (ventana || !$("sonPanel").offsetParent) dsAVentana(); else dsAlPanel();
@@ -3351,7 +3388,7 @@ $("dsResAsa").addEventListener("pointerdown", e => {
 $("dsResAsa").addEventListener("pointermove", e => {
   if (dsArr?.modo !== "vel") return;
   const r = $("dsResCaja").getBoundingClientRect(), x = Math.max(4, e.clientX - r.left);
-  const largo = x / r.width * (dsPintarResultado.escala || 1), fuente = +$("dsHasta").value - +$("dsDesde").value;
+  const largo = x / r.width * (dsPintarResultado.escala || 1), fuente = dsPintarResultado.fuente || (+$("dsHasta").value - +$("dsDesde").value);
   $("dsVel").value = Math.max(.5, Math.min(2, Math.round(fuente / largo * 20) / 20));  // pasos de 0.05x, como el deslizador
   dsPintar();
 });
@@ -3368,9 +3405,9 @@ $("dsGuardar").onclick = async () => {
     if (typeof ondasSon !== "undefined") delete ondasSon[dsSon.id];  // la pista del editor del video vuelve a leer la onda editada
     const n = r.codigos.length, que = Object.keys(r.ajustes).length ? `«${dsSon.nombre}» guardado así.` : `«${dsSon.nombre}» vuelve a ser el original.`;
     if (!n) return avisar(`${que} Se usa así en los próximos videos que armes.`, "ok");
-    if (!confirm(`${que} ¿Re-armar ahora los ${n} video${n === 1 ? "" : "s"} que ya lo usan?`)) return avisar(`${que} Se nota cuando re-armes esos ${n} videos.`, "ok");
+    if (!confirm(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que ya lo usan?`)) return avisar(`${que} Se nota cuando rearmes esos ${n} videos.`, "ok");
     await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`${que} Re-armando ${n} videos… lo ves en Procesos (☰).`, "ok");
+    avisar(`${que} Rearmando ${n} videos… lo ves en Procesos (☰).`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 async function llenarSelectorSonido() {
@@ -3387,15 +3424,15 @@ $("evSonCat").onchange = () => pintarArchivosSonido();
 $("evSonPlay").onclick = () => { const id = $("evSonArch").value || (biblioteca.find(c => c.cat === $("evSonCat").value)?.archivos[0]?.id); if (id) tocar(id); };
 function pintarPendientes() {
   const n = sonPend.length;
-  $("evSonAplicar").hidden = !n || !!(est && est.base);  // en un video normal, «Guardar cambios» ya re-arma los sonidos
-  $("evSonAplicar").textContent = `Re-armar con ${n} cambio${n === 1 ? "" : "s"} de sonido`;
+  $("evSonAplicar").hidden = !n || !!(est && est.base);  // en un video normal, «Guardar cambios» ya rearma los sonidos
+  $("evSonAplicar").textContent = `Rearmar con ${n} cambio${n === 1 ? "" : "s"} de sonido`;
 }
 async function cambiarSonido(cambio) {
   try {
     const r = await post("/api/sonido", cambio);
     sonPend.push({ ...cambio, codigos: r.codigos });
     pintarPendientes(); pintarEfectos();
-    $("evSonInfo").textContent = `Guardado en ${cambio.pieza}: vale para sus ${r.codigos.length} videos. Re-arma para escucharlo.`;
+    $("evSonInfo").textContent = `Guardado en ${cambio.pieza}: vale para sus ${r.codigos.length} videos. Rearma para escucharlo.`;
   } catch (err) { avisar("Error: " + err.message, "err"); }
 }
 $("evSonAgregar").onclick = () => {
@@ -3444,7 +3481,7 @@ async function aplicarSonido(e, tN, desde, largo, vol, vel) {
   else { await cambiarSonido({ ...base, pieza: vieja.pieza, accion: "quitar", t: vieja.tp }); await cambiarSonido({ ...base, pieza: nueva.pieza, accion: "agregar", t: nueva.tp }); }
   Object.assign(e, { t: +tN.toFixed(2), tm: +tN.toFixed(2), desde: base.desde, largo: base.largo, vol: base.vol ?? 1, vel: base.vel, motivo: "puesto a mano", pend: true });
   pintarEfectos();
-  $("evSonInfo").textContent = `Sonido en ${nueva.pieza} · ${nueva.tp.toFixed(2)} s · dura ${(base.largo / base.vel).toFixed(2)} s. Se escucha en la vista previa; toca «Guardar cambios» para re-armar.`;
+  $("evSonInfo").textContent = `Sonido en ${nueva.pieza} · ${nueva.tp.toFixed(2)} s · dura ${(base.largo / base.vel).toFixed(2)} s. Se escucha en la vista previa; toca «Guardar cambios» para rearmar.`;
 }
 function tocarRecorte(e) {  // escucha solo el pedazo que quedó del sonido
   if (!e.id) return;
@@ -3476,7 +3513,7 @@ function abrirSonido(e) {
   $("fxQuitar").onclick = async () => {
     const v = piezaDeOriginal(e.tm ?? e.t);
     await cambiarSonido({ pieza: v.pieza, accion: "quitar", t: v.tp, cat: e.cat, local: true });
-    e.quitado = true; pintarEfectos(); $("evInspector").innerHTML = `<span class="muted">Sonido quitado. Toca «Guardar cambios» para re-armar.</span>`;
+    e.quitado = true; pintarEfectos(); $("evInspector").innerHTML = `<span class="muted">Sonido quitado. Toca «Guardar cambios» para rearmar.</span>`;
   };
   $("fxCambiar").onclick = async () => {
     const v = piezaDeOriginal(e.tm ?? e.t), id = $("evSonArch").value, cat = $("evSonCat").value;
@@ -3489,7 +3526,7 @@ $("evSonAplicar").onclick = async () => {
   try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos }); sonPend = []; pintarPendientes();
     if (codigos.includes(actual.codigo)) reabrir = actual.codigo;
     $("dlgEditor").close(); $("dlg").close(); vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Re-armando ${codigos.length} videos con los sonidos nuevos…`, "ok"); }
+    avisar(`Rearmando ${codigos.length} videos con los sonidos nuevos…`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("evCarrilA").addEventListener("click", e => {  // tocar el audio lleva el cabezal a ese punto
@@ -3534,7 +3571,7 @@ function pintarAlcance() {
   // botones: «Aplicar a todos los videos de C1» o «Solo a este video»
   $("evArmar").textContent = est.propio ? "💾 Guardar cambios (solo este video)" : !est.base ? "💾 Guardar esta versión"
     : !misma ? "💾 Guardar como versión aparte" : `💾 Guardar cambios · se aplica a los ${nCuerpo} videos de ${est.cuerpo.nombre}`;
-  $("evArmar").title = est.base && misma ? "Guarda todo (cortes, encuadre, imágenes, sonidos) y re-arma solo los videos que cambian: lo del cuerpo vale para todos sus videos; lo del hook o el CTA, para los que los usan" : "";
+  $("evArmar").title = est.base && misma ? "Guarda todo (cortes, encuadre, imágenes, sonidos) y rearma solo los videos que cambian: lo del cuerpo vale para todos sus videos; lo del hook o el CTA, para los que los usan" : "";
   $("evSolo").hidden = !est.base || !misma;
   $("evGuardar").hidden = est.base && !misma;
   $("evBorrar").hidden = est.base;
@@ -3544,7 +3581,7 @@ function pintarAlcance() {
     : !est.base
     ? `<span>✎</span><span>Estás editando la versión <b>${esc(est.codigo)}</b>: los cambios solo afectan a esta versión.</span>`
     : !misma ? `<span>⑂</span><span>Elegiste otra combinación de piezas: se guarda como <b>versión aparte</b>.</span>`
-    : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se re-arman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`;
+    : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se rearman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`;
 }
 // Bloques en orden: hook, frases del cuerpo, CTA. a/b = entrada/salida en segundos del archivo de esa pieza.
 function bloquesEd() {
@@ -4162,7 +4199,7 @@ $("evSilencios").onclick = () => {
 $("evInspector").addEventListener("change", async e => {
   if (e.target.id !== "silAuto" && e.target.id !== "silMargen") return;
   try { E.silencios = await post("/api/silencios", { auto: $("silAuto").checked, margen: Number($("silMargen").value) / 1000 });
-    avisar(E.silencios.auto ? "Listo: los clips sin recorte a mano arrancan solos justo antes de la voz (al re-armar)." : "Corte automático de silencios apagado.", "ok"); }
+    avisar(E.silencios.auto ? "Listo: los clips sin recorte a mano arrancan solos justo antes de la voz (al rearmar)." : "Corte automático de silencios apagado.", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
 $("evInspector").addEventListener("click", e => {
@@ -4275,7 +4312,7 @@ $("evCarrilS").addEventListener("pointerup", () => {
 async function guardarSubs(pz, que) {  // vale para todos los videos que usan esta pieza
   try {
     await post(`/api/subtitulos?pieza=${encodeURIComponent(pz.nombre)}`, { lineas: pz.lineas.map(l => ({ texto: l.texto, s: l.s, e: l.e, palabras: l.palabras })) });
-    avisar(`${que} en ${pz.nombre}. Vale para todos sus videos: re-arma para verlo quemado en el video.`, "ok");
+    avisar(`${que} en ${pz.nombre}. Vale para todos sus videos: rearma para verlo quemado en el video.`, "ok");
   } catch (err) { avisar("Error: " + err.message, "err"); }
 }
 function cabezalEnClip(nombre) {  // segundo del cabezal dentro del clip de esa pieza (null si el cabezal está en otra)
@@ -4329,7 +4366,7 @@ $("evInspector").addEventListener("click", async e => {
   const [pieza, li] = ed.subSel.split("|"), pz = [est.hook, est.cuerpo, est.cta].find(p => p.nombre === pieza);
   const lineas = pz.lineas.map((l, k) => ({ texto: k === Number(li) ? $("evSubTexto").value : l.texto, s: l.s, e: l.e,
     palabras: k === Number(li) && $("evSubTexto").value.split(" ").length !== l.texto.split(" ").length ? undefined : l.palabras }));
-  try { await post(`/api/subtitulos?pieza=${encodeURIComponent(pieza)}`, { lineas }); pz.lineas = lineas; pintarEditor(); avisar("Subtítulo corregido. Re-arma los videos para verlo quemado en el video.", "ok"); }
+  try { await post(`/api/subtitulos?pieza=${encodeURIComponent(pieza)}`, { lineas }); pz.lineas = lineas; pintarEditor(); avisar("Subtítulo corregido. Rearma los videos para verlo quemado en el video.", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
 $("evEscala").addEventListener("input", pintarEditor);
@@ -4397,7 +4434,7 @@ function colocarSub() {
   const sub = $("evSub"), h = Number($("vidAltura").value || 560);
   sub.style.top = "auto"; sub.style.bottom = (h / 1920 * 100) + "%";
 }
-// Arrastrar el subtítulo para subirlo o bajarlo (se guarda con «Guardar y re-armar» de Subtítulos de este video)
+// Arrastrar el subtítulo para subirlo o bajarlo (se guarda con «Guardar y rearmar» de Subtítulos de este video)
 let arrSub = null;
 $("evSub").addEventListener("pointerdown", e => {
   arrSub = { y0: e.clientY, h0: Number($("vidAltura").value || 560), alto: $("evVisor").getBoundingClientRect().height };
@@ -4413,7 +4450,7 @@ $("evSub").addEventListener("pointermove", e => {
 $("evSub").addEventListener("pointerup", () => {
   if (!arrSub) return;
   arrSub = null; $("evSub").classList.remove("arrastrando"); $("evPos").hidden = true;
-  avisar("Nueva altura del subtítulo: toca «Guardar y re-armar» en «Subtítulos de este video» para aplicarla.", "ok");
+  avisar("Nueva altura del subtítulo: toca «Guardar y rearmar» en «Subtítulos de este video» para aplicarla.", "ok");
   $("vidSubsGuardar").focus();
 });
 function moverCabezal() { $("evCabezal").style.left = (78 + xDeTiempo(ed?.t || 0)) + "px"; }
@@ -4499,7 +4536,7 @@ function datosEd() {
     cortes: ed.cortes, quitar_rangos: ed.quitarR, capas: ed.capas, velocidad: ed.vel,
     recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value };
 }
-// Guardar: si es el video base con sus piezas de siempre, los cambios van a las piezas (todos sus videos se re-arman);
+// Guardar: si es el video base con sus piezas de siempre, los cambios van a las piezas (todos sus videos se rearman);
 // si es una versión o se eligió otra combinación, se guarda como versión.
 async function guardarEdicion() {
   const d = datosEd();
@@ -4508,14 +4545,14 @@ async function guardarEdicion() {
   if (!est.base || !misma) return guardarVersion(true);
   try {
     pararEditor();
-    const sonidos = [...new Set(sonPend.flatMap(p => p.codigos || []))];  // los sonidos ya quedaron guardados: falta re-armar
+    const sonidos = [...new Set(sonPend.flatMap(p => p.codigos || []))];  // los sonidos ya quedaron guardados: falta rearmar
     const r = await post("/api/edicion", { ...d, armar: true, extra_codigos: sonidos });
     sonPend = []; pintarPendientes();
     $("dlg").close(); await cargar();
     if (!r.codigos.length) return avisar("No había cambios que guardar.", "muted");
     if (r.codigos.includes(actual.codigo)) reabrir = actual.codigo;
     vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Guardado. Re-armando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que usan estas piezas…`, "ok");
+    avisar(`Guardado. Rearmando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que usan estas piezas…`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 async function guardarVersion(armar, nueva) {
@@ -4535,7 +4572,7 @@ $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (n
     const r = await post("/api/version", { ...datosEd(), propio: true, codigo: est.codigo, id: est.codigo, armar: true });
     $("dlg").close(); await cargar();
     reabrir = r.codigo; vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Guardado solo en ${r.codigo}. Re-armándolo… los demás videos de ${est.cuerpo.nombre} no cambian.`, "ok");
+    avisar(`Guardado solo en ${r.codigo}. Rearmándolo… los demás videos de ${est.cuerpo.nombre} no cambian.`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("evPartes").onclick = async () => { if (!actual) return; pararEditor(); $("dlg").close(); await exportarPartes([actual.codigo]); };
@@ -4555,10 +4592,10 @@ $("dlgEditor").addEventListener("close", pararEditor);
 $("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checked) evMusica.pause(); });
 $("evExportar").onclick = async () => { if (!actual) return; pararEditor(); elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
 $("evBorrar").onclick = async () => {
-  if (!est || est.base || !confirm(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se re-arma.` : `¿Borrar la versión ${est.codigo}?`)) return;
+  if (!est || est.base || !confirm(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se rearma.` : `¿Borrar la versión ${est.codigo}?`)) return;
   try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar();
     if (est.propio) { reabrir = est.codigo; vigilar(await (await fetch("/api/trabajo")).json()); }
-    avisar(est.propio ? `${est.codigo} vuelve a lo de ${est.cuerpo.nombre}. Re-armándolo…` : "Versión borrada.", "ok"); }
+    avisar(est.propio ? `${est.codigo} vuelve a lo de ${est.cuerpo.nombre}. Rearmándolo…` : "Versión borrada.", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("dlg").addEventListener("close", pararEditor);
@@ -4584,7 +4621,7 @@ function dichoGuion(p) {  // lo que se dijo en el clip, para compararlo de un vi
 }
 // El video del clip: el de la pieza ya preparada (sin silencios, con sus partes unidas) o el clip suelto tal cual
 function videoGuion(url) {
-  return url ? `<video class="g-video" src="${url}" controls preload="metadata" playsinline></video>` : `<div class="g-video vacio">sin clip</div>`;
+  return url ? `<video class="g-video" src="${url}" controls preload="metadata" playsinline></video>` : `<div class="g-video vacio">Sin clip todavía</div>`;
 }
 const videoDePieza = nombre => E.piezas.find(x => x.nombre === nombre)?.video;
 const videoDeClip = rel => (E.checklist.sin_asignar || []).find(c => c.rel === rel)?.video;
@@ -4597,9 +4634,9 @@ function sugeridosGuion(p) {
         <button class="btn peq" style="justify-self:start" data-asig-rel="${esc(s.rel)}" data-asig-pieza="${esc(p.nombre)}">Es este</button></div></div>`).join("")}</div>`;
 }
 function estadoGuion(p) {
-  if (!corroborado && !(p.procesada && p.parecido != null)) return p.clips.length ? `<span class="pill">con clip</span>` : `<span class="pill warn">sin clip</span>`;
-  return !p.clips.length ? `<span class="pill warn">sin clip</span>`
-    : !p.procesada ? `<span class="pill">sin analizar</span>`
+  if (!corroborado && !(p.procesada && p.parecido != null)) return p.clips.length ? `<span class="pill">Con clip</span>` : `<span class="pill warn">Sin clip</span>`;
+  return !p.clips.length ? `<span class="pill warn">Sin clip</span>`
+    : !p.procesada ? `<span class="pill">Sin analizar</span>`
     : `<span class="pill ${p.parecido >= .9 ? "ok" : p.parecido >= .7 ? "" : "warn"}">${Math.round((p.parecido || 0) * 100)}% igual al guion</span>`;
 }
 function pintarGuionLista() {
@@ -4865,7 +4902,7 @@ function pintarDescargas() {
         `<option value="${esc(x.id)}" ${x.id === sug ? "selected" : ""}>${esc(x.id)}${x.listo ? " · ya tiene (reemplazar)" : " · falta"}</option>`).join("") : "";
     return `<div class="caja asset">
       <div class="fila" style="justify-content:space-between"><code style="overflow-wrap:anywhere">${esc(f.nombre)}</code>
-        <span class="muted" style="font-size:11.5px">${{ musica: "música", imagen: "imagen", video: "clip" }[f.tipo]} · ${f.mb} MB · ${hace(f.fecha)}</span></div>
+        <span class="muted" style="font-size:11.5px">${{ musica: "Música", imagen: "Imagen", video: "Clip" }[f.tipo]} ·${f.mb} MB · ${hace(f.fecha)}</span></div>
       ${vista}
       ${lista.length ? `<div class="fila"><select data-desc-id="${esc(f.nombre)}" style="flex:1;min-width:0">${opciones}</select>
         <button class="btn peq" type="button" data-importar="${esc(f.nombre)}" data-destino="${esMus ? "musica" : "assets"}">Usar</button></div>`
@@ -4882,11 +4919,11 @@ document.addEventListener("click", async e => {
     const r = await post("/api/importar_descarga", { nombre: b.dataset.importar, id, destino: b.dataset.destino });
     await cargar(); pintarDescargas();
     if (!r.codigos.length) return avisar(`${r.archivo} guardado en la sesión y subiéndose a Drive. Ningún video armado lo usa todavía.`, "ok");
-    if (confirm(`${r.archivo} quedó guardado. ¿Re-armar ahora los ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que lo usan?`)) {
+    if (confirm(`${r.archivo} quedó guardado. ¿Rearmar ahora los ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que lo usan?`)) {
       await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos });
       vigilar(await (await fetch("/api/trabajo")).json());
-      avisar(`${r.archivo} guardado. Re-armando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"}… lo ves en Procesos (☰).`, "ok");
-    } else avisar(`${r.archivo} guardado. Cuando quieras, re-arma los videos que lo usan.`, "ok");
+      avisar(`${r.archivo} guardado. Rearmando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"}… lo ves en Procesos (☰).`, "ok");
+    } else avisar(`${r.archivo} guardado. Cuando quieras, rearma los videos que lo usan.`, "ok");
   } catch (err) { avisar("Error: " + err.message, "err"); b.disabled = false; b.textContent = "Usar"; }
 });
 
@@ -4990,7 +5027,7 @@ function pintarPlantillas() {
   $("plantLista").innerHTML = ids.map(id => { const pl = E.plantillas[id]; const editada = E.fabrica.includes(id) && E.propias.includes(id);
     return `<button class="plant" data-plant="${id}" aria-pressed="${id === plantSel}">
       <div class="muestra" style="${fondo ? `background-image:url('${fondo}')` : ""}"><div class="sublinea" data-linea="${id}"></div></div>
-      <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">predeterminada</span>' : ""} ${editada ? '<span class="pill azul">editada</span>' : !E.fabrica.includes(id) ? '<span class="pill">propia</span>' : ""}</b>
+      <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">Predeterminada</span>' : ""} ${editada ? '<span class="pill azul">Editada</span>' : !E.fabrica.includes(id) ? '<span class="pill">Propia</span>' : ""}</b>
       <span class="muted" style="font-size:11px">${esc(pl.descripcion || "")}</span></button>`; }).join("");
   ids.forEach(id => { const el = document.querySelector(`[data-linea="${id}"]`); pintarLinea(el, ["La", "recuperación", "pasa"], 1, new Set([1]), E.plantillas[id], el.parentElement.clientWidth || 200); });
   $("plantFuente").innerHTML = $("plantFuente2").innerHTML = E.fuentes.map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}${f.propia ? " (propia)" : ""}</option>`).join("");
@@ -5118,19 +5155,19 @@ $("plantListaElems").addEventListener("click", e => { const i = e.target.dataset
 new ResizeObserver(() => { if (plantEdit && !$("plantLienzo").closest("[hidden]")) { colocarCaja(); pintarElementos(); } }).observe($("plantLienzo"));
 async function guardarPlantilla(id, datos, predeterminada) {
   const r = await post("/api/plantilla", { id, datos, predeterminada });
-  // la sala se recarga por detrás (tarda unos segundos): la pregunta de re-armar sale al instante
+  // la sala se recarga por detrás (tarda unos segundos): la pregunta de rearmar sale al instante
   plantSel = id;
   cargar().then(() => { plantSel = id; pintarPlantillas(); }).catch(e => avisar("Error: " + e.message, "err"));
   return r;
 }
-// después de guardar: los videos que usan la plantilla se re-arman para verla en el video (no cambian solos)
+// después de guardar: los videos que usan la plantilla se rearman para verla en el video (no cambian solos)
 async function ofrecerRearmar(r, que) {
   const n = (r && r.codigos || []).length;
   if (!n) return avisar(`${que} Ningún video la usa todavía.`, "ok");
-  if (!confirm(`${que} ¿Re-armar ahora los ${n} video${n === 1 ? "" : "s"} que la usan para verla en el video?`))
-    return avisar(`${que} Los ${n} videos que la usan quedaron marcados «⟳ re-armar».`, "ok");
+  if (!confirm(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que la usan para verla en el video?`))
+    return avisar(`${que} Los ${n} videos que la usan quedaron marcados «⟳ rearmar».`, "ok");
   try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`${que} Re-armando ${n} videos… lo ves en Procesos (☰).`, "ok"); }
+    avisar(`${que} Rearmando ${n} videos… lo ves en Procesos (☰).`, "ok"); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 }
 
@@ -5168,14 +5205,14 @@ function pintarConexiones() {
   $("listaConexiones").innerHTML = orden.map(x => `<div class="conexion ${x.ok ? "listo" : ""}">
       <div class="con-cab"><span class="con-ico" aria-hidden="true">${x.ico || "•"}</span>
         <span class="que"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span></div>
-      <div class="con-estado"><span class="pill ${x.ok ? "ok" : x.opcional ? "" : "warn"}">${x.ok ? "✓ listo" : x.opcional ? "opcional" : x.auto ? "falta conectar" : "por revisar"}</span></div>
+      <div class="con-estado"><span class="pill ${x.ok ? "ok" : x.opcional ? "" : "warn"}">${x.ok ? "✓ Listo" : x.opcional ? "Opcional" : x.auto ? "Falta conectar" : "Por revisar"}</span></div>
       <details data-id="${x.id}" ${abiertos.has(x.id) ? "open" : ""}><summary>Cómo se hace (${x.pasos.length} pasos)</summary><ol>${x.pasos.map(p => `<li>${p}</li>`).join("")}</ol></details>
       <div class="con-pie">${x.auto ? `<span class="muted" style="font-size:12px">La sala lo revisa sola</span>`
           : `<label class="marca"><input type="checkbox" data-con-marca="${x.id}" ${x.ok ? "checked" : ""}> Ya lo tengo listo</label>`}
         <button class="btn ${x.ok ? "sec" : ""} peq" type="button" data-con-abrir="${x.id}">${esc(x.boton[0])}</button></div>
     </div>`).join("");
   const nec = items.filter(x => !x.opcional), listos = nec.filter(x => x.ok).length;
-  $("conProgreso").innerHTML = `<span><b>${listos} de ${nec.length}</b> listas${listos === nec.length ? " · todo conectado 🎉" : ""}</span><span class="barra"><i style="width:${listos / nec.length * 100}%"></i></span>`;
+  $("conProgreso").innerHTML = `<span><b>${listos} de ${nec.length}</b> listas${listos === nec.length ? " · todo listo 🎉" : ""}</span><span class="barra"><i style="width:${listos / nec.length * 100}%"></i></span>`;
   $("confNCon").textContent = `${listos}/${nec.length}`; $("confNCon").className = "pill " + (listos === nec.length ? "ok" : "warn");
   pintarConexiones.items = items;
 }
@@ -5222,10 +5259,10 @@ $("actBuscar").onclick = async () => {
     infoVersion = await (await fetch("/api/version?forzar")).json();
     $("actVersion").textContent = "v" + infoVersion.actual;
     $("confPAct").className = "punto-estado " + (infoVersion.error ? "" : infoVersion.nueva ? "warn" : "ok");
-    if (infoVersion.error) $("actResultado").innerHTML = `<span class="pill warn">sin conexión</span> No se pudo revisar: ${esc(infoVersion.error)}`;
-    else if (!infoVersion.nueva) $("actResultado").innerHTML = `<span class="pill ok">✓ al día</span> Estás con la última versión del sistema (v${esc(infoVersion.actual)}).`;
+    if (infoVersion.error) $("actResultado").innerHTML = `<span class="pill warn">Sin internet</span> No se pudo revisar: ${esc(infoVersion.error)}`;
+    else if (!infoVersion.nueva) $("actResultado").innerHTML = `<span class="pill ok">✓ Al día</span> Tienes la última versión de la sala (v${esc(infoVersion.actual)}).`;
     else {
-      $("actResultado").innerHTML = `<span class="pill azul">nueva</span> Hay una versión nueva: <b>v${esc(infoVersion.nueva)}</b> (tienes v${esc(infoVersion.actual)}).
+      $("actResultado").innerHTML = `<span class="pill azul">Nueva</span> Hay una versión nueva: <b>v${esc(infoVersion.nueva)}</b> (tienes v${esc(infoVersion.actual)}).
         <pre class="salida-claude" style="max-height:160px">${esc((infoVersion.notas || "").split("lanzador minimo")[0].trim())}</pre>
         <button class="btn" id="actInstalar" style="margin-top:8px">${infoVersion.requiere_completa ? "Bajar el instalador nuevo" : "Actualizar ahora"}</button>`;
       $("actInstalar").onclick = () => $("vActualizar").click();
@@ -5234,8 +5271,8 @@ $("actBuscar").onclick = async () => {
   } catch (e) {
     // «Failed to fetch»: la ventana está abierta pero el motor de la sala no responde (se apagó o lo cerraron)
     $("actResultado").innerHTML = /fetch|network|load/i.test(e.message)
-      ? `<span class="pill warn">sin motor</span> La sala no responde: su motor se apagó. Cierra esta ventana y vuelve a abrir la sala; después busca la actualización otra vez.`
-      : `<span class="pill warn">error</span> ${esc(e.message)}`;
+      ? `<span class="pill warn">Sin respuesta</span> La sala dejó de responder. Cierra esta ventana y vuelve a abrir la sala; después busca la actualización otra vez.`
+      : `<span class="pill warn">Error</span> ${esc(e.message)}`;
   }
   b.disabled = false; b.textContent = "Buscar actualizaciones";
 };
