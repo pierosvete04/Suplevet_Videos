@@ -29,6 +29,8 @@
   ],
   "sonidos": {
     "volumen_sfx": 0.7,
+    "quitar_silencio_inicial": true,
+    "umbral_inicio": 0.05,
     "separacion_minima": 1.5,
     "volumen_por_categoria": {
       "riser": 0.8,

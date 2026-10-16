@@ -581,8 +581,8 @@ class H(BaseHTTPRequestHandler):
             if not f:
                 return self.send_error(404)
             if "original" not in q:
-                try:
-                    f = motor.sonido_editado(f)
+                try:  # &aj=<json>: escuchar una edición sin guardarla
+                    f = motor.sonido_editado(f, json.loads(q["aj"][0]) if "aj" in q else None)
                 except Exception:  # noqa: BLE001
                     pass
             self._archivo(f.parent, f.name)
@@ -949,7 +949,7 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/ajustes_sonido":  # editar un sonido de la biblioteca: queda así en todos los videos
                 b = self._cuerpo()
                 aj = motor.guardar_ajustes_sonido(str(b.get("id", "")), b.get("ajustes") or {})
-                self._json({"ok": True, "ajustes": aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
+                self._json({"ok": True, "ajustes": aj, "codigos": motor.videos_con_sonido(str(b.get("id", "")))})
             elif u.path == "/api/edicion":
                 b = self._cuerpo()
                 codigos = motor.guardar_edicion_piezas(b)

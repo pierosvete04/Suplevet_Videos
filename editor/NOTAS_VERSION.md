@@ -1,3 +1,9 @@
+Versión 1.21.0 (se actualiza desde la app con «Actualizar ahora»):
+- Los efectos de sonido entran justo en su marca: la sala salta sola el silencio (o el soplido bajito) que traen muchos archivos al inicio. Antes algunos sonaban hasta medio segundo tarde.
+- Sonidos → «✎ Editar» en cada sonido: recortar dónde empieza y termina, velocidad, tono, eco, graves, agudos, entrada y salida suave, volumen y «al revés». Se escucha antes de guardar y queda como predeterminado: todos los videos que usan ese sonido lo ponen así (ofrece re-armar los que ya lo usan).
+- En el editor del video, cada efecto tiene ahora su velocidad (más rápido o más lento sin cambiar el tono), solo para ese lugar. También se puede abrir «✎ Editar el sonido» desde ahí.
+- Corrige el error al mover, recortar o cambiar el volumen de un sonido en el editor que traía la 1.20.0.
+
 Versión 1.20.0 (esta pide instalar la versión completa una vez, porque cambia el programa que abre la sala):
 - Al abrir la sala ya no aparece ni se cierra el cuadro negro: se abre directo la ventana de la sala.
 - Procesos (☰) ahora es un panel como el de Notificaciones: se abre bajo su botón, con «Recientes» y «Todo el historial», cada proceso con su ícono (listo, falló, cancelado), lo que tardó y agrupado por día. Lo que está corriendo sale arriba, con su avance y el botón Cancelar.

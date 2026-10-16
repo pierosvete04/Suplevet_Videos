@@ -275,7 +275,12 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .cat-sonido { padding: 12px 14px; }
 .cat-sonido details { border: 0; padding: 0; margin: 0; }
 .lista-sonidos { display: grid; gap: 4px; margin-top: 10px; max-height: 320px; overflow: auto; }
-.fila-sonido { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; }
+.ds-onda { position: relative; height: 70px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
+.ds-onda canvas { display: block; width: 100%; height: 100%; }
+.ds-sel { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); pointer-events: none; }
+.ds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+.fila-sonido .pill.editado { font-size: 10.5px; padding: 1px 6px; }
+.fila-sonido { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; }
 .fila-sonido:hover, .fila-sonido.elegido { background: var(--hondo); }
 .fila-sonido.elegido { outline: 1px solid var(--accent); }
 .fila-sonido .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1163,6 +1168,33 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <div style="display:grid;gap:6px"><span class="muted" style="font-size:12px">Sesiones del grupo</span><div id="grSesiones" style="display:grid;gap:4px"></div></div>
     <label class="muted" style="display:grid;gap:4px;font-size:12px">La que tiene el guion (ahí van Flow, música y V.FINALES)<select id="grGuion"></select></label>
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
+  </form>
+</dialog>
+<dialog id="dlgSonido" aria-labelledby="dsTit" style="width:min(620px,96vw)">
+  <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formSonido">
+    <div><h2 id="dsTit" style="margin:0">Editar sonido</h2>
+      <span class="muted" style="font-size:12.5px">Queda como predeterminado: todos los videos que usen este sonido lo ponen así.</span></div>
+    <div class="ds-onda"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div></div>
+    <div class="ds-grid">
+      <label class="ev-campo">Empieza en <b id="dsDesdeTxt"></b><input type="range" id="dsDesde" min="0" step="0.01"></label>
+      <label class="ev-campo">Termina en <b id="dsHastaTxt"></b><input type="range" id="dsHasta" min="0" step="0.01"></label>
+      <label class="ev-campo">Velocidad <b id="dsVelTxt"></b><input type="range" id="dsVel" min="0.5" max="2" step="0.05"></label>
+      <label class="ev-campo">Tono <b id="dsTonoTxt"></b><input type="range" id="dsTono" min="-12" max="12" step="1"></label>
+      <label class="ev-campo">Eco <b id="dsEcoTxt"></b><input type="range" id="dsEco" min="0" max="1" step="0.05"></label>
+      <label class="ev-campo">Volumen <b id="dsVolTxt"></b><input type="range" id="dsVol" min="0" max="3" step="0.05"></label>
+      <label class="ev-campo">Graves <b id="dsGravesTxt"></b><input type="range" id="dsGraves" min="-12" max="12" step="1"></label>
+      <label class="ev-campo">Agudos <b id="dsAgudosTxt"></b><input type="range" id="dsAgudos" min="-12" max="12" step="1"></label>
+      <label class="ev-campo">Entra suave <b id="dsFinTxt"></b><input type="range" id="dsFin" min="0" max="2" step="0.05"></label>
+      <label class="ev-campo">Sale suave <b id="dsFoutTxt"></b><input type="range" id="dsFout" min="0" max="2" step="0.05"></label>
+    </div>
+    <label class="fila" style="font-size:13px"><input type="checkbox" id="dsInv"> Al revés (útil para un whoosh que «llega» al corte)</label>
+    <div class="fila" style="justify-content:space-between">
+      <span class="fila"><button class="btn sec peq" type="button" id="dsPlayOrig">▶ Original</button>
+        <button class="btn sec peq" type="button" id="dsPlay">▶ Con los cambios</button>
+        <button class="btn sec peq" type="button" id="dsReset">Restablecer</button></span>
+      <span class="fila"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button>
+        <button class="btn" type="button" id="dsGuardar">Guardar</button></span>
+    </div>
   </form>
 </dialog>
 <dialog id="dlgEditor" aria-labelledby="edTitulo">
@@ -2832,9 +2864,9 @@ function pintarEfectos() {
   (r.efectos || []).forEach((e, i) => {
     if (e.quitado) return;
     const g = gDeOriginal(e.t); if (g == null) return;
-    const largo = e.largo || .6, nombre = (e.sfx || e.cat).split("/")[0].replace("_", " ");
+    const largo = (e.largo || .6) / (e.vel || 1), nombre = (e.sfx || e.cat).split("/")[0].replace("_", " ");
     chips.push(`<div class="ev-fx son ${e.motivo === "puesto a mano" ? "mano" : ""} ${e.pend ? "pendiente" : ""}" data-fxi="${i}" style="left:${xDeTiempo(g)}px;width:${Math.max(16, largo * px)}px"
-      title="${esc(e.sfx)} — ${esc(e.motivo)} · ${largo.toFixed(2)} s. Arrástralo para moverlo, estira sus bordes para recortarlo y tócalo para cambiarlo o quitarlo.">
+      title="${esc(e.sfx)} — ${esc(e.motivo)} · ${largo.toFixed(2)} s${(e.vel || 1) !== 1 ? ` · ${e.vel}x` : ""}. Arrástralo para moverlo, estira sus bordes para recortarlo y tócalo para cambiarlo o quitarlo.">
       <canvas></canvas><span class="ev-asa izq" data-fasa="izq"></span><span class="nom">♪ ${esc(nombre)}</span><span class="ev-asa der" data-fasa="der"></span></div>`);
   });
   sonPend.filter(p => (p.accion === "agregar" || p.accion === "cambiar") && !p.local).forEach(p => {  // agregados que aún no se arman
@@ -2879,7 +2911,7 @@ function dibujarOndasSon() {
 // ---------- Sonidos: biblioteca, escuchar, agregar/cambiar/quitar en el editor ----------
 let biblioteca = null, sonElegido = null, sonPend = [];
 const reproductor = new Audio();
-function tocar(id) { reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.play().catch(() => {}); }
+function tocar(id) { reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {}); }
 async function cargarBiblioteca() {
   if (!biblioteca) { try { biblioteca = await (await fetch("/api/sonidos")).json(); } catch (e) { biblioteca = []; } }
   return biblioteca;
@@ -2899,7 +2931,8 @@ async function pintarSonidos() {
     const desc = Object.entries(DESC_SONIDO).find(([k]) => c.cat.toLowerCase().includes(k))?.[1] || "";
     return `<div class="caja cat-sonido"><details ${q || sonCat ? "open" : ""}><summary><span><b style="text-transform:capitalize">${esc(c.nombre)}</b>${desc ? `<div class="cat-desc">${esc(desc)}</div>` : ""}</span><span class="pill">${archivos.length}</span></summary>
       <div class="lista-sonidos">${archivos.map(a => `<div class="fila-sonido ${sonElegido?.id === a.id ? "elegido" : ""}">
-        <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar">▶</button><span class="nom" title="${esc(a.nombre)}">${esc(a.nombre)}</span>
+        <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar">▶</button><span class="nom" title="${esc(a.nombre)}">${esc(a.nombre)}${a.aj ? ` <span class="pill editado">editado</span>` : ""}</span>
+        <button class="btn sec peq" data-editar-son='${esc(JSON.stringify({ id: a.id, nombre: a.nombre }))}' title="Recortar, velocidad, tono, eco… queda así en todos los videos">✎ Editar</button>
         <button class="btn sec peq" data-elegir-son='${esc(JSON.stringify({ cat: c.cat, id: a.id, nombre: a.nombre }))}'>Elegir</button></div>`).join("") || `<span class="muted">Sin archivos (se bajan de Drive al abrir una sesión).</span>`}</div></details></div>`;
   }).join("");
   $("sonElegido").innerHTML = sonElegido ? `Elegido: <b>${esc(sonElegido.nombre)}</b> (${esc(sonElegido.cat)}). Ábrelo en el editor del video y toca «+ Agregar en el cabezal».` : "Ningún sonido elegido.";
@@ -2924,6 +2957,74 @@ document.addEventListener("click", e => {
   const el = e.target.closest("[data-elegir-son]");
   if (el) { sonElegido = JSON.parse(el.dataset.elegirSon); pintarSonidos(); llenarSelectorSonido(); avisar(`Sonido elegido: ${sonElegido.nombre}`, "ok"); }
 });
+// ---------- Editar un sonido de la biblioteca (queda como predeterminado en todos los videos) ----------
+let dsSon = null, dsOndaO = null;
+const DS_CAMPOS = [  // input, campo, neutro, cómo se lee
+  ["dsVel", "vel", 1, v => `${(+v).toFixed(2)}x`], ["dsTono", "tono", 0, v => `${v > 0 ? "+" : ""}${v} semitonos`],
+  ["dsEco", "eco", 0, v => `${Math.round(v * 100)}%`], ["dsVol", "vol", 1, v => `${Math.round(v * 100)}%`],
+  ["dsGraves", "graves", 0, v => `${v > 0 ? "+" : ""}${v} dB`], ["dsAgudos", "agudos", 0, v => `${v > 0 ? "+" : ""}${v} dB`],
+  ["dsFin", "fade_in", 0, v => `${(+v).toFixed(2)} s`], ["dsFout", "fade_out", 0, v => `${(+v).toFixed(2)} s`]];
+function dsLeer() {
+  const dur = dsOndaO?.dur || 0, aj = { invertir: $("dsInv").checked };
+  const desde = +$("dsDesde").value, hasta = +$("dsHasta").value;
+  if (desde > 0.005) aj.desde = desde;
+  if (dur && hasta < dur - 0.02) aj.hasta = hasta;
+  DS_CAMPOS.forEach(([id, k, neutro]) => { const v = +$(id).value; if (v !== neutro) aj[k] = v; });
+  return aj;
+}
+function dsPintar() {
+  const dur = dsOndaO?.dur || 0, d = +$("dsDesde").value, h = +$("dsHasta").value;
+  $("dsDesdeTxt").textContent = d.toFixed(2) + " s"; $("dsHastaTxt").textContent = h.toFixed(2) + " s";
+  DS_CAMPOS.forEach(([id, , , fmt]) => { $(id + "Txt").textContent = fmt($(id).value); });
+  const sel = $("dsSel");
+  sel.style.left = (dur ? d / dur * 100 : 0) + "%"; sel.style.width = (dur ? Math.max(0, h - d) / dur * 100 : 100) + "%";
+  const cv = $("dsOnda"), w = cv.clientWidth, hh = cv.clientHeight, dpr = devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--warn").trim() || "#f5a524"; g.globalAlpha = .6;
+  const p = dsOndaO?.picos || [];
+  for (let x = 0; x < w && p.length; x++) {
+    const i0 = Math.floor(x / w * p.length), i1 = Math.max(i0 + 1, Math.floor((x + 1) / w * p.length));
+    let v = 0; for (let k = i0; k < i1; k++) v = Math.max(v, p[k]);
+    const a = Math.max(1, v * (hh - 6)); g.fillRect(x, (hh - a) / 2, 1, a);
+  }
+}
+function dsPoner(aj) {
+  const dur = dsOndaO?.dur || 10;
+  ["dsDesde", "dsHasta"].forEach(id => { $(id).max = dur.toFixed(2); });
+  $("dsDesde").value = aj.desde || 0; $("dsHasta").value = aj.hasta || dur;
+  DS_CAMPOS.forEach(([id, k, neutro]) => { $(id).value = aj[k] ?? neutro; });
+  $("dsInv").checked = !!aj.invertir; dsPintar();
+}
+async function abrirEditorSonido(s) {
+  await cargarBiblioteca();
+  dsSon = s; dsOndaO = null;
+  const aj = biblioteca.flatMap(c => c.archivos).find(a => a.id === s.id)?.aj || {};
+  $("dsTit").textContent = "Editar: " + s.nombre;
+  $("dlgSonido").showModal(); dsPoner(aj);
+  try { dsOndaO = await (await fetch(`/api/onda_sonido?original=1&id=${encodeURIComponent(s.id)}`)).json(); } catch (e) { dsOndaO = null; }
+  dsPoner(aj);
+}
+["dsDesde", "dsHasta", ...DS_CAMPOS.map(c => c[0])].forEach(id => $(id).addEventListener("input", () => {
+  if (+$("dsHasta").value < +$("dsDesde").value + .05) $(id === "dsDesde" ? "dsHasta" : "dsDesde").value = id === "dsDesde" ? +$("dsDesde").value + .05 : +$("dsHasta").value - .05;
+  dsPintar();
+}));
+function dsTocar(url, vol) { reproductor.pause(); reproductor.src = url; reproductor.playbackRate = 1; reproductor.volume = Math.min(1, .8 * vol); reproductor.play().catch(() => {}); }
+$("dsPlayOrig").onclick = () => dsTocar(`/sfx?original=1&id=${encodeURIComponent(dsSon.id)}`, 1);
+$("dsPlay").onclick = () => { const aj = dsLeer(); dsTocar(`/sfx?id=${encodeURIComponent(dsSon.id)}&aj=${encodeURIComponent(JSON.stringify(aj))}`, aj.vol ?? 1); };
+$("dsReset").onclick = () => dsPoner({});
+$("dsGuardar").onclick = async () => {
+  try {
+    const r = await post("/api/ajustes_sonido", { id: dsSon.id, ajustes: dsLeer() });
+    $("dlgSonido").close(); reproductor.pause(); biblioteca = null; await pintarSonidos();
+    const n = r.codigos.length, que = Object.keys(r.ajustes).length ? `«${dsSon.nombre}» guardado así.` : `«${dsSon.nombre}» vuelve a ser el original.`;
+    if (!n) return avisar(`${que} Se usa así en los próximos videos que armes.`, "ok");
+    if (!confirm(`${que} ¿Re-armar ahora los ${n} video${n === 1 ? "" : "s"} que ya lo usan?`)) return avisar(`${que} Se nota cuando re-armes esos ${n} videos.`, "ok");
+    await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`${que} Re-armando ${n} videos… lo ves en Procesos (☰).`, "ok");
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+};
+document.addEventListener("click", e => { const b = e.target.closest("[data-editar-son]"); if (b) abrirEditorSonido(JSON.parse(b.dataset.editarSon)); });
 async function llenarSelectorSonido() {
   await cargarBiblioteca();
   const cat = sonElegido?.cat || $("evSonCat").value || "whoosh";
@@ -2965,7 +3066,8 @@ $("evCarrilE").addEventListener("pointerdown", e => {
 });
 $("evCarrilE").addEventListener("pointermove", e => {
   const a = arrFx; if (!a) return;
-  const px = escalaEd(), desde = a.e0.desde || 0, largo = a.e0.largo || .6, dur = a.e0.dur_archivo || desde + largo + 10;
+  // con velocidad, un segundo del archivo ocupa 1/vel en la pista
+  const px = escalaEd() / (a.e0.vel || 1), desde = a.e0.desde || 0, largo = a.e0.largo || .6, dur = a.e0.dur_archivo || desde + largo + 10;
   let dx = e.clientX - a.x0;
   if (Math.abs(dx) < 3 && !a.movido) return;
   a.movido = true; a.c.classList.add("moviendo");
@@ -2977,38 +3079,41 @@ $("evCarrilE").addEventListener("pointermove", e => {
 $("evCarrilE").addEventListener("pointerup", () => {
   const a = arrFx; if (!a) return; arrFx = null;
   if (!a.movido) return abrirSonido(a.e0);  // un toque: escucharlo, cambiarlo o quitarlo
-  const dt = (a.dx || 0) / escalaEd(), e0 = a.e0;
+  const dt = (a.dx || 0) / escalaEd(), e0 = a.e0, v = e0.vel || 1;
   let desde = e0.desde || 0, largo = e0.largo || .6, g = gDeOriginal(e0.t) ?? 0;
   if (a.modo === "mover") g += dt;
-  else if (a.modo === "izq") { g += dt; desde += dt; largo -= dt; }
-  else largo += dt;
+  else if (a.modo === "izq") { g += dt; desde += dt * v; largo -= dt * v; }
+  else largo += dt * v;
   const d = piezaDeG(Math.max(0, g));
   aplicarSonido(e0, inicioPieza(d.pz) + d.tp, desde, largo);
 });
 // Guarda el cambio de un sonido (posición y recorte) y lo deja en su lugar nuevo en la pista, sin copia tachada
-async function aplicarSonido(e, tN, desde, largo, vol) {
+async function aplicarSonido(e, tN, desde, largo, vol, vel) {
   const vieja = piezaDeOriginal(e.tm ?? e.t), nueva = piezaDeOriginal(tN);
   const base = { cat: e.cat, id: e.id || undefined, nombre: e.sfx, local: true,
-                 desde: +Math.max(0, desde).toFixed(2), largo: +Math.max(.05, largo).toFixed(2), vol: vol ?? e.vol };
+                 desde: +Math.max(0, desde).toFixed(2), largo: +Math.max(.05, largo).toFixed(2), vol: vol ?? e.vol, vel: vel ?? e.vel ?? 1 };
   if (vieja.pieza === nueva.pieza) await cambiarSonido({ ...base, pieza: vieja.pieza, accion: "ajustar", t: vieja.tp, t_nuevo: nueva.tp });
   else { await cambiarSonido({ ...base, pieza: vieja.pieza, accion: "quitar", t: vieja.tp }); await cambiarSonido({ ...base, pieza: nueva.pieza, accion: "agregar", t: nueva.tp }); }
-  Object.assign(e, { t: +tN.toFixed(2), tm: +tN.toFixed(2), desde: base.desde, largo: base.largo, vol: base.vol ?? 1, motivo: "puesto a mano", pend: true });
+  Object.assign(e, { t: +tN.toFixed(2), tm: +tN.toFixed(2), desde: base.desde, largo: base.largo, vol: base.vol ?? 1, vel: base.vel, motivo: "puesto a mano", pend: true });
   pintarEfectos();
-  $("evSonInfo").textContent = `Sonido en ${nueva.pieza} · ${nueva.tp.toFixed(2)} s · dura ${base.largo.toFixed(2)} s. Se escucha en la vista previa; toca «Guardar cambios» para re-armar.`;
+  $("evSonInfo").textContent = `Sonido en ${nueva.pieza} · ${nueva.tp.toFixed(2)} s · dura ${(base.largo / base.vel).toFixed(2)} s. Se escucha en la vista previa; toca «Guardar cambios» para re-armar.`;
 }
 function tocarRecorte(e) {  // escucha solo el pedazo que quedó del sonido
   if (!e.id) return;
   reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(e.id);
-  reproductor.currentTime = e.desde || 0; reproductor.volume = Math.min(1, .8 * (e.vol ?? 1)); reproductor.play().catch(() => {});
-  clearTimeout(tocarRecorte.t); tocarRecorte.t = setTimeout(() => reproductor.pause(), (e.largo || .6) * 1000);
+  reproductor.currentTime = e.desde || 0; reproductor.volume = Math.min(1, .8 * (e.vol ?? 1));
+  reproductor.preservesPitch = true; reproductor.playbackRate = e.vel || 1; reproductor.play().catch(() => {});
+  clearTimeout(tocarRecorte.t); tocarRecorte.t = setTimeout(() => reproductor.pause(), (e.largo || .6) / (e.vel || 1) * 1000);
 }
 function abrirSonido(e) {
   const m = piezaDeOriginal(e.t);
   $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>Sonido en ${esc(m.pieza)} · ${m.tp.toFixed(2)} s</b>
       <span class="muted" style="font-size:12px">dura ${(e.largo || .6).toFixed(2)} s${e.dur_archivo ? ` de ${e.dur_archivo.toFixed(2)} s` : ""}</span></div>
     <span class="muted" style="font-size:12px">${esc(e.sfx)}</span>
-    <label class="muted ev-campo">Volumen: <b id="fxVolTxt">${Math.round((e.vol ?? 1) * 100)}%</b><input type="range" id="fxVol" min="0" max="200" step="10" value="${Math.round((e.vol ?? 1) * 100)}"></label>
+    <div class="dos"><label class="muted ev-campo">Volumen: <b id="fxVolTxt">${Math.round((e.vol ?? 1) * 100)}%</b><input type="range" id="fxVol" min="0" max="200" step="10" value="${Math.round((e.vol ?? 1) * 100)}"></label>
+      <label class="muted ev-campo">Velocidad: <b id="fxVelTxt">${(e.vel || 1).toFixed(2)}x</b><input type="range" id="fxVel" min="0.5" max="2" step="0.05" value="${e.vel || 1}"></label></div>
     <div class="fila"><button class="btn sec peq" id="fxPlay">▶ Escuchar</button>
+      ${e.id ? `<button class="btn sec peq" id="fxEditar" title="Recortar, velocidad, tono, eco… en todos los videos">✎ Editar el sonido</button>` : ""}
       <button class="btn sec peq" id="fxMover" title="Lo pasa al segundo donde está el cabezal">Mover al cabezal</button>
       <button class="btn sec peq" id="fxCambiar">Cambiar por el elegido abajo</button>
       <button class="btn sec peq" id="fxQuitar" style="color:var(--err)">Quitar</button></div>
@@ -3016,6 +3121,9 @@ function abrirSonido(e) {
   $("fxPlay").onclick = () => tocarRecorte(e);
   $("fxVol").oninput = ev => { $("fxVolTxt").textContent = ev.target.value + "%"; };
   $("fxVol").onchange = ev => aplicarSonido(e, e.t, e.desde || 0, e.largo || .6, Number(ev.target.value) / 100);
+  $("fxVel").oninput = ev => { $("fxVelTxt").textContent = (+ev.target.value).toFixed(2) + "x"; };
+  $("fxVel").onchange = ev => aplicarSonido(e, e.t, e.desde || 0, e.largo || .6, undefined, Number(ev.target.value));
+  if ($("fxEditar")) $("fxEditar").onclick = () => abrirEditorSonido({ id: e.id, nombre: (e.sfx || "").split("/").pop().replace(/\.[^.]+$/, "") });
   $("fxMover").onclick = () => { const d = piezaDeG(ed.t); aplicarSonido(e, inicioPieza(d.pz) + d.tp, e.desde || 0, e.largo || .6); };
   $("fxQuitar").onclick = async () => {
     const v = piezaDeOriginal(e.tm ?? e.t);
@@ -4019,8 +4127,9 @@ function sonarPrevia() {
       const te = realDe(e.t, false);
       if (te != null && te > evFxPrev && te <= tr && e.id && !e.quitado) {
         const a = new Audio("/sfx?id=" + encodeURIComponent(e.id)); a.volume = Math.min(1, .6 * (e.vol ?? 1));
+        a.preservesPitch = true; a.playbackRate = e.vel || 1;  // como atempo en el armado: más rápido sin cambiar el tono
         a.addEventListener("loadedmetadata", () => { a.currentTime = e.desde || 0; }, { once: true });
-        a.play().catch(() => {}); setTimeout(() => a.pause(), (e.largo || 2) * 1000 + 80);
+        a.play().catch(() => {}); setTimeout(() => a.pause(), (e.largo || 2) / (e.vel || 1) * 1000 + 80);
       }
     }
   }

@@ -1185,6 +1185,23 @@ def onda_archivo(f, por_seg=50):
     return d
 
 
+def inicio_audible(f):
+    """Segundo donde empieza a sonar de verdad un archivo (salta el silencio y el soplido del principio).
+    Busca el golpe (primer punto al 20 % del pico) y retrocede mientras siga sonando sobre el umbral
+    (config sonidos.umbral_inicio, relativo al pico): así respeta la subida de un whoosh pero no un ruido de fondo
+    suelto antes del golpe. Deja 20 ms antes para no comer el ataque."""
+    try:
+        d = onda_archivo(f, 100)
+    except Exception:  # noqa: BLE001 — si no se puede leer, arranca desde 0 como antes
+        return 0.0
+    picos = d["picos"]
+    umbral = float(CONFIG["sonidos"].get("umbral_inicio", 0.05))
+    i = next((k for k, v in enumerate(picos) if v >= 0.2), 0)
+    while i > 0 and picos[i - 1] >= umbral:
+        i -= 1
+    return max(0.0, i / d["por_seg"] - 0.02)
+
+
 def onda(nombre, por_seg=50):
     """Picos de volumen de una pieza procesada: {por_seg, picos: [0–1]} (en caché mientras no cambie el video)."""
     import numpy as np
@@ -2551,12 +2568,133 @@ def biblioteca_sonidos():
         if cat in vistas:
             continue
         vistas.add(cat)
-        archivos = [{"id": id_sonido(f), "nombre": f.stem} for f in sfx_de(cat) if id_sonido(f)]
+        archivos = [{"id": id_sonido(f), "nombre": f.stem, **({"aj": aj} if (aj := ajustes_sonido(id_sonido(f))) else {})}
+                    for f in sfx_de(cat) if id_sonido(f)]
         out.append({"cat": cat, "nombre": NOMBRES_SFX.get(cat, cat.replace("_", " ")), "archivos": archivos})
     return out
 
 
-def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None, desde=None, largo=None, vol=None):
+# ---------- Sonido editado (página Sonidos): queda como predeterminado de ese archivo en todos los videos ----------
+
+AJUSTES_SONIDO = {  # campo: (mínimo, máximo, neutro)
+    "desde": (0.0, 600.0, 0.0), "hasta": (0.0, 600.0, 0.0),  # recorte del archivo; hasta 0 = hasta el final
+    "vel": (0.5, 2.0, 1.0), "tono": (-12.0, 12.0, 0.0),  # velocidad (x) y tono (semitonos), por separado
+    "eco": (0.0, 1.0, 0.0), "graves": (-12.0, 12.0, 0.0), "agudos": (-12.0, 12.0, 0.0),
+    "fade_in": (0.0, 3.0, 0.0), "fade_out": (0.0, 3.0, 0.0), "vol": (0.0, 3.0, 1.0),
+}
+
+
+def ajustes_sonido(sid):
+    """Lo editado de un sonido (solo lo que no está neutro). invertir: suena al revés."""
+    return dict((CONFIG.get("ajustes_sonidos") or {}).get(sid) or {})
+
+
+def guardar_ajustes_sonido(sid, aj):
+    """Guarda (o borra, si todo queda neutro) la edición de un sonido. Devuelve lo guardado."""
+    if not ruta_sonido(sid):
+        raise ValueError("Ese sonido no está en la biblioteca")
+    limpio = {}
+    for k, (lo, hi, neutro) in AJUSTES_SONIDO.items():
+        if aj.get(k) in (None, ""):
+            continue
+        v = round(max(lo, min(hi, float(aj[k]))), 3)
+        if v != neutro:
+            limpio[k] = v
+    if aj.get("invertir"):
+        limpio["invertir"] = True
+    todos = dict(CONFIG.get("ajustes_sonidos") or {})
+    if limpio:
+        todos[sid] = limpio
+    else:
+        todos.pop(sid, None)
+    guardar_config({"ajustes_sonidos": todos})
+    return limpio
+
+
+def videos_con_sonido(sid):
+    """Los videos ya armados que usan ese sonido (según su receta)."""
+    out = []
+    for c in combinaciones():
+        try:
+            r = json.loads((S.recetas / f"{c['codigo']}.json").read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            continue
+        if any(e.get("id") == sid for e in r.get("efectos", [])):
+            out.append(c["codigo"])
+    return out
+
+
+def _atempo(factor):
+    """atempo solo acepta 0.5–2 por paso: se encadena para factores mayores o menores."""
+    pasos = []
+    while factor > 2.0:
+        pasos.append(2.0)
+        factor /= 2.0
+    while factor < 0.5:
+        pasos.append(0.5)
+        factor /= 0.5
+    if abs(factor - 1) > 1e-3:
+        pasos.append(factor)
+    return ",".join(f"atempo={p:.4f}" for p in pasos)
+
+
+def sonido_editado(f, prueba=None):
+    """El archivo con su edición de la página Sonidos aplicada (wav en caché), o el original si no se editó.
+    prueba: ajustes sin guardar, para escucharlos antes de guardar.
+    El volumen no se mete en el archivo: se aplica al mezclar (si no, normalizar lo desharía)."""
+    f = Path(f)
+    sid = id_sonido(f)
+    aj = prueba if prueba is not None else (ajustes_sonido(sid) if sid else {})
+    aj = {k: v for k, v in aj.items() if k != "vol" and v not in (None, "", 0, False)
+          and not (k == "vel" and float(v) == 1.0)}
+    if not aj:
+        return f
+    firma = hashlib.md5(f"{f}|{f.stat().st_size}|{int(f.stat().st_mtime)}|{json.dumps(aj, sort_keys=True)}".encode()).hexdigest()
+    destino = DATOS / "sfx_editados" / f"{firma}.wav"
+    if destino.exists() and destino.stat().st_size > 0:
+        return destino
+    sr = 48000
+    d = dur_audio(f)
+    desde = min(float(aj.get("desde", 0)), max(0.0, d - 0.05))
+    hasta = float(aj.get("hasta", 0)) or d
+    hasta = max(desde + 0.05, min(hasta, d))
+    vel, tono = float(aj.get("vel", 1)), float(aj.get("tono", 0))
+    largo = (hasta - desde) / vel
+    fil = [f"atrim={desde:.3f}:{hasta:.3f}", "asetpts=N/SR/TB", f"aformat=sample_rates={sr}:channel_layouts=stereo"]
+    if aj.get("invertir"):
+        fil.append("areverse")
+    if tono:  # el tono cambia la velocidad junto con él: atempo la deja en la velocidad pedida
+        r = 2 ** (tono / 12)
+        fil += [f"asetrate={sr * r:.0f}", f"aresample={sr}"]
+        t = _atempo(vel / r)
+    else:
+        t = _atempo(vel)
+    if t:
+        fil.append(t)
+    if aj.get("graves"):
+        fil.append(f"bass=g={aj['graves']}:f=150")
+    if aj.get("agudos"):
+        fil.append(f"treble=g={aj['agudos']}:f=4000")
+    if aj.get("eco"):
+        e = float(aj["eco"])
+        fil += [f"apad=pad_dur={0.4 + e:.2f}", f"aecho=0.8:0.85:{int(60 + 140 * e)}|{int(120 + 280 * e)}:{0.25 + 0.4 * e:.2f}|{0.15 + 0.3 * e:.2f}"]
+        largo += 0.4 + e
+    if aj.get("fade_in"):
+        fil.append(f"afade=t=in:st=0:d={min(float(aj['fade_in']), largo):.3f}")
+    if aj.get("fade_out"):
+        fo = min(float(aj["fade_out"]), largo)
+        fil.append(f"afade=t=out:st={max(0.0, largo - fo):.3f}:d={fo:.3f}")
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destino.with_suffix(".tmp.wav")
+    run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", str(f), "-vn", "-af", ",".join(fil),
+         "-c:a", "pcm_s16le", "-ar", str(sr), str(tmp)])
+    if not tmp.exists() or tmp.stat().st_size == 0:
+        return f  # si ffmpeg no pudo, suena el original antes que nada
+    tmp.replace(destino)
+    return destino
+
+
+def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None, desde=None, largo=None, vol=None, vel=None):
     """Sonido puesto o quitado a mano en una pieza (vale para todos los videos que la usan). t = segundo dentro de la pieza.
     accion: agregar | quitar | cambiar (quita el que había en ese segundo y pone el nuevo) | mover (a t_nuevo) |
     ajustar (mover y/o recortar: t_nuevo, desde, largo, vol). t es el segundo con el que la sala conoce ese sonido
@@ -2568,7 +2706,7 @@ def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None,
     if accion in ("mover", "ajustar"):  # se quita de donde estaba y se pone el mismo sonido (recortado) en el segundo nuevo
         editar_sonido(pieza, "quitar", t, cat)
         return editar_sonido(pieza, "agregar", max(0.0, float(t if t_nuevo is None else t_nuevo)), cat,
-                             sid if sid and ruta_sonido(sid) else None, desde=desde, largo=largo, vol=vol)
+                             sid if sid and ruta_sonido(sid) else None, desde=desde, largo=largo, vol=vol, vel=vel)
     if accion in ("quitar", "cambiar"):
         antes = len(manuales)
         manuales[:] = [x for x in manuales if not (abs(x["t"] - t) < 0.2 and x["cat"] == cat)]
@@ -2577,7 +2715,9 @@ def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None,
     if accion in ("agregar", "cambiar"):
         if sid and not ruta_sonido(sid):
             raise ValueError("Ese sonido no está en la biblioteca")
-        extra = {k: round(float(v), 3) for k, v in (("desde", desde), ("largo", largo), ("vol", vol)) if v not in (None, "")}
+        extra = {k: round(float(v), 3) for k, v in (("desde", desde), ("largo", largo), ("vol", vol), ("vel", vel)) if v not in (None, "")}
+        if extra.get("vel") == 1.0:
+            extra.pop("vel")
         manuales.append({"t": t, "cat": cat_nuevo or cat, **({"archivo": sid} if sid else {}), **extra})
     a["editado"] = time.time()
     todo[pieza] = {k: v for k, v in a.items() if v not in ([], None)}
@@ -2682,7 +2822,7 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             cand = [c for c in cand if not (c["cat"] == q["cat"] and abs(c["t"] - (off + q["t"])) < 0.25)]
         for sm in ap.get("sonidos", []):
             cand.append({"cat": sm["cat"], "t": off + sm["t"], "prio": 4, "motivo": "puesto a mano", "archivo": sm.get("archivo"),
-                         "a_mano": {k: sm[k] for k in ("desde", "largo", "vol") if k in sm}})
+                         "a_mano": {k: sm[k] for k in ("desde", "largo", "vol", "vel") if k in sm}})
     # Filtro de densidad: un efecto opcional no puede caer muy cerca de otro
     elegidos = []
     sep = so["separacion_minima"]
@@ -2695,8 +2835,18 @@ def planear_sonidos(combo, offs, total, subs, marcas):
         if not f:
             continue
         maxd = so.get("duracion_maxima", {}).get(c["cat"], so.get("duracion_maxima", {}).get("default", 2.5))
+        fuente, aj = f, ajustes_sonido(id_sonido(f))
+        try:
+            f = sonido_editado(f)  # con lo editado en la página Sonidos (velocidad, tono, eco…)
+        except Exception:  # noqa: BLE001 — si no se pudo editar, va el original
+            pass
         d = dur_audio(f)
-        t, desde, largo = c["t"], 0.0, min(d, maxd)
+        # el sonido entra justo donde empieza su onda, sin el silencio que trae el archivo al inicio
+        # (salvo que en la página Sonidos se haya puesto a mano desde dónde empieza)
+        desde = inicio_audible(f) if so.get("quitar_silencio_inicial", True) and "desde" not in aj else 0.0
+        if desde >= d - 0.05:
+            desde = 0.0
+        t, largo = c["t"], min(d - desde, maxd)
         if c["cat"] == "riser" and c["prio"] < 4:
             # el riser automático termina en el corte; si es largo se usa solo su final
             desde = max(0.0, d - maxd)
@@ -2706,8 +2856,10 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             desde = max(0.0, min(float(am["desde"]), d - 0.05))
         if "largo" in am:
             largo = max(0.05, min(float(am["largo"]), d - desde))
-        elegidos.append({**c, "t": round(t, 2), "tm": round(c["t"], 2), "archivo": f, "desde": round(desde, 2), "largo": round(largo, 2),
-                         "dur_archivo": round(d, 2), "vol": float(am.get("vol", 1.0))})
+        elegidos.append({**c, "t": round(t, 2), "tm": round(c["t"], 2), "archivo": f, "fuente": fuente, "id": id_sonido(fuente),
+                         "desde": round(desde, 2), "largo": round(largo, 2), "dur_archivo": round(d, 2),
+                         "vol": float(am.get("vol", 1.0)), "vol_sonido": float(aj.get("vol", 1.0)),
+                         "vel": max(0.5, min(2.0, float(am.get("vel", 1.0))))})
     return sorted(elegidos, key=lambda e: e["t"]), silencios
 
 
@@ -3142,9 +3294,11 @@ def armar_uno(combo, n_musica=0, extras=None):
               "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos_ed) or None,
               "faltan_musica": faltan_musica,
               # t: segundo del video sin recortes (lo usa el editor); te: segundo en el video armado (None si se cortó)
-              "efectos": [{"sfx": f"{e['cat']}/{e['archivo'].name}", "cat": e["cat"], "id": id_sonido(e["archivo"]), "t": e["t"],
+              # desde/largo/dur_archivo: sobre el sonido ya editado en la página Sonidos (el que sirve /sfx)
+              "efectos": [{"sfx": f"{e['cat']}/{Path(e.get('fuente', e['archivo'])).name}", "cat": e["cat"],
+                           "id": e.get("id") or id_sonido(e["archivo"]), "t": e["t"],
                            "tm": e.get("tm", e["t"]), "desde": e.get("desde", 0), "largo": e.get("largo"), "dur_archivo": e.get("dur_archivo"),
-                           "vol": e.get("vol", 1.0),
+                           "vol": e.get("vol", 1.0), "vel": e.get("vel", 1.0),
                            "te": None if mapa(e["t"]) is None else round(mapa(e["t"]), 2), "motivo": e["motivo"]} for e in eventos],
               "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "te": round(mapa(o["t"], True), 2), "dur": round(o["dur"], 2),
                             "modo": o["modo"]} for o in overlays],
@@ -3198,9 +3352,13 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None)
         cmd += ["-i", str(e["archivo"])]
         ms = int(e["t"] * 1000)
         vk = (vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0) * float(e.get("vol", 1.0))
-              * ganancia_normalizada(e["archivo"]))  # todos al mismo nivel; luego el volumen de su tipo y el puesto a mano
+              * float(e.get("vol_sonido", 1.0))  # el volumen del sonido editado en la página Sonidos
+              * ganancia_normalizada(e.get("fuente", e["archivo"])))  # todos al mismo nivel; luego su tipo y lo puesto a mano
+        vel = float(e.get("vel", 1.0))  # velocidad de este efecto en este video (la del sonido ya viene en el archivo)
+        sale = e["largo"] / vel
         recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
-                   f"afade=t=out:st={max(0, e['largo'] - 0.15):.2f}:d=0.15,")
+                   + (f"{_atempo(vel)}," if abs(vel - 1) > 1e-3 else "")
+                   + f"afade=t=out:st={max(0, sale - 0.15):.2f}:d=0.15,")
         f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}"
                  + (f",asplit=2[s{k}][sx{k}]" if extras else f"[s{k}]"))
         mezcla.append(f"[s{k}]")
