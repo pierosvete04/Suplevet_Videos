@@ -933,9 +933,15 @@ class H(BaseHTTPRequestHandler):
                 aj = {"normalizar": bool(b.get("normalizar", True)), "objetivo_lufs": max(-30.0, min(-10.0, float(b.get("objetivo_lufs", -20))))}
                 motor.guardar_config({"sonidos_nivel": aj, "estilo_cambio": time.time()})
                 self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
-            elif u.path == "/api/estilo_edicion":  # zoom alternado y fundido de imágenes (Plantillas → Estilo de edición)
+            elif u.path == "/api/estilo_edicion":  # zoom alternado, zoom en el hook y fundido (Plantillas → Estilo de edición)
                 b = self._cuerpo()
-                aj = {"zoom_alterno": bool(b.get("zoom_alterno")), "fundido": max(0.05, min(1.0, float(b.get("fundido", 0.12))))}
+                d = motor.estilo_edicion()  # lo que no venga se queda como estaba
+                num = lambda k, lo, hi: max(lo, min(hi, float(b.get(k, d[k]))))
+                aj = {"zoom_alterno": bool(b.get("zoom_alterno", d["zoom_alterno"])),
+                      "zoom_tipo": b.get("zoom_tipo", d["zoom_tipo"]) if b.get("zoom_tipo", d["zoom_tipo"]) in ("punch", "in", "out", "mezcla") else "punch",
+                      "zoom_fuerza": num("zoom_fuerza", 0.04, 0.35), "zoom_cada": 1 if int(b.get("zoom_cada", d["zoom_cada"])) == 1 else 2,
+                      "zoom_hook": bool(b.get("zoom_hook", d["zoom_hook"])), "zoom_hook_fuerza": num("zoom_hook_fuerza", 0.04, 0.3),
+                      "fundido": num("fundido", 0.05, 1.0)}
                 motor.guardar_config({"estilo_edicion": aj, "estilo_cambio": time.time()})
                 self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
             elif u.path == "/api/silencios":  # cortar solo el silencio del inicio y del final de cada clip

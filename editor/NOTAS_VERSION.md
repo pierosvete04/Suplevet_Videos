@@ -1,3 +1,10 @@
+Versión 1.21.8 (se actualiza desde la app con «Actualizar ahora»):
+- Plantillas → Estilo de edición, con más opciones:
+  - Zoom alternado configurable: tipo (salto, acercar, alejar o mezcla), intensidad (suave, media o fuerte) y cada cuánto (frase sí, frase no, o todas las frases).
+  - Zoom en el hook (nuevo): se acerca despacio durante todo el hook, con intensidad suave, media o fuerte.
+  - Fundido suave: ahora eliges el largo (rápido, normal o lento).
+- Todo se guarda al tocarlo, y la sala avisa cuántos videos quedan por rearmar. Donde pongas un zoom a mano, manda el tuyo.
+
 Versión 1.21.7 (se actualiza desde la app con «Actualizar ahora»):
 - Plantillas → Estilo de edición: «Zoom alternado» y «Fundido suave» ahora son dos tarjetas con interruptor, una al lado de la otra. Se guardan al tocarlas (ya no hay botón «Guardar estilo») y la sala avisa qué videos quedan por rearmar.
 - Exportar: la carpeta donde quedan los videos ya no se sale del recuadro. Se muestra corta («Drive › sesión › V.FINALES», la ruta completa al pasar el mouse) y hay un botón «Abrir carpeta».

@@ -608,9 +608,14 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 /* Estilo de edición: dos opciones con interruptor, una al lado de la otra */
 .es-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 12px; }
 .es-cab h2 { margin: 0; } .es-cab p { margin: 0; font-size: 12.5px; }
-.es-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
-.es-opcion { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line);
-  border-radius: 12px; background: var(--bg2); cursor: pointer; transition: border-color .18s, background .18s; }
+.es-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; align-items: start; }
+.es-opcion { display: grid; gap: 12px; align-content: start; padding: 12px 14px; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--bg2); transition: border-color .18s, background .18s; }
+.es-fila { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; cursor: pointer; }
+.es-ajustes { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.es-ajustes[hidden] { display: none; }
+.es-ajuste { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 12px; color: var(--muted); }
+.es-ajuste .ds-seg button { padding: 5px 10px; font-size: 12px; min-height: 30px; }
 .es-opcion:hover { border-color: var(--line2); }
 .es-opcion:has(.interruptor:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--bg2)); }
 .es-opcion:has(.interruptor:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -5116,26 +5121,46 @@ function pintarPlantillas() {
 // ---------- Estilo de edición (como edita el equipo): zoom alternado y fundido de imágenes ----------
 function pintarEstiloEdicion() {
   const caja = $("cajaEstiloEd"); if (!caja || !E) return;
-  const est_ = E.estilo_edicion || {};
-  // dos interruptores en tarjetas; se guardan al tocarlos (sin botón «Guardar»)
-  const opcion = (id, on, titulo, desc, icono) => `<label class="es-opcion" for="${id}">
-      <span class="es-ico" aria-hidden="true">${icono}</span>
-      <span class="es-txt"><b>${titulo}</b><span>${desc}</span></span>
-      <input type="checkbox" role="switch" class="interruptor" id="${id}" ${on ? "checked" : ""}></label>`;
+  const est = { zoom_alterno: false, zoom_tipo: "punch", zoom_fuerza: .14, zoom_cada: 2, zoom_hook: false, zoom_hook_fuerza: .1, fundido: .12, ...(E.estilo_edicion || {}) };
+  const fundidoOn = est.fundido > .15;
+  // botones de elegir una opción (se guardan al tocarlos)
+  const seg = (campo, actual, opciones) => `<span class="ds-seg" role="group">${opciones.map(([v, t]) =>
+    `<button type="button" data-es="${campo}" data-v="${v}" aria-pressed="${String(actual) === String(v)}">${t}</button>`).join("")}</span>`;
+  const cerca = (a, b) => Math.abs(+a - +b) < .005;
+  const fuerza = (campo, v, ops) => seg(campo, (ops.find(([x]) => cerca(x, v)) || [])[0], ops);
+  const opcion = (id, on, titulo, desc, icono, ajustes) => `<div class="es-opcion ${on ? "on" : ""}">
+      <label class="es-fila" for="${id}"><span class="es-ico" aria-hidden="true">${icono}</span>
+        <span class="es-txt"><b>${titulo}</b><span>${desc}</span></span>
+        <input type="checkbox" role="switch" class="interruptor" id="${id}" ${on ? "checked" : ""}></label>
+      ${ajustes ? `<div class="es-ajustes" ${on ? "" : "hidden"}>${ajustes}</div>` : ""}</div>`;
+  const fila = (nombre, control) => `<div class="es-ajuste"><span>${nombre}</span>${control}</div>`;
   caja.innerHTML = `<div class="es-cab"><h2>Estilo de edición</h2>
-      <p class="muted">Como edita el equipo en CapCut, aplicado a todos los videos. Con la plantilla «Editor (limpio)» quedan igual que los suyos.</p></div>
+      <p class="muted">Retoques que la sala pone sola en todos los videos, como edita el equipo en CapCut. Donde pongas un zoom a mano, manda el tuyo.</p></div>
     <div class="es-opciones">
-      ${opcion("esZoom", est_.zoom_alterno, "Zoom alternado", "Una frase del cuerpo de lejos y la siguiente más cerca. No toca las frases con zoom puesto a mano.",
-        `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5"/></svg>`)}
-      ${opcion("esFundido", (est_.fundido || 0) >= .25, "Fundido suave", "Las imágenes y los clips entran y salen con un fundido de 0,3 s. Apagado, aparecen de golpe.",
-        `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2" opacity=".45"/></svg>`)}
+      ${opcion("esZoom", est.zoom_alterno, "Zoom alternado", "Movimiento de cámara en las frases del cuerpo, para que no se sienta quieto.",
+        `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5"/></svg>`,
+        fila("Tipo", seg("zoom_tipo", est.zoom_tipo, [["punch", "Salto"], ["in", "Acercar"], ["out", "Alejar"], ["mezcla", "Mezcla"]]))
+        + fila("Intensidad", fuerza("zoom_fuerza", est.zoom_fuerza, [[.08, "Suave"], [.14, "Media"], [.22, "Fuerte"]]))
+        + fila("Cada cuánto", seg("zoom_cada", est.zoom_cada, [[2, "Frase sí, frase no"], [1, "Todas las frases"]])))}
+      ${opcion("esHook", est.zoom_hook, "Zoom en el hook", "Se acerca despacio durante todo el hook, para enganchar en los primeros segundos.",
+        `<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></svg>`,
+        fila("Intensidad", fuerza("zoom_hook_fuerza", est.zoom_hook_fuerza, [[.06, "Suave"], [.1, "Media"], [.16, "Fuerte"]])))}
+      ${opcion("esFundido", fundidoOn, "Fundido suave", "Las imágenes y los clips de Flow entran y salen con un fundido. Apagado, aparecen de golpe.",
+        `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2"/></svg>`,
+        fila("Largo", fuerza("fundido", fundidoOn ? est.fundido : .3, [[.2, "Rápido"], [.3, "Normal"], [.6, "Lento"]])))}
     </div>`;
-  const guardar = async () => {
-    try { const r = await post("/api/estilo_edicion", { zoom_alterno: $("esZoom").checked, fundido: $("esFundido").checked ? .3 : .12 });
-      await cargar(); pintarEstiloEdicion(); ofrecerRearmar(r, "Estilo de edición guardado."); }
-    catch (e) { avisar("Error: " + e.message, "err"); pintarEstiloEdicion(); }
+  const guardar = async cambio => {
+    try {
+      const r = await post("/api/estilo_edicion", cambio);
+      E.estilo_edicion = { ...est, ...cambio }; pintarEstiloEdicion();
+      const n = (r.codigos || []).length;
+      avisar(`Estilo de edición guardado.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar: toca «Armar todos los videos» cuando quieras.` : ""}`, "ok");
+    } catch (e) { avisar("Error: " + e.message, "err"); pintarEstiloEdicion(); }
   };
-  $("esZoom").onchange = $("esFundido").onchange = guardar;
+  $("esZoom").onchange = e => guardar({ zoom_alterno: e.target.checked });
+  $("esHook").onchange = e => guardar({ zoom_hook: e.target.checked });
+  $("esFundido").onchange = e => guardar({ fundido: e.target.checked ? .3 : .12 });
+  caja.querySelectorAll("[data-es]").forEach(b => b.onclick = () => guardar({ [b.dataset.es]: isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v }));
 }
 const DEFECTO_PLANT = { salto_auto: "false", frase_completa: "false", "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", altura_desde_abajo: "560",
   x_centro: "540", ancho_max: "960", espaciado: "0", desenfoque: "0", opacidad_sombra: "50", color_sombra: "#000000" };

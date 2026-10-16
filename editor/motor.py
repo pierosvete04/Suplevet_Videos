@@ -1918,24 +1918,47 @@ def _sin_claqueta(combo, v):
     return {**v, "recortes": r, "quitar_rangos": qr} if cambio else v
 
 
+ESTILO_DEFECTO = {
+    "zoom_alterno": False,
+    "zoom_tipo": "punch",   # punch (salto) | in (acercar despacio) | out (alejar despacio) | mezcla (los tres, por turnos)
+    "zoom_fuerza": 0.14,    # cuánto se acerca: 0.08 suave · 0.14 media · 0.22 fuerte
+    "zoom_cada": 2,         # 2 = frase sí, frase no · 1 = en todas las frases
+    "zoom_hook": False,     # acercamiento lento durante todo el hook
+    "zoom_hook_fuerza": 0.10,
+    "fundido": 0.12,        # segundos de entrada y salida de imágenes y clips (0.12 = casi de golpe)
+}
+
+
 def estilo_edicion():
-    return {"zoom_alterno": False, "fundido": 0.12, **CONFIG.get("estilo_edicion", {})}
+    return {**ESTILO_DEFECTO, **CONFIG.get("estilo_edicion", {})}
 
 
 def _con_zoom_alterno(combo, v):
-    """«Zoom alternado» (como edita el equipo): una frase del cuerpo de lejos y la siguiente más cerca, en cada corte.
-    Solo en las frases sin zoom puesto a mano y si el cuerpo no tiene fotogramas clave."""
-    if not estilo_edicion()["zoom_alterno"]:
+    """Estilo de edición (como edita el equipo), aplicado solo donde no hay zoom puesto a mano:
+    · «Zoom alternado» en las frases del cuerpo: salto, acercar, alejar o mezcla; frase sí, frase no o en todas.
+    · «Zoom en el hook»: acercamiento lento durante el hook.
+    Si una pieza tiene fotogramas clave de zoom, se respeta tal cual."""
+    est = estilo_edicion()
+    if not est["zoom_alterno"] and not est["zoom_hook"]:
         return v
     z = dict(v.get("zoom") or {})
-    if (z.get("puntos") or {}).get("cuerpo"):
-        return v
-    partes = dict(z.get("partes") or {})
-    visibles = [p["i"] for p in partes_de(combo["cuerpo"]) if p["i"] not in (v.get("quitar") or [])]
-    for k, i in enumerate(visibles):
-        if k % 2 == 1 and str(i) not in partes:
-            partes[str(i)] = {"tipo": "punch", "fuerza": 0.14}
-    z["partes"] = partes
+    puntos = z.get("puntos") or {}
+    if est["zoom_hook"] and not z.get("hook") and not puntos.get("hook"):
+        z["hook"] = {"tipo": "in", "fuerza": float(est["zoom_hook_fuerza"])}
+    if est["zoom_alterno"] and not puntos.get("cuerpo"):
+        partes = dict(z.get("partes") or {})
+        visibles = [p["i"] for p in partes_de(combo["cuerpo"]) if p["i"] not in (v.get("quitar") or [])]
+        f, cada, tipo = float(est["zoom_fuerza"]), int(est["zoom_cada"]), est["zoom_tipo"]
+        turno = 0
+        for k, i in enumerate(visibles):
+            if str(i) in partes or (cada == 2 and k % 2 == 0):
+                continue
+            t = ("punch", "in", "out")[turno % 3] if tipo == "mezcla" else tipo
+            # en todas las frases con salto: se alterna la fuerza, para que cada corte se note
+            fk = f / 2 if (cada == 1 and t == "punch" and k % 2 == 0) else f
+            partes[str(i)] = {"tipo": t, "fuerza": round(fk, 3)}
+            turno += 1
+        z["partes"] = partes
     return {**v, "zoom": z}
 
 
