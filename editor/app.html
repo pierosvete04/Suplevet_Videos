@@ -262,19 +262,58 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-efectos { height: 40px; }
 .ev-fx { position: absolute; top: 6px; height: 26px; transform: translateX(-1px); display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px;
   border-left: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); border-radius: 0 6px 6px 0; font: 600 10.5px var(--mono); color: var(--ink); white-space: nowrap; cursor: help; }
-.grid-sonidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; align-items: start; }
-.son-cab { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: flex-start; }
-.son-cab input[type=search] { flex: 1 1 220px; max-width: 320px; }
+/* Sonidos: navegador de tres columnas (tipos · sonidos · el sonido elegido), como el de Ableton */
+.sb-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 12px; }
+.sb-titulo { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.sb-titulo h2 { margin: 0; } .sb-titulo .muted { font-size: 12.5px; }
+.sb-barra input[type=search] { flex: 0 1 300px; min-width: 0; }
+.sb-nivel { position: relative; } .sb-nivel summary { list-style: none; } .sb-nivel summary::-webkit-details-marker { display: none; }
+.sb-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: grid; gap: 8px; width: min(320px, 86vw); padding: 12px;
+  border: 1px solid var(--line2); border-radius: 12px; background: var(--flotante, var(--surface)); box-shadow: 0 16px 40px rgba(0,0,0,.3); font-size: 13px; }
+.sb-elegido { margin: -4px 0 10px; font-size: 12.5px; color: var(--muted); }
+.sb { display: grid; grid-template-columns: 180px minmax(0, 1fr) minmax(330px, 400px); gap: 12px; align-items: start; }
+.sb-cats, .sb-lista, .sb-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.sb-cats, .sb-panel { position: sticky; top: calc(var(--alto-header, 56px) + 12px); max-height: calc(100vh - var(--alto-header, 56px) - 24px); overflow: auto; }
+.sb-cats { padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start; overflow-x: hidden; }
+.sb-cats button { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 9px; border: 0; border-radius: 8px; background: none;
+  color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; text-transform: capitalize; }
+.sb-cats button span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.sb-cats button:hover { background: var(--hondo); }
+.sb-cats button[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--ink); font-weight: 600; }
+.sb-lista { padding: 4px; min-height: 240px; }
+.sb-grupo { position: sticky; top: 0; z-index: 1; padding: 8px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted); background: var(--surface); }
+.sb-fila { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 3px 8px 3px 4px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+.sb-fila:hover { background: var(--hondo); }
+.sb-fila[aria-selected=true] { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.sb-fila .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-fila .marca { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.sb-fila .btn-play { width: 24px; height: 24px; font-size: 10px; }
+.sb-mas { display: block; margin: 8px auto; }
+.sb-panel { padding: 14px; }
+.sb-vacio { display: grid; gap: 6px; padding: 30px 10px; text-align: center; font-size: 13px; color: var(--muted); }
+.sb-vacio b { color: var(--ink); font-size: 14px; }
+.ds-form { display: grid; gap: 10px; }
+.ds-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ds-cab h2 { margin: 0; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; } .ds-cab .muted { font-size: 12px; text-transform: capitalize; }
+.ds-transporte { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ds-inv { display: flex; align-items: center; gap: 5px; margin-left: auto; font-size: 12.5px; }
+.ds-grupo { border-top: 1px solid var(--line); padding-top: 8px; }
+.ds-grupo h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.ds-grid .ev-campo { font-size: 11.5px; } .ds-grid .ev-campo b { font-weight: 600; }
+.ds-pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.ds-nota { font-size: 11.5px; }
+@media (max-width: 1100px) { .sb { grid-template-columns: 170px minmax(0, 1fr); } .sb-panel { display: none; } }
+@media (max-width: 640px) {
+  .sb { grid-template-columns: 1fr; }
+  .sb-cats { position: static; display: flex; overflow-x: auto; max-height: none; }
+  .sb-cats button { width: auto; flex: none; }
+  .sb-barra input[type=search] { flex: 1 1 100%; }
+}
 .son-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .son-chips button { border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; text-transform: capitalize; }
 .son-chips button[aria-pressed=true] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--bg2)); }
-.cat-sonido .cat-desc { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-@media (max-width: 640px) { .fila-sonido { grid-template-columns: 30px 1fr; } .fila-sonido .btn { grid-column: 1 / -1; } }
-.cat-sonido summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; list-style: none; }
-.cat-sonido summary::-webkit-details-marker { display: none; }
-.cat-sonido { padding: 12px 14px; }
-.cat-sonido details { border: 0; padding: 0; margin: 0; }
-.lista-sonidos { display: grid; gap: 4px; margin-top: 10px; max-height: 320px; overflow: auto; }
 .da-detalle { display: grid; gap: 6px; font-size: 13px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--bg2); }
 .da-detalle code { font-size: 12px; word-break: break-all; }
 .da-detalle .aviso { color: var(--warn); }
@@ -286,12 +325,10 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ds-asa::after { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 4px; border-radius: 3px; background: var(--accent); }
 .ds-res-cab { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: -6px; }
 .ds-sel { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); pointer-events: none; }
-.ds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
-.fila-sonido .pill.editado { font-size: 10.5px; padding: 1px 6px; }
-.fila-sonido { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; }
-.fila-sonido:hover, .fila-sonido.elegido { background: var(--hondo); }
-.fila-sonido.elegido { outline: 1px solid var(--accent); }
+.fila-sonido { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; }
+.fila-sonido:hover { background: var(--hondo); }
 .fila-sonido .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .fila-sonido { grid-template-columns: 30px 1fr; } .fila-sonido .btn { grid-column: 1 / -1; } }
 .btn-play { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); cursor: pointer; font-size: 11px; }
 .ev-fx.mano { border-left-style: dashed; }
 .ev-fx.son { overflow: hidden; padding: 0; justify-content: flex-start; border-radius: 0 6px 6px 0; cursor: grab; touch-action: none; }
@@ -981,17 +1018,49 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   </section>
 
   <section data-panel="sonidos" hidden>
-    <div class="caja" style="margin-bottom:14px">
-      <div class="son-cab">
-        <div style="flex:1 1 320px"><h2 style="margin:0">Sonidos</h2>
-          <span class="muted" style="font-size:12.5px">Los efectos que la sala pone en los videos, por tipo (vienen de «SOUND FX» en Drive). Toca ▶ para escuchar y «Elegir» para usarlo: luego, en el editor del video, lo pones donde está el cabezal.</span></div>
-        <input id="sonBuscar" type="search" placeholder="Buscar sonido…">
-      </div>
-      <div class="fila" style="margin-top:10px;font-size:13px" id="sonNivel"></div>
-      <div class="son-chips" id="sonChips"></div>
-      <p id="sonElegido" class="muted" style="margin:10px 0 0;font-size:13px">Ningún sonido elegido.</p>
+    <div class="sb-barra">
+      <div class="sb-titulo"><h2>Sonidos</h2><span class="muted" id="sonTotal"></span></div>
+      <input id="sonBuscar" type="search" placeholder="Buscar sonido…" aria-label="Buscar sonido">
+      <details class="sb-nivel"><summary class="btn sec peq">🔊 Nivel general</summary><div class="sb-pop" id="sonNivel"></div></details>
     </div>
-    <div id="sonLista" class="grid-sonidos"></div>
+    <p id="sonElegido" class="sb-elegido" hidden></p>
+    <div class="sb">
+      <nav class="sb-cats" id="sonChips" aria-label="Tipos de sonido"></nav>
+      <div class="sb-lista" id="sonLista" role="listbox" aria-label="Sonidos"></div>
+      <aside class="sb-panel" id="sonPanel">
+        <div class="sb-vacio" id="dsVacio"><b>Elige un sonido</b><span>Tócalo en la lista para escucharlo y editarlo. Lo que guardes aquí queda así en todos los videos que lo usan.</span></div>
+        <div class="ds-form" id="dsForm" hidden>
+          <div class="ds-cab"><div style="min-width:0"><h2 id="dsTit"></h2><span class="muted" id="dsCat"></span></div>
+            <button class="btn sec peq" type="button" id="dsCerrarDlg" hidden aria-label="Cerrar">✕</button></div>
+          <div class="ds-onda ds-arrastre" id="dsOndaCaja" title="Arrastra los bordes para recortar; arrastra el centro para mover el recorte"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div></div>
+          <div class="ds-res-cab muted"><span>Resultado · arrastra el borde para cambiar la velocidad</span><b id="dsResTxt"></b></div>
+          <div class="ds-onda ds-res" id="dsResCaja"><canvas id="dsRes"></canvas><div class="ds-asa" id="dsResAsa" title="Estira o encoge: cambia la velocidad"></div></div>
+          <div class="ds-transporte"><button class="btn sec peq" type="button" id="dsPlayOrig">▶ Original</button>
+            <button class="btn peq" type="button" id="dsPlay">▶ Con los cambios</button>
+            <label class="ds-inv"><input type="checkbox" id="dsInv"> Al revés</label></div>
+          <div class="ds-grupo"><h3>Tiempo</h3><div class="ds-grid">
+            <label class="ev-campo">Empieza <b id="dsDesdeTxt"></b><input type="range" id="dsDesde" min="0" step="0.01"></label>
+            <label class="ev-campo">Termina <b id="dsHastaTxt"></b><input type="range" id="dsHasta" min="0" step="0.01"></label>
+            <label class="ev-campo">Velocidad <b id="dsVelTxt"></b><input type="range" id="dsVel" min="0.5" max="2" step="0.05"></label>
+            <label class="ev-campo">Tono <b id="dsTonoTxt"></b><input type="range" id="dsTono" min="-12" max="12" step="1"></label></div></div>
+          <div class="ds-grupo"><h3>Color</h3><div class="ds-grid">
+            <label class="ev-campo">Graves <b id="dsGravesTxt"></b><input type="range" id="dsGraves" min="-12" max="12" step="1"></label>
+            <label class="ev-campo">Agudos <b id="dsAgudosTxt"></b><input type="range" id="dsAgudos" min="-12" max="12" step="1"></label>
+            <label class="ev-campo">Eco <b id="dsEcoTxt"></b><input type="range" id="dsEco" min="0" max="1" step="0.05"></label></div></div>
+          <div class="ds-grupo"><h3>Volumen</h3><div class="ds-grid">
+            <label class="ev-campo">Volumen <b id="dsVolTxt"></b><input type="range" id="dsVol" min="0" max="3" step="0.05"></label>
+            <label class="ev-campo">Entra suave <b id="dsFinTxt"></b><input type="range" id="dsFin" min="0" max="2" step="0.05"></label>
+            <label class="ev-campo">Sale suave <b id="dsFoutTxt"></b><input type="range" id="dsFout" min="0" max="2" step="0.05"></label></div></div>
+          <div class="ds-pie">
+            <span class="fila"><button class="btn sec peq" type="button" id="dsReset" title="Vuelve al archivo original">Restablecer</button>
+              <button class="btn sec peq" type="button" id="dsElegir" title="Para ponerlo a mano en el editor de un video">Usar en un video</button></span>
+            <span class="fila"><button class="btn sec peq" type="button" id="dsDescartar">Descartar</button>
+              <button class="btn peq" type="button" id="dsGuardar">Guardar</button></span>
+          </div>
+          <span class="muted ds-nota" id="dsNota">Al guardar, queda así en todos los videos que usan este sonido.</span>
+        </div>
+      </aside>
+    </div>
   </section>
 
   <section data-panel="publicar" hidden>
@@ -1193,35 +1262,8 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <button class="btn" value="si" id="daSi">Sí, analizar</button></div>
   </form>
 </dialog>
-<dialog id="dlgSonido" aria-labelledby="dsTit" style="width:min(620px,96vw)">
-  <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formSonido">
-    <div><h2 id="dsTit" style="margin:0">Editar sonido</h2>
-      <span class="muted" style="font-size:12.5px">Queda como predeterminado: todos los videos que usen este sonido lo ponen así.</span></div>
-    <div class="ds-onda ds-arrastre" id="dsOndaCaja" title="Arrastra los bordes para recortar; arrastra el centro para mover el recorte"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div></div>
-    <div class="ds-res-cab muted"><span>Resultado · arrastra su borde para cambiar la velocidad</span><b id="dsResTxt"></b></div>
-    <div class="ds-onda ds-res" id="dsResCaja"><canvas id="dsRes"></canvas><div class="ds-asa" id="dsResAsa" title="Estira o encoge: cambia la velocidad"></div></div>
-    <div class="ds-grid">
-      <label class="ev-campo">Empieza en <b id="dsDesdeTxt"></b><input type="range" id="dsDesde" min="0" step="0.01"></label>
-      <label class="ev-campo">Termina en <b id="dsHastaTxt"></b><input type="range" id="dsHasta" min="0" step="0.01"></label>
-      <label class="ev-campo">Velocidad <b id="dsVelTxt"></b><input type="range" id="dsVel" min="0.5" max="2" step="0.05"></label>
-      <label class="ev-campo">Tono <b id="dsTonoTxt"></b><input type="range" id="dsTono" min="-12" max="12" step="1"></label>
-      <label class="ev-campo">Eco <b id="dsEcoTxt"></b><input type="range" id="dsEco" min="0" max="1" step="0.05"></label>
-      <label class="ev-campo">Volumen <b id="dsVolTxt"></b><input type="range" id="dsVol" min="0" max="3" step="0.05"></label>
-      <label class="ev-campo">Graves <b id="dsGravesTxt"></b><input type="range" id="dsGraves" min="-12" max="12" step="1"></label>
-      <label class="ev-campo">Agudos <b id="dsAgudosTxt"></b><input type="range" id="dsAgudos" min="-12" max="12" step="1"></label>
-      <label class="ev-campo">Entra suave <b id="dsFinTxt"></b><input type="range" id="dsFin" min="0" max="2" step="0.05"></label>
-      <label class="ev-campo">Sale suave <b id="dsFoutTxt"></b><input type="range" id="dsFout" min="0" max="2" step="0.05"></label>
-    </div>
-    <label class="fila" style="font-size:13px"><input type="checkbox" id="dsInv"> Al revés (útil para un whoosh que «llega» al corte)</label>
-    <div class="fila" style="justify-content:space-between">
-      <span class="fila"><button class="btn sec peq" type="button" id="dsPlayOrig">▶ Original</button>
-        <button class="btn sec peq" type="button" id="dsPlay">▶ Con los cambios</button>
-        <button class="btn sec peq" type="button" id="dsReset">Restablecer</button></span>
-      <span class="fila"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button>
-        <button class="btn" type="button" id="dsGuardar">Guardar</button></span>
-    </div>
-  </form>
-</dialog>
+<!-- el editor de sonido (#dsForm) vive en la página Sonidos; desde el editor del video o en pantallas angostas se muda aquí -->
+<dialog id="dlgSonido" aria-labelledby="dsTit" style="width:min(460px,96vw)"><div id="dsDlgCuerpo" style="padding:16px"></div></dialog>
 <dialog id="dlgEditor" aria-labelledby="edTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="muted" style="font-size:12px">Lo que cambies en el cuerpo se aplica a todos sus videos.</span></div>
     <button class="btn sec peq" id="edCerrar">← Volver al video</button></div>
@@ -2249,7 +2291,7 @@ document.addEventListener("click", e => {
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
     if (tab.dataset.tab === "plantillas") { pintarPlantillas(); pintarEstiloEdicion(); }
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
-    if (tab.dataset.tab === "sonidos") { pintarSonidos(); pintarNivelSonidos(); }
+    if (tab.dataset.tab === "sonidos") { if (dsEnVentana() && !$("dlgSonido").open) dsAlPanel(); pintarSonidos(); pintarNivelSonidos(); }
     if (tab.dataset.tab === "guion") pintarGuion();
     return;
   }
@@ -2945,23 +2987,29 @@ let sonCat = "";
 const DESC_SONIDO = { whoosh: "Barrido de aire: cambios de escena y textos que entran", pop: "Golpecito corto: palabras clave y números",
   golpe: "Impacto: frases fuertes", riser: "Sube la tensión antes de algo importante", ding: "Campanita: ideas o datos",
   click: "Clic: botones, listas", glitch: "Corte digital: transiciones rápidas" };
+// Navegador: a la izquierda los tipos, al centro los sonidos (una línea cada uno), a la derecha el elegido con su editor
 async function pintarSonidos() {
   await cargarBiblioteca();
   const q = $("sonBuscar").value.trim().toLowerCase();
-  $("sonChips").innerHTML = `<button data-son-cat="" aria-pressed="${!sonCat}">Todos</button>` + biblioteca.map(c =>
-    `<button data-son-cat="${esc(c.cat)}" aria-pressed="${sonCat === c.cat}">${esc(c.nombre)} · ${c.archivos.length}</button>`).join("");
-  $("sonLista").innerHTML = biblioteca.filter(c => !sonCat || c.cat === sonCat).map(c => {
-    const archivos = c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q));
-    if (q && !archivos.length) return "";
-    const desc = Object.entries(DESC_SONIDO).find(([k]) => c.cat.toLowerCase().includes(k))?.[1] || "";
-    return `<div class="caja cat-sonido"><details ${q || sonCat ? "open" : ""}><summary><span><b style="text-transform:capitalize">${esc(c.nombre)}</b>${desc ? `<div class="cat-desc">${esc(desc)}</div>` : ""}</span><span class="pill">${archivos.length}</span></summary>
-      <div class="lista-sonidos">${archivos.map(a => `<div class="fila-sonido ${sonElegido?.id === a.id ? "elegido" : ""}">
-        <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar">▶</button><span class="nom" title="${esc(a.nombre)}">${esc(a.nombre)}${a.aj ? ` <span class="pill editado">editado</span>` : ""}</span>
-        <button class="btn sec peq" data-editar-son='${esc(JSON.stringify({ id: a.id, nombre: a.nombre }))}' title="Recortar, velocidad, tono, eco… queda así en todos los videos">✎ Editar</button>
-        <button class="btn sec peq" data-elegir-son='${esc(JSON.stringify({ cat: c.cat, id: a.id, nombre: a.nombre }))}'>Elegir</button></div>`).join("") || `<span class="muted">Sin archivos (se bajan de Drive al abrir una sesión).</span>`}</div></details></div>`;
-  }).join("");
-  $("sonElegido").innerHTML = sonElegido ? `Elegido: <b>${esc(sonElegido.nombre)}</b> (${esc(sonElegido.cat)}). Ábrelo en el editor del video y toca «+ Agregar en el cabezal».` : "Ningún sonido elegido.";
+  const total = biblioteca.reduce((n, c) => n + c.archivos.length, 0), editados = biblioteca.reduce((n, c) => n + c.archivos.filter(a => a.aj).length, 0);
+  $("sonTotal").textContent = `${total} sonidos · ${biblioteca.length} tipos${editados ? ` · ${editados} editado${editados === 1 ? "" : "s"}` : ""}`;
+  $("sonChips").innerHTML = `<button data-son-cat="" aria-pressed="${!sonCat}">Todos <span>${total}</span></button>` + biblioteca.map(c =>
+    `<button data-son-cat="${esc(c.cat)}" aria-pressed="${sonCat === c.cat}" title="${esc(Object.entries(DESC_SONIDO).find(([k]) => c.cat.toLowerCase().includes(k))?.[1] || "")}">${esc(c.nombre)} <span>${c.archivos.length}</span></button>`).join("");
+  const grupos = biblioteca.filter(c => !sonCat || c.cat === sonCat).map(c => ({
+    c, archivos: c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)) })).filter(g => g.archivos.length);
+  const fila = (c, a) => `<div class="sb-fila" role="option" aria-selected="${dsSon?.id === a.id}" data-sel-son='${esc(JSON.stringify({ id: a.id, nombre: a.nombre, cat: c.cat, catNombre: c.nombre }))}'>
+      <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar" aria-label="Escuchar ${esc(a.nombre)}">▶</button>
+      <span class="nom" title="${esc(a.nombre)}">${esc(a.nombre)}</span>${a.aj ? `<span class="marca" title="Editado"></span>` : "<span></span>"}</div>`;
+  $("sonLista").innerHTML = grupos.map(g => (grupos.length > 1 || !sonCat ? `<div class="sb-grupo">${esc(g.c.nombre)}</div>` : "") + g.archivos.map(a => fila(g.c, a)).join("")).join("")
+    || `<div class="sb-vacio">${q ? `Nada con «${esc(q)}».` : "Sin archivos (se bajan de Drive al abrir una sesión)."}</div>`;
+  $("sonElegido").hidden = !sonElegido;
+  $("sonElegido").innerHTML = sonElegido ? `Para usar en un video: <b>${esc(sonElegido.nombre)}</b>. Ábrelo en el editor del video y toca «+ Agregar en el cabezal».` : "";
 }
+$("sonLista").addEventListener("click", e => {
+  if (e.target.closest("[data-tocar]")) return;  // ▶ solo escucha
+  const f = e.target.closest("[data-sel-son]"); if (!f) return;
+  const s = JSON.parse(f.dataset.selSon); tocar(s.id); abrirEditorSonido(s);
+});
 $("sonBuscar").addEventListener("input", pintarSonidos);
 function pintarNivelSonidos() {
   const n = E.sonidos_nivel || { normalizar: true, objetivo_lufs: -20 };
@@ -3059,15 +3107,33 @@ function dsPoner(aj) {
   DS_CAMPOS.forEach(([id, k, neutro]) => { $(id).value = aj[k] ?? neutro; });
   $("dsInv").checked = !!aj.invertir; dsPintar();
 }
-async function abrirEditorSonido(s) {
+// El editor vive en el panel derecho de Sonidos; desde el editor del video (o si el panel no se ve) se muda a una ventana
+let dsGuardado = {};
+const dsEnVentana = () => $("dsForm").parentElement === $("dsDlgCuerpo");
+function dsAVentana() { $("dsDlgCuerpo").append($("dsForm")); $("dsCerrarDlg").hidden = false; if (!$("dlgSonido").open) $("dlgSonido").showModal(); }
+function dsAlPanel() { $("sonPanel").append($("dsForm")); $("dsCerrarDlg").hidden = true; $("dsVacio").hidden = !$("dsForm").hidden; }
+function dsCerrarVentana() { if ($("dlgSonido").open) $("dlgSonido").close(); reproductor.pause(); dsAlPanel(); requestAnimationFrame(dsPintar); }
+$("dlgSonido").addEventListener("close", () => { if (dsEnVentana()) dsCerrarVentana(); });  // también con Esc
+$("dsCerrarDlg").onclick = dsCerrarVentana;
+async function abrirEditorSonido(s, { ventana } = {}) {
   await cargarBiblioteca();
-  dsSon = s; dsOndaO = null;
-  const aj = biblioteca.flatMap(c => c.archivos).find(a => a.id === s.id)?.aj || {};
-  $("dsTit").textContent = "Editar: " + s.nombre;
-  $("dlgSonido").showModal(); dsPoner(aj);
+  const c = biblioteca.find(x => x.archivos.some(a => a.id === s.id));
+  dsSon = { ...s, cat: s.cat || c?.cat, catNombre: s.catNombre || c?.nombre }; dsOndaO = null;
+  dsGuardado = c?.archivos.find(a => a.id === s.id)?.aj || {};
+  $("dsTit").textContent = s.nombre;
+  $("dsCat").textContent = (dsSon.catNombre || "") + (Object.keys(dsGuardado).length ? " · editado" : "");
+  $("dsForm").hidden = false; $("dsVacio").hidden = true;
+  if (ventana || !$("sonPanel").offsetParent) dsAVentana(); else dsAlPanel();
+  document.querySelectorAll("#sonLista [data-sel-son]").forEach(f => f.setAttribute("aria-selected", JSON.parse(f.dataset.selSon).id === s.id));
+  dsPoner(dsGuardado);
   try { dsOndaO = await (await fetch(`/api/onda_sonido?original=1&id=${encodeURIComponent(s.id)}`)).json(); } catch (e) { dsOndaO = null; }
-  dsPoner(aj);
+  if (dsSon?.id === s.id) dsPoner(dsGuardado);
 }
+$("dsDescartar").onclick = () => { dsPoner(dsGuardado); if (dsEnVentana()) dsCerrarVentana(); };
+$("dsElegir").onclick = () => {
+  sonElegido = { cat: dsSon.cat, id: dsSon.id, nombre: dsSon.nombre }; pintarSonidos(); llenarSelectorSonido();
+  avisar(`Listo para usar: ${dsSon.nombre}. En el editor del video, toca «+ Agregar en el cabezal».`, "ok");
+};
 ["dsDesde", "dsHasta", ...DS_CAMPOS.map(c => c[0])].forEach(id => $(id).addEventListener("input", () => {
   if (+$("dsHasta").value < +$("dsDesde").value + .05) $(id === "dsDesde" ? "dsHasta" : "dsDesde").value = id === "dsDesde" ? +$("dsDesde").value + .05 : +$("dsHasta").value - .05;
   dsPintar();
@@ -3114,7 +3180,10 @@ $("dsReset").onclick = () => dsPoner({});
 $("dsGuardar").onclick = async () => {
   try {
     const r = await post("/api/ajustes_sonido", { id: dsSon.id, ajustes: dsLeer() });
-    $("dlgSonido").close(); reproductor.pause(); biblioteca = null; await pintarSonidos();
+    if (dsEnVentana()) dsCerrarVentana();
+    reproductor.pause(); biblioteca = null; dsGuardado = r.ajustes; await pintarSonidos();
+    $("dsCat").textContent = (dsSon.catNombre || "") + (Object.keys(r.ajustes).length ? " · editado" : "");
+    if (typeof ondasSon !== "undefined") delete ondasSon[dsSon.id];  // la pista del editor del video vuelve a leer la onda editada
     const n = r.codigos.length, que = Object.keys(r.ajustes).length ? `«${dsSon.nombre}» guardado así.` : `«${dsSon.nombre}» vuelve a ser el original.`;
     if (!n) return avisar(`${que} Se usa así en los próximos videos que armes.`, "ok");
     if (!confirm(`${que} ¿Re-armar ahora los ${n} video${n === 1 ? "" : "s"} que ya lo usan?`)) return avisar(`${que} Se nota cuando re-armes esos ${n} videos.`, "ok");
@@ -3122,7 +3191,6 @@ $("dsGuardar").onclick = async () => {
     avisar(`${que} Re-armando ${n} videos… lo ves en Procesos (☰).`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
-document.addEventListener("click", e => { const b = e.target.closest("[data-editar-son]"); if (b) abrirEditorSonido(JSON.parse(b.dataset.editarSon)); });
 async function llenarSelectorSonido() {
   await cargarBiblioteca();
   const cat = sonElegido?.cat || $("evSonCat").value || "whoosh";
@@ -3221,7 +3289,7 @@ function abrirSonido(e) {
   $("fxVol").onchange = ev => aplicarSonido(e, e.t, e.desde || 0, e.largo || .6, Number(ev.target.value) / 100);
   $("fxVel").oninput = ev => { $("fxVelTxt").textContent = (+ev.target.value).toFixed(2) + "x"; };
   $("fxVel").onchange = ev => aplicarSonido(e, e.t, e.desde || 0, e.largo || .6, undefined, Number(ev.target.value));
-  if ($("fxEditar")) $("fxEditar").onclick = () => abrirEditorSonido({ id: e.id, nombre: (e.sfx || "").split("/").pop().replace(/\.[^.]+$/, "") });
+  if ($("fxEditar")) $("fxEditar").onclick = () => abrirEditorSonido({ id: e.id, nombre: (e.sfx || "").split("/").pop().replace(/\.[^.]+$/, "") }, { ventana: true });
   $("fxMover").onclick = () => { const d = piezaDeG(ed.t); aplicarSonido(e, inicioPieza(d.pz) + d.tp, e.desde || 0, e.largo || .6); };
   $("fxQuitar").onclick = async () => {
     const v = piezaDeOriginal(e.tm ?? e.t);

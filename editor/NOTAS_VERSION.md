@@ -1,3 +1,8 @@
+Versión 1.21.2 (se actualiza desde la app con «Actualizar ahora»):
+- Página Sonidos nueva, como el navegador de Ableton: a la izquierda los tipos con su cantidad, al centro los sonidos en una línea cada uno (▶ para escuchar, un punto si está editado) y a la derecha el sonido elegido con su editor siempre a la vista. El nivel general pasó a un botón arriba.
+- «Usar en un video» desde el panel del sonido (antes «Elegir»).
+- El volumen de un sonido editado ahora sí se nota en el video: el nivelado automático se mide sobre el sonido ya editado (si lo recortabas o invertías, antes casi se perdía el cambio de volumen).
+
 Versión 1.21.1 (se actualiza desde la app con «Actualizar ahora»):
 - Guion: se resalta el paso que toca. Si la sesión todavía no tiene clips, el resaltado es «1 · Analizar clips» y «Ver cambios contra el guion» queda apagado hasta que haya clips.
 - «Analizar clips» ahora pregunta antes de empezar: muestra de qué carpeta de Drive se traen los clips, dónde quedan en esta PC, cuántas piezas del guion ya tienen clip y qué va a hacer. Solo arranca con «Sí, analizar».

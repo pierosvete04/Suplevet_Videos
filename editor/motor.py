@@ -3353,7 +3353,9 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None)
         ms = int(e["t"] * 1000)
         vk = (vol * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(e["cat"], 1.0) * float(e.get("vol", 1.0))
               * float(e.get("vol_sonido", 1.0))  # el volumen del sonido editado en la página Sonidos
-              * ganancia_normalizada(e.get("fuente", e["archivo"])))  # todos al mismo nivel; luego su tipo y lo puesto a mano
+              # todos al mismo nivel (medido sobre el sonido ya editado: si se recortó o se invirtió, suena distinto
+              # al archivo entero); encima van su tipo, el volumen editado y lo puesto a mano
+              * ganancia_normalizada(e["archivo"]))
         vel = float(e.get("vel", 1.0))  # velocidad de este efecto en este video (la del sonido ya viene en el archivo)
         sale = e["largo"] / vel
         recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
