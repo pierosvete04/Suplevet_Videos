@@ -21,7 +21,7 @@ import drive
 import motor
 import panel
 
-PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else 8765  # --puerto para probar sin chocar con la sala abierta
+PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("SALA_PUERTO") or 8765)  # --puerto para probar sin chocar con la sala abierta
 # Desde otra PC o la tablet (por WiFi) solo se puede abrir el teleprompter, y con PIN.
 ABIERTO_A_LA_RED = {"/teleprompter", "/api/teleprompter", "/entrar"}
 
@@ -575,10 +575,16 @@ class H(BaseHTTPRequestHandler):
             self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
         elif u.path == "/api/sonidos":
             self._json(motor.biblioteca_sonidos())
-        elif u.path == "/sfx":
-            f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
+        elif u.path == "/sfx":  # el sonido con su edición de la página Sonidos (&original=1: tal cual el archivo)
+            q = parse_qs(u.query)
+            f = motor.ruta_sonido(q.get("id", [""])[0])
             if not f:
                 return self.send_error(404)
+            if "original" not in q:
+                try:
+                    f = motor.sonido_editado(f)
+                except Exception:  # noqa: BLE001
+                    pass
             self._archivo(f.parent, f.name)
         elif u.path == "/pista":  # la música de un video, para escucharla en la vista previa del editor
             q = parse_qs(u.query)
@@ -602,7 +608,13 @@ class H(BaseHTTPRequestHandler):
         elif u.path == "/api/renombrar":
             self._json(motor.plan_renombrar())
         elif u.path == "/api/onda_sonido":  # forma de onda de un sonido de la biblioteca (pista «Sonidos» del editor)
-            f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
+            q = parse_qs(u.query)
+            f = motor.ruta_sonido(q.get("id", [""])[0])
+            if f and "original" not in q:
+                try:
+                    f = motor.sonido_editado(f)
+                except Exception:  # noqa: BLE001
+                    pass
             self._json(motor.onda_archivo(f) if f else {"por_seg": 50, "picos": [], "dur": 0})
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
@@ -932,8 +944,12 @@ class H(BaseHTTPRequestHandler):
                 if b.get("accion") not in ("agregar", "quitar", "cambiar", "mover", "ajustar"):
                     raise ValueError("Acción no válida")
                 codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"),
-                                              b.get("desde"), b.get("largo"), b.get("vol"))
+                                              b.get("desde"), b.get("largo"), b.get("vol"), b.get("vel"))
                 self._json({"ok": True, "codigos": codigos})
+            elif u.path == "/api/ajustes_sonido":  # editar un sonido de la biblioteca: queda así en todos los videos
+                b = self._cuerpo()
+                aj = motor.guardar_ajustes_sonido(str(b.get("id", "")), b.get("ajustes") or {})
+                self._json({"ok": True, "ajustes": aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
             elif u.path == "/api/edicion":
                 b = self._cuerpo()
                 codigos = motor.guardar_edicion_piezas(b)

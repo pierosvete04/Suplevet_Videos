@@ -11,12 +11,13 @@ La ventana es del propio programa (pywebview con WebView2, el motor que Windows 
 en sus apps): con el ícono de la sala en la barra de tareas, sin navegador de por medio. Lo que la ventana guarda
 (tema, vista elegida) va a datos/ventana_app. Si a una PC le falta WebView2, se abre con Edge en modo aplicación.
 Por dentro la sala sigue siendo un servidor solo de esta PC (127.0.0.1), que se apaga al cerrar la ventana
-(si estaba armando o exportando, primero termina). La consola queda oculta; lo que escribe va a datos/sala.log.
+(si estaba armando o exportando, primero termina). El .exe es un programa de ventana (sin consola): no aparece
+el cuadro negro al abrir. Lo que escribe la sala va a datos/sala.log, y ffmpeg, rclone y Claude corren sin ventana.
 
 Si cambias este archivo o las librerías, sube LANZADOR_VERSION y el archivo LANZADOR_MINIMO:
 la sala pedirá bajar la versión completa en vez de actualizar solo el código.
 """
-LANZADOR_VERSION = "2.0.0"
+LANZADOR_VERSION = "2.1.0"
 
 # Imports explícitos para que PyInstaller empaquete lo que usa el código de app/ (que no analiza).
 import argparse, ctypes, glob, hashlib, http.server, io, json, mimetypes, re, runpy, secrets, shutil, socket  # noqa: E401,F401
@@ -32,7 +33,7 @@ try:
 except Exception:  # noqa: BLE001
     webview = None
 
-PUERTO = 8765
+PUERTO = int(os.environ.get("SALA_PUERTO") or 8765)  # otro puerto solo para probar con la sala abierta
 URL = f"http://127.0.0.1:{PUERTO}"
 TITULO = "Sala de edición"
 
@@ -61,18 +62,41 @@ def en_uso():
         return s.connect_ex(("127.0.0.1", PUERTO)) == 0
 
 
+def sin_ventanas_de_consola():
+    """El .exe no tiene consola: sin esto, cada ffmpeg, ffprobe o rclone que lanza la sala abriría su propia
+    ventana negra. Todo programa que se lance sale sin ventana, salvo que pida otra cosa."""
+    if os.name != "nt":
+        return
+    original = subprocess.Popen.__init__
+
+    def init(self, *args, **kwargs):
+        if not kwargs.get("creationflags"):
+            kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
+        original(self, *args, **kwargs)
+    subprocess.Popen.__init__ = init
+
+
+def salida_a_log(datos):
+    """Un programa de ventana no tiene dónde escribir: lo que imprima va a datos/sala.log."""
+    if sys.stdout is None or sys.stderr is None:
+        log = open(datos / "sala.log", "a", encoding="utf-8", errors="replace", buffering=1)
+        sys.stdout = sys.stdout or log
+        sys.stderr = sys.stderr or log
+
+
 def correr_servidor():
-    app, _ = preparar_entorno()
+    app, datos = preparar_entorno()
+    salida_a_log(datos)
+    sin_ventanas_de_consola()
     sys.path.insert(0, str(app))
     os.chdir(app)
     runpy.run_path(str(app / "servidor.py"), run_name="__main__")
 
 
-def ocultar_consola():
-    if os.name == "nt":
-        ventana = ctypes.windll.kernel32.GetConsoleWindow()
-        if ventana:
-            ctypes.windll.user32.ShowWindow(ventana, 0)
+def consola_para_errores():
+    """SalaSuplevet.exe --consola: abre una consola para ver lo que pasa (el .exe normal no tiene)."""
+    if os.name == "nt" and ctypes.windll.kernel32.AllocConsole():
+        sys.stdout = sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
 
 
 def mensaje(texto, error=True):
@@ -132,8 +156,9 @@ def main():
     if "--servidor" in sys.argv:
         return correr_servidor()
     _, datos = preparar_entorno()
-    if "--consola" not in sys.argv:  # para ver errores: SalaSuplevet.exe --consola
-        ocultar_consola()
+    if "--consola" in sys.argv:  # para ver errores: SalaSuplevet.exe --consola
+        consola_para_errores()
+    salida_a_log(datos)
     if en_uso():  # ya estaba abierta: solo otra ventana
         if not ventana_propia(datos, sys.stderr):
             abrir_ventana(datos)

@@ -1,3 +1,7 @@
+Versión 1.20.0 (esta pide instalar la versión completa una vez, porque cambia el programa que abre la sala):
+- Al abrir la sala ya no aparece ni se cierra el cuadro negro: se abre directo la ventana de la sala.
+- Procesos (☰) ahora es un panel como el de Notificaciones: se abre bajo su botón, con «Recientes» y «Todo el historial», cada proceso con su ícono (listo, falló, cancelado), lo que tardó y agrupado por día. Lo que está corriendo sale arriba, con su avance y el botón Cancelar.
+
 Versión 1.19.0 (se actualiza desde la app con «Actualizar ahora»):
 - Producciones como carpetas: cada producción es una carpeta en Drive «P02 TEMA», y adentro van sus días de grabación («11／10 SESIÓN», «13／10 SESIÓN», cada uno con su Clips/). Así un mismo guion sirve para varios días. La sala la encuentra sola y la muestra como una sola producción con sus días. El guion, Flow, la música y V.FINALES pueden ir en la carpeta de la producción o en uno de los días.
 - Si un día estaba suelto y lo mueves dentro de su producción, la sala mueve también su copia en esta PC: no vuelve a bajar ni a procesar nada, y se mantiene lo identificado y lo armado.
