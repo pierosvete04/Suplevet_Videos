@@ -1,3 +1,10 @@
+Versión 1.21.5 (se actualiza desde la app con «Actualizar ahora»):
+- Sonidos: sin el espacio vacío sobre el título; los avisos de la sala aparecen flotando abajo y ya no empujan la página.
+- Ecualizador: los puntos de corte (LC y HC) se ven enteros, ya no quedan medio cortados en los bordes.
+- La vista previa ahora sí suena más fuerte con volumen sobre 100 % (150 %, 200 %), en Sonidos y en el editor del video.
+- Al cambiar el tamaño de la ventana, las ondas y la curva del ecualizador se redibujan bien.
+- Las versiones de prueba de sonidos editados que nadie usa en una semana se borran solas, para no llenar el disco.
+
 Versión 1.21.4 (se actualiza desde la app con «Actualizar ahora»):
 - Editar sonido → «Sin silencios»: quita todos los silencios del sonido (al inicio, en medio y al final) y deja solo lo que suena. Compáralo con «▶ Original» y quédate con el que prefieras. La onda «Resultado» lo muestra más corto.
 - Ecualizador: graves y agudos pueden ir en «Estante» (suben o bajan todo hacia ese extremo) o en «Campana» (solo alrededor de su frecuencia). La rueda del mouse sobre una campana la hace más ancha o más fina. La ayuda ya no tapa la curva.

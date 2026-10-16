@@ -273,7 +273,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .sb-elegido { margin: -4px 0 10px; font-size: 12.5px; color: var(--muted); }
 /* la página no se desplaza: el navegador ocupa el alto que queda en la ventana (--sb-alto, lo calcula ajustarAltoSonidos)
    y cada columna se desplaza por dentro */
-main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-bottom: 0; }
+main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-top: 10px; padding-bottom: 0; }
+/* en Sonidos el aviso flota abajo: no deja hueco arriba ni empuja el navegador cuando aparece */
+main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30;
+  max-width: min(640px, 90vw); margin: 0 !important; padding: 9px 14px; border: 1px solid var(--line2); border-radius: 12px; background: var(--surface); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display: none; }
 .sb { display: grid; grid-template-columns: 190px minmax(0, 1fr) minmax(330px, 400px); gap: 12px; height: var(--sb-alto, 70vh); min-height: 320px; }
 .sb-cats, .sb-lista, .sb-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .sb-cats { padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start; overflow-x: hidden; }
@@ -3014,7 +3018,7 @@ function dibujarOndasSon() {
 // ---------- Sonidos: biblioteca, escuchar, agregar/cambiar/quitar en el editor ----------
 let biblioteca = null, sonElegido = null, sonPend = [];
 const reproductor = new Audio();
-function tocar(id) { dsModo = null; reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {}); }
+function tocar(id) { dsModo = null; if (dsAmp) dsAmp.gain.value = 1; reproductor.volume = 1; reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {}); }
 async function cargarBiblioteca() {
   if (!biblioteca) { try { biblioteca = await (await fetch("/api/sonidos")).json(); } catch (e) { biblioteca = []; } }
   return biblioteca;
@@ -3051,7 +3055,9 @@ function ajustarAltoSonidos() {
   const arriba = sb.getBoundingClientRect().top + window.scrollY;
   document.documentElement.style.setProperty("--sb-alto", Math.max(320, innerHeight - arriba - 16) + "px");
 }
-addEventListener("resize", ajustarAltoSonidos);
+// al cambiar el tamaño de la ventana, o si aparece o se va un aviso arriba, el navegador se reacomoda y las ondas se redibujan
+addEventListener("resize", () => { ajustarAltoSonidos(); if (dsSon && !$("dsForm").hidden) { dsPintar(); dsPintarEq(); } });
+try { new ResizeObserver(ajustarAltoSonidos).observe($("sonElegido")); } catch (e) {}
 $("sonLista").addEventListener("click", e => {
   if (e.target.closest("[data-tocar]")) return;  // ▶ solo escucha
   const f = e.target.closest("[data-sel-son]"); if (!f) return;
@@ -3127,12 +3133,13 @@ function eqRespuesta(frecs) {  // dB de la cadena de filtros en cada frecuencia 
 }
 function eqPuntos(w, h) {  // los puntos que se arrastran
   const r = eqRespuesta([dsEq.corte_graves || EQ_FMIN, dsEq.corte_agudos || EQ_FMAX]);
+  const dentro = p => ({ ...p, x: Math.max(11, Math.min(w - 11, p.x)), y: Math.max(11, Math.min(h - 11, p.y)) });  // nunca medio cortados en el borde
   return [
     { k: "corte_graves", et: "LC", x: eqX(dsEq.corte_graves || EQ_FMIN * 1.04, w), y: eqY(Math.max(-EQ_DB, r[0]), h), on: !!dsEq.corte_graves },
     { k: "graves", et: "G", x: eqX(dsEq.graves_f, w), y: eqY(dsEq.graves, h), on: !!dsEq.graves },
     { k: "medios", et: "M", x: eqX(dsEq.medios_f, w), y: eqY(dsEq.medios, h), on: !!dsEq.medios },
     { k: "agudos", et: "A", x: eqX(dsEq.agudos_f, w), y: eqY(dsEq.agudos, h), on: !!dsEq.agudos },
-    { k: "corte_agudos", et: "HC", x: eqX(dsEq.corte_agudos || EQ_FMAX / 1.04, w), y: eqY(Math.max(-EQ_DB, r[1]), h), on: !!dsEq.corte_agudos }];
+    { k: "corte_agudos", et: "HC", x: eqX(dsEq.corte_agudos || EQ_FMAX / 1.04, w), y: eqY(Math.max(-EQ_DB, r[1]), h), on: !!dsEq.corte_agudos }].map(dentro);
 }
 function dsPintarEq() {
   const cv = $("dsEq"), w = cv.clientWidth, h = cv.clientHeight, dpr = devicePixelRatio || 1;
@@ -3319,9 +3326,22 @@ function dsSeguirCabezal() {
   }
   requestAnimationFrame(dsSeguirCabezal);
 }
+// El reproductor del navegador no pasa de 100 %: para escuchar un volumen de 150 % o 200 % el sonido pasa por un
+// amplificador (Web Audio). Los demás usos del reproductor lo dejan en 1 (ganancia normal).
+let dsAmp = null;
+function ganancia(v) {
+  if (!dsAmp) {
+    try { const ctx = new AudioContext(); dsAmp = ctx.createGain(); ctx.createMediaElementSource(reproductor).connect(dsAmp); dsAmp.connect(ctx.destination); }
+    catch (e) { dsAmp = { gain: { value: 1 }, falla: true }; }
+  }
+  if (dsAmp.context?.state === "suspended") dsAmp.context.resume();
+  dsAmp.gain.value = v;
+  return !dsAmp.falla;
+}
 async function dsTocar(modo) {
   const vol = modo === "orig" ? 1 : (dsLeer().vol ?? 1), url = await dsBajar(modo === "orig" ? dsUrlOrig() : dsUrlCambios());
-  reproductor.pause(); reproductor.src = url; reproductor.playbackRate = 1; reproductor.volume = Math.min(1, .8 * vol);
+  reproductor.pause(); reproductor.src = url; reproductor.playbackRate = 1;
+  if (ganancia(.8 * vol)) reproductor.volume = 1; else reproductor.volume = Math.min(1, .8 * vol);
   dsModo = modo; reproductor.play().then(() => requestAnimationFrame(dsSeguirCabezal)).catch(() => {});
 }
 // El editor vive en el panel derecho de Sonidos; desde el editor del video (o si el panel no se ve) se muda a una ventana
@@ -3486,7 +3506,8 @@ async function aplicarSonido(e, tN, desde, largo, vol, vel) {
 function tocarRecorte(e) {  // escucha solo el pedazo que quedó del sonido
   if (!e.id) return;
   reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(e.id);
-  reproductor.currentTime = e.desde || 0; reproductor.volume = Math.min(1, .8 * (e.vol ?? 1));
+  reproductor.currentTime = e.desde || 0;
+  if (ganancia(.8 * (e.vol ?? 1))) reproductor.volume = 1; else reproductor.volume = Math.min(1, .8 * (e.vol ?? 1));
   reproductor.preservesPitch = true; reproductor.playbackRate = e.vel || 1; reproductor.play().catch(() => {});
   clearTimeout(tocarRecorte.t); tocarRecorte.t = setTimeout(() => reproductor.pause(), (e.largo || .6) / (e.vel || 1) * 1000);
 }

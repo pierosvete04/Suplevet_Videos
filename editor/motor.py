@@ -2687,6 +2687,24 @@ def _atempo(factor):
     return ",".join(f"atempo={p:.4f}" for p in pasos)
 
 
+_limpieza_sfx = [0.0]
+
+
+def _limpiar_sfx_editados(dias=7):
+    """Borra las versiones editadas que nadie usó en una semana (las pruebas de la página Sonidos se acumulan).
+    Las de sonidos guardados se vuelven a crear solas si hacen falta. Como mucho una vez por hora."""
+    if time.time() - _limpieza_sfx[0] < 3600:
+        return
+    _limpieza_sfx[0] = time.time()
+    limite = time.time() - dias * 86400
+    for f in (DATOS / "sfx_editados").glob("*.wav"):
+        try:
+            if f.stat().st_mtime < limite:
+                f.unlink()
+        except OSError:
+            pass
+
+
 def sonido_editado(f, prueba=None):
     """El archivo con su edición de la página Sonidos aplicada (wav en caché), o el original si no se editó.
     prueba: ajustes sin guardar, para escucharlos antes de guardar.
@@ -2701,7 +2719,9 @@ def sonido_editado(f, prueba=None):
     firma = hashlib.md5(f"{f}|{f.stat().st_size}|{int(f.stat().st_mtime)}|{json.dumps(aj, sort_keys=True)}".encode()).hexdigest()
     destino = DATOS / "sfx_editados" / f"{firma}.wav"
     if destino.exists() and destino.stat().st_size > 0:
+        os.utime(destino)  # recién usado: no se limpia
         return destino
+    _limpiar_sfx_editados()
     sr = 48000
     d = dur_audio(f)
     desde = min(float(aj.get("desde", 0)), max(0.0, d - 0.05))
