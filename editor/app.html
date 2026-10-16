@@ -271,13 +271,16 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .sb-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: grid; gap: 8px; width: min(320px, 86vw); padding: 12px;
   border: 1px solid var(--line2); border-radius: 12px; background: var(--flotante, var(--surface)); box-shadow: 0 16px 40px rgba(0,0,0,.3); font-size: 13px; }
 .sb-elegido { margin: -4px 0 10px; font-size: 12.5px; color: var(--muted); }
-.sb { display: grid; grid-template-columns: 180px minmax(0, 1fr) minmax(330px, 400px); gap: 12px; align-items: start; }
-.sb-cats, .sb-lista, .sb-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
-.sb-cats, .sb-panel { position: sticky; top: calc(var(--alto-header, 56px) + 12px); max-height: calc(100vh - var(--alto-header, 56px) - 24px); overflow: auto; }
+/* la página no se desplaza: el navegador ocupa el alto que queda en la ventana (--sb-alto, lo calcula ajustarAltoSonidos)
+   y cada columna se desplaza por dentro */
+main:has(> section[data-panel="sonidos"]:not([hidden])) { padding-bottom: 0; }
+.sb { display: grid; grid-template-columns: 190px minmax(0, 1fr) minmax(330px, 400px); gap: 12px; height: var(--sb-alto, 70vh); min-height: 320px; }
+.sb-cats, .sb-lista, .sb-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .sb-cats { padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start; overflow-x: hidden; }
 .sb-cats button { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 9px; border: 0; border-radius: 8px; background: none;
   color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; text-transform: capitalize; }
-.sb-cats button span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.sb-cats button span { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.sb-cats button .n { color: inherit; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-cats button:hover { background: var(--hondo); }
 .sb-cats button[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--ink); font-weight: 600; }
 .sb-lista { padding: 4px; min-height: 240px; }
@@ -293,6 +296,11 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .sb-panel { padding: 14px; }
 .sb-vacio { display: grid; gap: 6px; padding: 30px 10px; text-align: center; font-size: 13px; color: var(--muted); }
 .sb-vacio b { color: var(--ink); font-size: 14px; }
+.sb-pasos { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; text-align: left; font-size: 12.5px; }
+.sb-pasos b { font-size: inherit; }
+.sb-elegido { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-radius: 11px; background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--ink) !important; }
+.sb-elegido[hidden] { display: none; }
 .ds-form { display: grid; gap: 10px; }
 .ds-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .ds-cab h2 { margin: 0; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; } .ds-cab .muted { font-size: 12px; text-transform: capitalize; }
@@ -302,12 +310,20 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ds-grupo h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
 .ds-grid .ev-campo { font-size: 11.5px; } .ds-grid .ev-campo b { font-weight: 600; }
+.ds-h3 { display: flex; justify-content: space-between; align-items: center; }
+.ds-link { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 11px; letter-spacing: 0; text-transform: none; cursor: pointer; }
+.ds-eq { position: relative; height: 150px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; touch-action: none; cursor: crosshair; }
+.ds-eq canvas { display: block; width: 100%; height: 100%; }
+.ds-eq.agarra { cursor: grab; } .ds-eq.moviendo { cursor: grabbing; }
+.ds-eq-ley { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ds-eq-ley b { color: var(--ink); font-weight: 600; }
+.ds-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--err, #ef4444); box-shadow: 0 0 6px var(--err, #ef4444); pointer-events: none; display: none; z-index: 2; }
 .ds-pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
 .ds-nota { font-size: 11.5px; }
 @media (max-width: 1100px) { .sb { grid-template-columns: 170px minmax(0, 1fr); } .sb-panel { display: none; } }
 @media (max-width: 640px) {
-  .sb { grid-template-columns: 1fr; }
-  .sb-cats { position: static; display: flex; overflow-x: auto; max-height: none; }
+  .sb { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .sb-cats { display: flex; overflow-x: auto; overflow-y: hidden; }
   .sb-cats button { width: auto; flex: none; }
   .sb-barra input[type=search] { flex: 1 1 100%; }
 }
@@ -1028,13 +1044,16 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <nav class="sb-cats" id="sonChips" aria-label="Tipos de sonido"></nav>
       <div class="sb-lista" id="sonLista" role="listbox" aria-label="Sonidos"></div>
       <aside class="sb-panel" id="sonPanel">
-        <div class="sb-vacio" id="dsVacio"><b>Elige un sonido</b><span>Tócalo en la lista para escucharlo y editarlo. Lo que guardes aquí queda así en todos los videos que lo usan.</span></div>
+        <div class="sb-vacio" id="dsVacio"><b>Toca un sonido de la lista</b>
+          <span>Suena y se abre aquí. Con él puedes:</span>
+          <ul class="sb-pasos"><li><b>Editarlo</b> (recorte, velocidad, tono, eco…) y guardar: queda así en todos los videos que lo usan.</li>
+            <li><b>Usarlo en un video</b>: lo pones a mano en el segundo que quieras desde el editor del video.</li></ul></div>
         <div class="ds-form" id="dsForm" hidden>
           <div class="ds-cab"><div style="min-width:0"><h2 id="dsTit"></h2><span class="muted" id="dsCat"></span></div>
             <button class="btn sec peq" type="button" id="dsCerrarDlg" hidden aria-label="Cerrar">✕</button></div>
-          <div class="ds-onda ds-arrastre" id="dsOndaCaja" title="Arrastra los bordes para recortar; arrastra el centro para mover el recorte"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div></div>
+          <div class="ds-onda ds-arrastre" id="dsOndaCaja" title="Arrastra los bordes para recortar; arrastra el centro para mover el recorte"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div><div class="ds-cabezal" id="dsCabO"></div></div>
           <div class="ds-res-cab muted"><span>Resultado · arrastra el borde para cambiar la velocidad</span><b id="dsResTxt"></b></div>
-          <div class="ds-onda ds-res" id="dsResCaja"><canvas id="dsRes"></canvas><div class="ds-asa" id="dsResAsa" title="Estira o encoge: cambia la velocidad"></div></div>
+          <div class="ds-onda ds-res" id="dsResCaja"><canvas id="dsRes"></canvas><div class="ds-asa" id="dsResAsa" title="Estira o encoge: cambia la velocidad"></div><div class="ds-cabezal" id="dsCabR"></div></div>
           <div class="ds-transporte"><button class="btn sec peq" type="button" id="dsPlayOrig">▶ Original</button>
             <button class="btn peq" type="button" id="dsPlay">▶ Con los cambios</button>
             <label class="ds-inv"><input type="checkbox" id="dsInv"> Al revés</label></div>
@@ -1043,12 +1062,13 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
             <label class="ev-campo">Termina <b id="dsHastaTxt"></b><input type="range" id="dsHasta" min="0" step="0.01"></label>
             <label class="ev-campo">Velocidad <b id="dsVelTxt"></b><input type="range" id="dsVel" min="0.5" max="2" step="0.05"></label>
             <label class="ev-campo">Tono <b id="dsTonoTxt"></b><input type="range" id="dsTono" min="-12" max="12" step="1"></label></div></div>
-          <div class="ds-grupo"><h3>Color</h3><div class="ds-grid">
-            <label class="ev-campo">Graves <b id="dsGravesTxt"></b><input type="range" id="dsGraves" min="-12" max="12" step="1"></label>
-            <label class="ev-campo">Agudos <b id="dsAgudosTxt"></b><input type="range" id="dsAgudos" min="-12" max="12" step="1"></label>
-            <label class="ev-campo">Eco <b id="dsEcoTxt"></b><input type="range" id="dsEco" min="0" max="1" step="0.05"></label></div></div>
-          <div class="ds-grupo"><h3>Volumen</h3><div class="ds-grid">
+          <div class="ds-grupo"><h3 class="ds-h3">Ecualizador <button class="ds-link" type="button" id="dsEqPlano">dejar plano</button></h3>
+            <div class="ds-eq" id="dsEqCaja" title="Arrastra los puntos. Rueda del mouse sobre «M» = más ancho o más fino. Doble clic en un punto = lo apaga.">
+              <canvas id="dsEq"></canvas></div>
+            <div class="ds-eq-ley" id="dsEqTxt"></div></div>
+          <div class="ds-grupo"><h3>Volumen y eco</h3><div class="ds-grid">
             <label class="ev-campo">Volumen <b id="dsVolTxt"></b><input type="range" id="dsVol" min="0" max="3" step="0.05"></label>
+            <label class="ev-campo">Eco <b id="dsEcoTxt"></b><input type="range" id="dsEco" min="0" max="1" step="0.05"></label>
             <label class="ev-campo">Entra suave <b id="dsFinTxt"></b><input type="range" id="dsFin" min="0" max="2" step="0.05"></label>
             <label class="ev-campo">Sale suave <b id="dsFoutTxt"></b><input type="range" id="dsFout" min="0" max="2" step="0.05"></label></div></div>
           <div class="ds-pie">
@@ -2291,7 +2311,7 @@ document.addEventListener("click", e => {
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
     if (tab.dataset.tab === "plantillas") { pintarPlantillas(); pintarEstiloEdicion(); }
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
-    if (tab.dataset.tab === "sonidos") { if (dsEnVentana() && !$("dlgSonido").open) dsAlPanel(); pintarSonidos(); pintarNivelSonidos(); }
+    if (tab.dataset.tab === "sonidos") { if (dsEnVentana() && !$("dlgSonido").open) dsAlPanel(); scrollTo(0, 0); pintarSonidos(); pintarNivelSonidos(); requestAnimationFrame(ajustarAltoSonidos); }
     if (tab.dataset.tab === "guion") pintarGuion();
     return;
   }
@@ -2978,7 +2998,7 @@ function dibujarOndasSon() {
 // ---------- Sonidos: biblioteca, escuchar, agregar/cambiar/quitar en el editor ----------
 let biblioteca = null, sonElegido = null, sonPend = [];
 const reproductor = new Audio();
-function tocar(id) { reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {}); }
+function tocar(id) { dsModo = null; reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {}); }
 async function cargarBiblioteca() {
   if (!biblioteca) { try { biblioteca = await (await fetch("/api/sonidos")).json(); } catch (e) { biblioteca = []; } }
   return biblioteca;
@@ -2993,8 +3013,8 @@ async function pintarSonidos() {
   const q = $("sonBuscar").value.trim().toLowerCase();
   const total = biblioteca.reduce((n, c) => n + c.archivos.length, 0), editados = biblioteca.reduce((n, c) => n + c.archivos.filter(a => a.aj).length, 0);
   $("sonTotal").textContent = `${total} sonidos · ${biblioteca.length} tipos${editados ? ` · ${editados} editado${editados === 1 ? "" : "s"}` : ""}`;
-  $("sonChips").innerHTML = `<button data-son-cat="" aria-pressed="${!sonCat}">Todos <span>${total}</span></button>` + biblioteca.map(c =>
-    `<button data-son-cat="${esc(c.cat)}" aria-pressed="${sonCat === c.cat}" title="${esc(Object.entries(DESC_SONIDO).find(([k]) => c.cat.toLowerCase().includes(k))?.[1] || "")}">${esc(c.nombre)} <span>${c.archivos.length}</span></button>`).join("");
+  $("sonChips").innerHTML = `<button data-son-cat="" aria-pressed="${!sonCat}"><span class="n">Todos</span> <span>${total}</span></button>` + biblioteca.map(c =>
+    `<button data-son-cat="${esc(c.cat)}" aria-pressed="${sonCat === c.cat}" title="${esc(c.nombre)}${(d => d ? " — " + d : "")(Object.entries(DESC_SONIDO).find(([k]) => c.cat.toLowerCase().includes(k))?.[1] || "")}"><span class="n">${esc(c.nombre)}</span> <span>${c.archivos.length}</span></button>`).join("");
   const grupos = biblioteca.filter(c => !sonCat || c.cat === sonCat).map(c => ({
     c, archivos: c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)) })).filter(g => g.archivos.length);
   const fila = (c, a) => `<div class="sb-fila" role="option" aria-selected="${dsSon?.id === a.id}" data-sel-son='${esc(JSON.stringify({ id: a.id, nombre: a.nombre, cat: c.cat, catNombre: c.nombre }))}'>
@@ -3003,12 +3023,23 @@ async function pintarSonidos() {
   $("sonLista").innerHTML = grupos.map(g => (grupos.length > 1 || !sonCat ? `<div class="sb-grupo">${esc(g.c.nombre)}</div>` : "") + g.archivos.map(a => fila(g.c, a)).join("")).join("")
     || `<div class="sb-vacio">${q ? `Nada con «${esc(q)}».` : "Sin archivos (se bajan de Drive al abrir una sesión)."}</div>`;
   $("sonElegido").hidden = !sonElegido;
-  $("sonElegido").innerHTML = sonElegido ? `Para usar en un video: <b>${esc(sonElegido.nombre)}</b>. Ábrelo en el editor del video y toca «+ Agregar en el cabezal».` : "";
+  $("sonElegido").innerHTML = sonElegido ? `🎯 Listo para poner en un video: <b>${esc(sonElegido.nombre)}</b>. Abre el video → <b>Editar</b> → lleva el cabezal al segundo que quieras → <b>«+ Agregar en el cabezal»</b>.
+    <button class="btn sec peq" type="button" id="sonElegidoQuitar">Quitar</button>` : "";
+  if (sonElegido) $("sonElegidoQuitar").onclick = () => { sonElegido = null; pintarSonidos(); };
+  ajustarAltoSonidos();
 }
+// El navegador de Sonidos ocupa lo que queda de la ventana: la página queda quieta y solo se desplazan sus columnas
+function ajustarAltoSonidos() {
+  const sb = document.querySelector(".sb");
+  if (!sb || !sb.offsetParent) return;
+  const arriba = sb.getBoundingClientRect().top + window.scrollY;
+  document.documentElement.style.setProperty("--sb-alto", Math.max(320, innerHeight - arriba - 16) + "px");
+}
+addEventListener("resize", ajustarAltoSonidos);
 $("sonLista").addEventListener("click", e => {
   if (e.target.closest("[data-tocar]")) return;  // ▶ solo escucha
   const f = e.target.closest("[data-sel-son]"); if (!f) return;
-  const s = JSON.parse(f.dataset.selSon); tocar(s.id); abrirEditorSonido(s);
+  const s = JSON.parse(f.dataset.selSon); abrirEditorSonido(s).then(() => dsTocar("cambios"));  // suena tal como queda en los videos
 });
 $("sonBuscar").addEventListener("input", pintarSonidos);
 function pintarNivelSonidos() {
@@ -3035,16 +3066,129 @@ let dsSon = null, dsOndaO = null;
 const DS_CAMPOS = [  // input, campo, neutro, cómo se lee
   ["dsVel", "vel", 1, v => `${(+v).toFixed(2)}x`], ["dsTono", "tono", 0, v => `${v > 0 ? "+" : ""}${v} semitonos`],
   ["dsEco", "eco", 0, v => `${Math.round(v * 100)}%`], ["dsVol", "vol", 1, v => `${Math.round(v * 100)}%`],
-  ["dsGraves", "graves", 0, v => `${v > 0 ? "+" : ""}${v} dB`], ["dsAgudos", "agudos", 0, v => `${v > 0 ? "+" : ""}${v} dB`],
   ["dsFin", "fade_in", 0, v => `${(+v).toFixed(2)} s`], ["dsFout", "fade_out", 0, v => `${(+v).toFixed(2)} s`]];
+// Ecualizador paramétrico: mismos filtros que aplica el motor al armar (biquads de 2 polos)
+const EQ_NEUTRO = { corte_graves: 0, graves: 0, graves_f: 150, medios: 0, medios_f: 1000, medios_q: 1, agudos: 0, agudos_f: 4000, corte_agudos: 0 };
+let dsEq = { ...EQ_NEUTRO }, dsEsp = null;
 function dsLeer() {
   const dur = dsOndaO?.dur || 0, aj = { invertir: $("dsInv").checked };
   const desde = +$("dsDesde").value, hasta = +$("dsHasta").value;
   if (desde > 0.005) aj.desde = desde;
   if (dur && hasta < dur - 0.02) aj.hasta = hasta;
   DS_CAMPOS.forEach(([id, k, neutro]) => { const v = +$(id).value; if (v !== neutro) aj[k] = v; });
+  // la frecuencia de una banda solo cuenta si la banda está subida o bajada
+  const usa = { graves_f: "graves", medios_f: "medios", medios_q: "medios", agudos_f: "agudos" };
+  Object.entries(dsEq).forEach(([k, v]) => { if (v !== EQ_NEUTRO[k] && (!usa[k] || dsEq[usa[k]])) aj[k] = +(+v).toFixed(k.endsWith("_q") ? 2 : 1); });
   return aj;
 }
+const EQ_FMIN = 20, EQ_FMAX = 20000, EQ_DB = 18;
+const eqX = (f, w) => Math.log(f / EQ_FMIN) / Math.log(EQ_FMAX / EQ_FMIN) * w;
+const eqF = (x, w) => EQ_FMIN * Math.pow(EQ_FMAX / EQ_FMIN, Math.max(0, Math.min(1, x / w)));
+const eqY = (db, h) => h / 2 - db / EQ_DB * (h / 2 - 8);
+const eqDb = (y, h) => (h / 2 - y) / (h / 2 - 8) * EQ_DB;
+const fmtHz = f => f >= 1000 ? `${(f / 1000).toFixed(f >= 10000 ? 0 : 1)} kHz` : `${Math.round(f)} Hz`;
+let eqCtx = null;
+function eqRespuesta(frecs) {  // dB de la cadena de filtros en cada frecuencia (la calcula el propio navegador)
+  try { eqCtx = eqCtx || new OfflineAudioContext(1, 1, 48000); } catch (e) { return frecs.map(() => 0); }
+  const fr = new Float32Array(frecs), total = new Float32Array(frecs.length).fill(0), mag = new Float32Array(frecs.length), fase = new Float32Array(frecs.length);
+  const filtros = [];
+  if (dsEq.corte_graves) filtros.push(["highpass", dsEq.corte_graves, .707, 0]);
+  if (dsEq.graves) filtros.push(["lowshelf", dsEq.graves_f, 1, dsEq.graves]);
+  if (dsEq.medios) filtros.push(["peaking", dsEq.medios_f, dsEq.medios_q, dsEq.medios]);
+  if (dsEq.agudos) filtros.push(["highshelf", dsEq.agudos_f, 1, dsEq.agudos]);
+  if (dsEq.corte_agudos) filtros.push(["lowpass", dsEq.corte_agudos, .707, 0]);
+  for (const [tipo, f, q, g] of filtros) {
+    const b = eqCtx.createBiquadFilter(); b.type = tipo; b.frequency.value = f; b.Q.value = q; b.gain.value = g;
+    b.getFrequencyResponse(fr, mag, fase);
+    for (let i = 0; i < mag.length; i++) total[i] += 20 * Math.log10(Math.max(mag[i], 1e-6));
+  }
+  return total;
+}
+function eqPuntos(w, h) {  // los puntos que se arrastran
+  const r = eqRespuesta([dsEq.corte_graves || EQ_FMIN, dsEq.corte_agudos || EQ_FMAX]);
+  return [
+    { k: "corte_graves", et: "LC", x: eqX(dsEq.corte_graves || EQ_FMIN * 1.04, w), y: eqY(Math.max(-EQ_DB, r[0]), h), on: !!dsEq.corte_graves },
+    { k: "graves", et: "G", x: eqX(dsEq.graves_f, w), y: eqY(dsEq.graves, h), on: !!dsEq.graves },
+    { k: "medios", et: "M", x: eqX(dsEq.medios_f, w), y: eqY(dsEq.medios, h), on: !!dsEq.medios },
+    { k: "agudos", et: "A", x: eqX(dsEq.agudos_f, w), y: eqY(dsEq.agudos, h), on: !!dsEq.agudos },
+    { k: "corte_agudos", et: "HC", x: eqX(dsEq.corte_agudos || EQ_FMAX / 1.04, w), y: eqY(Math.max(-EQ_DB, r[1]), h), on: !!dsEq.corte_agudos }];
+}
+function dsPintarEq() {
+  const cv = $("dsEq"), w = cv.clientWidth, h = cv.clientHeight, dpr = devicePixelRatio || 1;
+  if (!w) return;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement), acento = css.getPropertyValue("--accent").trim() || "#3b82f6",
+    linea = css.getPropertyValue("--line").trim() || "#334", muted = css.getPropertyValue("--muted").trim() || "#889", aviso = css.getPropertyValue("--warn").trim() || "#f5a524";
+  // rejilla: frecuencias y 0 dB
+  g.strokeStyle = linea; g.fillStyle = muted; g.font = "10px system-ui"; g.lineWidth = 1;
+  for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) {
+    const x = Math.round(eqX(f, w)) + .5; g.globalAlpha = .6; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+    g.globalAlpha = .8; g.fillText(fmtHz(f).replace(" ", ""), x + 3, h - 4);
+  }
+  g.globalAlpha = .9; g.beginPath(); g.moveTo(0, Math.round(h / 2) + .5); g.lineTo(w, Math.round(h / 2) + .5); g.stroke();
+  // espectro del sonido (las «ondas» de fondo), ya pasado por el ecualizador
+  if (dsEsp?.f?.length) {
+    const r = eqRespuesta(dsEsp.f);
+    g.beginPath(); g.moveTo(0, h);
+    dsEsp.f.forEach((f, i) => g.lineTo(eqX(f, w), h - Math.max(0, (dsEsp.db[i] + r[i] + 60) / 60) * (h - 14)));
+    g.lineTo(w, h); g.closePath(); g.globalAlpha = .28; g.fillStyle = aviso; g.fill();
+  }
+  // curva del ecualizador
+  const n = 200, fs = Array.from({ length: n }, (_, i) => eqF(i / (n - 1) * w, w)), r = eqRespuesta(fs);
+  g.beginPath(); fs.forEach((f, i) => { const x = i / (n - 1) * w, y = eqY(Math.max(-EQ_DB - 2, Math.min(EQ_DB + 2, r[i])), h); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.globalAlpha = 1; g.strokeStyle = acento; g.lineWidth = 2; g.stroke();
+  g.lineTo(w, h / 2); g.lineTo(0, h / 2); g.closePath(); g.globalAlpha = .12; g.fillStyle = acento; g.fill();
+  // puntos
+  for (const p of eqPuntos(w, h)) {
+    g.globalAlpha = p.on ? 1 : .45; g.beginPath(); g.arc(p.x, p.y, 9, 0, Math.PI * 2);
+    g.fillStyle = p.on ? acento : css.getPropertyValue("--surface").trim() || "#111"; g.fill(); g.lineWidth = 1.5; g.strokeStyle = acento; g.stroke();
+    g.fillStyle = p.on ? "#fff" : acento; g.font = "bold 8.5px system-ui"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(p.et, p.x, p.y + .5);
+    g.textAlign = "start"; g.textBaseline = "alphabetic";
+  }
+  const sg = v => `${v > 0 ? "+" : ""}${(+v).toFixed(1)} dB`;
+  $("dsEqTxt").innerHTML = [dsEq.corte_graves ? `Corte graves <b>${fmtHz(dsEq.corte_graves)}</b>` : "",
+    dsEq.graves ? `Graves <b>${sg(dsEq.graves)}</b> · ${fmtHz(dsEq.graves_f)}` : "",
+    dsEq.medios ? `Medios <b>${sg(dsEq.medios)}</b> · ${fmtHz(dsEq.medios_f)} · Q ${(+dsEq.medios_q).toFixed(1)}` : "",
+    dsEq.agudos ? `Agudos <b>${sg(dsEq.agudos)}</b> · ${fmtHz(dsEq.agudos_f)}` : "",
+    dsEq.corte_agudos ? `Corte agudos <b>${fmtHz(dsEq.corte_agudos)}</b>` : ""].filter(Boolean).map(x => `<span>${x}</span>`).join("")
+    || "Plano: arrastra un punto para ecualizar.";
+}
+let eqArr = null;
+function eqCerca(e) {
+  const r = $("dsEqCaja").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  let mejor = null, dmin = 16;
+  for (const p of eqPuntos(r.width, r.height)) { const d = Math.hypot(p.x - x, p.y - y); if (d < dmin) { dmin = d; mejor = p; } }
+  return mejor;
+}
+$("dsEqCaja").addEventListener("pointerdown", e => {
+  const p = eqCerca(e); if (!p) return;
+  eqArr = p; $("dsEqCaja").classList.add("moviendo"); $("dsEqCaja").setPointerCapture(e.pointerId); e.preventDefault();
+});
+$("dsEqCaja").addEventListener("pointermove", e => {
+  const r = $("dsEqCaja").getBoundingClientRect();
+  if (!eqArr) { $("dsEqCaja").classList.toggle("agarra", !!eqCerca(e)); return; }
+  const f = eqF(e.clientX - r.left, r.width), db = Math.max(-15, Math.min(15, Math.round(eqDb(e.clientY - r.top, r.height) * 2) / 2));
+  const lim = (v, a, b) => Math.max(a, Math.min(b, Math.round(v)));
+  if (eqArr.k === "corte_graves") dsEq.corte_graves = f < 25 ? 0 : lim(f, 25, 1000);
+  else if (eqArr.k === "corte_agudos") dsEq.corte_agudos = f > 18500 ? 0 : lim(f, 1000, 18500);
+  else if (eqArr.k === "graves") { dsEq.graves_f = lim(f, 40, 600); dsEq.graves = db; }
+  else if (eqArr.k === "medios") { dsEq.medios_f = lim(f, 150, 10000); dsEq.medios = db; }
+  else { dsEq.agudos_f = lim(f, 1500, 14000); dsEq.agudos = db; }
+  dsPintarEq(); dsCambio();
+});
+["pointerup", "pointercancel"].forEach(ev => $("dsEqCaja").addEventListener(ev, () => { eqArr = null; $("dsEqCaja").classList.remove("moviendo"); }));
+$("dsEqCaja").addEventListener("wheel", e => {  // rueda sobre los medios: campana más ancha o más fina
+  const p = eqCerca(e); if (p?.k !== "medios") return;
+  e.preventDefault(); dsEq.medios_q = Math.max(.3, Math.min(6, +(dsEq.medios_q * (e.deltaY > 0 ? .85 : 1.18)).toFixed(2)));
+  dsPintarEq(); dsCambio();
+}, { passive: false });
+$("dsEqCaja").addEventListener("dblclick", e => {  // doble clic: apaga esa banda
+  const p = eqCerca(e); if (!p) return;
+  if (p.k.startsWith("corte")) dsEq[p.k] = 0; else dsEq[p.k] = 0;
+  dsPintarEq(); dsCambio();
+});
+$("dsEqPlano").onclick = () => { dsEq = { ...EQ_NEUTRO }; dsPintarEq(); dsCambio(); };
 function dsPintar() {
   const dur = dsOndaO?.dur || 0, d = +$("dsDesde").value, h = +$("dsHasta").value;
   $("dsDesdeTxt").textContent = d.toFixed(2) + " s"; $("dsHastaTxt").textContent = h.toFixed(2) + " s";
@@ -3061,7 +3205,7 @@ function dsPintar() {
     let v = 0; for (let k = i0; k < i1; k++) v = Math.max(v, p[k]);
     const a = Math.max(1, v * (hh - 6)); g.fillRect(x, (hh - a) / 2, 1, a);
   }
-  dsPintarResultado();
+  dsPintarResultado(); dsCambio();
 }
 // La onda del sonido como va a quedar: su largo sigue a la velocidad (la escala es la del sonido entero a 0.5x,
 // así a 2x se ve corta y a 0.5x ocupa todo), y muestra el recorte, «al revés», los fundidos y la cola del eco
@@ -3105,14 +3249,50 @@ function dsPoner(aj) {
   ["dsDesde", "dsHasta"].forEach(id => { $(id).max = dur.toFixed(2); });
   $("dsDesde").value = aj.desde || 0; $("dsHasta").value = aj.hasta || dur;
   DS_CAMPOS.forEach(([id, k, neutro]) => { $(id).value = aj[k] ?? neutro; });
-  $("dsInv").checked = !!aj.invertir; dsPintar();
+  dsEq = Object.fromEntries(Object.entries(EQ_NEUTRO).map(([k, v]) => [k, aj[k] ?? v]));
+  $("dsInv").checked = !!aj.invertir; dsPintar(); dsPintarEq(); dsCambio();
+}
+// ---- Escuchar al instante: el original se baja una vez al elegir el sonido, y la versión con cambios se va preparando
+// sola mientras mueves los controles (así el ▶ suena enseguida) ----
+const dsAudios = new Map();  // url → objectURL ya bajado
+async function dsBajar(url) {
+  if (!dsAudios.has(url)) dsAudios.set(url, fetch(url).then(r => r.ok ? r.blob() : Promise.reject()).then(b => URL.createObjectURL(b)).catch(() => { dsAudios.delete(url); return url; }));
+  if (dsAudios.size > 40) { const [k, v] = dsAudios.entries().next().value; dsAudios.delete(k); v.then(u => u.startsWith("blob:") && URL.revokeObjectURL(u)); }
+  return dsAudios.get(url);
+}
+const dsUrlOrig = () => `/sfx?original=1&id=${encodeURIComponent(dsSon.id)}`;
+const dsUrlCambios = () => `/sfx?id=${encodeURIComponent(dsSon.id)}&aj=${encodeURIComponent(JSON.stringify(dsLeer()))}`;
+function dsCambio() { clearTimeout(dsCambio.t); if (dsSon && dsOndaO) dsCambio.t = setTimeout(() => dsBajar(dsUrlCambios()), 350); }
+// ---- Cabezal: una línea roja que avanza sobre la onda que está sonando ----
+let dsModo = null;
+function dsSeguirCabezal() {
+  const co = $("dsCabO"), cr = $("dsCabR");
+  if (!dsModo || reproductor.paused || reproductor.ended) { co.style.display = cr.style.display = "none"; dsModo = null; return; }
+  const t = reproductor.currentTime, dur = dsOndaO?.dur || 0;
+  if (dsModo === "orig") {
+    cr.style.display = "none";
+    co.style.display = dur ? "block" : "none"; co.style.left = Math.min(100, t / dur * 100) + "%";
+  } else {
+    const d = +$("dsDesde").value, h = +$("dsHasta").value, vel = +$("dsVel").value, largo = (h - d) / vel;
+    cr.style.display = "block"; cr.style.left = t / (dsPintarResultado.escala || 1) * $("dsResCaja").clientWidth + "px";
+    if (t < largo && dur) {  // el mismo punto en la onda de arriba (el archivo original)
+      const src = $("dsInv").checked ? h - t * vel : d + t * vel;
+      co.style.display = "block"; co.style.left = src / dur * 100 + "%";
+    } else co.style.display = "none";
+  }
+  requestAnimationFrame(dsSeguirCabezal);
+}
+async function dsTocar(modo) {
+  const vol = modo === "orig" ? 1 : (dsLeer().vol ?? 1), url = await dsBajar(modo === "orig" ? dsUrlOrig() : dsUrlCambios());
+  reproductor.pause(); reproductor.src = url; reproductor.playbackRate = 1; reproductor.volume = Math.min(1, .8 * vol);
+  dsModo = modo; reproductor.play().then(() => requestAnimationFrame(dsSeguirCabezal)).catch(() => {});
 }
 // El editor vive en el panel derecho de Sonidos; desde el editor del video (o si el panel no se ve) se muda a una ventana
 let dsGuardado = {};
 const dsEnVentana = () => $("dsForm").parentElement === $("dsDlgCuerpo");
 function dsAVentana() { $("dsDlgCuerpo").append($("dsForm")); $("dsCerrarDlg").hidden = false; if (!$("dlgSonido").open) $("dlgSonido").showModal(); }
 function dsAlPanel() { $("sonPanel").append($("dsForm")); $("dsCerrarDlg").hidden = true; $("dsVacio").hidden = !$("dsForm").hidden; }
-function dsCerrarVentana() { if ($("dlgSonido").open) $("dlgSonido").close(); reproductor.pause(); dsAlPanel(); requestAnimationFrame(dsPintar); }
+function dsCerrarVentana() { if ($("dlgSonido").open) $("dlgSonido").close(); reproductor.pause(); dsAlPanel(); requestAnimationFrame(() => { dsPintar(); dsPintarEq(); }); }
 $("dlgSonido").addEventListener("close", () => { if (dsEnVentana()) dsCerrarVentana(); });  // también con Esc
 $("dsCerrarDlg").onclick = dsCerrarVentana;
 async function abrirEditorSonido(s, { ventana } = {}) {
@@ -3125,9 +3305,12 @@ async function abrirEditorSonido(s, { ventana } = {}) {
   $("dsForm").hidden = false; $("dsVacio").hidden = true;
   if (ventana || !$("sonPanel").offsetParent) dsAVentana(); else dsAlPanel();
   document.querySelectorAll("#sonLista [data-sel-son]").forEach(f => f.setAttribute("aria-selected", JSON.parse(f.dataset.selSon).id === s.id));
-  dsPoner(dsGuardado);
-  try { dsOndaO = await (await fetch(`/api/onda_sonido?original=1&id=${encodeURIComponent(s.id)}`)).json(); } catch (e) { dsOndaO = null; }
-  if (dsSon?.id === s.id) dsPoner(dsGuardado);
+  dsEsp = null; dsPoner(dsGuardado);
+  dsBajar(dsUrlOrig());  // el original queda en memoria: «▶ Original» suena al instante
+  const q = encodeURIComponent(s.id), json = u => fetch(u).then(r => r.json()).catch(() => null);
+  const [onda, esp] = await Promise.all([json(`/api/onda_sonido?original=1&id=${q}`), json(`/api/espectro_sonido?id=${q}`)]);
+  if (dsSon?.id !== s.id) return;  // ya eligió otro
+  dsOndaO = onda; dsEsp = esp; dsPoner(dsGuardado);
 }
 $("dsDescartar").onclick = () => { dsPoner(dsGuardado); if (dsEnVentana()) dsCerrarVentana(); };
 $("dsElegir").onclick = () => {
@@ -3138,7 +3321,7 @@ $("dsElegir").onclick = () => {
   if (+$("dsHasta").value < +$("dsDesde").value + .05) $(id === "dsDesde" ? "dsHasta" : "dsDesde").value = id === "dsDesde" ? +$("dsDesde").value + .05 : +$("dsHasta").value - .05;
   dsPintar();
 }));
-$("dsInv").addEventListener("change", dsPintarResultado);
+$("dsInv").addEventListener("change", () => { dsPintarResultado(); dsCambio(); });
 // Arrastrar la onda como un clip de Ableton/Pro Tools: bordes = recorte, centro = mover el recorte, borde del resultado = velocidad
 let dsArr = null;
 function dsSeg(e, caja) { const r = caja.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (dsOndaO?.dur || 0); }
@@ -3173,9 +3356,8 @@ $("dsResAsa").addEventListener("pointermove", e => {
   dsPintar();
 });
 ["dsOndaCaja", "dsResAsa"].forEach(id => ["pointerup", "pointercancel"].forEach(ev => $(id).addEventListener(ev, () => { dsArr = null; })));
-function dsTocar(url, vol) { reproductor.pause(); reproductor.src = url; reproductor.playbackRate = 1; reproductor.volume = Math.min(1, .8 * vol); reproductor.play().catch(() => {}); }
-$("dsPlayOrig").onclick = () => dsTocar(`/sfx?original=1&id=${encodeURIComponent(dsSon.id)}`, 1);
-$("dsPlay").onclick = () => { const aj = dsLeer(); dsTocar(`/sfx?id=${encodeURIComponent(dsSon.id)}&aj=${encodeURIComponent(JSON.stringify(aj))}`, aj.vol ?? 1); };
+$("dsPlayOrig").onclick = () => dsTocar("orig");
+$("dsPlay").onclick = () => dsTocar("cambios");
 $("dsReset").onclick = () => dsPoner({});
 $("dsGuardar").onclick = async () => {
   try {

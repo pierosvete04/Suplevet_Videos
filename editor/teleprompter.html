@@ -19,7 +19,7 @@ label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-
 input[type=range] { width: 110px; }
 #titulo { font-weight: 700; margin-right: auto; }
 #estado { color: var(--muted); font-size: 14px; }
-#escena { min-height: 0; overflow-y: auto; padding: 30vh 6vw 60vh; scroll-behavior: smooth; }
+#escena { min-height: 0; overflow-y: auto; padding: 30vh 6vw 60vh; }
 #escena.espejo { transform: scaleX(-1); }
 .pieza { margin: 0 0 2.2em; }
 .pieza h2 { font-size: .38em; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4em; display: flex; gap: .6em; align-items: center; }
@@ -108,40 +108,109 @@ function pintar() {
 function irA(i, scroll = true) {
   actual = Math.max(0, Math.min(i, piezas.length - 1));
   palabraActual = 0;
+  cortarOido();  // lo que dijiste antes de cambiar de pieza no cuenta para la nueva
   document.querySelectorAll(".pieza").forEach(s => s.classList.toggle("otra", Number(s.dataset.i) !== actual));
   document.querySelectorAll(`#p${actual} .w`).forEach(w => w.classList.remove("dicho", "actual"));
   $("estado").textContent = piezas.length ? `${actual + 1} / ${piezas.length}` : "";
   if (scroll) centrar(document.getElementById("p" + actual));
 }
 
+// Deja la línea de «el» al 30% de la escena, deslizando suave (nunca de golpe)
+let destino = null, deslizando = false;
 function centrar(el) {
   if (!el) return;
-  const esc = $("escena");
-  esc.scrollTop = el.offsetTop - esc.clientHeight * 0.3;
+  const e = $("escena");
+  const meta = Math.max(0, Math.round(e.scrollTop + el.getBoundingClientRect().top - e.getBoundingClientRect().top - e.clientHeight * 0.3));
+  if (Math.abs(meta - (deslizando ? destino : e.scrollTop)) < 4) return;  // misma línea: no se mueve
+  destino = meta;
+  if (!deslizando) { deslizando = true; requestAnimationFrame(deslizar); }
 }
+function deslizar() {
+  if (destino === null) { deslizando = false; return; }
+  const e = $("escena"), falta = destino - e.scrollTop;
+  if (Math.abs(falta) < 1) { e.scrollTop = destino; deslizando = false; return; }
+  e.scrollTop += Math.sign(falta) * Math.max(1, Math.abs(falta) * 0.12);
+  requestAnimationFrame(deslizar);
+}
+$("escena").addEventListener("wheel", () => { destino = null; });  // si mueves tú la pantalla, no se pelea contigo
+$("escena").addEventListener("touchmove", () => { destino = null; });
 
 // ---------- Seguir la voz ----------
+// [seguidor] Ubica lo que vas diciendo comparando tus últimas palabras, EN ORDEN, con el guion cercano.
+// Solo avanza, prefiere la coincidencia más cercana y pide más pruebas cuanto más lejos tendría que saltar.
+const NUMEROS = { 0: "cero", 1: "uno", 2: "dos", 3: "tres", 4: "cuatro", 5: "cinco", 6: "seis", 7: "siete", 8: "ocho", 9: "nueve", 10: "diez", 12: "doce", 15: "quince", 20: "veinte", 30: "treinta", 50: "cincuenta", 100: "cien" };
+const VACIAS = new Set("a al con de del el en es la las le les lo los me mi mis no o para por que se si su sus te tu tus un una uno unos y ya yo eso esta este esto muy mas pero como".split(" "));
+const clave = w => { const n = norm(w); return NUMEROS[n] || (n === "un" || n === "una" ? "uno" : n); };
+const peso = w => !w ? 0 : VACIAS.has(w) ? 0.35 : 1;
+
+function parecido(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const [c, l] = a.length <= b.length ? [a, b] : [b, a];
+  if (c.length >= 4 && l.startsWith(c) && c.length >= l.length * 0.55) return 0.8;  // palabra a medio reconocer
+  if (c.length >= 5 && distancia(a, b) <= (l.length >= 8 ? 2 : 1)) return 0.7;       // una letra mal oída
+  return 0;
+}
+function distancia(a, b) {
+  let fila = [...Array(b.length + 1).keys()];
+  for (let i = 1; i <= a.length; i++) {
+    const nueva = [i];
+    for (let j = 1; j <= b.length; j++) nueva[j] = Math.min(fila[j] + 1, nueva[j - 1] + 1, fila[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    fila = nueva;
+  }
+  return fila[b.length];
+}
+
+// guion: palabras de la pieza (ya con «clave»); dichas: lo último que oyó el micrófono; pos: palabras ya leídas.
+// Devuelve la nueva posición (nunca menor que pos).
+function ubicar(guion, dichas, pos) {
+  const s = dichas.filter(Boolean).slice(-8), m = s.length;
+  if (!m) return pos;
+  // Mira también bastante atrás: si repites una frase ya leída (otra toma), encaja ahí y no en su repetición de más adelante
+  const lo = Math.max(0, pos - 30), hi = Math.min(guion.length, pos + 16), g = guion.slice(lo, hi), L = g.length;
+  // Alineación local: H = mejor puntaje hasta (i, j); M = lo mismo pero terminando en una palabra que coincide
+  const H = Array.from({ length: m + 1 }, () => new Array(L + 1).fill(0));
+  const M = Array.from({ length: m + 1 }, () => new Array(L + 1).fill(-Infinity));
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= L; j++) {
+    const p = parecido(s[i - 1], g[j - 1]);
+    if (p) M[i][j] = H[i - 1][j - 1] + p * peso(g[j - 1]);
+    H[i][j] = Math.max(0, M[i][j], H[i - 1][j - 1] - 0.6, H[i - 1][j] - 0.5, H[i][j - 1] - 0.5);
+  }
+  // La alineación tiene que terminar en lo último que dijiste (o en la penúltima, por si la última llegó a medias)
+  let mejor = null;
+  for (let j = 1; j <= L; j++) {
+    const puntos = Math.max(M[m][j], m > 1 ? M[m - 1][j] - 0.4 : -Infinity);
+    if (puntos <= 0) continue;
+    const nueva = lo + j, valor = puntos - 0.12 * Math.max(0, nueva - pos - 2);  // lo lejano necesita más pruebas
+    if (!mejor || valor > mejor.valor + 1e-9) mejor = { nueva, puntos, valor };
+  }
+  if (!mejor || mejor.nueva <= pos) return pos;  // lo que oyó encaja donde ya estás (o atrás): no se mueve
+  const salto = mejor.nueva - pos;
+  const pide = salto <= 2 ? 0.9 : salto <= 5 ? 1.6 : salto <= 10 ? 2.4 : 3.2;  // ~1, 2, 3 o 4 palabras seguidas
+  return mejor.puntos >= pide ? mejor.nueva : pos;
+}
+// Ya se puede pasar a la siguiente pieza: no queda nada o solo palabras de relleno («y», «de»…)
+const piezaLeida = (guion, pos) => guion.slice(pos).every(w => peso(w) < 1);
+// [/seguidor]
+
+// Lo oído: palabras de sesiones anteriores del micrófono + la sesión actual, desde el último corte (cambio de pieza)
+let oidoAntes = [], oidoSesion = [], corte = 0, finTimer = null;
+function cortarOido() { oidoAntes = []; corte = oidoSesion.length; clearTimeout(finTimer); finTimer = null; }
 function marcar(hasta) {
   const ws = document.querySelectorAll(`#p${actual} .w`);
   ws.forEach((w, k) => { w.classList.toggle("dicho", k < hasta); w.classList.toggle("actual", k === hasta); });
-  if (ws[hasta]) centrar(ws[hasta]);
+  centrar(ws[Math.min(hasta, ws.length - 1)]);
   palabraActual = hasta;
-  if (hasta >= ws.length - 1 && ws.length) {
-    setTimeout(() => { if (palabraActual >= ws.length - 1) { avisar("Pieza terminada"); irA(actual + 1); } }, 1200);
-  }
 }
 
-function avanzarCon(texto) {
-  // Busca las palabras dichas en lo que sigue del guion (tolera palabras cambiadas o saltadas)
-  const ws = [...document.querySelectorAll(`#p${actual} .w`)].map(w => norm(w.textContent));
-  const dichas = texto.split(/\s+/).map(norm).filter(Boolean).slice(-6);
-  let mejor = palabraActual;
-  for (const d of dichas) {
-    for (let k = palabraActual; k < Math.min(ws.length, palabraActual + 12); k++) {
-      if (ws[k] === d || (d.length > 3 && ws[k].startsWith(d.slice(0, 4)))) { mejor = Math.max(mejor, k + 1); break; }
-    }
+function avanzarCon() {
+  const ws = [...document.querySelectorAll(`#p${actual} .w`)].map(w => clave(w.textContent));
+  const nueva = ubicar(ws, oidoAntes.concat(oidoSesion.slice(corte)), palabraActual);
+  if (nueva > palabraActual) marcar(nueva);
+  if (ws.length && piezaLeida(ws, palabraActual) && !finTimer) {
+    const pieza = actual;
+    finTimer = setTimeout(() => { finTimer = null; if (actual === pieza && escuchando) { avisar("Pieza terminada"); irA(actual + 1); } }, 1200);
   }
-  if (mejor !== palabraActual) marcar(Math.min(mejor, ws.length - 1));
 }
 
 function iniciarVoz() {
@@ -150,13 +219,27 @@ function iniciarVoz() {
   if (!window.isSecureContext) return avisar("El micrófono necesita conexión segura (https). Aquí usa «Desplazar solo».", 6000);
   rec = new SR();
   rec.lang = "es-PE"; rec.continuous = true; rec.interimResults = true;
-  rec.onresult = e => { let t = ""; for (let i = e.resultIndex; i < e.results.length; i++) t += " " + e.results[i][0].transcript; avanzarCon(t); };
-  rec.onerror = e => { if (e.error === "not-allowed") { avisar("Permite el micrófono para seguir tu voz."); pararVoz(); } };
-  rec.onend = () => { if (escuchando) try { rec.start(); } catch (e) {} };
+  rec.onresult = e => {
+    // Todo lo oído en esta sesión del micrófono (lo definitivo y lo provisional), en orden
+    let t = ""; for (let i = 0; i < e.results.length; i++) t += " " + e.results[i][0].transcript;
+    oidoSesion = t.split(/\s+/).map(clave).filter(Boolean);
+    if (corte > oidoSesion.length) corte = oidoSesion.length;
+    avanzarCon();
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") { avisar("Permite el micrófono para seguir tu voz."); pararVoz(); }
+    else if (e.error === "audio-capture") avisar("No encuentro el micrófono.");
+  };
+  rec.onend = () => {
+    // El navegador corta el micrófono tras un silencio: se guarda lo último oído y se vuelve a escuchar
+    oidoAntes = oidoAntes.concat(oidoSesion.slice(corte)).slice(-8); oidoSesion = []; corte = 0;
+    if (escuchando) setTimeout(() => { if (escuchando) try { rec.start(); } catch (e) {} }, 150);
+  };
+  oidoAntes = []; oidoSesion = []; corte = 0;
   escuchando = true; rec.start();
   $("voz").setAttribute("aria-pressed", "true"); $("voz").textContent = "🎙 Escuchando…";
 }
-function pararVoz() { escuchando = false; try { rec && rec.stop(); } catch (e) {} $("voz").setAttribute("aria-pressed", "false"); $("voz").textContent = "🎙 Seguir mi voz"; }
+function pararVoz() { escuchando = false; clearTimeout(finTimer); finTimer = null; try { rec && rec.stop(); } catch (e) {} $("voz").setAttribute("aria-pressed", "false"); $("voz").textContent = "🎙 Seguir mi voz"; }
 
 // ---------- Desplazamiento automático ----------
 function auto(on) {

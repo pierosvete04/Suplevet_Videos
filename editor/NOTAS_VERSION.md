@@ -1,3 +1,11 @@
+Versión 1.21.3 (se actualiza desde la app con «Actualizar ahora»):
+- Teleprompter, «Seguir mi voz»: ya no salta de la nada. Sigue lo que vas leyendo en orden, solo hacia adelante, no se va a una frase repetida más abajo ni reacciona a palabras sueltas o ruido, y desliza suave. Si mueves tú la pantalla, no se pelea contigo. (También en el teleprompter del panel, cuando el panel se publique.)
+- Sonidos: la página queda fija; solo se desplazan la lista, los tipos y el panel, cada uno por dentro.
+- Sonidos → editar: ecualizador paramétrico en vez de «Color». Una curva con el espectro del sonido detrás y puntos que se arrastran: corte de graves, graves, medios (con la rueda del mouse, más ancho o más fino), agudos y corte de agudos. Doble clic en un punto lo apaga. El video se arma con esos mismos filtros.
+- Al escuchar, una línea roja (el cabezal) avanza sobre la onda que está sonando.
+- «▶ Original» y «▶ Con los cambios» suenan al instante: el sonido se precarga al elegirlo y la versión con cambios se va preparando mientras mueves los controles.
+- Al tocar un sonido de la lista, suena tal como queda en los videos. Si lo marcas con «Usar en un video», arriba sale cómo ponerlo y un botón para quitarlo.
+
 Versión 1.21.2 (se actualiza desde la app con «Actualizar ahora»):
 - Página Sonidos nueva, como el navegador de Ableton: a la izquierda los tipos con su cantidad, al centro los sonidos en una línea cada uno (▶ para escuchar, un punto si está editado) y a la derecha el sonido elegido con su editor siempre a la vista. El nivel general pasó a un botón arriba.
 - «Usar en un video» desde el panel del sonido (antes «Elegir»).

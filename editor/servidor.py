@@ -608,6 +608,9 @@ class H(BaseHTTPRequestHandler):
             self._json(leer_historial())
         elif u.path == "/api/renombrar":
             self._json(motor.plan_renombrar())
+        elif u.path == "/api/espectro_sonido":  # frecuencias de un sonido, para el fondo del ecualizador
+            f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
+            self._json(motor.espectro_archivo(f) if f else {"f": [], "db": []})
         elif u.path == "/api/onda_sonido":  # forma de onda de un sonido de la biblioteca (pista «Sonidos» del editor)
             q = parse_qs(u.query)
             f = motor.ruta_sonido(q.get("id", [""])[0])

@@ -1185,6 +1185,44 @@ def onda_archivo(f, por_seg=50):
     return d
 
 
+def espectro_archivo(f, bandas=72):
+    """Cuánto suena un sonido en cada frecuencia (20 Hz–20 kHz en escala logarítmica, dB relativos al máximo), para
+    dibujarlo detrás de la curva del ecualizador. En caché."""
+    import numpy as np
+    f = Path(f)
+    if not f.is_file():
+        return {"f": [], "db": []}
+    firma = f"{f.stat().st_size}-{int(f.stat().st_mtime)}-esp{bandas}"
+    cache = DATOS / "ondas" / (hashlib.md5(str(f).encode("utf-8")).hexdigest() + ".esp.json")
+    try:
+        d = json.loads(cache.read_text(encoding="utf-8"))
+        if d.get("firma") == firma:
+            return d
+    except (FileNotFoundError, ValueError):
+        pass
+    sr, n = 44100, 4096
+    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
+                          "-t", "30", "-f", "s16le", "-"], capture_output=True).stdout
+    x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768
+    if len(x) < n:
+        x = np.pad(x, (0, n - len(x)))
+    marcos = np.lib.stride_tricks.sliding_window_view(x, n)[::n // 2]
+    potencia = (np.abs(np.fft.rfft(marcos * np.hanning(n), axis=1)) ** 2).mean(axis=0)
+    fr = np.fft.rfftfreq(n, 1 / sr)
+    bordes = np.geomspace(20, 20000, bandas + 1)
+    db = []
+    for a, b in zip(bordes[:-1], bordes[1:]):
+        m = (fr >= a) & (fr < b)
+        v = potencia[m].mean() if m.any() else potencia[np.argmin(np.abs(fr - (a + b) / 2))]
+        db.append(10 * np.log10(v + 1e-12))
+    db = np.array(db) - max(db)
+    d = {"firma": firma, "f": [round(float(np.sqrt(a * b)), 1) for a, b in zip(bordes[:-1], bordes[1:])],
+         "db": [round(float(max(v, -60)), 1) for v in db]}
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(d), encoding="utf-8")
+    return d
+
+
 def inicio_audible(f):
     """Segundo donde empieza a sonar de verdad un archivo (salta el silencio y el soplido del principio).
     Busca el golpe (primer punto al 20 % del pico) y retrocede mientras siga sonando sobre el umbral
@@ -2579,7 +2617,12 @@ def biblioteca_sonidos():
 AJUSTES_SONIDO = {  # campo: (mínimo, máximo, neutro)
     "desde": (0.0, 600.0, 0.0), "hasta": (0.0, 600.0, 0.0),  # recorte del archivo; hasta 0 = hasta el final
     "vel": (0.5, 2.0, 1.0), "tono": (-12.0, 12.0, 0.0),  # velocidad (x) y tono (semitonos), por separado
-    "eco": (0.0, 1.0, 0.0), "graves": (-12.0, 12.0, 0.0), "agudos": (-12.0, 12.0, 0.0),
+    "eco": (0.0, 1.0, 0.0),
+    # ecualizador paramétrico: cortes (Hz, 0 = apagado), graves y agudos en estante, medios en campana (ganancia dB, Hz, ancho Q)
+    "corte_graves": (0.0, 1000.0, 0.0), "corte_agudos": (0.0, 20000.0, 0.0),
+    "graves": (-15.0, 15.0, 0.0), "graves_f": (40.0, 600.0, 150.0),
+    "medios": (-15.0, 15.0, 0.0), "medios_f": (150.0, 10000.0, 1000.0), "medios_q": (0.3, 6.0, 1.0),
+    "agudos": (-15.0, 15.0, 0.0), "agudos_f": (1500.0, 14000.0, 4000.0),
     "fade_in": (0.0, 3.0, 0.0), "fade_out": (0.0, 3.0, 0.0), "vol": (0.0, 3.0, 1.0),
 }
 
@@ -2671,10 +2714,17 @@ def sonido_editado(f, prueba=None):
         t = _atempo(vel)
     if t:
         fil.append(t)
+    # ecualizador (los mismos filtros que dibuja la curva de la página Sonidos: biquads de 2 polos)
+    if aj.get("corte_graves"):
+        fil.append(f"highpass=f={float(aj['corte_graves']):.0f}:p=2:t=q:w=0.707")
     if aj.get("graves"):
-        fil.append(f"bass=g={aj['graves']}:f=150")
+        fil.append(f"lowshelf=g={aj['graves']}:f={float(aj.get('graves_f', 150)):.0f}:t=s:w=1")
+    if aj.get("medios"):
+        fil.append(f"equalizer=f={float(aj.get('medios_f', 1000)):.0f}:t=q:w={float(aj.get('medios_q', 1)):.2f}:g={aj['medios']}")
     if aj.get("agudos"):
-        fil.append(f"treble=g={aj['agudos']}:f=4000")
+        fil.append(f"highshelf=g={aj['agudos']}:f={float(aj.get('agudos_f', 4000)):.0f}:t=s:w=1")
+    if aj.get("corte_agudos"):
+        fil.append(f"lowpass=f={float(aj['corte_agudos']):.0f}:p=2:t=q:w=0.707")
     if aj.get("eco"):
         e = float(aj["eco"])
         fil += [f"apad=pad_dur={0.4 + e:.2f}", f"aecho=0.8:0.85:{int(60 + 140 * e)}|{int(120 + 280 * e)}:{0.25 + 0.4 * e:.2f}|{0.15 + 0.3 * e:.2f}"]
