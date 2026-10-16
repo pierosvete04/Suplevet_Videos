@@ -1,3 +1,8 @@
+Versión 1.21.1 (se actualiza desde la app con «Actualizar ahora»):
+- Guion: se resalta el paso que toca. Si la sesión todavía no tiene clips, el resaltado es «1 · Analizar clips» y «Ver cambios contra el guion» queda apagado hasta que haya clips.
+- «Analizar clips» ahora pregunta antes de empezar: muestra de qué carpeta de Drive se traen los clips, dónde quedan en esta PC, cuántas piezas del guion ya tienen clip y qué va a hacer. Solo arranca con «Sí, analizar».
+- Editar sonido: nueva onda «Resultado» que se estira o se encoge en vivo según la velocidad (y muestra el recorte, al revés, los fundidos y el eco). Se puede arrastrar como un clip: los bordes de la onda de arriba recortan, el centro mueve el recorte y el borde del resultado cambia la velocidad.
+
 Versión 1.21.0 (se actualiza desde la app con «Actualizar ahora»):
 - Los efectos de sonido entran justo en su marca: la sala salta sola el silencio (o el soplido bajito) que traen muchos archivos al inicio. Antes algunos sonaban hasta medio segundo tarde.
 - Sonidos → «✎ Editar» en cada sonido: recortar dónde empieza y termina, velocidad, tono, eco, graves, agudos, entrada y salida suave, volumen y «al revés». Se escucha antes de guardar y queda como predeterminado: todos los videos que usan ese sonido lo ponen así (ofrece re-armar los que ya lo usan).

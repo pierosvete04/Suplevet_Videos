@@ -275,8 +275,16 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .cat-sonido { padding: 12px 14px; }
 .cat-sonido details { border: 0; padding: 0; margin: 0; }
 .lista-sonidos { display: grid; gap: 4px; margin-top: 10px; max-height: 320px; overflow: auto; }
+.da-detalle { display: grid; gap: 6px; font-size: 13px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--bg2); }
+.da-detalle code { font-size: 12px; word-break: break-all; }
+.da-detalle .aviso { color: var(--warn); }
 .ds-onda { position: relative; height: 70px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
 .ds-onda canvas { display: block; width: 100%; height: 100%; }
+.ds-res { height: 54px; margin-top: -6px; }
+.ds-arrastre { cursor: grab; touch-action: none; } .ds-arrastre.borde { cursor: ew-resize; }
+.ds-asa { position: absolute; top: 0; bottom: 0; width: 12px; margin-left: -6px; cursor: ew-resize; touch-action: none; }
+.ds-asa::after { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 4px; border-radius: 3px; background: var(--accent); }
+.ds-res-cab { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: -6px; }
 .ds-sel { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); pointer-events: none; }
 .ds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
 .fila-sonido .pill.editado { font-size: 10.5px; padding: 1px 6px; }
@@ -1170,11 +1178,28 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
   </form>
 </dialog>
+<dialog id="dlgAnalizar" aria-labelledby="daTit" style="width:min(560px,94vw)">
+  <form method="dialog" style="padding:18px;display:grid;gap:12px">
+    <h2 id="daTit" style="margin:0">¿Analizar los clips de esta sesión?</h2>
+    <div id="daDetalle" class="da-detalle"></div>
+    <ol class="pasos-prod muted" style="font-size:12.5px">
+      <li>Baja de Drive los clips nuevos (los que ya están en esta PC no se vuelven a bajar).</li>
+      <li>Pasa el audio de cada clip a texto, aquí en la PC (gratis, sin internet).</li>
+      <li>Lo compara con el guion e identifica solo los clips que se parecen claramente a una pieza.</li>
+      <li>Prepara esas piezas para armar los videos.</li>
+    </ol>
+    <p class="muted" style="margin:0;font-size:12px">Puede tardar varios minutos según cuántos clips haya. Lo ves en Procesos (☰) y lo puedes cancelar.</p>
+    <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button>
+      <button class="btn" value="si" id="daSi">Sí, analizar</button></div>
+  </form>
+</dialog>
 <dialog id="dlgSonido" aria-labelledby="dsTit" style="width:min(620px,96vw)">
   <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formSonido">
     <div><h2 id="dsTit" style="margin:0">Editar sonido</h2>
       <span class="muted" style="font-size:12.5px">Queda como predeterminado: todos los videos que usen este sonido lo ponen así.</span></div>
-    <div class="ds-onda"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div></div>
+    <div class="ds-onda ds-arrastre" id="dsOndaCaja" title="Arrastra los bordes para recortar; arrastra el centro para mover el recorte"><canvas id="dsOnda"></canvas><div class="ds-sel" id="dsSel"></div></div>
+    <div class="ds-res-cab muted"><span>Resultado · arrastra su borde para cambiar la velocidad</span><b id="dsResTxt"></b></div>
+    <div class="ds-onda ds-res" id="dsResCaja"><canvas id="dsRes"></canvas><div class="ds-asa" id="dsResAsa" title="Estira o encoge: cambia la velocidad"></div></div>
     <div class="ds-grid">
       <label class="ev-campo">Empieza en <b id="dsDesdeTxt"></b><input type="range" id="dsDesde" min="0" step="0.01"></label>
       <label class="ev-campo">Termina en <b id="dsHastaTxt"></b><input type="range" id="dsHasta" min="0" step="0.01"></label>
@@ -2415,7 +2440,7 @@ $("subirFuente").onchange = async e => {
   try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}`, f, true); avisar(`Fuente ${f.name} agregada.`, "ok"); await cargar(); pintarPlantillas(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
-$("escuchar").onclick = () => trabajo("analizar");
+$("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("analizar"); };
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
 const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Re-armar videos de una pieza", uno: "Re-armar un video",
   armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", exportar: "Exportar por día", portadas: "Rehacer portadas",
@@ -2988,6 +3013,44 @@ function dsPintar() {
     let v = 0; for (let k = i0; k < i1; k++) v = Math.max(v, p[k]);
     const a = Math.max(1, v * (hh - 6)); g.fillRect(x, (hh - a) / 2, 1, a);
   }
+  dsPintarResultado();
+}
+// La onda del sonido como va a quedar: su largo sigue a la velocidad (la escala es la del sonido entero a 0.5x,
+// así a 2x se ve corta y a 0.5x ocupa todo), y muestra el recorte, «al revés», los fundidos y la cola del eco
+function dsPintarResultado() {
+  const p = dsOndaO?.picos || [], dur = dsOndaO?.dur || 0, ps = dsOndaO?.por_seg || 50;
+  const d = +$("dsDesde").value, h = +$("dsHasta").value, vel = +$("dsVel").value, eco = +$("dsEco").value;
+  const fin = +$("dsFin").value, fout = +$("dsFout").value, vol = +$("dsVol").value;
+  const largo = Math.max(0, h - d) / vel, cola = eco ? .4 + eco : 0, total = largo + cola;
+  $("dsResTxt").textContent = `dura ${total.toFixed(2)} s${vel !== 1 ? ` (${vel > 1 ? "más rápido" : "más lento"})` : ""}`;
+  const cv = $("dsRes"), w = cv.clientWidth, hh = cv.clientHeight, dpr = devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  if (!p.length || !dur) return;
+  const escala = Math.max(dur / .5, total) || 1, ancho = Math.max(2, total / escala * w), anchoSon = largo / escala * w;
+  dsPintarResultado.escala = escala; $("dsResAsa").style.left = anchoSon + "px";
+  let tramo = p.slice(Math.floor(d * ps), Math.ceil(h * ps));
+  if ($("dsInv").checked) tramo = tramo.reverse();
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#3b82f6";
+  for (let x = 0; x < ancho; x++) {
+    const t = x / ancho * total;  // segundo del resultado
+    let v = 0;
+    if (t < largo && tramo.length) {
+      const i0 = Math.floor(x / anchoSon * tramo.length), i1 = Math.max(i0 + 1, Math.floor((x + 1) / anchoSon * tramo.length));
+      for (let k = i0; k < i1 && k < tramo.length; k++) v = Math.max(v, tramo[k]);
+    }
+    if (eco) {  // las repeticiones del eco: el mismo sonido más bajo, corrido en el tiempo
+      for (const [ret, dec] of [[(60 + 140 * eco) / 1000, .25 + .4 * eco], [(120 + 280 * eco) / 1000, .15 + .3 * eco]]) {
+        const k = Math.floor((t - ret) / largo * tramo.length);
+        if (k >= 0 && k < tramo.length) v = Math.max(v, tramo[k] * dec);
+      }
+    }
+    if (fin && t < fin) v *= t / fin;
+    if (fout && t > total - fout) v *= Math.max(0, (total - t) / fout);
+    v = Math.min(1, v * vol);
+    g.globalAlpha = t < largo ? .7 : .35;
+    const a = Math.max(1, v * (hh - 6)); g.fillRect(x, (hh - a) / 2, 1, a);
+  }
 }
 function dsPoner(aj) {
   const dur = dsOndaO?.dur || 10;
@@ -3009,6 +3072,41 @@ async function abrirEditorSonido(s) {
   if (+$("dsHasta").value < +$("dsDesde").value + .05) $(id === "dsDesde" ? "dsHasta" : "dsDesde").value = id === "dsDesde" ? +$("dsDesde").value + .05 : +$("dsHasta").value - .05;
   dsPintar();
 }));
+$("dsInv").addEventListener("change", dsPintarResultado);
+// Arrastrar la onda como un clip de Ableton/Pro Tools: bordes = recorte, centro = mover el recorte, borde del resultado = velocidad
+let dsArr = null;
+function dsSeg(e, caja) { const r = caja.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (dsOndaO?.dur || 0); }
+function dsBordeCerca(e) {
+  const caja = $("dsOndaCaja"), r = caja.getBoundingClientRect(), dur = dsOndaO?.dur || 1, x = e.clientX - r.left;
+  const xd = +$("dsDesde").value / dur * r.width, xh = +$("dsHasta").value / dur * r.width;
+  return Math.abs(x - xd) < 10 ? "desde" : Math.abs(x - xh) < 10 ? "hasta" : x > xd && x < xh ? "mover" : null;
+}
+$("dsOndaCaja").addEventListener("pointermove", e => { if (!dsArr) $("dsOndaCaja").classList.toggle("borde", ["desde", "hasta"].includes(dsBordeCerca(e))); });
+$("dsOndaCaja").addEventListener("pointerdown", e => {
+  if (!dsOndaO?.dur) return;
+  const modo = dsBordeCerca(e) || (dsSeg(e, $("dsOndaCaja")) < +$("dsDesde").value ? "desde" : "hasta");
+  dsArr = { modo, t0: dsSeg(e, $("dsOndaCaja")), d0: +$("dsDesde").value, h0: +$("dsHasta").value };
+  $("dsOndaCaja").setPointerCapture(e.pointerId); e.preventDefault();
+});
+$("dsOndaCaja").addEventListener("pointermove", e => {
+  if (!dsArr || dsArr.modo === "vel") return;
+  const dur = dsOndaO.dur, t = dsSeg(e, $("dsOndaCaja")), a = dsArr;
+  if (a.modo === "desde") $("dsDesde").value = Math.min(t, a.h0 - .05);
+  else if (a.modo === "hasta") $("dsHasta").value = Math.max(t, a.d0 + .05);
+  else { const dt = Math.max(-a.d0, Math.min(t - a.t0, dur - a.h0)); $("dsDesde").value = a.d0 + dt; $("dsHasta").value = a.h0 + dt; }
+  dsPintar();
+});
+$("dsResAsa").addEventListener("pointerdown", e => {
+  dsArr = { modo: "vel" }; $("dsResAsa").setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
+});
+$("dsResAsa").addEventListener("pointermove", e => {
+  if (dsArr?.modo !== "vel") return;
+  const r = $("dsResCaja").getBoundingClientRect(), x = Math.max(4, e.clientX - r.left);
+  const largo = x / r.width * (dsPintarResultado.escala || 1), fuente = +$("dsHasta").value - +$("dsDesde").value;
+  $("dsVel").value = Math.max(.5, Math.min(2, Math.round(fuente / largo * 20) / 20));  // pasos de 0.05x, como el deslizador
+  dsPintar();
+});
+["dsOndaCaja", "dsResAsa"].forEach(id => ["pointerup", "pointercancel"].forEach(ev => $(id).addEventListener(ev, () => { dsArr = null; })));
 function dsTocar(url, vol) { reproductor.pause(); reproductor.src = url; reproductor.playbackRate = 1; reproductor.volume = Math.min(1, .8 * vol); reproductor.play().catch(() => {}); }
 $("dsPlayOrig").onclick = () => dsTocar(`/sfx?original=1&id=${encodeURIComponent(dsSon.id)}`, 1);
 $("dsPlay").onclick = () => { const aj = dsLeer(); dsTocar(`/sfx?id=${encodeURIComponent(dsSon.id)}&aj=${encodeURIComponent(JSON.stringify(aj))}`, aj.vol ?? 1); };
@@ -4387,10 +4485,29 @@ function pintarEstadoGuion() {
   $("gEstado").innerHTML = !g.hay_guion ? "" : corroborado
     ? `<b>${conClip}/${g.piezas.length}</b> piezas del guion tienen clip · <b>${cambios}</b> con cambios respecto al guion · ${g.sin_asignar} clips sin identificar${g.sin_escuchar ? ` (${g.sin_escuchar} sin analizar)` : ""}. <span class="g-falta">tachado</span> = no se dijo · <span class="g-extra">resaltado</span> = se agregó.`
     : `${conClip}/${g.piezas.length} piezas con clip · ${g.sin_escuchar + g.sin_procesar} clips por analizar.`;
-  $("gAnalizar").className = "btn" + (g.sin_escuchar + g.sin_procesar ? "" : " sec");
-  $("gCorroborar").className = "btn" + (!(g.sin_escuchar + g.sin_procesar) && !corroborado ? "" : " sec");
+  // el paso que toca va resaltado: sin clips todavía (o con clips por analizar) es el 1; con todo analizado, el 2; revisado, el 3
+  const pend = g.sin_escuchar + g.sin_procesar, hayClips = conClip + g.sin_asignar + pend > 0;
+  const paso = !hayClips || pend ? 1 : !corroborado ? 2 : 3;
+  [["gAnalizar", 1], ["gCorroborar", 2], ["gRevisar", 3]].forEach(([id, n]) => { $(id).className = "btn" + (paso === n ? "" : " sec"); });
+  $("gCorroborar").disabled = !hayClips;
+  $("gCorroborar").title = hayClips ? "" : "Primero «Analizar clips»: todavía no hay clips en esta sesión";
+  if (!hayClips && g.hay_guion) $("gEstado").innerHTML = `Todavía no hay clips en esta sesión: empieza por <b>1 · Analizar clips</b>.`;
 }
-$("gAnalizar").onclick = () => { corroborado = false; trabajo("analizar"); };
+// Antes de analizar: de qué carpeta de Drive se traen los clips y qué va a pasar
+function confirmarAnalizar() {
+  const g = ultimoGuion, carpetas = E.en_drive || [E.semana];
+  const conClip = g ? g.piezas.filter(p => p.clips.length).length : 0;
+  $("daTit").textContent = `¿Analizar los clips de «${E.semana}»?`;
+  $("daDetalle").innerHTML = (E.drive?.activo
+      ? `<span>Se traen de Drive, de ${carpetas.length > 1 ? "estas carpetas" : "esta carpeta"}:</span>${carpetas.map(c => `<code>📁 ${esc(c)} / Clips</code>`).join("")}`
+      : `<span class="aviso">Drive no está conectado: solo se analizan los clips que ya están en esta PC.</span>`)
+    + `<span class="muted" style="font-size:12px">En esta PC: <code>${esc(E.carpeta || "")}</code></span>`
+    + (g ? `<span>Guion: <b>${g.piezas.length}</b> piezas · <b>${conClip}</b> ya tienen clip${g.sin_asignar ? ` · ${g.sin_asignar} clips sin identificar` : ""}.</span>` : "");
+  $("dlgAnalizar").returnValue = "";
+  $("dlgAnalizar").showModal();
+  return new Promise(ok => $("dlgAnalizar").addEventListener("close", () => ok($("dlgAnalizar").returnValue === "si"), { once: true }));
+}
+$("gAnalizar").onclick = async () => { if (!(await confirmarAnalizar())) return; corroborado = false; trabajo("analizar"); };
 $("gEmparejar").onclick = async () => {
   const sin = E.checklist.sin_asignar || [];
   if (!sin.length) return avisar("No hay clips sin pieza: todos los clips analizados ya están emparejados.", "ok");
