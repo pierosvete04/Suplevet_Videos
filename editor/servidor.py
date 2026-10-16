@@ -950,6 +950,15 @@ class H(BaseHTTPRequestHandler):
                 codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"),
                                               b.get("desde"), b.get("largo"), b.get("vol"), b.get("vel"))
                 self._json({"ok": True, "codigos": codigos})
+            elif u.path == "/api/abrir_listos":  # abre en el explorador la carpeta de los videos exportados (V.FINALES)
+                d = motor.S.listos
+                d.mkdir(parents=True, exist_ok=True)
+                if sys.platform == "win32":
+                    os.startfile(str(d))
+                else:
+                    import subprocess
+                    subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(d)])
+                self._json({"ok": True})
             elif u.path == "/api/ajustes_sonido":  # editar un sonido de la biblioteca: queda así en todos los videos
                 b = self._cuerpo()
                 aj = motor.guardar_ajustes_sonido(str(b.get("id", "")), b.get("ajustes") or {})

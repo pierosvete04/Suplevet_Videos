@@ -602,6 +602,30 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .fila-elem { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; }
 .fila-elem img { width: 40px; height: 40px; object-fit: contain; background: var(--bg2); border-radius: 6px; }
 @media (max-width: 900px) { .plant-edicion { grid-template-columns: 1fr; } .lienzo { max-width: 300px; margin: 0 auto; position: relative; top: 0; } }
+.ex-destino { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); font-size: 12px; line-height: 1.45; min-width: 0; }
+.ex-ruta { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.ex-destino .btn { justify-self: start; }
+/* Estilo de edición: dos opciones con interruptor, una al lado de la otra */
+.es-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 12px; }
+.es-cab h2 { margin: 0; } .es-cab p { margin: 0; font-size: 12.5px; }
+.es-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+.es-opcion { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--bg2); cursor: pointer; transition: border-color .18s, background .18s; }
+.es-opcion:hover { border-color: var(--line2); }
+.es-opcion:has(.interruptor:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--bg2)); }
+.es-opcion:has(.interruptor:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.es-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.es-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.es-ico rect { fill: currentColor; stroke: none; opacity: .35; } .es-ico rect + rect { fill: none; stroke: currentColor; opacity: 1; }
+.es-txt { display: grid; gap: 2px; } .es-txt b { font-size: 14px; } .es-txt span { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+/* interruptor (checkbox con role=switch) */
+.interruptor { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 42px; height: 24px; margin: 0; border-radius: 999px;
+  background: var(--line2); cursor: pointer; transition: background .18s; }
+.interruptor::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .18s; }
+.interruptor:checked { background: var(--accent); } .interruptor:checked::after { transform: translateX(18px); }
+.interruptor:focus-visible { outline: none; }
+@media (prefers-reduced-motion: reduce) { .interruptor, .interruptor::after, .es-opcion { transition: none; } }
 /* Tarjetas de plantillas: la elegida (la que editas) lleva borde de acento y check; «En uso» marca la que llevan los videos */
 .plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 14px; }
 .plant { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 8px 8px 12px; border: 1px solid var(--line); border-radius: 14px;
@@ -1148,7 +1172,12 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <button class="btn sec" id="subirPanel" title="Los manda al panel de videos (edicion.suplevet.pe/videos) para revisarlos y aprobarlos">Subir al panel</button>
           <button class="btn sec peq" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes al panel</button>
         </div>
-        <p class="muted" style="font-size:11.5px;margin:10px 0 0">Aquí no se publica en redes: los videos quedan en <code id="rutaListos"></code> (Drive, V.FINALES) con su portada (.jpg) y su copy (.txt). Se publican desde el panel o a mano.</p>
+        <div class="ex-destino">
+          <span class="muted">Los videos quedan en</span>
+          <span class="ex-ruta" id="rutaListos"></span>
+          <span class="muted">con su portada (.jpg) y su copy (.txt). Aquí no se publica en redes: se publican desde el panel o a mano.</span>
+          <button class="btn sec peq" type="button" id="abrirListos">Abrir carpeta</button>
+        </div>
       </div>
       <div class="caja">
         <div class="fila" style="justify-content:space-between;margin-bottom:10px">
@@ -1537,7 +1566,10 @@ async function cargar() {
   $("actVersion").textContent = "v" + E.version;
   pintarRed();
   pintarDrive();
-  $("rutaListos").textContent = E.listos;
+  // ruta corta y legible; la completa al pasar el mouse
+  const partes = String(E.listos || "").split(/[\\/]/).filter(Boolean), iDrive = partes.findIndex(p => p.toLowerCase() === "drive");
+  $("rutaListos").textContent = (iDrive >= 0 ? ["Drive", ...partes.slice(iDrive + 1)] : partes.slice(-3)).join(" › ");
+  $("rutaListos").title = E.listos || "";
   $("subirPanel").hidden = !E.panel;
   $("importarFinales").hidden = !E.panel || !(E.drive || {}).activo;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || E.piezas[0]?.nombre;
@@ -2514,6 +2546,7 @@ async function exportarVideos(codigos) {
     avisar(`Exportando ${codigos.length} videos… lo ves en Procesos (☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
+$("abrirListos").onclick = async () => { try { await post("/api/abrir_listos"); } catch (e) { avisar("No se pudo abrir la carpeta: " + e.message, "err"); } };
 $("exTodo").onclick = () => { const cods = E.salidas.filter(s => s.existe).map(s => s.codigo); if (!cods.length) return avisar("No hay videos armados todavía.", "err"); exportarVideos(cods); };
 $("exSel").onclick = () => exportarVideos([...exElegidos]);
 async function exportarPartes(codigos) {
@@ -5084,16 +5117,25 @@ function pintarPlantillas() {
 function pintarEstiloEdicion() {
   const caja = $("cajaEstiloEd"); if (!caja || !E) return;
   const est_ = E.estilo_edicion || {};
-  caja.innerHTML = `<h2 style="margin:0 0 4px">Estilo de edición</h2>
-    <p class="muted" style="margin:0 0 8px;font-size:12.5px">Lo que hace el editor del equipo en CapCut, aplicado automáticamente a todos los videos. Con la plantilla «Editor (limpio)» quedan igual que los suyos.</p>
-    <label class="fila" style="font-size:13.5px"><input type="checkbox" id="esZoom" ${est_.zoom_alterno ? "checked" : ""}> <b>Zoom alternado:</b>&nbsp;una frase del cuerpo de lejos y la siguiente más cerca (solo en las frases sin zoom puesto a mano)</label>
-    <label class="fila" style="font-size:13.5px"><input type="checkbox" id="esFundido" ${(est_.fundido || 0) >= .25 ? "checked" : ""}> <b>Fundido suave:</b>&nbsp;las imágenes y los clips entran y salen con un fundido de 0,3 s (sin esto, aparecen de golpe)</label>
-    <div class="fila" style="margin-top:6px"><button class="btn sec peq" type="button" id="esGuardar">Guardar estilo</button></div>`;
-  $("esGuardar").onclick = async () => {
+  // dos interruptores en tarjetas; se guardan al tocarlos (sin botón «Guardar»)
+  const opcion = (id, on, titulo, desc, icono) => `<label class="es-opcion" for="${id}">
+      <span class="es-ico" aria-hidden="true">${icono}</span>
+      <span class="es-txt"><b>${titulo}</b><span>${desc}</span></span>
+      <input type="checkbox" role="switch" class="interruptor" id="${id}" ${on ? "checked" : ""}></label>`;
+  caja.innerHTML = `<div class="es-cab"><h2>Estilo de edición</h2>
+      <p class="muted">Como edita el equipo en CapCut, aplicado a todos los videos. Con la plantilla «Editor (limpio)» quedan igual que los suyos.</p></div>
+    <div class="es-opciones">
+      ${opcion("esZoom", est_.zoom_alterno, "Zoom alternado", "Una frase del cuerpo de lejos y la siguiente más cerca. No toca las frases con zoom puesto a mano.",
+        `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5"/></svg>`)}
+      ${opcion("esFundido", (est_.fundido || 0) >= .25, "Fundido suave", "Las imágenes y los clips entran y salen con un fundido de 0,3 s. Apagado, aparecen de golpe.",
+        `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2" opacity=".45"/></svg>`)}
+    </div>`;
+  const guardar = async () => {
     try { const r = await post("/api/estilo_edicion", { zoom_alterno: $("esZoom").checked, fundido: $("esFundido").checked ? .3 : .12 });
       await cargar(); pintarEstiloEdicion(); ofrecerRearmar(r, "Estilo de edición guardado."); }
-    catch (e) { avisar("Error: " + e.message, "err"); }
+    catch (e) { avisar("Error: " + e.message, "err"); pintarEstiloEdicion(); }
   };
+  $("esZoom").onchange = $("esFundido").onchange = guardar;
 }
 const DEFECTO_PLANT = { salto_auto: "false", frase_completa: "false", "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", altura_desde_abajo: "560",
   x_centro: "540", ancho_max: "960", espaciado: "0", desenfoque: "0", opacidad_sombra: "50", color_sombra: "#000000" };

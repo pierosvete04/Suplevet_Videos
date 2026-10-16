@@ -1,3 +1,7 @@
+Versión 1.21.7 (se actualiza desde la app con «Actualizar ahora»):
+- Plantillas → Estilo de edición: «Zoom alternado» y «Fundido suave» ahora son dos tarjetas con interruptor, una al lado de la otra. Se guardan al tocarlas (ya no hay botón «Guardar estilo») y la sala avisa qué videos quedan por rearmar.
+- Exportar: la carpeta donde quedan los videos ya no se sale del recuadro. Se muestra corta («Drive › sesión › V.FINALES», la ruta completa al pasar el mouse) y hay un botón «Abrir carpeta».
+
 Versión 1.21.6 (se actualiza desde la app con «Actualizar ahora»):
 - Plantillas: tarjetas nuevas. La que estás editando lleva borde de color y un check; la que llevan los videos dice «En uso» sobre la vista previa (y «Pide el guion» si la sesión exige otra). Vista previa más grande, descripción en dos líneas, se elevan al pasar el mouse y se ven con el teclado.
 - Textos de Plantillas más claros: «Guardar y usar en los videos» en vez de «predeterminada», y el estilo de edición explicado mejor.
