@@ -1,3 +1,8 @@
+Versión 1.19.0 (se actualiza desde la app con «Actualizar ahora»):
+- Producciones como carpetas: cada producción es una carpeta en Drive «P02 TEMA», y adentro van sus días de grabación («11／10 SESIÓN», «13／10 SESIÓN», cada uno con su Clips/). Así un mismo guion sirve para varios días. La sala la encuentra sola y la muestra como una sola producción con sus días. El guion, Flow, la música y V.FINALES pueden ir en la carpeta de la producción o en uno de los días.
+- Si un día estaba suelto y lo mueves dentro de su producción, la sala mueve también su copia en esta PC: no vuelve a bajar ni a procesar nada, y se mantiene lo identificado y lo armado.
+- El nombre de una producción de carpeta se cambia en Drive (no en la sala).
+
 Versión 1.18.6 (se actualiza desde la app con «Actualizar ahora»):
 - Teleprompter: ahora entra entero en la pantalla. Ya no hay que bajar con la barra lateral para ver los botones de abajo (Seguir mi voz, Desplazar solo, Anterior, Siguiente, Toma buena); siempre están a la vista, con cualquier tamaño de letra.
 

@@ -121,9 +121,36 @@ def actualizar_lista():
     datos = json.loads(_rc("lsjson", f"{REMOTO}:", "--dirs-only", timeout=60) or "[]")
     nombres = sorted(d["Name"] for d in datos if motor.es_nombre_sesion(d["Name"]))
     LISTA.write_text(json.dumps(nombres, ensure_ascii=False), encoding="utf-8")
+    actualizar_producciones([n for n in nombres if motor.PRODUCCION.match(n)], nombres)
     bajar_grupos()
     bajar_archivadas()
     return nombres
+
+
+def actualizar_producciones(prods, sueltas):
+    """Las producciones «P02 TEMA» que tienen sus días de grabación dentro («P02 …/11／10 SESIÓN/Clips/…»):
+    cuáles son sus días y dónde está el guion. Si un día estaba suelto y ahora está dentro, su copia de esta PC
+    se muda con él (no se vuelve a bajar ni a procesar)."""
+    out = {}
+    for prod in prods:
+        try:
+            dentro = json.loads(_rc("lsjson", f"{REMOTO}:{prod}", "--dirs-only", "--max-depth", "2", timeout=60) or "[]")
+        except Exception:
+            continue
+        rutas = {d["Path"] for d in dentro}
+        dias = sorted(d["Name"] for d in dentro if "/" not in d["Path"] and (
+            motor.es_dia_de_grabacion(d["Name"]) or (d["Name"].lower() not in motor.SUBCARPETAS and f"{d['Path']}/Clips" in rutas)))
+        if not dias:
+            continue
+        if any(x in rutas for x in ("Guion", "1_guion")):
+            guion = ""
+        else:
+            guion = next((d for d in dias if f"{d}/Guion" in rutas or f"{d}/1_guion" in rutas), dias[0])
+        out[prod] = {"sesiones": dias, "guion": guion}
+        for dia in dias:
+            if dia not in sueltas:
+                motor.mudar_a_produccion(prod, dia, CACHE)
+    motor.PRODUCCIONES_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def bajar_grupos():

@@ -1414,7 +1414,8 @@ function pintarInicio() {
 }
 // Sesiones: las archivadas (ya terminadas) no salen en las listas; se encuentran buscando o con «Ver archivadas».
 // Las sesiones que forman un grupo (los días de grabación) no salen sueltas: se trabajan desde el grupo.
-const dentroDeGrupo = () => new Set(Object.values(E.grupos || {}).flatMap(g => g.sesiones));
+// (los días de una carpeta «P02 …» viven dentro de ella en Drive: no esconden otra sesión suelta con el mismo nombre)
+const dentroDeGrupo = () => new Set(Object.values(E.grupos || {}).filter(g => !g.carpeta).flatMap(g => g.sesiones));
 function sesionesActivas() {
   const arch = new Set(E.archivadas || []), dentro = dentroDeGrupo();
   return E.semanas.filter(s => !arch.has(s) && (!dentro.has(s) || s === E.semana));
@@ -1430,10 +1431,10 @@ function pintarListaSesiones() {
   $("inSesiones").innerHTML = lista.map(s => {
     const a = arch.has(s) ? ` <span class="muted">· archivada</span>` : "";
     return grs[s]
-      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="Grupo: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">· días ${esc(grs[s].sesiones.map(x => x.replace(/\s*SESI[ÓO]N\s*/i, "")).join(" + "))}</span>${a}</button>`
+      ? `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}" title="${grs[s].carpeta ? "Carpeta de Drive con sus días dentro" : "Grupo"}: ${esc(grs[s].sesiones.join(" + "))}">▣ ${esc(s)} <span class="muted">· días ${esc(grs[s].sesiones.map(x => x.replace(/\s*SESI[ÓO]N\s*/i, "")).join(" + "))}</span>${a}</button>`
       : `<button data-abrir-sesion="${esc(s)}" aria-current="${s === E.semana}">${esc(s)}${a}</button>`;
   }).join("") || `<span class="muted">${q ? "Ninguna sesión con ese nombre." : tipo ? "Ninguna producción de ese tipo todavía." : "Todavía no hay sesiones."}</span>`;
-  $("inRenombrarGrupo").hidden = !grs[E.semana];
+  $("inRenombrarGrupo").hidden = !grs[E.semana] || !!grs[E.semana].carpeta;  // una carpeta de Drive se renombra allá
   $("inArchivar").textContent = arch.has(E.semana) ? `Sacar «${E.semana}» del archivo` : `Archivar «${E.semana}»`;
 }
 $("inBuscar").addEventListener("input", pintarListaSesiones);

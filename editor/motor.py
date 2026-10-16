@@ -97,15 +97,106 @@ def _primera(base, opciones):
 GRUPOS_PATH = DATOS / "grupos.json"
 
 
-def grupos():
+def grupos_manuales():
     try:
         return json.loads(GRUPOS_PATH.read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         return {}
 
 
+def grupos():
+    """Los grupos hechos a mano + las producciones con sus días de grabación dentro («P02 TEMA/11／10 SESIÓN»).
+    Una carpeta de producción manda sobre un grupo a mano con el mismo nombre."""
+    return {**grupos_manuales(), **producciones_con_dias()}
+
+
 def guardar_grupos(g):
+    g = {k: v for k, v in g.items() if not v.get("carpeta")}  # las de carpeta salen solas de Drive: no se guardan
     GRUPOS_PATH.write_text(json.dumps(g, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+# ---------- Producciones con sus días dentro: «P02 B2B VETERINARIOS/11／10 SESIÓN», «…/13／10 SESIÓN» ----------
+# Un guion puede servir para varios días de grabación: la carpeta de la producción tiene una carpeta por día
+# (cada una con su Clips/). El guion, Flow, la música y V.FINALES van en la producción o en uno de los días.
+# datos/drive_producciones.json (lo arma drive.actualizar_lista): {"P02 …": {"sesiones": [días], "guion": "día" o ""}}
+PRODUCCIONES_PATH = DATOS / "drive_producciones.json"
+SUBCARPETAS = {"guion", "1_guion", "clips", "flow", "assets", "musica", "música", "v.finales", "videos finales", "listos"}
+
+
+def es_dia_de_grabacion(nombre):
+    n = nombre.upper()
+    return (nombre.lower() not in SUBCARPETAS and not n.startswith(("_", "."))
+            and (bool(re.match(r"^\d{1,2}\D+\d{1,2}", n)) or "SESI" in n or n.startswith(("SEMANA", "DIA", "DÍA", "GRAB"))))
+
+
+def dias_de_produccion(carpeta):
+    """En disco: los días de grabación dentro de una carpeta de producción y dónde está el guion."""
+    dias = sorted(d.name for d in carpeta.iterdir() if d.is_dir()
+                  and (es_dia_de_grabacion(d.name) or (d.name.lower() not in SUBCARPETAS and (d / "Clips").is_dir())))
+    if not dias:
+        return None
+    if any((carpeta / x).is_dir() for x in ("Guion", "1_guion")):
+        guion = ""
+    else:
+        guion = next((d for d in dias if any((carpeta / d / x).is_dir() for x in ("Guion", "1_guion"))), dias[0])
+    return {"sesiones": dias, "guion": guion}
+
+
+def producciones_con_dias():
+    out = {}
+    if CONFIG.get("drive", {}).get("activo"):
+        try:
+            out = json.loads(PRODUCCIONES_PATH.read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            pass
+    base = Path(CONFIG.get("carpeta_trabajo") or DATOS / "grabaciones")
+    if base.is_dir():  # también las que ya están en esta PC (o sin Drive, las de la carpeta de trabajo)
+        for d in base.iterdir():
+            if d.is_dir() and PRODUCCION.match(d.name):
+                local = dias_de_produccion(d)
+                if local:
+                    previo = out.get(d.name) or {}
+                    out[d.name] = {"sesiones": sorted({*previo.get("sesiones", []), *local["sesiones"]}),
+                                   "guion": previo["guion"] if "guion" in previo else local["guion"]}
+    return {k: {**v, "carpeta": k} for k, v in out.items() if v.get("sesiones")}
+
+
+def mudar_a_produccion(prod, dia, cache):
+    """Un día que estaba suelto en Drive y ahora está dentro de su producción: la copia de esta PC se mueve
+    (no se vuelve a bajar) y se actualiza lo que recordaba la ruta vieja, para no volver a procesar nada."""
+    viejo, nuevo = cache / dia, cache / prod / dia
+    if not viejo.is_dir() or nuevo.exists():
+        return False
+    nuevo.parent.mkdir(parents=True, exist_ok=True)
+    viejo.rename(nuevo)
+    for ext in (".json", ".reemplazos.json"):  # lo identificado a mano, con el nombre nuevo
+        a, b = DATOS / "asignaciones" / f"{dia}{ext}", DATOS / "asignaciones" / prod / f"{dia}{ext}"
+        if a.exists() and not b.exists():
+            b.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(a, b)
+    a_txt, b_txt = str(viejo), str(nuevo)
+
+    def cambiar(x):
+        if isinstance(x, str):
+            return b_txt + x[len(a_txt):] if x == a_txt or x.startswith(a_txt + os.sep) else x
+        if isinstance(x, list):
+            return [cambiar(y) for y in x]
+        if isinstance(x, dict):
+            return {k: cambiar(v) for k, v in x.items()}
+        return x
+    for sub in ("procesado", "recetas", "subtitulos"):
+        for f in (DATOS / sub / prod).glob("*.json") if (DATOS / sub / prod).is_dir() else []:
+            try:
+                texto = f.read_text(encoding="utf-8")
+                if dia not in texto:
+                    continue
+                d = json.loads(texto)
+            except (ValueError, OSError):
+                continue
+            d2 = cambiar(d)
+            if d2 != d:
+                f.write_text(json.dumps(d2, ensure_ascii=False, indent=None if sub == "procesado" else 1), encoding="utf-8")
+    return True
 
 
 def renombrar_grupo(viejo, nuevo):
@@ -116,6 +207,8 @@ def renombrar_grupo(viejo, nuevo):
     g = grupos()
     if viejo not in g:
         raise ValueError("Ese grupo no existe")
+    if g[viejo].get("carpeta"):
+        raise ValueError("Esta producción es una carpeta de Drive: cámbiale el nombre allá")
     if not nuevo or len(nuevo) > 60 or re.search(r'[\\/:*?"<>|]', nuevo):
         raise ValueError('Nombre no válido (sin / \\ : * ? " < > |)')
     if nuevo in g or nuevo in semanas_disponibles():
@@ -175,11 +268,18 @@ class Rutas:
         g = grupos().get(semana)
         self.es_grupo = bool(g)
         self.miembros = list(g["sesiones"]) if g else [semana]
-        # sesión principal: ahí viven el guion, Flow, la música y V.FINALES (en un grupo, la que tiene el guion)
-        self.drive = (g.get("guion") or g["sesiones"][0]) if g else semana
+        # producción con sus días dentro: los días se buscan en su carpeta («P02 …/11／10 SESIÓN»)
+        self.carpeta_prod = g.get("carpeta") if g else None
+        self.raiz = base / self.carpeta_prod if self.carpeta_prod else base
+        # sesión principal: ahí viven el guion, Flow, la música y V.FINALES (en un grupo, la que tiene el guion;
+        # en una producción con días, la producción misma o el día que tiene el guion). Ruta dentro de la carpeta de trabajo.
+        if self.carpeta_prod:
+            self.drive = f"{self.carpeta_prod}/{g['guion']}" if g.get("guion") else self.carpeta_prod
+        else:
+            self.drive = (g.get("guion") or g["sesiones"][0]) if g else semana
         self.principal = base / self.drive
         # en un grupo, los clips de todas sus sesiones se ven desde la carpeta de arriba («11／10 SESIÓN/Clips/…»)
-        self.grab = base if g else base / semana
+        self.grab = self.raiz if g else base / semana
         self.assets = _primera(self.principal, ["Flow", "assets"])
         self.listos = _primera(self.principal, ["V.FINALES", "VIDEOS FINALES", "listos"])
         self.guion = _primera(self.principal, ["Guion", "1_guion"])
@@ -192,9 +292,10 @@ class Rutas:
         self.recetas = DATOS / "recetas" / semana
         self.transcripciones = DATOS / "transcripciones" / semana
         self.copies_editados = DATOS / "subtitulos" / semana / "_copies_editados.json"
-        fecha = re.match(r"^(\d{1,2})\D+(\d{1,2})", self.drive)   # "13 10 SESIÓN" -> 1310
-        prod = PRODUCCION.match(self.drive)                         # "P07 ARTICULACIONES" -> P07
-        n = re.search(r"(\d+)", self.drive)
+        con_guion = Path(self.drive).name  # el prefijo sale de la carpeta que tiene el guion
+        fecha = re.match(r"^(\d{1,2})\D+(\d{1,2})", con_guion)   # "13 10 SESIÓN" -> 1310
+        prod = PRODUCCION.match(con_guion)                         # "P07 ARTICULACIONES" -> P07
+        n = re.search(r"(\d+)", con_guion)
         self.prefijo = (f"P{int(prod.group(1)):02d}" if prod
                         else f"{int(fecha.group(1)):02d}{int(fecha.group(2)):02d}" if fecha
                         else f"S{int(n.group(1)):02d}" if n else "S00")
@@ -203,7 +304,11 @@ class Rutas:
         return _primera(self.principal, CARPETAS[tipo])
 
     def carpetas_sesiones(self):
-        return [self.base / m for m in self.miembros]
+        return [self.raiz / m for m in self.miembros]
+
+    def en_drive(self, sesion):
+        """Ruta en Drive (y en la carpeta de trabajo) de una sesión del grupo: «P02 …/11／10 SESIÓN» o «11／10 SESIÓN»."""
+        return f"{self.carpeta_prod}/{sesion}" if self.carpeta_prod else sesion
 
 
 S = Rutas(CONFIG["semana"])
@@ -213,7 +318,7 @@ def usar_semana(semana):
     global S, _prod_cache
     S = Rutas(semana)
     _prod_cache = None
-    if S.es_grupo:
+    if S.es_grupo and not S.carpeta_prod:  # una producción con días no hereda de sesiones sueltas con el mismo nombre
         heredar_de_sesiones()
 
 
@@ -380,7 +485,7 @@ def tipo_de(nombre):
 def _asig_archivos(sesion):
     """La copia de Drive (compartida con el equipo) y la local de esta PC; la local manda.
     La local existe porque Drive borra en silencio lo que escribe una cuenta con permiso de solo lectura."""
-    return S.base / sesion / "asignaciones.json", DATOS / "asignaciones" / f"{sesion}.json"
+    return S.raiz / sesion / "asignaciones.json", DATOS / "asignaciones" / f"{S.en_drive(sesion)}.json"
 
 
 def _leer_asig(sesion):
@@ -412,7 +517,9 @@ def _escribir_asig(sesion, d):
 
 
 def _reemp_archivo(sesion):
-    return DATOS / "asignaciones" / f"{sesion}.reemplazos.json"
+    f = DATOS / "asignaciones" / f"{S.en_drive(sesion)}.reemplazos.json"
+    f.parent.mkdir(parents=True, exist_ok=True)  # en una producción con días: asignaciones/P02 …/11／10 SESIÓN…
+    return f
 
 
 def _leer_reemp(sesion):
@@ -576,7 +683,7 @@ def plan_renombrar():
         nuevo = f"{_carpeta_de_codigo(codigo)}/{codigo}{c['ruta'].suffix.upper()}"
         if rel == nuevo:
             continue
-        if (sesion, nuevo.lower()) in destinos or (S.base / sesion / nuevo).exists():
+        if (sesion, nuevo.lower()) in destinos or (S.raiz / sesion / nuevo).exists():
             problemas.append(f"{c['ruta'].name}: ya hay un archivo {nuevo}")
             continue
         destinos.add((sesion, nuevo.lower()))
@@ -588,7 +695,7 @@ def aplicar_renombre(cambio):
     """Ya movido en Drive: mueve la copia local y actualiza todo lo que recordaba el nombre viejo (asignación,
     procesado y transcripción), para que la sala no lo tome como un clip nuevo ni vuelva a procesarlo."""
     sesion, viejo, nuevo = cambio["sesion"], cambio["viejo"], cambio["nuevo"]
-    f_viejo, f_nuevo = S.base / sesion / viejo, S.base / sesion / nuevo
+    f_viejo, f_nuevo = S.raiz / sesion / viejo, S.raiz / sesion / nuevo
     f_nuevo.parent.mkdir(parents=True, exist_ok=True)
     if f_viejo.exists():
         f_viejo.replace(f_nuevo)
@@ -643,11 +750,11 @@ def descartar_clips(rels, recuperar=False):
         sesion, sub = (rel.split("/", 1) if S.es_grupo else (S.semana, rel))
         if sesion not in S.miembros or ".." in sub:
             continue
-        origen = S.base / sesion / sub
+        origen = S.raiz / sesion / sub
         if not origen.is_file():
             continue
         nuevo = f"Clips/{origen.name}" if recuperar else f"Clips/{DESCARTADOS}/{origen.name}"
-        destino = S.base / sesion / nuevo
+        destino = S.raiz / sesion / nuevo
         destino.parent.mkdir(parents=True, exist_ok=True)
         origen.replace(destino)
         guardar_asignacion(rel, "")  # ya no es de ninguna pieza
@@ -658,7 +765,7 @@ def descartar_clips(rels, recuperar=False):
 def clips_descartados():
     out = []
     for m in S.miembros:
-        d = S.base / m / "Clips" / DESCARTADOS
+        d = S.raiz / m / "Clips" / DESCARTADOS
         if d.is_dir():
             out += [{"rel": (f"{m}/" if S.es_grupo else "") + f"Clips/{DESCARTADOS}/{f.name}", "nombre": f.name}
                     for f in sorted(d.iterdir()) if f.suffix.lower() in EXT_VID]

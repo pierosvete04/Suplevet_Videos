@@ -167,7 +167,7 @@ def estado():
     for p in ps:
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
     return {"version": motor.VERSION, "red": red(), "drive": dr, "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
-            "sesion_bajada": (not dr["activo"]) or all(drive.bajada(m) for m in S.miembros),
+            "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
@@ -235,7 +235,7 @@ def descargas_recientes(dias=7):
 
 def subir_asignaciones():
     for m in motor.S.miembros:
-        drive.subir_en_segundo_plano(m, ["asignaciones.json"])
+        drive.subir_en_segundo_plano(motor.S.en_drive(m), ["asignaciones.json"])
 
 
 def elementos():
@@ -266,12 +266,12 @@ def lanzar(accion, pieza=None, extra=None):
             motor.revisar_cancelado()
             avance(f"Renombrando {Path(cb['viejo']).name} → {cb['nuevo']} ({n}/{len(plan)})")
             if drive.estado()["activo"]:
-                drive.mover(cb["sesion"], cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
+                drive.mover(motor.S.en_drive(cb["sesion"]), cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
             motor.aplicar_renombre(cb)
             hechos += 1
         if drive.estado()["activo"]:
             for m in {cb["sesion"] for cb in plan}:
-                drive.subir(m, ["asignaciones.json"], avance=lambda x: None)
+                drive.subir(motor.S.en_drive(m), ["asignaciones.json"], avance=lambda x: None)
         return hechos
 
     def correr():
@@ -347,10 +347,10 @@ def lanzar(accion, pieza=None, extra=None):
                     drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
                 if accion == "bajar":
                     for m in motor.S.miembros:  # en un grupo, cada una de sus sesiones
-                        drive.bajar_sesion(m, avance=avance)
+                        drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
                 if accion == "subir_drive":
                     for m in motor.S.miembros:
-                        drive.subir(m, avance=avance)
+                        drive.subir(motor.S.en_drive(m), avance=avance)
                 if accion == "lista_drive":
                     avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
@@ -360,12 +360,12 @@ def lanzar(accion, pieza=None, extra=None):
                     # el guion, identificar solos los clips que se parecen claramente a una pieza y procesarlos.
                     if drive.estado()["activo"]:
                         for m in motor.S.miembros:
-                            drive.bajar_sesion(m, avance=avance)
+                            drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
                     motor.escuchar_clips(avance=avance)
                     n = motor.aceptar_sugerencias()
                     if n and drive.estado()["activo"]:
                         for m in motor.S.miembros:
-                            drive.subir(m, ["asignaciones.json"], avance=avance)
+                            drive.subir(motor.S.en_drive(m), ["asignaciones.json"], avance=avance)
                     motor.procesar(avance=avance)
                     falta = len(motor.clips_sin_asignar())
                     avance(f"Clips analizados y comparados con el guion: {n} identificados solos"
@@ -745,7 +745,7 @@ class H(BaseHTTPRequestHandler):
                         (nueva / sub).mkdir(parents=True, exist_ok=True)
                 motor.usar_semana(sem)
                 motor.guardar_config({"semana": sem})
-                if drive.estado()["activo"] and not all(drive.bajada_completa(m) for m in motor.S.miembros) and not TRABAJO["activo"]:
+                if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
                     lanzar("bajar")  # se baja sola la primera vez que se abre
                 self._json({"ok": True})
             elif u.path == "/api/importar_descarga":
@@ -780,6 +780,8 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 nombre = " ".join(str(b.get("nombre", "")).split()).upper()[:60]
                 gs = motor.grupos()
+                if (gs.get(nombre) or {}).get("carpeta"):
+                    raise ValueError("Esta producción es una carpeta de Drive con sus días dentro: se cambia en Drive")
                 if b.get("borrar"):
                     gs.pop(nombre, None)
                 else:
@@ -880,11 +882,11 @@ class H(BaseHTTPRequestHandler):
                     def mover_en_drive(lista=hechos):
                         for sesion, viejo, nuevo in lista:
                             try:
-                                drive.mover(sesion, viejo, nuevo)
+                                drive.mover(motor.S.en_drive(sesion), viejo, nuevo)
                             except Exception as e:
                                 print("No se pudo mover en Drive:", e)
                         for sesion in {h[0] for h in lista}:
-                            drive.subir(sesion, ["asignaciones.json"], avance=lambda m: None)
+                            drive.subir(motor.S.en_drive(sesion), ["asignaciones.json"], avance=lambda m: None)
                     threading.Thread(target=mover_en_drive, daemon=True).start()
                 self._json({"ok": True, "movidos": len(hechos)})
             elif u.path == "/api/renombrar_grupo":
