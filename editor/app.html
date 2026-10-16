@@ -602,10 +602,27 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .fila-elem { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; }
 .fila-elem img { width: 40px; height: 40px; object-fit: contain; background: var(--bg2); border-radius: 6px; }
 @media (max-width: 900px) { .plant-edicion { grid-template-columns: 1fr; } .lienzo { max-width: 300px; margin: 0 auto; position: relative; top: 0; } }
-.plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-.plant { border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); padding: 8px; display: grid; gap: 6px; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
-.plant:hover { border-color: var(--line2); }
-.plant[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--glow); }
+/* Tarjetas de plantillas: la elegida (la que editas) lleva borde de acento y check; «En uso» marca la que llevan los videos */
+.plant-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 14px; }
+.plant { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 8px 8px 12px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.plant:hover { border-color: var(--line2); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.12); }
+.plant:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.plant[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 22%, transparent); }
+.plant .muestra { aspect-ratio: 16/9; border-radius: 10px; }
+.plant .check { position: absolute; top: 14px; right: 14px; z-index: 2; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.35); opacity: 0; transform: scale(.6); transition: opacity .18s, transform .18s; }
+.plant[aria-pressed="true"] .check { opacity: 1; transform: scale(1); }
+.plant .sellos { position: absolute; top: 14px; left: 14px; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px; }
+.plant .sello { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #fff; background: rgba(10,16,28,.72); backdrop-filter: blur(4px); }
+.plant .sello.uso { background: color-mix(in srgb, var(--ok) 88%, #000); }
+.plant .sello.guion { background: color-mix(in srgb, var(--warn) 85%, #000); }
+.plant .info { display: grid; gap: 4px; padding: 0 4px; }
+.plant .nombre { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; line-height: 1.25; }
+.plant .nombre .pill { font-size: 10.5px; font-weight: 600; }
+.plant .desc { font-size: 12px; line-height: 1.45; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .plant, .plant .check { transition: none; } .plant:hover { transform: none; } }
 .muestra { position: relative; aspect-ratio: 16/10; border-radius: 9px; overflow: hidden; background: #172235 center/cover; container-type: inline-size; }
 .sublinea { position: absolute; left: 2%; right: 2%; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; justify-content: center; align-items: center; white-space: nowrap; }
 .sublinea .renglon { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: .3em; }
@@ -962,7 +979,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <div class="fila" style="justify-content:space-between;margin-bottom:8px">
           <div><h2 style="margin:0">Plantillas de subtítulos</h2>
             <span class="muted" style="font-size:12px" id="plantInfo"></span></div>
-          <label class="btn sec peq" style="cursor:pointer">+ Agregar fuente (.ttf)<input type="file" id="subirFuente" accept=".ttf,.otf" hidden></label>
+          <label class="btn sec peq" style="cursor:pointer" title="Sube una tipografía .ttf u .otf para usarla en las plantillas">+ Agregar fuente<input type="file" id="subirFuente" accept=".ttf,.otf" hidden></label>
         </div>
         <div class="plant-lista" id="plantLista"></div>
       </div>
@@ -970,7 +987,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <div class="fila" style="justify-content:space-between;margin-bottom:10px">
           <h2 id="plantTitulo" style="margin:0">Plantilla</h2>
           <div class="fila">
-            <button class="btn peq" id="plantPredet" title="Guarda los cambios y la pone como la plantilla de todos los videos">Guardar y usar como predeterminada</button>
+            <button class="btn peq" id="plantPredet" title="Guarda los cambios y la deja en uso: la llevan todos los videos">Guardar y usar en los videos</button>
             <button class="btn sec peq" id="plantDuplicar">Duplicar</button>
             <button class="btn sec peq" id="plantBorrar">Borrar</button>
             <button class="btn" id="plantGuardar">Guardar plantilla</button>
@@ -1842,7 +1859,7 @@ function plantillaDe(s) {
 function usaDe(s) {
   const pl = plantillaDe(s), r = s.receta || {};
   const mus = (r.musica || "").replace(/\s*\([\d.]+ s\)/g, "");
-  return [`<span class="pill" title="Plantilla de subtítulos${pl.propia ? " elegida para este video" : " predeterminada"}">Aa ${esc(pl.nombre)}${pl.propia ? " ·propia" : ""}</span>`,
+  return [`<span class="pill" title="Plantilla de subtítulos${pl.propia ? " elegida para este video" : " en uso"}">Aa ${esc(pl.nombre)}${pl.propia ? " ·propia" : ""}</span>`,
     mus ? `<span class="pill" title="Música">♪ ${esc(mus)}</span>` : (r.duracion ? `<span class="pill warn">Sin música</span>` : ""),
     (r.imagenes || []).length ? `<span class="pill" title="Imágenes de Flow">▣ ${r.imagenes.length} imágenes</span>` : "",
     (r.efectos || []).length ? `<span class="pill" title="Sonidos">🔊 ${r.efectos.length} sonidos</span>` : "",
@@ -2508,7 +2525,7 @@ $("exPartes").onclick = () => exportarPartes([...exElegidos]);
 $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMuestra(); });
 // «Guardar y usar como predeterminada»: guarda también lo que se cambió en el formulario (antes solo la marcaba
 // como predeterminada y los cambios sin guardar se perdían: el cuadro volvía a su lugar)
-$("plantPredet").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit, true), "Plantilla guardada y puesta como predeterminada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantPredet").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit, true), "Plantilla guardada y en uso en los videos."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
   const nombre = prompt("Nombre de la nueva plantilla:", (E.plantillas[plantSel].nombre || plantSel) + " (mía)");
   if (!nombre) return;
@@ -2849,7 +2866,7 @@ $("porGuardar").onclick = async () => {
 // ---------- Plantilla y altura del subtítulo de un video ----------
 function abrirSubsVideo() {
   const av = actual.ajustes_video || {};
-  $("vidPlantilla").innerHTML = `<option value="">Predeterminada (${esc(E.plantillas[E.plantilla]?.nombre || "")})</option>` +
+  $("vidPlantilla").innerHTML = `<option value="">La que está en uso (${esc(E.plantillas[E.plantilla]?.nombre || "")})</option>` +
     Object.entries(E.plantillas).map(([id, p]) => `<option value="${id}" ${av.plantilla === id ? "selected" : ""}>${esc(p.nombre || id)}</option>`).join("");
   const pl = E.plantillas[av.plantilla] || E.plantillas[E.plantilla];
   $("vidAltura").value = (av.ajustes_sub || {}).altura_desde_abajo ?? pl.altura_desde_abajo ?? 560;
@@ -2875,7 +2892,7 @@ $("vidSubsGuardar").onclick = async () => {
 const elegidos = new Set();
 function pintarSeleccion() {
   const pls = (E && E.plantillas) || {}, actual = $("selPlantilla").value;
-  $("selPlantilla").innerHTML = `<option value="">Plantilla predeterminada</option>` + Object.entries(pls).map(([id, p]) => `<option value="${id}" ${id === actual ? "selected" : ""}>${esc(p.nombre || id)}</option>`).join("");
+  $("selPlantilla").innerHTML = `<option value="">La que está en uso</option>` + Object.entries(pls).map(([id, p]) => `<option value="${id}" ${id === actual ? "selected" : ""}>${esc(p.nombre || id)}</option>`).join("");
   $("barraSel").hidden = !elegidos.size;
   $("nSel").textContent = `${elegidos.size} seleccionado${elegidos.size === 1 ? "" : "s"}`;
 }
@@ -2899,7 +2916,7 @@ $("selTodos").onclick = () => {
   pintarVideos(); pintarSeleccion();
 };
 $("selPlantillaAplicar").onclick = async () => {
-  const pl = $("selPlantilla").value, nombre = pl ? E.plantillas[pl]?.nombre : "la predeterminada";
+  const pl = $("selPlantilla").value, nombre = pl ? E.plantillas[pl]?.nombre : "la que está en uso";
   if (!confirm(`¿Poner la plantilla «${nombre}» a ${elegidos.size} video${elegidos.size === 1 ? "" : "s"} y rearmarlos?`)) return;
   try { const r = await post("/api/ajustes_video", { codigos: [...elegidos], plantilla: pl, armar: true });
     avisar(`Rearmando ${r.codigos.length} videos con la plantilla «${nombre}»… lo ves en Procesos (☰).`, "ok");
@@ -5043,13 +5060,20 @@ function pintarPlantillas() {
   cargarFuentesCSS();
   const ids = Object.keys(E.plantillas);
   if (!plantSel || !E.plantillas[plantSel]) plantSel = E.plantilla;
-  $("plantInfo").textContent = E.plantilla_del_guion ? `Esta sesión usa «${E.plantillas[E.plantilla_del_guion]?.nombre}» porque lo pide su guion.` : `Predeterminada: ${E.plantillas[E.plantilla_predeterminada]?.nombre || E.plantillas[E.plantilla]?.nombre}. Toca una para editarla.`;
+  const enUso = E.plantilla_del_guion || E.plantilla_predeterminada || E.plantilla;
+  $("plantInfo").textContent = E.plantilla_del_guion
+    ? `Esta sesión usa «${E.plantillas[E.plantilla_del_guion]?.nombre}» porque lo pide su guion. Elige una plantilla para verla y editarla.`
+    : "La marcada «En uso» es la que llevan los videos. Elige una para verla y editarla.";
   const fondo = E.fondo;
   $("plantLista").innerHTML = ids.map(id => { const pl = E.plantillas[id]; const editada = E.fabrica.includes(id) && E.propias.includes(id);
-    return `<button class="plant" data-plant="${id}" aria-pressed="${id === plantSel}">
+    const sellos = [id === enUso ? `<span class="sello uso">✓ En uso</span>` : "",
+      E.plantilla_del_guion === id ? `<span class="sello guion">Pide el guion</span>` : ""].join("");
+    const tipo = editada ? '<span class="pill azul">Editada</span>' : !E.fabrica.includes(id) ? '<span class="pill">Propia</span>' : "";
+    return `<button class="plant" type="button" data-plant="${id}" aria-pressed="${id === plantSel}" aria-label="${esc(pl.nombre || id)}${id === enUso ? ", en uso" : ""}">
+      <span class="sellos">${sellos}</span><span class="check" aria-hidden="true">✓</span>
       <div class="muestra" style="${fondo ? `background-image:url('${fondo}')` : ""}"><div class="sublinea" data-linea="${id}"></div></div>
-      <b style="font-size:13px">${esc(pl.nombre || id)} ${id === E.plantilla_predeterminada ? '<span class="pill ok">Predeterminada</span>' : ""} ${editada ? '<span class="pill azul">Editada</span>' : !E.fabrica.includes(id) ? '<span class="pill">Propia</span>' : ""}</b>
-      <span class="muted" style="font-size:11px">${esc(pl.descripcion || "")}</span></button>`; }).join("");
+      <span class="info"><span class="nombre">${esc(pl.nombre || id)} ${tipo}</span>
+        <span class="desc" title="${esc(pl.descripcion || "")}">${esc(pl.descripcion || "Sin descripción.")}</span></span></button>`; }).join("");
   ids.forEach(id => { const el = document.querySelector(`[data-linea="${id}"]`); pintarLinea(el, ["La", "recuperación", "pasa"], 1, new Set([1]), E.plantillas[id], el.parentElement.clientWidth || 200); });
   $("plantFuente").innerHTML = $("plantFuente2").innerHTML = E.fuentes.map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}${f.propia ? " (propia)" : ""}</option>`).join("");
   $("plantElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("") || `<option value="">Sube una imagen primero</option>`;
@@ -5061,9 +5085,9 @@ function pintarEstiloEdicion() {
   const caja = $("cajaEstiloEd"); if (!caja || !E) return;
   const est_ = E.estilo_edicion || {};
   caja.innerHTML = `<h2 style="margin:0 0 4px">Estilo de edición</h2>
-    <p class="muted" style="margin:0 0 8px;font-size:12.5px">Lo que hace el editor del equipo en CapCut, aplicado solo a todos los videos. Junto con la plantilla «Editor (limpio)» queda como sus videos.</p>
-    <label class="fila" style="font-size:13.5px"><input type="checkbox" id="esZoom" ${est_.zoom_alterno ? "checked" : ""}> <b>Zoom alternado:</b>&nbsp;una frase del cuerpo de lejos y la siguiente más cerca (en las frases sin zoom puesto a mano)</label>
-    <label class="fila" style="font-size:13.5px"><input type="checkbox" id="esFundido" ${(est_.fundido || 0) >= .25 ? "checked" : ""}> <b>Fundido suave:</b>&nbsp;las imágenes y clips entran y salen con un fundido de 0,3 s (si no, entran de golpe)</label>
+    <p class="muted" style="margin:0 0 8px;font-size:12.5px">Lo que hace el editor del equipo en CapCut, aplicado automáticamente a todos los videos. Con la plantilla «Editor (limpio)» quedan igual que los suyos.</p>
+    <label class="fila" style="font-size:13.5px"><input type="checkbox" id="esZoom" ${est_.zoom_alterno ? "checked" : ""}> <b>Zoom alternado:</b>&nbsp;una frase del cuerpo de lejos y la siguiente más cerca (solo en las frases sin zoom puesto a mano)</label>
+    <label class="fila" style="font-size:13.5px"><input type="checkbox" id="esFundido" ${(est_.fundido || 0) >= .25 ? "checked" : ""}> <b>Fundido suave:</b>&nbsp;las imágenes y los clips entran y salen con un fundido de 0,3 s (sin esto, aparecen de golpe)</label>
     <div class="fila" style="margin-top:6px"><button class="btn sec peq" type="button" id="esGuardar">Guardar estilo</button></div>`;
   $("esGuardar").onclick = async () => {
     try { const r = await post("/api/estilo_edicion", { zoom_alterno: $("esZoom").checked, fundido: $("esFundido").checked ? .3 : .12 });

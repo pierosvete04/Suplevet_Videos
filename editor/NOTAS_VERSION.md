@@ -1,3 +1,7 @@
+Versión 1.21.6 (se actualiza desde la app con «Actualizar ahora»):
+- Plantillas: tarjetas nuevas. La que estás editando lleva borde de color y un check; la que llevan los videos dice «En uso» sobre la vista previa (y «Pide el guion» si la sesión exige otra). Vista previa más grande, descripción en dos líneas, se elevan al pasar el mouse y se ven con el teclado.
+- Textos de Plantillas más claros: «Guardar y usar en los videos» en vez de «predeterminada», y el estilo de edición explicado mejor.
+
 Versión 1.21.5 (se actualiza desde la app con «Actualizar ahora»):
 - Sonidos: sin el espacio vacío sobre el título; los avisos de la sala aparecen flotando abajo y ya no empujan la página.
 - Ecualizador: los puntos de corte (LC y HC) se ven enteros, ya no quedan medio cortados en los bordes.
