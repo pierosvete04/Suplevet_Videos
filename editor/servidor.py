@@ -179,7 +179,7 @@ def estado():
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": motor.ajustes_cortes_voz(), "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -250,6 +250,18 @@ def elementos():
     return out
 
 
+def leer_guion_de_carpeta():
+    """Lee el guion nuevo de la carpeta Guion/Guiones y, si lo leyó, sube a Drive y al panel el guion de la sala.
+    Devuelve {archivo, leido: resumen} o {archivo, error} o None."""
+    r = motor.importar_guion_de_carpeta()
+    if r and r.get("resumen"):
+        drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+        if motor.CONFIG.get("panel", {}).get("token"):
+            threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
+        return {"archivo": r["archivo"], "leido": r["resumen"]}
+    return r
+
+
 def lanzar(accion, pieza=None, extra=None):
     """Corre procesar/armar/exportar en segundo plano para que la app no se congele."""
     if TRABAJO["activo"]:
@@ -275,12 +287,35 @@ def lanzar(accion, pieza=None, extra=None):
                 drive.subir(motor.S.en_drive(m), ["asignaciones.json"], avance=lambda x: None)
         return hechos
 
+    def guion_de_carpeta():
+        """El guion que el equipo dejó en Guion/Guiones: se lee antes de comparar los clips con el guion."""
+        r = leer_guion_de_carpeta()
+        if r and r.get("leido"):
+            s = r["leido"]
+            avance(f"Leí el guion «{r['archivo']}»: {s['cuerpos']} cuerpos, {s['hooks']} hooks y {s['ctas']} CTA")
+        elif r and r.get("error"):
+            avance(f"Ojo: no pude leer el guion «{r['archivo']}»: {r['error']}")
+
+    def guion_si_falta():
+        """Sin guion: lo arma con lo que se dijo en cada pieza (y lo sube a Drive y al panel)."""
+        n = motor.guion_desde_grabado()
+        if n:
+            avance(f"Sin guion: armé uno con lo que se dijo en {n} piezas (puedes subir el de verdad cuando quieras)")
+            drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+            if motor.CONFIG.get("panel", {}).get("token"):
+                threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
+
     def correr():
         motor.HILO_TRABAJO["id"] = threading.get_ident()
         try:
             with candado:
-                if accion in ("todo", "procesar"):
+                if accion in ("todo", "procesar", "guion_grabado", "ordenar_todo", "producir", "escuchar"):
+                    guion_de_carpeta()
+                if accion in ("todo", "procesar", "guion_grabado"):
                     motor.procesar(avance=avance)
+                    guion_si_falta()
+                if accion == "guion_grabado" and not motor.guion_desde_grabado() and motor._guion_propio().get("origen") != "grabado":
+                    avance("Esta sesión ya tiene guion: no lo cambié")
                 if accion in ("todo", "armar"):
                     motor.armar(pieza, avance=avance)
                 if accion == "armar_sel":
@@ -304,6 +339,7 @@ def lanzar(accion, pieza=None, extra=None):
                         res["renombrados"] = renombrar_todo()
                     avance("3/6 · Preparando los clips (recortar, volumen, transcribir)")
                     motor.procesar(avance=avance)
+                    guion_si_falta()
                     avance("4/6 · Armando los videos")
                     res["armados"] = len(motor.armar(avance=avance))
                     avance("5/6 · Revisando la calidad")
@@ -362,12 +398,14 @@ def lanzar(accion, pieza=None, extra=None):
                     if drive.estado()["activo"]:
                         for m in motor.S.miembros:
                             drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
+                    guion_de_carpeta()
                     motor.escuchar_clips(avance=avance)
                     n = motor.aceptar_sugerencias()
                     if n and drive.estado()["activo"]:
                         for m in motor.S.miembros:
                             drive.subir(motor.S.en_drive(m), ["asignaciones.json"], avance=avance)
                     motor.procesar(avance=avance)
+                    guion_si_falta()
                     falta = len(motor.clips_sin_asignar())
                     avance(f"Clips analizados y comparados con el guion: {n} identificados solos"
                            + (f", {falta} por revisar a mano" if falta else "") + ".")
@@ -554,7 +592,13 @@ class H(BaseHTTPRequestHandler):
                         motor._prod_cache = None
             except Exception as e:  # sin internet: se reintenta en la próxima revisión
                 print("No se pudo revisar el guion en Drive:", e)
-            self._json({"cambio": cambio})
+            res = {}
+            if not TRABAJO["activo"]:  # el guion que el equipo dejó en Guion/Guiones se lee solo (no a mitad de un trabajo)
+                try:
+                    res = leer_guion_de_carpeta() or {}
+                except Exception as e:
+                    print("No se pudo leer el guion de la carpeta:", e)
+            self._json({"cambio": cambio or bool(res.get("leido")), **res})
         elif u.path == "/api/guion":
             self._json(motor.revision_guion())
         elif u.path == "/api/estructura":
@@ -665,7 +709,10 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {ini}-{fin}/{tam}")
         else:
             self.send_response(200)
-        self.send_header("Content-Type", mimetypes.guess_type(ruta.name)[0] or "application/octet-stream")
+        tipo = mimetypes.guess_type(ruta.name)[0]
+        if ruta.suffix.lower() not in motor.EXT_VID | motor.NO_VIDEO and motor.es_video(ruta):
+            tipo = "video/mp4"  # clips sin extensión («C1.1» no es un .1, «C1-H1»): Drive a veces se la quita
+        self.send_header("Content-Type", tipo or "application/octet-stream")
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(fin - ini + 1))
         self.send_header("Cache-Control", "no-cache")
@@ -747,6 +794,15 @@ class H(BaseHTTPRequestHandler):
                            "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}[q["destino"][0]]
                 drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
                 self._json({"ok": True, "archivo": archivo})
+            elif u.path == "/api/subir_guion":  # el guion de la sesión: produccion.json de Claude, Word, .md o .txt
+                n = int(self.headers.get("Content-Length") or 0)
+                if n > 20 * 1024 * 1024:
+                    raise ValueError("El archivo es muy grande para ser un guion")
+                r = motor.subir_guion(q["nombre"][0], self.rfile.read(n))
+                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                if motor.CONFIG.get("panel", {}).get("token"):
+                    threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
+                self._json({"ok": True, **r})
             elif u.path == "/api/semana":
                 sem = " ".join(self._cuerpo()["semana"].split())
                 sem = sem.replace("/", "／")  # Drive permite "11/10 SESIÓN"; en disco se guarda con la barra ancha
@@ -948,6 +1004,14 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 aj = {"auto": bool(b.get("auto", True)), "margen": max(0.0, min(0.5, float(b.get("margen", 0.08))))}
                 motor.guardar_config({"silencios": aj})
+                self._json({"ok": True, **aj})
+            elif u.path == "/api/cortes_voz":  # cortes por lo que se dijo: aplicar solos, largo de pausa y respiro
+                b = self._cuerpo()
+                antes = motor.ajustes_cortes_voz()
+                aj = {"auto": bool(b.get("auto", antes["auto"])),
+                      "pausa": max(0.25, min(3.0, float(b.get("pausa", antes["pausa"])))),
+                      "respiro": max(0.0, min(0.4, float(b.get("respiro", antes["respiro"]))))}
+                motor.guardar_config({"cortes_voz": aj, "cortes_voz_cambio": time.time()})
                 self._json({"ok": True, **aj})
             elif u.path == "/api/sonido":
                 b = self._cuerpo()

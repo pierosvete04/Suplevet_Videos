@@ -1,3 +1,13 @@
+Versión 1.22.0 (se actualiza desde la app con «Actualizar ahora»):
+- Cortes por voz, como «editar por texto» de CapCut: la sala lee cada palabra que se dijo (con su tiempo) y la onda de la voz, y corta sola lo que sobra: lo repetido (queda la última vez que se dijo bien), los tartamudeos («pe- perro»), los «eh» y «mmm», las tomas que se cortaron con «perdón, otra vez» y los silencios largos.
+- En el editor de cada video, el panel «🎙 Cortes por voz» muestra todo el texto: lo tachado en rojo se corta, lo ondulado es una sugerencia dudosa (una palabra que no está en el guion, o algo que suena sin palabras). Toca una palabra para ir ahí; con Shift eliges varias; «✂ Cortar» (o Supr) la quita y «↩ Volver a poner» la devuelve. Mientras suena, la palabra que se dice se marca.
+- «Sin cortes / Con cortes» (tecla C): compara antes y después. Sin cortes se ve y se escucha todo lo grabado, con lo que se corta rayado en rojo en la línea de tiempo (y un aviso «✂ Esto se corta» en el video). Arrastra los bordes rojos para correr un corte.
+- Lo seguro se corta solo en las piezas que nadie revisó todavía; al guardar desde el editor, manda lo que dejaste. Abajo del panel se elige desde cuántos segundos un silencio se corta (0,5 s recomendado) y se puede apagar el corte automático.
+- La cuenta «3, 2, 1» que ya se quitaba sola ahora también se ve como corte en la línea de tiempo.
+- Guion → «Subir guion»: sube el produccion.json de Claude o el guion en Word, .md o .txt (reemplaza al que hay y deja una copia). El guion que el equipo deja en la carpeta Guion o Guiones de Drive se lee solo.
+- Sin guion: «Armar el guion con lo grabado» transcribe los clips y arma el guion con lo que se dijo.
+- Al bajar de Drive se saltan las carpetas Bloopers (tomas apartadas).
+
 Versión 1.21.8 (se actualiza desde la app con «Actualizar ahora»):
 - Plantillas → Estilo de edición, con más opciones:
   - Zoom alternado configurable: tipo (salto, acercar, alejar o mezcla), intensidad (suave, media o fuerte) y cada cuánto (frase sí, frase no, o todas las frases).

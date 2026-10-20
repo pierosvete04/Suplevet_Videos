@@ -30,7 +30,11 @@ REMOTO = "suplevet"
 CONF = motor.DATOS / "rclone.conf"
 CACHE = motor.DATOS / "drive"
 LISTA = motor.DATOS / "drive_sesiones.json"
-EXCLUIR_AL_BAJAR = ["V.FINALES/**", "VIDEOS FINALES/**", "listos/**", "*.docx", "*.png", "desktop.ini"]
+# Bloopers: tomas que el equipo apartó (la sala no las usa; bajarlas solo gasta tiempo y disco)
+# (los .docx sí se bajan: el guion en Word que el equipo deja en Guion/ se lee solo; y los .png también:
+#  una imagen de Flow puede venir en .png)
+EXCLUIR_AL_BAJAR = ["V.FINALES/**", "VIDEOS FINALES/**", "listos/**", "desktop.ini",
+                    "{Bloopers,BLOOPERS,bloopers,Blooper,BLOOPER}/**"]
 SUBIBLES = ["V.FINALES", "Flow", "Musica", "Guion", "asignaciones.json", "Clips"]
 _candado = threading.Lock()
 
@@ -142,10 +146,10 @@ def actualizar_producciones(prods, sueltas):
             motor.es_dia_de_grabacion(d["Name"]) or (d["Name"].lower() not in motor.SUBCARPETAS and f"{d['Path']}/Clips" in rutas)))
         if not dias:
             continue
-        if any(x in rutas for x in ("Guion", "1_guion")):
+        if any(x in rutas for x in motor.CARPETAS_GUION):
             guion = ""
         else:
-            guion = next((d for d in dias if f"{d}/Guion" in rutas or f"{d}/1_guion" in rutas), dias[0])
+            guion = next((d for d in dias if any(f"{d}/{x}" in rutas for x in motor.CARPETAS_GUION)), dias[0])
         out[prod] = {"sesiones": dias, "guion": guion}
         for dia in dias:
             if dia not in sueltas:
@@ -190,11 +194,25 @@ def traer_guion(local):
     """Trae de Drive el guion de la sesión si allá está más nuevo (lo cambió Claude, el panel u otra PC).
     Solo reemplaza archivos más viejos que los de Drive: lo editado en esta sala y aún no subido no se pisa.
     Devuelve True si cambió algo."""
-    rel = Path(local).relative_to(CACHE).as_posix()
-    huella = lambda: {f.name: (f.stat().st_size, int(f.stat().st_mtime)) for f in Path(local).glob("*") if f.is_file()}
-    antes = huella() if Path(local).is_dir() else {}
-    _rc("copy", f"{REMOTO}:{rel}", local, "--update", "--max-depth", "1", "--exclude", "desktop.ini", timeout=60)
-    return huella() != antes
+    # todas las carpetas del guion que haya (Guion, Guiones, 1_guion): el equipo puede crear «Guiones» en Drive
+    # aunque la sala ya tenga «Guion»
+    base = Path(local).parent
+    rel = base.relative_to(CACHE).as_posix()
+    cambio = False
+    for x in motor.CARPETAS_GUION:
+        d = base / x
+        habia = d.is_dir()
+        huella = lambda: {f.name: (f.stat().st_size, int(f.stat().st_mtime)) for f in d.glob("*") if f.is_file()}
+        antes = huella() if habia else {}
+        try:
+            _rc("copy", f"{REMOTO}:{rel}/{x}", d, "--update", "--max-depth", "1", "--exclude", "desktop.ini", timeout=60)
+        except Exception:
+            continue  # en Drive no hay carpeta con ese nombre (o no hay internet: se reintenta en la próxima revisión)
+        if not habia and d.is_dir() and not any(d.iterdir()):
+            d.rmdir()  # vacía: no se deja, para que no tape a la que sí tiene el guion
+            continue
+        cambio |= huella() != antes
+    return cambio
 
 
 def bajada(nombre):
@@ -243,6 +261,8 @@ def subir(nombre, partes=None, avance=print):
     """Sube a Drive lo que produce la sala en esa sesión. No borra nada en Drive."""
     with _candado:
         for parte in partes or SUBIBLES:
+            if parte == "Guion":  # la carpeta del guion puede llamarse Guion, Guiones o 1_guion
+                parte = next((x for x in motor.CARPETAS_GUION if (CACHE / nombre / x).exists()), parte)
             local = CACHE / nombre / parte
             if not local.exists():
                 continue
@@ -270,7 +290,8 @@ def mover(sesion, viejo, nuevo):
 
 
 def crear_sesion(nombre):
-    for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "Musica", "V.FINALES"):
+    # Guiones: el guion · Clips: solo lo grabado (C1/, C2/…, CTA/ o sueltos) · Flow: imágenes y clips de apoyo
+    for sub in ("Guiones", "Clips", "Flow", "Musica", "V.FINALES"):
         _rc("mkdir", f"{REMOTO}:{nombre}/{sub}")
     actualizar_lista()
 

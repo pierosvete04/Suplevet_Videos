@@ -52,6 +52,27 @@ EXT_IMG = {".png", ".jpg", ".jpeg", ".webp"}
 EXT_VID = {".mp4", ".mov", ".webm", ".m4v"}
 EXT_AUDIO = {".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac"}
 NULL = "NUL" if sys.platform == "win32" else "/dev/null"
+NO_VIDEO = EXT_IMG | EXT_AUDIO | {".json", ".txt", ".md", ".docx", ".pdf", ".ini", ".srt", ".ass", ".zip", ".gif"}
+
+
+def es_video(f):
+    """Por la extensión o, si no tiene (Drive a veces la quita: «C1-H1», «C1.1»), por lo que dice el archivo."""
+    suf = f.suffix.lower()
+    if suf in EXT_VID:
+        return True
+    if suf in NO_VIDEO or f.name.startswith(".") or not f.is_file():
+        return False
+    try:
+        with open(f, "rb") as x:
+            cab = x.read(12)
+    except OSError:
+        return False
+    return cab[4:8] in (b"ftyp", b"moov", b"mdat", b"wide", b"free") or cab[:4] == b"\x1a\x45\xdf\xa3"
+
+
+def nombre_clip(f):
+    """El nombre sin extensión: «C1-H1.MOV» → «C1-H1», pero «C1.1» (sin extensión) sigue siendo «C1.1»."""
+    return f.stem if f.suffix.lower() in EXT_VID else f.name
 
 
 def _buscar_ffmpeg():
@@ -120,7 +141,8 @@ def guardar_grupos(g):
 # (cada una con su Clips/). El guion, Flow, la música y V.FINALES van en la producción o en uno de los días.
 # datos/drive_producciones.json (lo arma drive.actualizar_lista): {"P02 …": {"sesiones": [días], "guion": "día" o ""}}
 PRODUCCIONES_PATH = DATOS / "drive_producciones.json"
-SUBCARPETAS = {"guion", "1_guion", "clips", "flow", "assets", "musica", "música", "v.finales", "videos finales", "listos"}
+SUBCARPETAS = {"guion", "guiones", "1_guion", "clips", "flow", "assets", "musica", "música", "v.finales", "videos finales", "listos"}
+CARPETAS_GUION = ("Guion", "Guiones", "1_guion")  # ahí se deja el guion (Word, .md, .txt o produccion.json) y la sala lo lee
 
 
 def es_dia_de_grabacion(nombre):
@@ -135,10 +157,10 @@ def dias_de_produccion(carpeta):
                   and (es_dia_de_grabacion(d.name) or (d.name.lower() not in SUBCARPETAS and (d / "Clips").is_dir())))
     if not dias:
         return None
-    if any((carpeta / x).is_dir() for x in ("Guion", "1_guion")):
+    if any((carpeta / x).is_dir() for x in CARPETAS_GUION):
         guion = ""
     else:
-        guion = next((d for d in dias if any((carpeta / d / x).is_dir() for x in ("Guion", "1_guion"))), dias[0])
+        guion = next((d for d in dias if any((carpeta / d / x).is_dir() for x in CARPETAS_GUION)), dias[0])
     return {"sesiones": dias, "guion": guion}
 
 
@@ -282,7 +304,6 @@ class Rutas:
         self.grab = self.raiz if g else base / semana
         self.assets = _primera(self.principal, ["Flow", "assets"])
         self.listos = _primera(self.principal, ["V.FINALES", "VIDEOS FINALES", "listos"])
-        self.guion = _primera(self.principal, ["Guion", "1_guion"])
         self.musica = _primera(self.principal, ["Musica", "Música", "musica"])
         self.asignaciones = self.principal / "asignaciones.json"
         self.proc = DATOS / "procesado" / semana      # local: pesado, no se sincroniza
@@ -299,6 +320,10 @@ class Rutas:
         self.prefijo = (f"P{int(prod.group(1)):02d}" if prod
                         else f"{int(fecha.group(1)):02d}{int(fecha.group(2)):02d}" if fecha
                         else f"S{int(n.group(1)):02d}" if n else "S00")
+
+    @property
+    def guion(self):  # se busca cada vez: la carpeta Guiones puede aparecer después (la crea el equipo en Drive)
+        return _primera(self.principal, list(CARPETAS_GUION))
 
     def carpeta(self, tipo):
         return _primera(self.principal, CARPETAS[tipo])
@@ -473,8 +498,41 @@ def info_pieza(nombre):
 
 # C1_H2 (hook), C1 (cuerpo), C1_P3 (parte 3 del cuerpo C1), CTA / CTA-A / C1_CTA1
 # C1_H2 (hook), C1_H2_P1 (parte 1 del hook 2), C1 (cuerpo), C1_P3 (parte 3 del cuerpo), CTA / CTA-A / C1_CTA1
-CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+(?:_P\d+)?|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*)$", re.I)
-PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?)_P(\d+)$", re.I)
+# CTA-1_P2 (parte 2 del CTA-1): un CTA también se puede grabar en partes
+CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+(?:_P\d+)?|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*(?:_P\d+)?)$", re.I)
+PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?|(?:(?:C|P)\d+_)?CTA(?:-?[A-Z0-9]+)?)_P(\d+)$", re.I)
+
+# Como nombra el equipo los archivos a mano (en carpetas C1/, C2/…, CTA/):
+#   C1-H1 · C1 H1 → C1_H1      C1-H1.2 → C1_H1_P2 (hook en partes)
+#   C1.1 · C1-1 → C1_P1        C3.1 HASTA C3.4 → C3_P1 (una toma con las frases 1 a 4)
+#   CTA 1.2 · CTA-1.2 → CTA1_P2 (como en el guion: CTA1)      CTA-A, C1_CTA1 → igual
+_SEP = r"[\s._-]*"
+_N_HOOK = re.compile(rf"^([CP])(\d+){_SEP}H(\d+)(?:[\s._-]+P?(\d+))?$", re.I)
+_N_RANGO = re.compile(rf"^([CP])(\d+)[\s._-]+P?(\d+)\s*(?:HASTA|AL|A|-)\s*(?:[CP]\d+[\s._-]+)?P?(\d+)$", re.I)
+_N_PARTE = re.compile(r"^([CP])(\d+)[\s._-]+P?(\d+)$", re.I)
+_N_CUERPO = re.compile(r"^([CP])(\d+)$", re.I)
+_N_CTA = re.compile(r"^(?:([CP]\d+)[\s_-]*)?CTA(?:[\s_-]*([A-Z0-9]+?))?(?:[\s._-]+P?(\d+))?$", re.I)
+
+
+def leer_nombre(texto):
+    """(código de pieza, (desde, hasta) si la toma trae varias frases) o (None, None) si el nombre no dice nada."""
+    t = " ".join(str(texto).split()).upper()
+    if (m := _N_CTA.match(t)) and m[2] and m[2].isdigit():  # «CTA 1.2», «CTA-1», «CTA1»: como en el guion (CTA1)
+        return (f"{m[1]}_" if m[1] else "") + f"CTA{int(m[2])}" + (f"_P{int(m[3])}" if m[3] else ""), None
+    if CODIGO_PIEZA.match(t):  # ya viene como lo escribe la sala
+        return t, None
+    if m := _N_HOOK.match(t):
+        return f"{m[1]}{int(m[2])}_H{int(m[3])}" + (f"_P{int(m[4])}" if m[4] else ""), None
+    if m := _N_RANGO.match(t):
+        a, b = int(m[3]), int(m[4])
+        return (f"{m[1]}{int(m[2])}_P{a}", (a, b)) if b > a else (None, None)
+    if m := _N_PARTE.match(t):
+        return f"{m[1]}{int(m[2])}_P{int(m[3])}", None
+    if m := _N_CUERPO.match(t):
+        return f"{m[1]}{int(m[2])}", None
+    if m := _N_CTA.match(t):
+        return (f"{m[1]}_" if m[1] else "") + "CTA" + (f"-{m[2]}" if m[2] else "") + (f"_P{int(m[3])}" if m[3] else ""), None
+    return None, None
 
 
 def tipo_de(nombre):
@@ -582,30 +640,58 @@ def clips():
                 d = carpeta / o
                 if d.is_dir():
                     for f in sorted(d.rglob("*"), key=lambda x: x.as_posix().lower()):
-                        if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
+                        if f not in vistos and not _apartado(f, d) and es_video(f):
                             vistos.add(f)
-                            out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": tipo})
+                            # en Clips/C2/…, Clips/CTA/…: ya está en su carpeta (al ordenar no se mueve)
+                            out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": tipo,
+                                        "a_mano": carpeta in por_cuerpo or tipo == "cta"})
       for sueltos in [sesion / CARPETA_SUELTOS] + por_cuerpo:
         if sueltos.is_dir():
             for f in sorted(sueltos.iterdir()):
-                if f.is_file() and f.suffix.lower() in EXT_VID and f not in vistos:
+                if f not in vistos and es_video(f):
                     vistos.add(f)
-                    out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None})
+                    out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None,
+                                "a_mano": sueltos in por_cuerpo})  # sueltos en Clips/: la sala los ordena
+      # ordenado a mano sin Clips/: «P04 …/C1/C1-H1», «…/C1/C1.1», «…/CTA/CTA 1.2» (Bloopers y lo demás no se mira)
+      for d in carpetas_de_piezas(sesion):
+        tipo = "cta" if d.name.upper().startswith("CTA") else None
+        for f in sorted(d.rglob("*"), key=lambda x: x.as_posix().lower()):
+            if f in vistos or _apartado(f, d):
+                continue
+            if es_video(f):
+                vistos.add(f)
+                out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": tipo, "a_mano": True})
     return out
+
+
+def _apartado(f, carpeta):
+    """Dentro de una subcarpeta Bloopers, _DESCARTADOS, descartes…: el equipo lo apartó y no se usa."""
+    return any(p.startswith("_") or "BLOOPER" in p.upper() or "DESCART" in p.upper() for p in f.relative_to(carpeta).parts[:-1])
+
+
+def carpetas_de_piezas(sesion):
+    """Carpetas C1/, C2/…, CTA/ sueltas en la sesión (sin Clips/): así ordena el equipo lo que grabó."""
+    if not sesion.is_dir():
+        return []
+    return [d for d in sorted(sesion.iterdir(), key=lambda x: x.name.lower())
+            if d.is_dir() and re.fullmatch(r"(?:[CP]\d+|CTAS?(?:[\s_-]*[A-Z0-9]+)?)", d.name.strip(), re.I)
+            and d.name.lower() not in ("ctas",)]  # «ctas» ya la mira CARPETAS
 
 
 def nombre_automatico(c):
     """Nombre de pieza que se deduce sin asignar a mano:
-    C1_H2.mov · Cuerpo/3.MOV -> C1_P3 · Cuerpo/C2/1.MOV -> C2_P1 · CTA/CTA.MOV -> CTA."""
-    stem, tipo = c["ruta"].stem, c["tipo_carpeta"]
+    C1_H2.mov · Cuerpo/3.MOV -> C1_P3 · Cuerpo/C2/1.MOV -> C2_P1 · CTA/CTA.MOV -> CTA.
+    También como los nombra el equipo a mano: C1-H1, C1.1, CTA 1.2 (ver leer_nombre)."""
+    stem, tipo = nombre_clip(c["ruta"]), c["tipo_carpeta"]
 
     def cuerpo_de(ruta):  # Cuerpo/C2/1.MOV o C2/Cuerpo/1.MOV → C2; si no dice, C1
         for d in (ruta.parent.name, ruta.parent.parent.name):
             if re.fullmatch(r"(?:C|P)\d+", d, re.I):
                 return d.upper()
         return "C1"
-    if CODIGO_PIEZA.match(stem):
-        return stem.upper()
+    codigo, _ = leer_nombre(stem)
+    if codigo:
+        return codigo
     if tipo == "cuerpo" and stem.isdigit():
         return f"{cuerpo_de(c['ruta'])}_P{int(stem)}"
     if tipo == "cuerpo" and stem.lower() in ("cuerpo", "c"):
@@ -630,10 +716,22 @@ def piezas():
     Un cuerpo grabado en partes (C1_P1, C1_P2…) es una sola pieza C1 con sus partes en orden.
     Si dos clips dicen ser la misma pieza, gana el asignado a mano."""
     asig = leer_asignaciones()
+    todos = clips()
+    # una toma con varias frases («C3.1 HASTA C3.4») cubre esas partes: las tomas sueltas de esas frases sobran
+    cubre = {}
+    for c in todos:
+        if not asig.get(c["rel"]):
+            codigo, rango = leer_nombre(nombre_clip(c["ruta"]))
+            if rango:
+                base = PARTE.match(codigo).group(1)
+                cubre.update({(base, k): c["rel"] for k in range(rango[0], rango[1] + 1)})
     por_nombre, origen_manual = {}, set()
-    for c in clips():
+    for c in todos:
         manual = asig.get(c["rel"])
         nombre = manual or nombre_automatico(c)
+        m = PARTE.match(nombre or "")
+        if not manual and m and cubre.get((m.group(1).upper(), int(m.group(2))), c["rel"]) != c["rel"]:
+            continue
         if not nombre or (nombre in por_nombre and nombre in origen_manual and not manual):
             continue
         por_nombre[nombre] = c
@@ -648,8 +746,14 @@ def piezas():
     for nombre, lista in agrupadas.items():
         lista.sort(key=lambda x: x[0])
         partes = [c["ruta"] for _, c in lista]
+        # qué frases cubren las partes (C2.1, C2.2, C2.3, C2.5 → falta la 4)
+        cubre_rel = {c["rel"]: list(range(orden, (leer_nombre(nombre_clip(c["ruta"]))[1] or (0, orden))[1] + 1))
+                     for orden, c in lista if orden}
+        numeros = sorted({k for ks in cubre_rel.values() for k in ks})
         out.append({"nombre": nombre, "tipo": tipo_de(nombre), "partes": partes, "original": partes[0],
-                    "rel": lista[0][1]["rel"], "rels": [c["rel"] for _, c in lista]})
+                    "rel": lista[0][1]["rel"], "rels": [c["rel"] for _, c in lista],
+                    "frases": cubre_rel,  # {rel: [frases que dice]} en una pieza grabada en partes
+                    "faltan_partes": [k for k in range(1, max(numeros) + 1) if k not in numeros] if numeros else []})
     orden = {"hook": 0, "cuerpo": 1, "cta": 2}
     return sorted(out, key=lambda p: (orden[p["tipo"]], p["nombre"]))
 
@@ -667,6 +771,20 @@ def _carpeta_de_codigo(codigo):
     return "Clips/Cuerpo"
 
 
+def _carpeta_destino(sesion, codigo):
+    """A dónde va un clip suelto ya identificado. Una carpeta por video (Clips/C1/ con sus hooks y sus frases,
+    Clips/CTA/), salvo que la sesión ya use la forma vieja (Clips/Hooks, Clips/Cuerpo con videos dentro) o tenga
+    sus carpetas C1/, CTA/ fuera de Clips/ (entonces van ahí, junto a las demás)."""
+    vieja = any(any(es_video(f) for f in (sesion / d).rglob("*")) for d in ("Clips/Hooks", "Clips/Cuerpo") if (sesion / d).is_dir())
+    if vieja:
+        return _carpeta_de_codigo(codigo)
+    fuera = bool(carpetas_de_piezas(sesion))
+    dentro = (sesion / "Clips").is_dir() and any(d.is_dir() and re.fullmatch(r"[CP]\d+|CTA", d.name, re.I)
+                                                 for d in (sesion / "Clips").iterdir())
+    base = "" if fuera and not dentro else "Clips/"
+    return base + ("CTA" if "CTA" in codigo.upper() else codigo.split("_")[0])
+
+
 def plan_renombrar():
     """Lo que haría «Ordenar y renombrar»: cada clip ya identificado pasa a Clips/Hooks|Cuerpo|CTA con el
     código de su pieza (IMG_1058.MOV → Clips/Hooks/C2_H3.MOV). [{sesion, viejo, nuevo, pieza}] + los que no se pueden."""
@@ -680,7 +798,17 @@ def plan_renombrar():
         if not codigo:
             continue
         sesion, rel = c["rel"].split("/", 1) if S.es_grupo else (S.semana, c["rel"])
-        nuevo = f"{_carpeta_de_codigo(codigo)}/{codigo}{c['ruta'].suffix.upper()}"
+        ext = c["ruta"].suffix.upper() if c["ruta"].suffix.lower() in EXT_VID else ""
+        if c.get("a_mano"):
+            # ordenado a mano en C1/, CTA/…: no se saca de su carpeta, y si su nombre ya dice la pieza, ni se toca
+            if leer_nombre(nombre_clip(c["ruta"]))[0] == codigo:
+                continue
+            carpeta, quiere = Path(rel).parent, ("CTA" if "CTA" in codigo else codigo.split("_")[0])
+            if carpeta.name.upper() != quiere and re.fullmatch(r"[CP]\d+|CTA", carpeta.name, re.I):
+                carpeta = carpeta.parent / quiere  # estaba en C2/ pero es de C3: va a la carpeta de al lado
+            nuevo = f"{carpeta.as_posix()}/{codigo}{ext}"
+        else:
+            nuevo = f"{_carpeta_destino(S.raiz / sesion, codigo)}/{codigo}{ext}"
         if rel == nuevo:
             continue
         if (sesion, nuevo.lower()) in destinos or (S.raiz / sesion / nuevo).exists():
@@ -768,7 +896,7 @@ def clips_descartados():
         d = S.raiz / m / "Clips" / DESCARTADOS
         if d.is_dir():
             out += [{"rel": (f"{m}/" if S.es_grupo else "") + f"Clips/{DESCARTADOS}/{f.name}", "nombre": f.name}
-                    for f in sorted(d.iterdir()) if f.suffix.lower() in EXT_VID]
+                    for f in sorted(d.iterdir()) if es_video(f)]
     return out
 
 
@@ -924,7 +1052,7 @@ def sugerencias():
             for k, frase in enumerate(i["partes"], 1):
                 esperadas[f"{n}_P{k}"] = frase
     ya = {p["nombre"] for p in piezas()}
-    ya |= {f"{p['nombre']}_P{k}" for p in piezas() for k in range(1, len(p["partes"]) + 1) if len(p["partes"]) > 1}
+    ya |= {f"{p['nombre']}_P{k}" for p in piezas() for ks in p["frases"].values() for k in ks}
     out = {}
     for c in clips_sin_asignar():
         texto = transcripcion_clip(c, crear=False)
@@ -973,7 +1101,10 @@ def informe_clips():
     dueno = {}  # pieza → nombre del clip que la tiene
     for p in piezas():
         for k, r in enumerate(p["rels"], 1):
-            dueno[p["nombre"] if len(p["rels"]) == 1 else f"{p['nombre']}_P{k}"] = Path(r).name
+            if len(p["rels"]) == 1 and not p["frases"]:
+                dueno[p["nombre"]] = Path(r).name
+            for n in p["frases"].get(r) or [k]:  # por el número de la frase (C2.3 es la 3 aunque falte la 2)
+                dueno[f"{p['nombre']}_P{n}"] = Path(r).name
     sug, rp = sugerencias(), reemplazos()
     dudas = []
     for c in clips_sin_asignar():
@@ -984,6 +1115,15 @@ def informe_clips():
             dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "reemplazado",
                           "por_que": f"Era {r['pieza']}; lo cambiaste por {r['por']}. Si ya no sirve, descártalo."})
             continue
+        auto = nombre_automatico(c)
+        if auto and (m := PARTE.match(auto)):  # «C3.1» suelto cuando ya está «C3.1 HASTA C3.4»
+            dueno_toma = next((Path(r).name for p in piezas() if p["nombre"] == m.group(1).upper() for r in p["rels"]
+                               if r != c["rel"] and (rg := leer_nombre(nombre_clip(Path(r)))[1]) and rg[0] <= int(m.group(2)) <= rg[1]), None)
+            if dueno_toma:
+                dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "otra_toma", "pieza": auto,
+                              "por_que": f"Es otra toma de la frase {int(m.group(2))} de {m.group(1).upper()}, que ya está en «{dueno_toma}». "
+                                         "Si prefieres esta, asígnala a mano; si no, descártala."})
+                continue
         if texto is None:
             dudas.append({"clip": nombre, "rel": c["rel"], "tipo": "sin_escuchar", "por_que": "Todavía no se escuchó: toca «Analizar y renombrar todo»."})
             continue
@@ -1012,6 +1152,8 @@ def informe_clips():
     faltan = [n for n in esperadas if n not in hay and not any(h.startswith(n + "_P") for h in hay)
               and not (re.match(r".+_P\d+$", n) and n.rsplit("_P", 1)[0] in hay)
               and not ("CTA" in n.upper() and (n.split("_")[0] in con_cta or "_" not in n and con_cta))]
+    # una frase que no está entre las grabadas (C2.1, C2.2, C2.3, C2.5): el video saltaría la 4
+    faltan += [f"{p['nombre']}_P{k}" for p in piezas() for k in p["faltan_partes"] if f"{p['nombre']}_P{k}" not in faltan]
     return {"dudas": dudas, "faltan": faltan, "texto": {d["rel"]: (sug.get(d["rel"]) or {}).get("texto") for d in dudas}}
 
 
@@ -1111,7 +1253,8 @@ def revision_guion():
             fila["dicho"] = " ".join(dicho)  # lo que se dijo en el clip, para leerlo al lado del guion
         out.append(fila)
     sin_escuchar = sum(1 for c in clips_sin_asignar() if transcripcion_clip(c, crear=False) is None)
-    return {"hay_guion": bool(prod.get("piezas")), "piezas": out, "sin_escuchar": sin_escuchar,
+    return {"hay_guion": bool(prod.get("piezas")), "origen": prod.get("origen"), "archivo": prod.get("archivo"),
+            "piezas": out, "sin_escuchar": sin_escuchar,
             "sin_procesar": sum(1 for f in out if f["clips"] and not f["procesada"]), "sin_asignar": len(sugs)}
 
 
@@ -1417,6 +1560,266 @@ def guardar_documentos_guion():
     return hechos
 
 
+# ---------- Sin guion: el guion sale de lo grabado · Con guion: se sube desde la sala ----------
+
+def _guardar_produccion(prod):
+    """Escribe Guion/produccion.json (el anterior queda como produccion.anterior.json) y sus documentos."""
+    global _prod_cache
+    S.guion.mkdir(parents=True, exist_ok=True)
+    f = S.guion / "produccion.json"
+    if f.exists():
+        shutil.copy2(f, S.guion / "produccion.anterior.json")
+    f.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
+    _prod_cache = None
+    guardar_documentos_guion()
+
+
+def _guion_propio():
+    """El produccion.json de la sesión tal cual (sin el plan del director), o {} si no hay."""
+    for f in (S.guion / "produccion.json", S.grab / "produccion.json"):
+        if f.exists():
+            try:
+                return json.loads(f.read_text(encoding="utf-8"))
+            except ValueError:
+                return {}
+    return {}
+
+
+def guion_desde_grabado():
+    """Si la sesión no tiene guion, lo escribe con lo que se dijo en cada pieza ya procesada (las transcripciones):
+    así se ven el guion, la revisión y el teleprompter aunque nadie lo haya escrito. Si el guion ya salió de lo
+    grabado, solo agrega las piezas nuevas (lo corregido a mano no se pisa). Un guion escrito o subido no se toca.
+    Devuelve cuántas piezas agregó."""
+    base = _guion_propio()
+    if base.get("piezas") and base.get("origen") != "grabado":
+        return 0
+    piezas_g = dict(base.get("piezas") or {})
+    nuevas = 0
+    for p in piezas():
+        if p["nombre"] in piezas_g:
+            continue
+        lineas = leer_subs(p["nombre"])["lineas"]
+        palabras = [w for ln in lineas for w in ln["palabras"]]
+        if not palabras:
+            continue
+        info = {"tipo": p["tipo"], "texto": " ".join(w["w"] for w in palabras)}
+        if len(p["partes"]) > 1:  # en partes: cada toma es una frase (se separa por su duración)
+            try:
+                dur = json.loads((S.proc / f"{p['nombre']}.partes.json").read_text(encoding="utf-8")).get("duraciones") or []
+            except (FileNotFoundError, ValueError, AttributeError):
+                dur = []
+            if len(dur) == len(p["partes"]):
+                cortes, t = [], 0.0
+                for x in dur:
+                    t += x
+                    cortes.append(t)
+                frases = [[] for _ in dur]
+                for w in palabras:
+                    frases[next((i for i, c in enumerate(cortes) if w["s"] < c), len(dur) - 1)].append(w["w"])
+                info["partes"] = [" ".join(x) for x in frases if x]
+        piezas_g[p["nombre"]] = info
+        nuevas += 1
+    if nuevas:
+        _guardar_produccion({**base, "origen": "grabado",
+                             "nota": "Guion armado con lo que se dijo en cada clip (la sesión no tenía guion). "
+                                     "Si subes el guion de verdad, reemplaza a este.",
+                             "piezas": dict(sorted(piezas_g.items(), key=lambda x: (tipo_de(x[0]) != "cuerpo", x[0])))})
+    return nuevas
+
+
+def _texto_docx(datos):
+    """El texto de un Word (.docx), un párrafo por línea, sin librerías extra."""
+    import html
+    import io
+    import zipfile
+    xml = zipfile.ZipFile(io.BytesIO(datos)).read("word/document.xml").decode("utf-8", "replace")
+    out = []
+    for p in re.split(r"</w:p>", xml):
+        p = re.sub(r"<w:tab\s*/>", " ", p)
+        p = re.sub(r"<w:br\s*/>", "\n", p)
+        out.append(html.unescape("".join(re.findall(r"<w:t(?:\s[^>]*)?>([^<]*)</w:t>", p))))
+    return "\n".join(out)
+
+
+_NOTA = re.compile(r"^(?:\(|\[|nota|m[uú]sica|imagen|flow|prompt|b-?roll|sfx|sonido|orden|portada|copy|duraci[oó]n|tema)\b", re.I)
+
+
+def leer_guion_texto(texto):
+    """Saca las piezas de un guion escrito (Word, .md o .txt). Entiende el formato de los guiones de Claude
+    («## C1 — Tema», «### Cuerpo» con frases numeradas, «**H1.** …», «## CTA») y líneas sueltas con código
+    («C1-H2: texto», «C1.3 texto», «CTA 1: texto»). Devuelve {pieza: {tipo, texto, partes?}}."""
+    frases, hooks = {}, {}
+    cuerpo, seccion, cta_actual = None, None, None
+    sep = r"\s*[.:)\-—–]+\s*"
+    for crudo in texto.splitlines():
+        s = crudo.strip()
+        if not s or re.fullmatch(r"[-*_=—–\s]{3,}", s):
+            continue
+        titulo = s.startswith("#")
+        s = re.sub(r"^#+\s*", "", s)
+        s = re.sub(r"^(?:[-*•]\s*)?(?:\[[ xX]\]\s*)?", "", s).replace("**", "").replace("__", "").replace("`", "").strip()
+        if not s:
+            continue
+        corto = titulo or len(s) <= 70
+
+        def titulo_de_seccion():
+            """«C1 — Calidad de vida», «CUERPO 2», «Hooks», «CTAs: elige 2»: cambia de cuerpo o de sección."""
+            nonlocal cuerpo, seccion, cta_actual
+            if not corto:
+                return False
+            if m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*(\d+)(?:\s*[—:\-–]\s*.*|\s*\(.*\))?", s, re.I):
+                cuerpo, seccion, cta_actual = f"C{int(m[1])}", "cuerpo", None
+            elif re.fullmatch(r"(?:HOOKS?|GANCHOS?)\s*(?:[:(].*)?", s, re.I):
+                seccion = "hooks"
+            elif re.fullmatch(r"CUERPO\s*(?:[:(].*)?", s, re.I):
+                seccion = "cuerpo"
+            elif m := re.fullmatch(r"(?:CTAS?|CIERRES?|LLAMADOS? A LA ACCI[OÓ]N)(?:[\s_-]*(\d+|[A-Z]))?\s*(?:[—:\-–(].*)?", s, re.I):
+                seccion, cta_actual = "cta", (f"CTA{int(m[1])}" if m[1] and m[1].isdigit() else f"CTA-{m[1].upper()}" if m[1] else None)
+            else:
+                return False
+            return True
+
+        def con_codigo():
+            """Líneas con su código delante: «H1. …», «C1-H2: …», «C1.3 …», «CTA1. …»."""
+            if m := re.match(rf"^(?:([CP])\s*(\d+)[\s_-]*)?H(?:OOK)?\s*(\d+)(?:{sep}|\s+)(.+)$", s, re.I):
+                c = f"{m[1].upper()}{int(m[2])}" if m[1] else cuerpo
+                if c:
+                    hooks[f"{c}_H{int(m[3])}"] = m[4].strip()
+                return True
+            if m := re.match(rf"^([CP])(\d+)[.\s_-]+P?(\d+)(?:{sep}|\s+)(.+)$", s, re.I):
+                frases.setdefault(f"{m[1].upper()}{int(m[2])}", {})[int(m[3])] = m[4].strip()
+                return True
+            if m := re.match(rf"^CTA(?:[\s_-]*([A-Z0-9]+?))?(?:[.\s_-]+(\d+))?{sep}(.+)$", s, re.I):
+                suf = m[1].upper() if m[1] else ""
+                d = frases.setdefault("CTA" + (suf if suf.isdigit() else f"-{suf}" if suf else ""), {})
+                d[int(m[2]) if m[2] else max(d, default=0) + 1] = m[3].strip()
+                return True
+            return False
+
+        # un título (#) es título aunque traiga texto; una línea normal primero se lee como pieza con código
+        if (titulo_de_seccion() or con_codigo()) if titulo else (con_codigo() or titulo_de_seccion()):
+            continue
+        num = re.match(r"^(\d+)[.)]\s+(.+)$", s)
+        resto = num[2].strip() if num else s
+        if _NOTA.match(resto):
+            continue
+        if seccion == "cuerpo" and cuerpo:
+            d = frases.setdefault(cuerpo, {})
+            d[int(num[1]) if num and int(num[1]) not in d else max(d, default=0) + 1] = resto
+        elif seccion == "hooks" and cuerpo and num:
+            hooks[f"{cuerpo}_H{int(num[1])}"] = resto
+        elif seccion == "cta" and (cta_actual or num):  # sin número ni «CTA 1» arriba suele ser una indicación
+            d = frases.setdefault(cta_actual or f"CTA{int(num[1])}", {})
+            d[max(d, default=0) + 1] = resto
+    out = {}
+    for nombre, d in frases.items():
+        partes = [d[k] for k in sorted(d)]
+        out[nombre] = {"tipo": "cta" if "CTA" in nombre else "cuerpo", "texto": " ".join(partes),
+                       **({"partes": partes} if len(partes) > 1 else {})}
+    for nombre, t in hooks.items():
+        out[nombre] = {"tipo": "hook", "texto": t}
+    return dict(sorted(out.items(), key=lambda x: ({"cuerpo": 0, "hook": 1, "cta": 2}[tipo_de(x[0])], x[0])))
+
+
+def _leer_guion_archivo(nombre_archivo, datos):
+    """El guion de un archivo: produccion.json de Claude (completo) o Word / .md / .txt (solo el texto)."""
+    ext = Path(nombre_archivo).suffix.lower()
+    if ext == ".json":
+        try:
+            prod = json.loads(datos.decode("utf-8-sig"))
+        except ValueError:
+            raise ValueError("Ese .json no se puede leer")
+        if not isinstance(prod, dict) or not isinstance(prod.get("piezas"), dict) or not prod["piezas"]:
+            raise ValueError("Ese .json no es un guion de la sala (le falta «piezas»)")
+        prod.pop("origen", None)
+    elif ext in (".docx", ".md", ".txt"):
+        try:
+            texto = _texto_docx(datos) if ext == ".docx" else datos.decode("utf-8-sig", "replace")
+        except Exception:
+            raise ValueError("No pude abrir ese Word. Guárdalo de nuevo como .docx o pásalo a .txt")
+        piezas_g = leer_guion_texto(texto)
+        if not piezas_g:
+            raise ValueError("No encontré piezas en ese guion. Cada cuerpo tiene que empezar con «C1», «C2»…, "
+                             "los hooks con «H1», «H2»… (o «C1-H1: texto») y el cierre con «CTA».")
+        prod = {"origen": "subido", "archivo": Path(nombre_archivo).name, "piezas": piezas_g}
+    else:
+        raise ValueError("Sube el guion en Word (.docx), texto (.md o .txt) o el produccion.json de Claude. "
+                         "Un PDF no se puede leer: pásalo a Word.")
+    return prod
+
+
+def _resumen_guion(prod, ext):
+    tipos = [tipo_de(n) for n in prod["piezas"]]
+    return {"piezas": len(tipos), "cuerpos": tipos.count("cuerpo"), "hooks": tipos.count("hook"),
+            "ctas": tipos.count("cta"), "origen": "claude" if ext == ".json" else "texto"}
+
+
+def _firma(f):
+    st = f.stat()
+    return f"{f.name}|{st.st_size}|{int(st.st_mtime)}"
+
+
+def subir_guion(nombre_archivo, datos):
+    """Guion que se sube desde la sala (botón «Subir guion»). Reemplaza al que había (queda una copia) y deja el
+    archivo en la carpeta del guion, como si el equipo lo hubiera puesto ahí. Devuelve {piezas, cuerpos, hooks, ctas, origen}."""
+    ext = Path(nombre_archivo).suffix.lower()
+    prod = _leer_guion_archivo(nombre_archivo, datos)
+    S.guion.mkdir(parents=True, exist_ok=True)
+    limpio = re.sub(r'[\\/:*?"<>|]+', "_", Path(nombre_archivo).name)[:80]
+    if limpio.lower() in _NO_SON_GUION:
+        limpio = "guion_subido" + ext
+    destino = S.guion / limpio
+    destino.write_bytes(datos)
+    prod = {**prod, **({} if ext == ".json" else {"origen": "subido"}), "archivo": destino.name, "firma": _firma(destino)}
+    _guardar_produccion(prod)
+    return _resumen_guion(prod, ext)
+
+
+# lo que la sala misma escribe en la carpeta del guion (no es un guion que haya puesto el equipo)
+_NO_SON_GUION = {"produccion.json", "produccion.anterior.json", "guion_host.md", "guion_produccion.md", "resultados.md",
+                 "metricas.json", "asignaciones.json"}
+_GUION_CON_ERROR = {}  # firma → error, para no intentar leer una y otra vez un archivo que no se entiende
+
+
+def guion_en_carpeta():
+    """El guion más nuevo que el equipo dejó en la carpeta Guion/Guiones (Word, .md, .txt o un .json de Claude)."""
+    archivos = [f for d in CARPETAS_GUION if (S.principal / d).is_dir() for f in (S.principal / d).iterdir()
+                if f.is_file() and f.suffix.lower() in (".docx", ".md", ".txt", ".json")
+                and f.name.lower() not in _NO_SON_GUION and not f.name.startswith(("~$", "."))]
+    return max(archivos, key=lambda f: f.stat().st_mtime, default=None)
+
+
+def importar_guion_de_carpeta():
+    """Si en la carpeta del guion hay un archivo nuevo, lo lee y pasa a ser el guion de la sesión: así basta con
+    dejar el guion en Drive (Guion/ o Guiones/) para que la sala compare lo que se dijo y lo que no.
+    · Sin guion, o con el que la sala armó con lo grabado: se lee el que haya.
+    · Con uno ya leído de la carpeta: se lee si el archivo es otro o cambió.
+    · Con el produccion.json de Claude (marcas, imágenes, copies): solo si el archivo es más nuevo que ese guion.
+    Devuelve {archivo, resumen} si leyó uno, {archivo, error} si no lo entendió, o None si no había nada nuevo."""
+    f = guion_en_carpeta()
+    if not f:
+        return None
+    firma, base = _firma(f), _guion_propio()
+    if base.get("piezas"):
+        if base.get("origen") == "subido" and base.get("firma") == firma:
+            return None
+        if not base.get("origen"):  # el de Claude: los .md que vienen con él no lo reemplazan
+            actual = next((x for x in (S.guion / "produccion.json", S.grab / "produccion.json") if x.exists()), None)
+            if actual and f.stat().st_mtime <= actual.stat().st_mtime + 120:
+                return None
+    if firma in _GUION_CON_ERROR:
+        return {"archivo": f.name, "error": _GUION_CON_ERROR[firma]}
+    try:
+        prod = _leer_guion_archivo(f.name, f.read_bytes())
+    except (ValueError, OSError) as e:
+        _GUION_CON_ERROR[firma] = str(e)
+        return {"archivo": f.name, "error": str(e)}
+    # un .json de Claude es un guion completo (no lleva «subido»: ese solo trae el texto)
+    prod = {**prod, **({} if f.suffix.lower() == ".json" else {"origen": "subido"}), "archivo": f.name, "firma": firma}
+    _guardar_produccion(prod)
+    return {"archivo": f.name, "resumen": _resumen_guion(prod, f.suffix.lower())}
+
+
 # ---------- Teleprompter ----------
 
 def guion_para_grabar(semana=None):
@@ -1609,7 +2012,9 @@ def guardar_version(datos, vid=None):
                # y tramos de zoom: {"tramos": {"hook": [...], "cuerpo": [...], "cta": [...]}} (ver _limpiar_tramos)
                "zoom": _limpiar_zoom(datos.get("zoom") or {}),
                "cortes": _limpiar_cortes(datos.get("cortes")), "quitar_rangos": _limpiar_rangos(datos.get("quitar_rangos")),
-               "capas": _limpiar_capas(datos.get("capas")), "velocidad": _limpiar_velocidad(datos.get("velocidad"))}
+               "capas": _limpiar_capas(datos.get("capas")), "velocidad": _limpiar_velocidad(datos.get("velocidad")),
+               # guardada desde el editor: los cortes por voz ya los vio una persona (no se agregan solos otra vez)
+               "voz_revisada": {k: True for k in ("hook", "cuerpo", "cta")} if datos.get("voz_revisada") else {}}
     if propio:
         vs[vid]["propio"] = True
     S.subs.mkdir(parents=True, exist_ok=True)
@@ -1795,6 +2200,8 @@ def guardar_edicion_piezas(datos):
     }
     cambiadas = []
     for pieza, val in nuevos.items():
+        if datos.get("voz_revisada"):  # los cortes por voz de la pieza ya los vio una persona: manda lo que dejó
+            val["voz_revisada"] = True
         val = {k: v for k, v in val.items() if v not in (None, {}, [])}
         propios = ("editado", "sonidos", "sonidos_quitar")  # los sonidos a mano se guardan aparte (Sonidos del editor)
         antes = {k: v for k, v in todo.get(pieza, {}).items() if k not in propios}
@@ -1855,7 +2262,7 @@ def _con_silencios_fuera(combo, v):
 def edicion_de(combo):
     """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas.
     Los bloques sin recorte puesto a mano empiezan justo antes de que se hable (ver _con_silencios_fuera)."""
-    return _con_zoom_alterno(combo, _con_silencios_fuera(combo, _sin_claqueta(combo, _edicion_guardada(combo))))
+    return _con_zoom_alterno(combo, _con_silencios_fuera(combo, _sin_tropiezos(combo, _sin_claqueta(combo, _edicion_guardada(combo)))))
 
 
 _CUENTA = [{"3", "tres"}, {"2", "dos"}, {"1", "uno", "una"}]
@@ -1914,8 +2321,222 @@ def _sin_claqueta(combo, v):
                     cambio = True
             else:
                 qr.setdefault(clave, []).append([a, b])
+                cortes = {k: list(x) for k, x in (v.get("cortes") or {}).items()}  # con sus cortes: así se ve en el editor
+                cortes[clave] = sorted({*cortes.get(clave, []), a, b})
+                v = {**v, "cortes": cortes}
                 cambio = True
     return {**v, "recortes": r, "quitar_rangos": qr} if cambio else v
+
+
+# ---------- Cortes por voz: lo que se dijo mal o sobra, sacado de las palabras y de la onda de la voz ----------
+# Como «editar por texto» de CapCut: la sala lee cada palabra con su tiempo y la onda del audio, y propone cortar
+# las tomas repetidas, los tartamudeos, los «eh», las tomas que se cortaron con «perdón, otra vez» y los silencios
+# largos. Lo seguro se aplica solo (en las piezas que nadie revisó todavía en el editor); lo dudoso queda sugerido.
+
+MULETILLAS = {"eh", "ehh", "ehhh", "ehm", "em", "emm", "mm", "mmm", "mmmm", "hmm", "hm", "ah", "aah", "ahh", "uh", "um", "umm"}
+# palabras cortas que se dicen dos veces a propósito o que empiezan otra palabra sin ser un tartamudeo
+_ENFASIS = {"no", "si", "muy", "ya", "mas", "nunca", "mucho", "bien", "claro", "dale", "listo", "nada", "todo", "super"}
+_CORTAS = {"la", "el", "lo", "los", "las", "de", "del", "que", "en", "un", "una", "se", "su", "sus", "mi", "mis", "tu", "tus",
+           "es", "con", "por", "al", "a", "y", "o", "e", "u", "no", "si", "le", "les", "me", "te", "ya", "muy", "mas", "para",
+           "pero", "hay", "va", "son", "sin", "ni", "nos", "fue", "ser", "ve", "da", "dar", "doc"}
+# lo que se dice al equivocarse antes de volver a empezar la frase
+_RETOMAR = [("perdon",), ("perdona",), ("perdoname",), ("otra", "vez"), ("de", "nuevo"), ("repito",), ("me", "equivoque"),
+            ("me", "trabe"), ("otra", "toma"), ("ya", "ya"), ("de", "nuevo", "de", "nuevo")]
+TIPOS_CORTE_VOZ = {"repetido": "Lo repitió: queda la última vez", "tartamudeo": "Tartamudeo",
+                   "muletilla": "Muletilla («eh», «mmm»)", "equivoco": "Se equivocó y volvió a empezar",
+                   "pausa": "Silencio largo", "ruido": "Se oye algo sin palabras (¿un «eh» o un tropiezo?)",
+                   "de_mas": "No está en el guion"}
+
+
+def ajustes_cortes_voz():
+    """auto: aplicar solos los cortes seguros · pausa: desde cuántos segundos de silencio se corta · respiro: lo que
+    se deja a cada lado del corte de un silencio, para que no suene pegado."""
+    return {"auto": True, "pausa": 0.5, "respiro": 0.12, **CONFIG.get("cortes_voz", {})}
+
+
+def _cue_en(k, j):
+    for cue in _RETOMAR:
+        if tuple(k[j:j + len(cue)]) == cue:
+            return len(cue)
+    return 0
+
+
+def analizar_voz(palabras, picos=(), por_seg=50, dur=None, guion=None, pausa=0.5, respiro=0.12):
+    """Lo que conviene cortar según lo que se dijo: [{a, b, tipo, motivo, texto, seguro}] en segundos del clip.
+    palabras = [{w, s, e}] (de la transcripción) · picos = onda de la voz 0–1 · guion = texto que debía decirse."""
+    pal = [w for w in palabras if w.get("w", "").strip()]
+    k = [norm(w["w"]) for w in pal]
+    n = len(pal)
+    dur = dur or (pal[-1]["e"] if pal else 0)
+    out = []
+
+    def poner(a, b, tipo, i0=None, i1=None, seguro=True):
+        a, b = max(0.0, a), min(dur, b)
+        if b - a < 0.08:
+            return
+        texto = " ".join(pal[x]["w"] for x in range(i0, i1)) if i0 is not None else ""
+        out.append({"a": round(a, 3), "b": round(b, 3), "tipo": tipo, "motivo": TIPOS_CORTE_VOZ[tipo], "texto": texto,
+                    "seguro": seguro})
+
+    antes = lambda i: pal[i - 1]["e"] if i > 0 else 0.0                     # dónde termina lo de antes
+    sigue = lambda i: pal[i + 1]["s"] if i + 1 < n else min(dur, pal[i]["e"] + 0.15)  # dónde empieza lo que sigue
+
+    def hueco_antes(i):
+        return pal[i]["s"] - antes(i) if i > 0 else 9.0
+
+    # dónde empieza el corte de la palabra i y dónde termina para que la palabra j suene entera: con pausa al lado,
+    # un poquito antes; si van pegadas (se habla de corrido), justo en el borde que marca la transcripción
+    def desde(i):
+        if i == 0:
+            return max(0.0, pal[0]["s"] - 0.03)
+        return max(antes(i) + 0.02, pal[i]["s"] - 0.03) if hueco_antes(i) > 0.06 else pal[i]["s"]
+
+    def hasta(j):
+        return pal[j]["s"] - 0.03 if hueco_antes(j) > 0.06 else pal[j]["s"]
+
+    # 1 · Tomas repetidas: «tu perro se ra-, tu perro se rasca» → queda la última vez que lo dijo
+    i = 0
+    while i < n:
+        hallado = None
+        for largo in range(1, 16):
+            j = i + largo
+            if j >= n or pal[j]["s"] - pal[i]["s"] > 9:
+                break
+            iguales = 0
+            while iguales < largo and j + iguales < n and k[i + iguales] == k[j + iguales]:
+                iguales += 1
+            if largo == 1:
+                ok = iguales == 1 and len(k[i]) >= 2 and k[i] not in _ENFASIS
+            else:
+                ultima, otra = k[j - 1], k[j + largo - 1] if j + largo - 1 < n else ""
+                trunca = bool(otra) and len(ultima) < len(otra) and otra.startswith(ultima)
+                ok = iguales == largo or (iguales == largo - 1 and (iguales >= 3 or trunca))
+            if ok:
+                hallado = j
+                break
+        if hallado:
+            poner(desde(i), hasta(hallado), "repetido", i, hallado)
+            i = hallado
+            continue
+        i += 1
+
+    for i in range(n):
+        # 2 · Tartamudeo: «pe- perro», «su- suplevet»
+        if i + 1 < n:
+            crudo = pal[i]["w"].strip()
+            corto = len(k[i]) <= 3 and k[i] not in _CORTAS
+            if k[i] and k[i + 1] != k[i] and k[i + 1].startswith(k[i]) and pal[i + 1]["s"] - pal[i]["e"] < 0.8 \
+                    and (crudo.endswith(("-", "…", "...")) or corto):
+                poner(desde(i), hasta(i + 1), "tartamudeo", i, i + 1)
+        # 3 · Muletillas: «eh», «mmm»; «este» solo si va suelto entre pausas
+        suelto = hueco_antes(i) >= 0.25 and (sigue(i) - pal[i]["e"]) >= 0.25
+        if k[i] in MULETILLAS or (k[i] == "este" and suelto):
+            poner(desde(i), hasta(i + 1) if i + 1 < n else pal[i]["e"] + 0.05, "muletilla", i, i + 1)
+        # 4 · «Perdón, otra vez»: se corta lo que se intentó decir (desde el inicio de esa frase) y el aviso
+        largo = _cue_en(k, i)
+        if largo:
+            fin = i + largo - 1
+            despues = sigue(fin) - pal[fin]["e"]
+            if hueco_antes(i) >= 0.3 or despues >= 0.4 or fin + 1 >= n:
+                ini = i
+                while ini > 0 and pal[i]["s"] - pal[ini - 1]["s"] < 10 and hueco_antes(ini) < 0.5 \
+                        and pal[ini - 1]["w"].strip()[-1:] not in ".?!":
+                    ini -= 1
+                poner(desde(ini), hasta(fin + 1) if fin + 1 < n else pal[fin]["e"] + 0.1, "equivoco", ini, fin + 1)
+
+    # 5 · Lo que se dijo de más contra el guion (si hay): solo sugerido, porque la transcripción también se equivoca
+    if guion and n:
+        import difflib
+        g = [x for x in (norm(w) for w in str(guion).split()) if x]
+        if len(g) >= 4:
+            sm = difflib.SequenceMatcher(None, k, g, autojunk=False)
+            if sm.ratio() > 0.6:
+                for op, a0, a1, b0, b1 in sm.get_opcodes():
+                    if op != "delete" or a1 - a0 > 3:  # «delete» = palabras dichas que el guion no tiene
+                        continue
+                    if a0 == 0 or a1 >= n:  # al inicio o al final ya se recorta lo que sobra
+                        continue
+                    poner(desde(a0), hasta(a1), "de_mas", a0, a1, seguro=False)
+
+    # 6 · Silencios largos (con la onda) y voz sin palabras (un «eh» que la transcripción no escribió)
+    if picos and n:
+        quieto = [p < 0.06 for p in picos]
+        habla0, habla1 = pal[0]["s"], pal[-1]["e"]
+        medios = [(w["s"] + w["e"]) / 2 for w in pal]
+        x = 0
+        while x < len(quieto):
+            y = x
+            while y < len(quieto) and quieto[y] == quieto[x]:
+                y += 1
+            a, b = x / por_seg, y / por_seg
+            if a > habla0 + 0.05 and b < habla1 - 0.05:  # solo en medio: los bordes ya se recortan solos
+                if quieto[x] and b - a >= pausa and not any(a + 0.05 < m < b - 0.05 for m in medios):
+                    poner(a + respiro, b - respiro, "pausa")
+                elif not quieto[x] and b - a >= 0.3:
+                    tapa = sum(max(0.0, min(b, w["e"]) - max(a, w["s"])) for w in pal)
+                    if tapa < 0.05:
+                        poner(a - 0.03, b + 0.03, "ruido", seguro=False)
+            x = y
+
+    # se juntan los que se pisan (gana el más largo; si uno es seguro, el junto también)
+    out.sort(key=lambda c: c["a"])
+    juntos = []
+    for c in out:
+        if juntos and c["a"] <= juntos[-1]["b"] + 0.03:
+            u = juntos[-1]
+            mayor = c if c["b"] - c["a"] > u["b"] - u["a"] else u
+            juntos[-1] = {**mayor, "a": min(u["a"], c["a"]), "b": max(u["b"], c["b"]), "seguro": u["seguro"] or c["seguro"],
+                          "texto": u["texto"] + (" " + c["texto"] if c["texto"] and c["texto"] not in u["texto"] else "")}
+        else:
+            juntos.append(dict(c))
+    return juntos
+
+
+_VOZ_CACHE = {}
+
+
+def cortes_por_voz(nombre):
+    """Los cortes por voz de una pieza procesada (en caché mientras no cambien su audio, su texto ni los ajustes)."""
+    f, sub = S.proc / f"{nombre}.mp4", S.subs / f"{nombre}.json"
+    if not f.exists() or not sub.exists():
+        return []
+    aj = ajustes_cortes_voz()
+    texto = (info_pieza(nombre) or {}).get("texto") or ""
+    clave = (str(f), f.stat().st_mtime, sub.stat().st_mtime, aj["pausa"], aj["respiro"], hash(texto))
+    if _VOZ_CACHE.get(nombre, (None,))[0] == clave:
+        return _VOZ_CACHE[nombre][1]
+    pal = [w for ln in leer_subs(nombre)["lineas"] for w in ln.get("palabras", [])]
+    try:
+        o = onda(nombre)
+    except Exception:
+        o = {"picos": [], "por_seg": 50}
+    claq = claquetas(nombre)
+    res = [c for c in analizar_voz(pal, o.get("picos") or [], o.get("por_seg") or 50, dur_audio(f), texto,
+                                   float(aj["pausa"]), float(aj["respiro"]))
+           if not any(c["a"] < qb and c["b"] > qa for qa, qb in claq)]  # la claqueta ya se quita aparte
+    _VOZ_CACHE[nombre] = (clave, res)
+    return res
+
+
+def _sin_tropiezos(combo, v):
+    """Aplica solos los cortes por voz seguros en las piezas que todavía nadie revisó en el editor.
+    Al guardar desde el editor, la pieza queda «revisada» y manda lo que dejó ahí la persona."""
+    if not ajustes_cortes_voz()["auto"]:
+        return v
+    revisada = v.get("voz_revisada") or {}
+    cortes = {k: list(x) for k, x in (v.get("cortes") or {}).items()}
+    qr = {k: [list(r) for r in x] for k, x in (v.get("quitar_rangos") or {}).items()}
+    cambio = False
+    for clave in ("hook", "cuerpo", "cta"):
+        if revisada.get(clave):
+            continue
+        for c in cortes_por_voz(combo[clave]):
+            if not c["seguro"] or any(c["a"] < b and c["b"] > a for a, b in qr.get(clave, [])):
+                continue
+            qr.setdefault(clave, []).append([c["a"], c["b"]])
+            cortes[clave] = sorted({*cortes.get(clave, []), c["a"], c["b"]})
+            cambio = True
+    return {**v, "cortes": cortes, "quitar_rangos": {k: sorted(x) for k, x in qr.items()}} if cambio else v
 
 
 ESTILO_DEFECTO = {
@@ -1969,6 +2590,7 @@ def _edicion_guardada(combo):
     h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
     por_pieza = lambda campo: {k: v for k, v in (("hook", h.get(campo)), ("cuerpo", c.get(campo)), ("cta", t.get(campo))) if v}
     return {"quitar": c.get("quitar", []), "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"), "capas": por_pieza("capas"),
+            "voz_revisada": por_pieza("voz_revisada"),
             "velocidad": {k: v for k, v in (("hook", h.get("velocidad")), ("cta", t.get("velocidad")), ("partes", c.get("velocidad_partes"))) if v},
             "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
             "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes")),
@@ -1985,7 +2607,8 @@ def editado_en(combo):
         if f.exists():
             t = max(t, f.stat().st_mtime)
     # también si se cambió su plantilla de subtítulos o cuál es la predeterminada
-    t = max(t, float(plantilla_sub(combo).get("editado") or 0), float(CONFIG.get("estilo_cambio") or 0))
+    t = max(t, float(plantilla_sub(combo).get("editado") or 0), float(CONFIG.get("estilo_cambio") or 0),
+            float(CONFIG.get("cortes_voz_cambio") or 0))
     if not ajustes_video(combo["codigo"]).get("plantilla"):
         t = max(t, float(CONFIG.get("plantilla_activa_cambio") or 0))
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
@@ -2145,14 +2768,15 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
         return {"nombre": nombre, "dur": round(duracion(f), 2) if f.exists() else None,
                 "texto": " ".join(l["texto"] for l in lineas), "archivo": str(f) if f.exists() else None,
                 "lineas": [{"texto": l["texto"], "s": l["s"], "e": l["e"],
-                            "palabras": [{"s": p["s"], "e": p["e"]} for p in l.get("palabras", [])]} for l in lineas]}
+                            "palabras": [{"w": p["w"], "s": p["s"], "e": p["e"]} for p in l.get("palabras", [])]} for l in lineas],
+                "voz": cortes_por_voz(nombre)}
 
     v = edicion_de({k: c[k] for k in ("hook", "cuerpo", "cta")} if otra else c)  # otra combinación: parte de lo de sus piezas
     return {"codigo": codigo, "base": not c.get("version"), "propio": bool((c.get("version") or {}).get("propio")), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
             "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
-            "velocidad": v.get("velocidad", {}),
+            "velocidad": v.get("velocidad", {}), "voz_revisada": v.get("voz_revisada") or {},
             "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
 
 

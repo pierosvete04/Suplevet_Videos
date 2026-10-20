@@ -258,6 +258,36 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-asa { position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; background: rgba(255,255,255,.3); }
 .ev-asa:hover { background: rgba(255,255,255,.75); }
 .ev-asa.izq { left: 0; border-radius: 6px 0 0 6px; } .ev-asa.der { right: 0; border-radius: 0 6px 6px 0; }
+/* Vista «Sin cortes»: lo que se corta sigue en su lugar, rayado en rojo, con sus bordes para moverlos */
+.ev-b.cortado { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--err) 55%, transparent), color-mix(in srgb, var(--err) 55%, transparent) 5px, color-mix(in srgb, var(--err) 25%, transparent) 5px, color-mix(in srgb, var(--err) 25%, transparent) 10px);
+  color: #fff; border-color: color-mix(in srgb, var(--err) 80%, transparent); }
+.ev-b.cortado .ev-asa { background: color-mix(in srgb, var(--err) 70%, #fff); width: 8px; }
+.ev-b.corte-izq { border-left: 2px solid var(--err); } .ev-b.corte-der { border-right: 2px solid var(--err); }
+.ev-a.cortado { border-color: var(--err); } .ev-a.cortado::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--err) 28%, transparent); pointer-events: none; }
+.ev-visor .ev-corte-aviso { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font: 700 11px var(--f); color: #fff; background: var(--err); padding: 3px 9px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
+/* Cortes por voz: el texto de lo que se dijo, palabra por palabra (como «editar por texto» de CapCut) */
+.ev-voz { border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); padding: 10px 12px; margin: 6px 0 10px; display: grid; gap: 8px; }
+.ev-voz-cab { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.ev-voz-cab h3 { margin: 0; font: 700 14px var(--fd); }
+.ev-voz-res { font-size: 12.5px; color: var(--muted); } .ev-voz-res b { color: var(--ink); }
+.ev-voz-sel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; min-height: 30px; padding: 4px 8px; border-radius: 9px; background: var(--hondo); border: 1px dashed var(--line2); }
+.ev-voz-texto { display: grid; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px; }
+.ev-voz-pieza { font-size: 14px; line-height: 1.95; }
+.ev-voz-pieza > b { font: 700 10.5px var(--mono); color: var(--muted); margin-right: 6px; letter-spacing: .03em; vertical-align: 1px; }
+.ev-w { padding: 1px 2px; border-radius: 4px; cursor: pointer; }
+.ev-w:hover { background: var(--raise); }
+.ev-w.ahora { background: color-mix(in srgb, var(--accent2) 30%, transparent); color: var(--ink); }
+.ev-w.elegida { background: color-mix(in srgb, var(--accent) 38%, transparent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ev-w.cortada { color: var(--err); text-decoration: line-through; text-decoration-thickness: 2px; opacity: .8; }
+.ev-w.fuera { color: var(--muted); opacity: .45; }
+.ev-w.sugerida { text-decoration: underline wavy var(--warn); text-underline-offset: 4px; }
+.ev-hueco { display: inline-block; font: 600 10.5px var(--mono); padding: 0 6px; margin: 0 2px; border-radius: 999px; border: 1px dashed var(--warn); color: var(--warn); cursor: pointer; line-height: 18px; vertical-align: 1px; }
+.ev-hueco.cortada { border-style: solid; border-color: var(--err); color: var(--err); text-decoration: line-through; }
+.ev-hueco.elegida { box-shadow: 0 0 0 2px var(--accent); }
+.ev-voz-leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--muted); }
+.ev-voz-leyenda .ev-w { cursor: default; }
+.ev-voz-ajustes { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 12px; color: var(--muted); }
+.ev-voz-ajustes select { padding: 4px 6px; font-size: 12px; }
 .ev-audio { height: 58px; }
 .ev-efectos { height: 40px; }
 .ev-fx { position: absolute; top: 6px; height: 26px; transform: translateX(-1px); display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px;
@@ -781,7 +811,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
                   <input id="clNuevaNombre" placeholder="ARTICULACIONES"></label>
               </div>
               <span style="font-size:12.5px">Se va a llamar: <b id="clNuevaVista"></b></span>
-              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas (Guion, Clips, Flow, Música, V.FINALES). Todo lo que se grabe para este guion, el día que sea, va dentro. El día de grabación no hace falta.</span>
+              <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas: Guiones (el guion), Clips (solo lo grabado), Flow (imágenes y clips de apoyo), Musica y V.FINALES. Todo lo que se grabe para este guion, el día que sea, va dentro. El día de grabación no hace falta.</span>
             </div>
             <div class="form-plant" style="margin-top:10px">
               <div class="dos">
@@ -853,8 +883,13 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Guion de la sesión</h2>
           <span class="muted" style="font-size:12px" id="gSub">«Analizar clips» trae de Drive todos los clips, pasa su audio a texto (en esta PC, gratis), lo compara con el guion e identifica solo cada clip. Luego ves los cambios aquí.</span></div>
-        <a class="btn sec peq" href="/teleprompter" target="_blank">Abrir teleprompter</a>
+        <div class="fila" style="gap:8px">
+          <label class="btn sec peq" title="El produccion.json de Claude (completo, con marcas y copies) o el guion escrito en Word, .md o .txt. Reemplaza al que hay (queda una copia).">Subir guion
+            <input type="file" id="gSubirGuion" accept=".docx,.md,.txt,.json" hidden></label>
+          <a class="btn sec peq" href="/teleprompter" target="_blank">Abrir teleprompter</a>
+        </div>
       </div>
+      <p id="gOrigen" class="muted" style="font-size:12px;margin:8px 0 0" hidden></p>
       <div class="pasos-guion">
         <button class="btn" id="gAnalizar"><b>1</b> Analizar clips</button>
         <span class="flecha" aria-hidden="true">→</span>
@@ -1444,6 +1479,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <video id="evVideo" playsinline preload="auto" muted></video>
           <div class="sub sublinea" id="evSub" title="Arrastra para subir o bajar el subtítulo"></div>
           <span class="pista-pos" id="evPos" hidden></span>
+          <span class="ev-corte-aviso" id="evCorteAviso" hidden>✂ Esto se corta</span>
           <div id="evCapa" class="ev-capa-vista" hidden></div>
         </div>
         <div class="ev-panel">
@@ -1464,12 +1500,18 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button class="btn sec peq" id="evPunto" type="button" title="Fotograma clave de encuadre en el cabezal (tecla K)">◆ Fotograma clave</button>
         <button class="btn sec peq" id="evMover" type="button" aria-pressed="false" title="Arrastra el video para moverlo y usa la rueda para acercar o alejar (tecla M)">✥ Mover y escalar</button>
         <button class="btn sec peq" id="evImagen" type="button" title="Pone una imagen o un clip en el cabezal (tecla I)">🖼 Imagen o escena</button>
+        <div class="segmento" id="evVista" role="group" aria-label="Ver el video con o sin los cortes" title="Compara: «Sin cortes» muestra y hace sonar todo lo grabado, con lo que se corta rayado en rojo (tecla C)">
+          <button type="button" data-cortes="sin" aria-pressed="false">Sin cortes</button>
+          <button type="button" data-cortes="con" aria-pressed="true">Con cortes</button>
+        </div>
+        <button class="btn sec peq" id="evVozBtn" type="button" aria-pressed="true" title="El texto de lo que se dijo, con los cortes que propone la sala: repeticiones, tartamudeos, muletillas y silencios largos">🎙 Cortes por voz</button>
         <button class="btn sec peq" id="evSilencios" type="button" title="Corta el silencio del inicio y del final de cada clip y de cada frase, justo antes de que se hable">✂ Quitar silencios</button>
         <label class="btn sec peq" title="Sube una imagen o un clip nuevo y lo pone en el cabezal">⬆ Subir<input type="file" id="evImagenSubir" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" hidden></label>
         <label class="muted fila" style="font-size:12px" title="La vista previa suena con la música y los sonidos del último armado"><input type="checkbox" id="evConMusica" checked> Música y sonidos</label>
         <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="6" max="400" value="34"></label>
         <span class="muted" style="font-size:11px">Touchpad: pellizca (o Ctrl + rueda) para acercar · desliza con dos dedos para moverte</span>
       </div>
+      <div class="ev-voz" id="evVoz"></div>
       <details class="ev-guia" id="evGuia">
         <summary>¿Cómo se usa el editor? <span class="muted">(toca para ver la guía)</span></summary>
         <div class="ev-guia-pasos">
@@ -1477,6 +1519,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <div><b>2 · Imágenes</b><span>Las imágenes o escenas que van encima. Arrástralas para moverlas y estira sus bordes para que duren más o menos.</span></div>
           <div><b>3 · Encuadre</b><span>El zoom. Pon un fotograma clave (<b>K</b>) y con «Mover y escalar» acerca y mueve la imagen. Entre dos fotogramas, la cámara va de uno a otro.</span></div>
           <div><b>4 · Audio</b><span>La voz. En color se ve cuando habla y en gris el silencio. «✂ Quitar silencios» corta los silencios solo.</span></div>
+          <div><b>🎙 Cortes por voz</b><span>La sala lee lo que se dijo y corta solo lo repetido, los tartamudeos, los «eh» y los silencios largos. En el texto, lo tachado en rojo se corta: tócalo para volver a ponerlo. Con «Sin cortes» lo ves y lo escuchas todo, y arrastras los bordes rojos para mover un corte.</span></div>
           <div><b>5 · Efectos</b><span>Los sonidos (whoosh, pop…) del último armado. <b>Arrástralos</b> para moverlos y tócalos para cambiarlos o quitarlos. Abajo, en «Agregar un sonido», pones uno nuevo.</span></div>
           <div><b>6 · Subtítulos</b><span>Toca uno para corregirlo, cortarlo en dos, unirlo o borrarlo. Arrástralo para moverlo.</span></div>
         </div>
@@ -1493,7 +1536,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <div class="ev-cabezal" id="evCabezal"></div>
       </div>
       <p class="muted ev-ayuda">Teclas: <b>Enter</b> o <b>espacio</b> reproduce · <b>←</b> <b>→</b> un cuadro (con Shift, un segundo) · <b>S</b> corta en el cabezal ·
-        <b>Supr</b> quita el pedazo, el fotograma o la imagen elegida · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
+        <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
         <b>I</b> imagen o escena en el cabezal.</p>
       <div class="ev-sonido-barra">
         <b>➕ Agregar un sonido:</b> <span class="muted">1. elige el tipo → 2. el sonido → 3. ▶ escúchalo → 4. ponlo donde está el cabezal</span>
@@ -1580,7 +1623,7 @@ async function cargar() {
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || E.piezas[0]?.nombre;
   pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias(); pintarInicio(); pintarExport();
   if ((E.drive || {}).activo && !E.sesion_bajada) avisar(`La sesión «${E.semana}» se está bajando de Drive…`);
-  else if (!E.hay_produccion) avisar("Esta sesión no tiene guion todavía: se arma igual, pero sin marcas, copies ni título de portada. Escríbelo con Claude en Inicio.", "muted");
+  else if (!E.hay_produccion) avisar("Esta sesión no tiene guion: se arma igual con lo que hay y, al procesar, la sala arma el guion con lo que se dijo. Si tienes el guion, súbelo en la pestaña Guion.", "muted");
   else avisar("");
   vigilar(E.trabajo);
 }
@@ -2583,7 +2626,8 @@ const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los
   armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
-  guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas" };
+  guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
+  guion_grabado: "Armar el guion con lo grabado" };
 let procTimer = null, pestanaProc = "recientes", historialProc = null, detalleAbierto = false;
 const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
 async function pintarProcesos() {
@@ -2749,19 +2793,25 @@ function pintarDrive() {
   $("driveAcciones").hidden = $("driveDesconectar").closest(".conf-pie").hidden = !d.activo;
   $("confPDrive").className = "punto-estado " + (d.activo ? "ok" : "warn");
 }
-// El guion se trae solo de Drive cuando cambia allá (lo actualizó Claude, el panel u otra PC):
-// al abrir la sesión, cada 90 s y al volver a la ventana.
-let revisandoGuion = false, ultimaRevGuion = 0;
+// El guion se trae solo de Drive cuando cambia allá (lo actualizó Claude, el panel u otra PC) y se lee solo
+// el que el equipo deja en la carpeta Guion/Guiones: al abrir la sesión, cada 90 s y al volver a la ventana.
+let revisandoGuion = false, ultimaRevGuion = 0, erroresGuionVistos = new Set();
 async function revisarGuionDrive(forzar) {
-  if (revisandoGuion || !E || !(E.drive || {}).activo || document.hidden) return;
+  if (revisandoGuion || !E || document.hidden) return;
   if (!forzar && Date.now() - ultimaRevGuion < 30000) return;
   revisandoGuion = true; ultimaRevGuion = Date.now();
   try {
     const r = await (await fetch("/api/guion_drive")).json();
+    if (r.error && !erroresGuionVistos.has(r.archivo + r.error)) {
+      erroresGuionVistos.add(r.archivo + r.error);
+      avisar(`No pude leer el guion «${r.archivo}»: ${r.error}`, "err");
+    }
     if (r.cambio) {
       await cargar();
       if (!document.querySelector('[data-panel="guion"]').hidden) pintarGuion();
-      avisar("El guion se actualizó desde Drive: ya ves la última versión.", "ok");
+      const s = r.leido;
+      avisar(s ? `Leí el guion «${r.archivo}»: ${plural(s.cuerpos, "cuerpo")}, ${plural(s.hooks, "hook")} y ${plural(s.ctas, "CTA", "CTA")}. Ya puedes compararlo con lo grabado.`
+        : "El guion se actualizó desde Drive: ya ves la última versión.", "ok");
     }
   } catch (e) {} finally { revisandoGuion = false; }
 }
@@ -2982,7 +3032,7 @@ function pintarAudio() {
   const dibujos = [];
   for (const b of bloquesEd()) {
     const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
-    html += `<div class="ev-a ${b.fuera ? "fuera" : ""}" style="left:${x}px;width:${w}px" data-audio="${b.key}" title="Audio de ${esc(b.t)}"><canvas></canvas></div>`;
+    html += `<div class="ev-a ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""}" style="left:${x}px;width:${w}px" data-audio="${b.key}" title="Audio de ${esc(b.t)}"><canvas></canvas></div>`;
     dibujos.push({ b, w });
     x += w + 3;
   }
@@ -3622,7 +3672,8 @@ async function cargarEstructura(codigo, combo) {
   $("evNombre").value = est.nombre || "";
   const r = est.recortes || {};
   ed = { quitar: new Set(est.quitar || []), hook: r.hook || null, cta: r.cta || null, partes: { ...(r.partes || {}) },
-         zoom: JSON.parse(JSON.stringify(est.zoom || {})), sel: "hook", subSel: null, t: 0 };
+         zoom: JSON.parse(JSON.stringify(est.zoom || {})), sel: "hook", subSel: null, t: 0, vista: "con", vozSel: null };
+  pintarVista();
   ed.zoom.partes = ed.zoom.partes || {};
   ed.cortes = JSON.parse(JSON.stringify(est.cortes || {})); ed.quitarR = JSON.parse(JSON.stringify(est.quitar_rangos || {}));
   ed.capas = JSON.parse(JSON.stringify(est.capas || {})); ed.cSel = null;
@@ -3670,11 +3721,13 @@ function bloquesEd() {
   est.cuerpo.partes.forEach(p => {
     [a, b] = rango(ed.partes[p.i], p.ini, p.fin);
     base.push({ key: "p" + p.i, pz: "cuerpo", i: p.i, k: "c", t: `${est.cuerpo.nombre}·${p.i + 1}`, pieza: est.cuerpo, lo: p.ini, hi: p.fin, a, b,
-               fuera: ed.quitar.has(p.i), zoom: ed.zoom.partes[p.i], texto: p.texto, vel: ed.vel.partes[p.i] || 1 });
+               quitada: ed.quitar.has(p.i), fuera: ed.quitar.has(p.i) && ed.vista !== "sin", cortado: ed.quitar.has(p.i) && ed.vista === "sin",
+               zoom: ed.zoom.partes[p.i], texto: p.texto, vel: ed.vel.partes[p.i] || 1 });
   });
   [a, b] = rango(ed.cta, 0, cd);
   base.push({ key: "cta", pz: "cta", k: "t", t: est.cta.nombre, pieza: est.cta, lo: 0, hi: cd, a, b, zoom: ed.zoom.cta, vel: ed.vel.cta || 1 });
-  // Los cortes («✂ Cortar») parten cada bloque en pedazos; un pedazo quitado ocupa una ranura y se puede volver a poner
+  // Los cortes («✂ Cortar») parten cada bloque en pedazos; un pedazo quitado ocupa una ranura y se puede volver a poner.
+  // En la vista «Sin cortes» lo quitado sigue en su lugar (rayado en rojo) y suena: así se compara antes y después.
   const out = [];
   for (const bb of base) {
     const pts = (ed.cortes[bb.pz] || []).filter(t => t > bb.a + .03 && t < bb.b - .03).sort((x, y) => x - y);
@@ -3684,7 +3737,8 @@ function bloquesEd() {
       const pa = bordes[k], pb = bordes[k + 1], medio = (pa + pb) / 2;
       const quitado = (ed.quitarR[bb.pz] || []).some(([ra, rb]) => medio >= ra && medio <= rb);
       out.push({ ...bb, key: `${bb.key}#${k}`, a: pa, b: pb, sub: k, nsub: bordes.length - 1, baseBloque: bb,
-                 t: `${bb.t} · ${k + 1}/${bordes.length - 1}`, fuera: bb.fuera || quitado, pedazoQuitado: quitado });
+                 t: `${bb.t} · ${k + 1}/${bordes.length - 1}`, fuera: bb.fuera || (quitado && ed.vista !== "sin"),
+                 cortado: bb.cortado || (quitado && ed.vista === "sin"), pedazoQuitado: quitado });
     }
   }
   return out;
@@ -3710,16 +3764,21 @@ function pintarEditor() {
   const px = escalaEd(), segs = segmentosEd(), total = segs.reduce((a, s) => a + s.b - s.a, 0);
   const final = segs.reduce((a, s) => a + (s.b - s.a) / (s.vel || 1), 0);  // lo que dura de verdad, con las velocidades
   const original = (est.hook.dur || 0) + est.cuerpo.partes.reduce((a, p) => a + p.fin - p.ini, 0) + (est.cta.dur || 0);
-  $("evDur").textContent = `${final.toFixed(1)} s${Math.abs(original - final) > .05 ? ` · antes ${original.toFixed(1)} s` : ""}`;
+  const sinLoCortado = segs.reduce((a, s) => a + (s.cortado ? (s.b - s.a) / (s.vel || 1) : 0), 0);
+  $("evDur").textContent = ed.vista === "sin" ? `Sin cortes ${final.toFixed(1)} s · con cortes ${(final - sinLoCortado).toFixed(1)} s`
+    : `${final.toFixed(1)} s${Math.abs(original - final) > .05 ? ` · antes ${original.toFixed(1)} s` : ""}`;
   let x = 0, html = "", subs = "";
   for (const b of bloquesEd()) {
     const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
     const z = (b.zoom ? `<span class="zm">${{ in: "zoom +", out: "zoom −", punch: "punch" }[b.zoom.tipo]}</span>` : "")
       + (b.vel && b.vel !== 1 && !b.fuera ? `<span class="zm vel">${b.vel}×</span>` : "");
     const izq = !b.fuera && !(b.sub > 0), der = !b.fuera && !(b.sub < b.nsub - 1);  // los cortes no tienen asa: se unen o se quitan
-    html += `<div class="ev-b ${b.k} ${b.fuera ? "fuera" : ""} ${ed.sel === b.key ? "sel" : ""} ${b.sub > 0 ? "corte-izq" : ""} ${b.sub < b.nsub - 1 ? "corte-der" : ""}" data-b="${b.key}" style="left:${x}px;width:${w}px" title="${esc(b.t)} · ${(b.b - b.a).toFixed(2)} s">
-      ${izq ? `<span class="ev-asa izq" data-asa="izq" data-b="${b.key}"></span>` : ""}${b.fuera ? "⊘" : esc(b.t)}${z}
-      ${der ? `<span class="ev-asa der" data-asa="der" data-b="${b.key}"></span>` : ""}</div>`;
+    // sin cortes: el pedazo cortado lleva asas en sus cortes, para correr dónde empieza o termina el corte
+    const cIzq = b.cortado && b.pedazoQuitado && b.sub > 0, cDer = b.cortado && b.pedazoQuitado && b.sub < b.nsub - 1;
+    const motivo = b.cortado ? motivoCorte(b) : "";
+    html += `<div class="ev-b ${b.k} ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""} ${ed.sel === b.key ? "sel" : ""} ${b.sub > 0 ? "corte-izq" : ""} ${b.sub < b.nsub - 1 ? "corte-der" : ""}" data-b="${b.key}" style="left:${x}px;width:${w}px" title="${esc(b.cortado ? `Se corta: ${motivo}` : b.t)} · ${(b.b - b.a).toFixed(2)} s${b.cortado ? " · arrastra los bordes rojos para mover el corte" : ""}">
+      ${cIzq ? `<span class="ev-asa izq" data-casa="izq" data-t="${b.a}" data-b="${b.key}"></span>` : izq ? `<span class="ev-asa izq" data-asa="izq" data-b="${b.key}"></span>` : ""}${b.fuera ? "⊘" : b.cortado ? "✂ " + esc(motivo) : esc(b.t)}${z}
+      ${cDer ? `<span class="ev-asa der" data-casa="der" data-t="${b.b}" data-b="${b.key}"></span>` : der ? `<span class="ev-asa der" data-asa="der" data-b="${b.key}"></span>` : ""}</div>`;
     if (!b.fuera) {
       b.pieza.lineas.forEach((l, li) => {
         const s0 = Math.max(l.s, b.a), s1 = Math.min(l.e, b.b);
@@ -3741,7 +3800,7 @@ function pintarEditor() {
   let marcas = "";
   for (let t = 0; t <= total + .01; t += px > 60 ? 1 : px > 25 ? 2 : 5) marcas += `<span style="left:${xDeTiempo(t)}px">${t}s</span>`;
   $("evRegla").innerHTML = marcas;
-  pintarInspector(); moverCabezal();
+  pintarInspector(); moverCabezal(); pintarVoz();
 }
 function pintarInspector() {
   if (ed.cSel && capaSel()) return pintarInspectorCapa();
@@ -3776,7 +3835,7 @@ function pintarInspector() {
   }
   const z = b.zoom || {};
   $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
-      ${b.i !== undefined ? `<label class="fila" style="font-size:13px"><input type="checkbox" id="evVisible" ${b.fuera ? "" : "checked"}> Incluir esta frase</label>` : ""}</div>
+      ${b.i !== undefined ? `<label class="fila" style="font-size:13px"><input type="checkbox" id="evVisible" ${b.quitada ? "" : "checked"}> Incluir esta frase</label>` : ""}</div>
     ${b.texto ? `<span class="muted" style="font-size:12px">«${esc(b.texto)}»</span>` : ""}
     <div class="dos">
       <label class="muted ev-campo">Entrada (s)<input type="number" id="evA" step="0.05" min="0" value="${(b.a - b.lo).toFixed(2)}"></label>
@@ -4294,6 +4353,219 @@ $("evInspector").addEventListener("click", e => {
   pintarEditor(); vistaEd();
   avisar(`Listo: ${n} clip${n === 1 ? "" : "s"} recortado${n === 1 ? "" : "s"}${p ? ` y ${p} pausa${p === 1 ? "" : "s"} quitada${p === 1 ? "" : "s"}` : ""}. Revisa y guarda con el botón verde.`, "ok");
 });
+// ---------- Cortes por voz (como «editar por texto» de CapCut) ----------
+// La sala lee lo que se dijo palabra por palabra y la onda de la voz, y propone cortes (est.<pieza>.voz): lo repetido,
+// los tartamudeos, los «eh», las tomas que se cortaron con «perdón» y los silencios largos. Los seguros ya vienen
+// aplicados en las piezas que nadie revisó. Aquí se ven en el texto: lo tachado se corta; se toca para volver a ponerlo.
+const PIEZAS_ED = () => [["hook", est.hook, "Hook"], ["cuerpo", est.cuerpo, "Cuerpo"], ["cta", est.cta, "CTA"]];
+const CORTO_VOZ = { repetido: "Repetido", tartamudeo: "Tartamudeo", muletilla: "Muletilla", equivoco: "Se equivocó", pausa: "Silencio",
+  ruido: "Ruido sin palabras", de_mas: "No está en el guion" };
+const palabrasEd = p => (p.lineas || []).flatMap(l => (l.palabras || []).map(w => ({ ...w, w: w.w ?? "" })));
+const piezaEd = pz => ({ hook: est.hook, cuerpo: est.cuerpo, cta: est.cta })[pz];
+const pisa = (a, b, c, d) => Math.min(b, d) - Math.max(a, c);
+function aplicadaVoz(pz, c) {  // la sugerencia ya está cortada (un pedazo quitado la tapa casi entera)
+  return rangosDe(pz).some(r => pisa(r[0], r[1], c.a, c.b) >= (c.b - c.a) * .6);
+}
+function motivoCorte(b) {  // por qué se corta un pedazo (para la etiqueta en «Sin cortes»)
+  if (b.quitada && !b.pedazoQuitado) return "frase quitada";
+  const c = (b.pieza.voz || []).find(v => pisa(v.a, v.b, b.a, b.b) > Math.min(.05, (b.b - b.a) / 2));
+  return c ? CORTO_VOZ[c.tipo] || c.motivo : "cortado a mano";
+}
+function rangosDe(pz) { return (ed.quitarR[pz] = ed.quitarR[pz] || []); }
+function ponerRango(pz, a, b) {  // corta [a, b] (segundos del clip): se junta con los cortes que pisa
+  a = +Math.max(0, a).toFixed(3); b = +b.toFixed(3); if (b - a < .05) return;
+  const fuera = rangosDe(pz).filter(r => r[1] < a - .001 || r[0] > b + .001);
+  for (const r of rangosDe(pz)) if (!fuera.includes(r)) { a = Math.min(a, r[0]); b = Math.max(b, r[1]); }
+  ed.quitarR[pz] = [...fuera, [a, b]].sort((x, y) => x[0] - y[0]);
+  ed.cortes[pz] = [...new Set([...(ed.cortes[pz] || []).filter(t => t <= a + .001 || t >= b - .001), a, b])].sort((x, y) => x - y);
+}
+function quitarRango(pz, r) {  // vuelve a poner lo cortado: el pedazo se une con lo de al lado
+  ed.quitarR[pz] = rangosDe(pz).filter(x => x !== r);
+  const usados = ed.quitarR[pz].flat();
+  ed.cortes[pz] = (ed.cortes[pz] || []).filter(t => !((Math.abs(t - r[0]) < .002 || Math.abs(t - r[1]) < .002) && !usados.some(u => Math.abs(u - t) < .002)));
+}
+function moverCorte(pz, viejo, nuevo, base) {  // corre un corte (y el borde del pedazo quitado que empieza o termina ahí)
+  const lista = ed.cortes[pz] || [], i = lista.findIndex(x => Math.abs(x - viejo) < .002); if (i < 0) return viejo;
+  const lo = Math.max(i > 0 ? lista[i - 1] + .05 : -1e9, base.a + .05), hi = Math.min(i < lista.length - 1 ? lista[i + 1] - .05 : 1e9, base.b - .05);
+  nuevo = +Math.min(hi, Math.max(lo, nuevo)).toFixed(3);
+  lista[i] = nuevo;
+  rangosDe(pz).forEach(r => { if (Math.abs(r[0] - viejo) < .002) r[0] = nuevo; if (Math.abs(r[1] - viejo) < .002) r[1] = nuevo; });
+  return nuevo;
+}
+let arrCorte = null;
+function pintarVista() {
+  document.querySelectorAll("#evVista [data-cortes]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cortes === (ed?.vista || "con"))));
+}
+function ponerVista(v) {  // sin cortes ↔ con cortes, sin perder dónde está el cabezal
+  if (!ed || ed.vista === v) return;
+  const c = cabezalEnPieza(), tOrig = c ? inicioPieza(c.pz) + c.tp : 0;
+  pararEditor(); ed.vista = v; pintarVista(); pintarEditor();
+  const g = gDeOriginal(tOrig);
+  irA(g != null ? g : realDe(tOrig));
+  avisar(v === "sin" ? "Sin cortes: se ve y se escucha todo lo grabado; lo rayado en rojo es lo que se corta. Arrastra sus bordes para moverlo." : "Con cortes: así queda el video.", "muted");
+}
+document.querySelectorAll("#evVista [data-cortes]").forEach(b => b.onclick = () => ponerVista(b.dataset.cortes));
+// el rango que se corta al elegir palabras: desde la primera hasta donde empieza la que sigue (se lleva su pausa)
+function rangoPalabras(pz, i0, i1) {
+  // (con pausa al lado, un poquito antes; si se habla de corrido, justo en el borde de la palabra, como el motor)
+  const ws = palabrasEd(piezaEd(pz)), w0 = ws[i0], w1 = ws[i1];
+  const prev = i0 > 0 ? ws[i0 - 1].e : -9, sig = ws[i1 + 1];
+  const a = w0.s - prev > .06 ? Math.max(prev + .02, w0.s - .03) : w0.s;
+  return [Math.max(0, a), sig ? (sig.s - w1.e > .06 ? sig.s - .03 : sig.s) : w1.e + .05];
+}
+function estadoPalabra(pz, bl, w) {  // cortada · fuera (recortada del borde) · sugerida · normal
+  const m = (w.s + w.e) / 2;
+  if (rangosDe(pz).some(r => m >= r[0] && m <= r[1])) return "cortada";
+  const en = bl.find(x => m >= x.a && m <= x.b);
+  if (!en) return "fuera";
+  if (en.quitada) return "cortada";
+  return (piezaEd(pz).voz || []).some(c => m >= c.a && m <= c.b && !aplicadaVoz(pz, c)) ? "sugerida" : "";
+}
+const bloquesDe = pz => bloquesEd().filter(x => x.pz === pz);
+function pintarVoz() {
+  const caja = $("evVoz");
+  if (!est || est.error || !ed) { caja.innerHTML = ""; return; }
+  let leer = "abierto"; try { leer = localStorage.getItem("sala_voz") || "abierto"; } catch (e) {}
+  caja.hidden = leer === "cerrado"; $("evVozBtn").setAttribute("aria-pressed", String(!caja.hidden));
+  if (caja.hidden) return;
+  let nCortes = 0, seg = 0, pend = 0, html = "";
+  for (const [pz, p, etq] of PIEZAS_ED()) {
+    const ws = palabrasEd(p), rs = rangosDe(pz), sug = p.voz || [], bl = bloquesDe(pz);
+    nCortes += rs.length; seg += rs.reduce((a, r) => a + r[1] - r[0], 0);
+    pend += sug.filter(c => !aplicadaVoz(pz, c)).length;
+    // silencios y ruidos (cortados o sugeridos) que no tienen palabras dentro: van como una pastilla entre palabras
+    const sinPal = r => !ws.some(w => (w.s + w.e) / 2 >= r[0] && (w.s + w.e) / 2 <= r[1]);
+    const huecos = [...rs.filter(sinPal).map(r => ({ a: r[0], b: r[1], cortado: true, tipo: (sug.find(c => pisa(c.a, c.b, r[0], r[1]) > 0) || {}).tipo })),
+      ...sug.filter(c => !aplicadaVoz(pz, c) && sinPal([c.a, c.b])).map(c => ({ a: c.a, b: c.b, cortado: false, tipo: c.tipo }))].sort((x, y) => x.a - y.a);
+    const sel = ed.vozSel && ed.vozSel.pz === pz ? ed.vozSel : null;
+    const chip = h => `<span class="ev-hueco ${h.cortado ? "cortada" : ""} ${sel && sel.hueco && Math.abs(sel.a - h.a) < .002 ? "elegida" : ""}" data-hueco="${pz}|${h.a}|${h.b}" title="${h.cortado ? "Se corta" : "Sugerido"}: ${esc(CORTO_VOZ[h.tipo] || "silencio")} de ${(h.b - h.a).toFixed(2)} s · tócalo para elegirlo">${h.tipo === "ruido" ? "〰" : "⏸"} ${(h.b - h.a).toFixed(1)} s</span>`;
+    let k = 0, t = "";
+    ws.forEach((w, i) => {
+      while (k < huecos.length && huecos[k].a < w.s) t += chip(huecos[k++]);
+      const st = estadoPalabra(pz, bl, w), c = st === "sugerida" ? sug.find(v => (w.s + w.e) / 2 >= v.a && (w.s + w.e) / 2 <= v.b) : null;
+      const elegida = sel && !sel.hueco && i >= sel.i0 && i <= sel.i1;
+      t += `<span class="ev-w ${st} ${elegida ? "elegida" : ""}" data-w="${pz}|${i}"${c ? ` title="Sugerido: ${esc(c.motivo)}"` : st === "cortada" ? ` title="Se corta · tócala para elegirla y volver a ponerla"` : ""}>${esc(w.w)}</span> `;
+    });
+    while (k < huecos.length) t += chip(huecos[k++]);
+    html += `<div class="ev-voz-pieza"><b>${etq.toUpperCase()} · ${esc(p.nombre)}</b>${t || `<span class="muted">Sin texto (todavía no se transcribió).</span>`}</div>`;
+  }
+  const aj = (E && E.cortes_voz) || { auto: true, pausa: .5 };
+  caja.innerHTML = `<div class="ev-voz-cab"><h3>🎙 Cortes por voz</h3>
+      <span class="ev-voz-res">${nCortes ? `Se ${nCortes === 1 ? "corta" : "cortan"} <b>${plural(nCortes, "pedazo")}</b> (−${seg.toFixed(1)} s)` : "Sin cortes en medio"}${pend ? ` · <b>${pend}</b> ${pend === 1 ? "sugerencia" : "sugerencias"} por revisar` : ""}</span>
+      <span style="flex:1"></span>
+      <button class="btn sec peq" type="button" id="vozAplicar" ${pend ? "" : "disabled"} title="Corta todo lo que la sala propone (también lo dudoso: revísalo con «Sin cortes»)">✂ Aplicar las sugerencias</button>
+      <button class="btn sec peq" type="button" id="vozQuitar" ${nCortes ? "" : "disabled"} title="Vuelve a poner todo lo que se cortó en medio (lo propuesto por la sala y lo cortado a mano)">↩ Volver a poner todo</button></div>
+    <div class="ev-voz-sel" id="vozSel">${pintarVozSel()}</div>
+    <div class="ev-voz-texto">${html}</div>
+    <div class="ev-voz-leyenda"><span><span class="ev-w cortada">tachado</span> se corta</span><span><span class="ev-w sugerida">ondulado</span> sugerido, todavía suena</span>
+      <span><span class="ev-w fuera">gris</span> fuera del recorte del clip</span><span><span class="ev-hueco cortada">⏸ 0.6 s</span> silencio cortado</span></div>
+    <div class="ev-voz-ajustes"><label>Cortar silencios desde <select id="vozPausa">${[.35, .5, .7, 1, 1.5].map(v => `<option value="${v}" ${Math.abs(aj.pausa - v) < .001 ? "selected" : ""}>${String(v).replace(".", ",")} s${v === .5 ? " (recomendado)" : ""}</option>`).join("")}</select></label>
+      <label class="fila" style="gap:6px"><input type="checkbox" id="vozAuto" ${aj.auto ? "checked" : ""}> Cortar solo lo seguro en las piezas que nadie revisó todavía</label></div>`;
+}
+function selVoz() {  // lo elegido en el texto: [a, b] en segundos del clip y si ya está cortado
+  const s = ed.vozSel, p = piezaEd(s.pz), ws = palabrasEd(p);
+  const [a, b] = s.hueco ? [s.a, s.b] : s.rango || rangoPalabras(s.pz, s.i0, s.i1);
+  const cortado = s.hueco ? rangosDe(s.pz).some(r => pisa(r[0], r[1], a, b) > (b - a) * .5)
+    : ws.slice(s.i0, s.i1 + 1).every(w => estadoPalabra(s.pz, bloquesDe(s.pz), w) === "cortada");
+  return { s, p, ws, a, b, cortado };
+}
+function pintarVozSel() {
+  if (!ed.vozSel) return `<span class="muted">Toca una palabra para ir ahí (con <b>Shift</b> eliges varias) y córtala con <b>Supr</b>. Toca lo tachado para volver a ponerlo.</span>`;
+  const { s, p, ws, a, b, cortado } = selVoz();
+  const c = (p.voz || []).find(v => pisa(v.a, v.b, a, b) > (b - a) * .5);
+  const texto = s.hueco ? `${CORTO_VOZ[c?.tipo] || "Silencio"} de ${(b - a).toFixed(2)} s` : `«${esc(ws.slice(s.i0, s.i1 + 1).map(w => w.w).join(" "))}»`;
+  return `<b>${texto}</b>${c ? `<span class="muted">${esc(c.motivo)}${c.seguro ? "" : " · revísalo"}</span>` : ""}
+    <button class="btn peq" type="button" id="vozAlternar">${cortado ? "↩ Volver a poner" : "✂ Cortar (Supr)"}</button>
+    <button class="btn sec peq" type="button" id="vozEscuchar" title="Escucha desde un poco antes, en la vista «Sin cortes»">▶ Escuchar aquí</button>
+    <button class="btn sec peq" type="button" id="vozSoltar" aria-label="Soltar lo elegido">✕</button>`;
+}
+function alternarVozSel() {  // corta lo elegido, o lo vuelve a poner si ya estaba cortado
+  if (!ed.vozSel) return;
+  const { s, a, b, cortado } = selVoz();
+  if (cortado) {
+    rangosDe(s.pz).filter(r => pisa(r[0], r[1], a, b) > .02).forEach(r => quitarRango(s.pz, r));
+    if (s.pz === "cuerpo") est.cuerpo.partes.forEach(pp => { if (pisa(pp.ini, pp.fin, a, b) > .02) ed.quitar.delete(pp.i); });  // una frase entera quitada
+  } else ponerRango(s.pz, a, b);
+  if (s.rango) s.rango = null;
+  pintarEditor(); vistaEd();
+}
+function verPalabra(pz, t) {  // lleva el cabezal a ese segundo del clip (si en esta vista se ve)
+  const g = gDeOriginal(inicioPieza(pz) + t);
+  if (g != null) { pararEditor(); irA(g); }
+}
+$("evVoz").addEventListener("click", e => {
+  const w = e.target.closest("[data-w]"), h = e.target.closest("[data-hueco]");
+  if (w && !e.target.closest(".ev-voz-leyenda")) {
+    const [pz, si] = w.dataset.w.split("|"), i = Number(si), p = piezaEd(pz), ws = palabrasEd(p), m = (ws[i].s + ws[i].e) / 2;
+    const prev = ed.vozSel;
+    if (e.shiftKey && prev && prev.pz === pz && !prev.hueco) ed.vozSel = { pz, i0: Math.min(prev.i0, i), i1: Math.max(prev.i1, i) };
+    else {
+      // tocar algo cortado o sugerido elige el corte entero (la repetición completa, por ejemplo)
+      const r = rangosDe(pz).find(x => m >= x[0] && m <= x[1]) || (p.voz || []).find(c => m >= c.a && m <= c.b && !aplicadaVoz(pz, c));
+      const ra = r ? (Array.isArray(r) ? [...r] : [r.a, r.b]) : null;
+      const dentro = ra ? ws.map((x, k) => [(x.s + x.e) / 2, k]).filter(([mm]) => mm >= ra[0] && mm <= ra[1]).map(([, k]) => k) : [];
+      ed.vozSel = dentro.length ? { pz, i0: dentro[0], i1: dentro[dentro.length - 1], rango: ra } : { pz, i0: i, i1: i };
+    }
+    ed.sel = null; ed.subSel = null; ed.kSel = null; ed.cSel = null;
+    pintarEditor(); verPalabra(pz, ws[i].s);
+    return;
+  }
+  if (h && !e.target.closest(".ev-voz-leyenda")) {
+    const [pz, a, b] = h.dataset.hueco.split("|");
+    ed.vozSel = { pz, hueco: true, a: Number(a), b: Number(b) };
+    pintarEditor(); verPalabra(pz, Math.max(0, Number(a) - .3));
+    return;
+  }
+  const id = e.target.id;
+  if (id === "vozAlternar") alternarVozSel();
+  else if (id === "vozSoltar") { ed.vozSel = null; pintarVoz(); }
+  else if (id === "vozEscuchar" && ed.vozSel) {
+    const { s, a } = selVoz();
+    if (ed.vista !== "sin") { ed.vista = "sin"; pintarVista(); pintarEditor(); }
+    verPalabra(s.pz, Math.max(0, a - 1)); $("evPlay").click();
+  }
+  else if (id === "vozAplicar") {
+    let n = 0;
+    for (const [pz, p] of PIEZAS_ED()) for (const c of p.voz || []) if (!aplicadaVoz(pz, c)) { ponerRango(pz, c.a, c.b); n++; }
+    ed.vozSel = null; pintarEditor(); vistaEd();
+    avisar(`${plural(n, "corte")} aplicado${n === 1 ? "" : "s"}. Compáralos con «Sin cortes» y guarda con el botón verde.`, "ok");
+  }
+  else if (id === "vozQuitar") {
+    for (const [pz] of PIEZAS_ED()) { ed.quitarR[pz] = []; ed.cortes[pz] = []; }
+    ed.vozSel = null; pintarEditor(); vistaEd();
+    avisar("Se volvió a poner todo lo que estaba cortado en medio. «✂ Aplicar las sugerencias» lo corta de nuevo.", "ok");
+  }
+});
+$("evVoz").addEventListener("change", async e => {
+  if (e.target.id !== "vozPausa" && e.target.id !== "vozAuto") return;
+  try {
+    E.cortes_voz = await post("/api/cortes_voz", { auto: $("vozAuto").checked, pausa: Number($("vozPausa").value) });
+    // se piden de nuevo las sugerencias (con el nuevo largo de pausa) sin perder lo que se está editando
+    const nuevo = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo: est.codigo, hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value })}`)).json();
+    if (!nuevo.error) for (const k of ["hook", "cuerpo", "cta"]) est[k].voz = nuevo[k].voz;
+    pintarVoz();
+    avisar(e.target.id === "vozAuto" ? (E.cortes_voz.auto ? "Listo: al armar, la sala corta sola lo seguro en las piezas que nadie revisó." : "La sala ya no corta sola: solo sugiere.")
+      : "Listo: sugerencias de silencios recalculadas. Los videos que nadie revisó se rearman con este largo.", "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+});
+$("evVozBtn").onclick = () => {
+  const abrir = $("evVoz").hidden;
+  try { localStorage.setItem("sala_voz", abrir ? "abierto" : "cerrado"); } catch (e) {}
+  if (!abrir) $("evVoz").hidden = true;
+  pintarVoz(); $("evVozBtn").setAttribute("aria-pressed", String(abrir));
+};
+// mientras suena, la palabra que se dice se marca en el texto
+let vozAhora = null;
+function marcarPalabraAhora(pz, ct) {
+  const p = piezaEd(pz); if (!p) return;
+  const ws = palabrasEd(p), i = ws.findIndex(w => ct >= w.s - .02 && ct < w.e + .02);
+  const k = i >= 0 ? `${pz}|${i}` : null;
+  const el = k && $("evVoz").querySelector(`[data-w="${k}"]`);
+  if (k === vozAhora && (!el || el.classList.contains("ahora"))) return;
+  $("evVoz").querySelector(".ev-w.ahora")?.classList.remove("ahora");
+  vozAhora = k;
+  if (el) { el.classList.add("ahora"); if (evReproduciendo) el.scrollIntoView({ block: "nearest" }); }
+}
 // Teclado del editor (como en CapCut): no actúa mientras se escribe en un campo
 $("dlgEditor").addEventListener("keydown", e => {
   if (e.target.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -4306,8 +4578,9 @@ $("dlgEditor").addEventListener("keydown", e => {
   else if (tecla === "s") { e.preventDefault(); pararEditor(); cortarEnCabezal(); }
   else if (tecla === "k") { e.preventDefault(); $("evPunto").click(); }
   else if (tecla === "m") { e.preventDefault(); modoMover(); }
+  else if (tecla === "c") { e.preventDefault(); ponerVista(ed.vista === "sin" ? "con" : "sin"); }
   else if (tecla === "i") { e.preventDefault(); $("evImagen").click(); }
-  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (ed.cSel) quitarCapaSel(); else if (ed.kSel) quitarPuntoSel(); else quitarPedazoSel(); }
+  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (ed.vozSel) alternarVozSel(); else if (ed.cSel) quitarCapaSel(); else if (ed.kSel) quitarPuntoSel(); else quitarPedazoSel(); }
 });
 // Al tocar la línea de tiempo o el video, el foco vuelve al editor: así Enter reproduce y no repite el último botón
 ["evTL", "evVisor"].forEach(id => $(id).addEventListener("pointerdown", () => { if (document.activeElement?.closest?.("button")) document.activeElement.blur(); }));
@@ -4324,6 +4597,14 @@ function ponerZoom(b, tipo, fuerza) {
 // Arrastrar los bordes de un bloque
 let arrastre = null;
 $("evCarrilV").addEventListener("pointerdown", e => {
+  const casa = e.target.closest("[data-casa]");
+  if (casa) {  // borde de un corte: se corre el corte (el pedazo cortado crece o se achica)
+    const b0 = bloquesEd().find(x => x.key === casa.dataset.b); if (!b0) return;
+    arrCorte = { pz: b0.pz, base: b0.baseBloque || b0, t: Number(casa.dataset.t), t0: Number(casa.dataset.t), x0: e.clientX };
+    ed.sel = null; ed.vozSel = null; pararEditor();
+    casa.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
+    return;
+  }
   const asa = e.target.closest("[data-asa]");
   const blo = e.target.closest("[data-b]");
   if (!blo) return;
@@ -4339,12 +4620,18 @@ $("evCarrilV").addEventListener("pointerdown", e => {
   pintarEditor();
 });
 document.addEventListener("pointermove", e => {
+  if (arrCorte) {
+    arrCorte.t = moverCorte(arrCorte.pz, arrCorte.t, arrCorte.t0 + (e.clientX - arrCorte.x0) / escalaEd(), arrCorte.base);
+    pintarEditor(); return;
+  }
   if (!arrastre) return;
   const d = (e.clientX - arrastre.x0) / escalaEd(), b = arrastre.b;
   if (arrastre.lado === "izq") ponerRecorte(b, arrastre.a0 + d, arrastre.b0); else ponerRecorte(b, arrastre.a0, arrastre.b0 + d);
   pintarEditor();
 });
-document.addEventListener("pointerup", () => { if (arrastre) { arrastre = null; const s = segmentosEd().find(x => x.key === ed.sel); if (s) irA(s.g0); } });
+document.addEventListener("pointerup", () => {
+  if (arrCorte) { const t = arrCorte.t, pz = arrCorte.pz; arrCorte = null; pintarEditor(); const g = gDeOriginal(inicioPieza(pz) + t); if (g != null) irA(g); return; }
+  if (arrastre) { arrastre = null; const s = segmentosEd().find(x => x.key === ed.sel); if (s) irA(s.g0); } });
 // Subtítulos: tocar elige; arrastrar mueve la línea (o estira un borde si está elegida). Se guarda al soltar.
 let arrS = null;
 function lineaSel() {
@@ -4496,6 +4783,7 @@ function vistaEd() {
   v.style.transformOrigin = "0 0";  // igual que el video armado: se ve el recorte que empieza en (izq, arr)
   v.style.transform = `translate(${(-izq * esc_ * 100).toFixed(3)}%, ${(-arr * esc_ * 100).toFixed(3)}%) scale(${esc_.toFixed(4)})`;
   vistaCapa(s.pz, ct);
+  $("evCorteAviso").hidden = !s.cortado; marcarPalabraAhora(s.pz, ct);
   // mientras se arrastra el subtítulo, se muestra la frase más cercana aunque en ese segundo no se hable
   const l = s.pieza.lineas.find(x => ct >= x.s && ct < x.e + .05) || (arrSub ? s.pieza.lineas[0] : null);
   const pl = plantillaEd();
@@ -4610,7 +4898,8 @@ function datosEd() {
   const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes, tramos: {}, puntos: ed.zoom.puntos || {} };
   return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar],
     cortes: ed.cortes, quitar_rangos: ed.quitarR, capas: ed.capas, velocidad: ed.vel,
-    recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value };
+    recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value,
+    voz_revisada: true };  // lo que quedó cortado (o vuelto a poner) lo decidió una persona: la sala ya no corta sola esas piezas
 }
 // Guardar: si es el video base con sus piezas de siempre, los cambios van a las piezas (todos sus videos se rearman);
 // si es una versión o se eligió otra combinación, se guarda como versión.
@@ -4681,10 +4970,27 @@ async function pintarGuion() {
   fetch("/api/informe").then(r => r.json()).then(i => { $("cajaInforme").hidden = !i.texto; $("gInforme").textContent = i.texto || ""; }).catch(() => {});
   const g = await (await fetch("/api/guion")).json();
   const sinAsignar = E.checklist.sin_asignar || [];
-  if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Escríbelo con Claude (con sus prompts de Flow y de música) y aparece aquí.</p><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div>`; return; }
+  $("gOrigen").hidden = !g.origen;
+  $("gOrigen").textContent = g.origen === "grabado" ? "Este guion lo armó la sala con lo que se dijo en cada clip (no había guion). Si tienes el de verdad, tócalo en «Subir guion»."
+    : g.origen === "subido" ? `Guion subido${g.archivo ? ` desde «${g.archivo}»` : ""}: solo trae el texto de cada pieza (sin marcas, imágenes ni copies).` : "";
+  if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Puedes subirlo (Word, .md, .txt o el produccion.json de Claude), escribirlo con Claude, o seguir sin guion: la sala transcribe lo grabado y arma el guion con lo que se dijo.</p>
+    <div class="fila" style="gap:8px"><button class="btn peq" id="gSinGuion">Armar el guion con lo grabado</button><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div></div>`;
+    $("gSinGuion").onclick = () => trabajo("guion_grabado");
+    return; }
   ultimoGuion = g;
   pintarGuionLista(); pintarEstadoGuion();
 }
+$("gSubirGuion").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if (ultimoGuion && ultimoGuion.origen !== "grabado" && !confirm(`Esta sesión ya tiene guion. ¿Lo reemplazo por «${f.name}»? (el anterior queda guardado como copia)`)) return;
+  try {
+    const r = await post(`/api/subir_guion?nombre=${encodeURIComponent(f.name)}`, f, true);
+    avisar(`Guion subido: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}`
+      + (r.origen === "texto" ? ". Solo trae el texto: marcas, imágenes y copies se agregan con Claude." : "."), "ok");
+    await cargar(); pintarGuion();
+  } catch (err) { avisar("No se pudo subir el guion: " + err.message, "err"); }
+};
 let ultimoGuion = null, vistaGuion = "todo", corroborado = false;
 function textoGuion(p) {
   return corroborado && p.procesada && p.diff.length
