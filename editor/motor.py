@@ -493,14 +493,16 @@ def plan_director():
 
 
 def info_pieza(nombre):
-    return produccion().get("piezas", {}).get(nombre, {})
+    """Lo que dice el guion de una pieza (una de otro ángulo, C1~IZQ, dice lo mismo que la de frente)."""
+    pz = produccion().get("piezas", {})
+    return pz.get(nombre) or pz.get(sin_angulo(nombre)[0], {})
 
 
 # C1_H2 (hook), C1 (cuerpo), C1_P3 (parte 3 del cuerpo C1), CTA / CTA-A / C1_CTA1
 # C1_H2 (hook), C1_H2_P1 (parte 1 del hook 2), C1 (cuerpo), C1_P3 (parte 3 del cuerpo), CTA / CTA-A / C1_CTA1
 # CTA-1_P2 (parte 2 del CTA-1): un CTA también se puede grabar en partes
 CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+(?:_P\d+)?|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*(?:_P\d+)?)$", re.I)
-PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?|(?:(?:C|P)\d+_)?CTA(?:-?[A-Z0-9]+)?)_P(\d+)$", re.I)
+PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?(?:~[A-Z0-9]+)?|(?:(?:C|P)\d+_)?CTA(?:-?[A-Z0-9]+?)?(?:~[A-Z0-9]+)?)_P(\d+)$", re.I)
 
 # Como nombra el equipo los archivos a mano (en carpetas C1/, C2/…, CTA/):
 #   C1-H1 · C1 H1 → C1_H1      C1-H1.2 → C1_H1_P2 (hook en partes)
@@ -669,13 +671,67 @@ def _apartado(f, carpeta):
     return any(p.startswith("_") or "BLOOPER" in p.upper() or "DESCART" in p.upper() for p in f.relative_to(carpeta).parts[:-1])
 
 
+# ---------- Ángulos: el mismo guion grabado desde otro lado ----------
+# Lo de frente va como siempre (C1/C1.1). Otro ángulo va en una carpeta con su nombre: C1/IZQUIERDA/C1.1 o
+# IZQUIERDA/C1/C1.1. Esa toma es otra pieza (C1~IZQ) con el mismo guion, y arma sus propios videos (C1-H1-CTA1-IZQ).
+_ANGULOS = [(r"(DE )?FRENTE|FRONTAL|CENTRO|PRINCIPAL", ""),
+            (r"IZQUIERDA|IZQUIERDO|IZQ|(LADO|ANGULO|CAMARA) IZQUIERD[OA]", "IZQ"),
+            (r"DERECHA|DERECHO|DER|(LADO|ANGULO|CAMARA) DERECH[OA]", "DER"),
+            (r"LADO|LATERAL|PERFIL", "LAD"), (r"ARRIBA|CENITAL|PICADO", "ARR"), (r"ABAJO|CONTRAPICADO", "ABA"),
+            (r"CERCA|PRIMER PLANO|PRIMERPLANO|CLOSE UP|CLOSEUP", "CER")]
+NOMBRES_ANGULO = {"": "Frente", "IZQ": "Izquierda", "DER": "Derecha", "LAD": "Lado", "ARR": "Arriba", "ABA": "Abajo",
+                  "CER": "Primer plano"}
+
+
+def codigo_angulo(carpeta):
+    """«IZQUIERDA» → «IZQ», «CAM 2» → «A2», «FRENTE» → «» (la de siempre); None si la carpeta no es de un ángulo."""
+    t = " ".join(re.sub(r"[_\-.]+", " ", unicodedata.normalize("NFD", str(carpeta)).encode("ascii", "ignore").decode()).upper().split())
+    for patron, cod in _ANGULOS:
+        if re.fullmatch(patron, t):
+            return cod
+    m = re.fullmatch(r"(?:ANGULO|CAM|CAMARA|TOMA|VISTA)\s*(\d+)", t)
+    return f"A{int(m.group(1))}" if m else None
+
+
+def nombre_angulo(cod):
+    return NOMBRES_ANGULO.get(cod) or (f"Ángulo {cod[1:]}" if cod.startswith("A") else cod.title())
+
+
+def angulo_de(c):
+    """Ángulo de un clip según sus carpetas («C1/IZQUIERDA/C1.1» → «IZQ»); «» si es de frente."""
+    for parte in Path(c["rel"]).parts[:-1]:
+        cod = codigo_angulo(parte)
+        if cod is not None:
+            return cod
+    return ""
+
+
+def con_angulo(nombre, ang):
+    """«C1_P2» + «IZQ» → «C1~IZQ_P2»; «C1_H1» → «C1_H1~IZQ». Sin ángulo, queda igual."""
+    if not nombre or not ang or "~" in nombre:
+        return nombre
+    m = PARTE.match(nombre)
+    return f"{m.group(1)}~{ang}_P{m.group(2)}" if m else f"{nombre}~{ang}"
+
+
+def sin_angulo(nombre):
+    """(nombre de frente, ángulo): «C1_H1~IZQ» → («C1_H1», «IZQ»)."""
+    base, _, ang = str(nombre).partition("~")
+    return base, ang
+
+
 def carpetas_de_piezas(sesion):
     """Carpetas C1/, C2/…, CTA/ sueltas en la sesión (sin Clips/): así ordena el equipo lo que grabó."""
     if not sesion.is_dir():
         return []
-    return [d for d in sorted(sesion.iterdir(), key=lambda x: x.name.lower())
-            if d.is_dir() and re.fullmatch(r"(?:[CP]\d+|CTAS?(?:[\s_-]*[A-Z0-9]+)?)", d.name.strip(), re.I)
-            and d.name.lower() not in ("ctas",)]  # «ctas» ya la mira CARPETAS
+    propias = [d for d in sorted(sesion.iterdir(), key=lambda x: x.name.lower())
+               if d.is_dir() and re.fullmatch(r"(?:[CP]\d+|CTAS?(?:[\s_-]*[A-Z0-9]+)?)", d.name.strip(), re.I)
+               and d.name.lower() not in ("ctas",)]  # «ctas» ya la mira CARPETAS
+    # otro ángulo con sus carpetas adentro: IZQUIERDA/C1/…, IZQUIERDA/CTA/…
+    for d in sorted(sesion.iterdir(), key=lambda x: x.name.lower()):
+        if d.is_dir() and codigo_angulo(d.name):
+            propias += carpetas_de_piezas(d)
+    return propias
 
 
 def nombre_automatico(c):
@@ -770,19 +826,20 @@ def piezas():
     Si dos clips dicen ser la misma pieza, gana el asignado a mano."""
     asig = leer_asignaciones()
     todos = clips()
+    ang = {c["rel"]: angulo_de(c) for c in todos}  # de qué ángulo es cada toma (carpeta IZQUIERDA, CAM 2…)
     # una toma con varias frases («C3.1 HASTA C3.4») cubre esas partes: las tomas sueltas de esas frases sobran
     cubre = {}
     for c in todos:
         if not asig.get(c["rel"]):
             codigo, rango = leer_nombre(nombre_clip(c["ruta"]))
             if rango:
-                base = PARTE.match(codigo).group(1)
+                base = PARTE.match(con_angulo(codigo, ang[c["rel"]])).group(1).upper()
                 cubre.update({(base, k): c["rel"] for k in range(rango[0], rango[1] + 1)})
     # …salvo que la toma larga no diga esa frase (se ve en lo transcrito): «C3.1 HASTA C3.4» que empieza en la
     # frase 2 deja entrar a la toma suelta C3.1, y la larga pasa a ser la parte 2
     por_rel = {c["rel"]: c for c in todos}
     for c in todos:
-        m = PARTE.match(nombre_automatico(c) or "") if not asig.get(c["rel"]) else None
+        m = PARTE.match(con_angulo(nombre_automatico(c), ang[c["rel"]]) or "") if not asig.get(c["rel"]) else None
         clave = (m.group(1).upper(), int(m.group(2))) if m else None
         if clave and cubre.get(clave, c["rel"]) != c["rel"] and not _toma_dice(por_rel[cubre[clave]], c):
             del cubre[clave]
@@ -792,7 +849,7 @@ def piezas():
     por_nombre, origen_manual = {}, set()
     for c in todos:
         manual = asig.get(c["rel"])
-        nombre = manual or nombre_automatico(c)
+        nombre = con_angulo(manual or nombre_automatico(c), ang[c["rel"]])  # la de otro ángulo no pisa a la de frente
         if not manual and c["rel"] in inicio_real and PARTE.match(nombre or ""):
             nombre = f"{PARTE.match(nombre).group(1)}_P{inicio_real[c['rel']]}"
         m = PARTE.match(nombre or "")
@@ -829,11 +886,14 @@ def piezas():
         textos = [transcripcion_clip(por_rel[r], crear=False) for r in p["rels"]]
         if all(t and es_llamado(t) for t in textos):
             for k, (ruta, rel) in enumerate(zip(p["partes"], p["rels"])):
-                separados.append({**p, "nombre": p["nombre"] + ("" if k == 0 else chr(ord("A") + k)), "partes": [ruta],
+                nb, na = sin_angulo(p["nombre"])  # CTA1~IZQ → CTA1B~IZQ: la letra va antes del ángulo
+                separados.append({**p, "nombre": con_angulo(nb + ("" if k == 0 else chr(ord("A") + k)), na), "partes": [ruta],
                                   "original": ruta, "rel": rel, "rels": [rel], "frases": {}, "faltan_partes": [],
                                   "alterna": p["nombre"]})
             p["separado"] = True
     out = [p for p in out if not p.get("separado")] + separados
+    for p in out:
+        p["angulo"] = sin_angulo(p["nombre"])[1]
     orden = {"hook": 0, "cuerpo": 1, "cta": 2}
     return sorted(out, key=lambda p: (orden[p["tipo"]], p["nombre"]))
 
@@ -1715,6 +1775,8 @@ def guion_desde_grabado():
     piezas_g = dict(base.get("piezas") or {})
     nuevas = 0
     for p in piezas():
+        if p.get("angulo"):
+            continue  # la toma de otro ángulo dice lo mismo que la de frente: no es otra pieza del guion
         lineas = leer_subs(p["nombre"])["lineas"]
         palabras = [w for ln in lineas for w in ln["palabras"]]
         if not palabras:
@@ -2196,9 +2258,17 @@ def combinaciones():
     vs = leer_versiones()
     plan, eds = _leer_ediciones()["plan"], ediciones()
     for c in cuerpos:
+        cb, ca = sin_angulo(c)
+        # Otro ángulo: usa sus propios hooks y CTA si se grabaron así; si no, los de frente (el mismo número de hook)
+        ctas_ang = [x for x in ctas if sin_angulo(x)[1] == ca]
+        ctas_c = ctas_ang if ctas_ang else [x for x in ctas if not sin_angulo(x)[1]]
         # Un CTA con prefijo (P1_CTA1) es solo de ese cuerpo; uno sin prefijo (CTA-O) sirve para todos
-        propios = [x for x in ctas if "_" not in x or x.split("_")[0] == c]
-        for i, h in enumerate([h for h in hooks if h.split("_")[0] == c]):
+        propios = [x for x in ctas_c if "_" not in sin_angulo(x)[0] or sin_angulo(x)[0].split("_")[0] == cb]
+        de_cuerpo = [h for h in hooks if sin_angulo(h)[0].split("_")[0] == cb]
+        numeros = sorted({sin_angulo(h)[0] for h in de_cuerpo}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)])
+        hooks_c = [next((h for h in de_cuerpo if sin_angulo(h) == (n, ca)), None) or next((h for h in de_cuerpo if sin_angulo(h) == (n, "")), None)
+                   for n in numeros]
+        for i, h in enumerate([h for h in hooks_c if h]):
             # los CTA que salieron de separar uno en partes (CTA1, CTA1B) se turnan: un video con cada uno
             elegidos, familias = [], set()
             for cta in propios:
@@ -2210,7 +2280,7 @@ def combinaciones():
                     grupo = [x for x in propios if alterna.get(x) == fam]
                     elegidos.append(grupo[i % len(grupo)])
             for cta in elegidos:
-                base = f"{c}-{h.split('_')[1]}-{cta.split('_')[-1]}"
+                base = f"{cb}-{sin_angulo(h)[0].split('_')[1]}-{sin_angulo(cta)[0].split('_')[-1]}" + (f"-{ca}" if ca else "")
                 # la A con el código de siempre; las otras ediciones del plan, con su letra al final (C1-H1-CTA1-B)
                 for e in ["A"] + [x for x in plan.get(c, []) if x in eds and x != "A"]:
                     codigo = base if e == "A" else f"{base}-{e}"
@@ -4754,9 +4824,10 @@ def copy_de(codigo):
         return {}
     editados = json.loads(S.copies_editados.read_text(encoding="utf-8")) if S.copies_editados.exists() else {}
     cp = produccion().get("copies", {})
-    base = cp.get("cuerpos", {}).get(c["cuerpo"], {})
-    gancho = cp.get("hooks", {}).get(c["hook"], "")
-    cta_id = c["cta"] if c["cta"] in cp.get("ctas", {}) else c["cta"].split("_")[-1]
+    cuerpo_f, hook_f, cta_f = (sin_angulo(c[k])[0] for k in ("cuerpo", "hook", "cta"))  # el de otro ángulo, como el de frente
+    base = cp.get("cuerpos", {}).get(cuerpo_f, {})
+    gancho = cp.get("hooks", {}).get(hook_f, "")
+    cta_id = cta_f if cta_f in cp.get("ctas", {}) else cta_f.split("_")[-1]
     cierre = cp.get("ctas", {}).get(cta_id, "")
     tags = base.get("hashtags", "")
     texto = "\n\n".join(x for x in (gancho, base.get("texto", ""), cierre) if x)

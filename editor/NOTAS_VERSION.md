@@ -1,3 +1,10 @@
+Versión 1.27.0 (se actualiza desde la app con «Actualizar ahora»):
+- Ángulos: el mismo guion grabado desde otro lado arma sus propios videos. Lo de frente va como siempre (C1/C1.1, C1/C1-H1); el otro ángulo, en una carpeta con su nombre: C1/IZQUIERDA/C1.1 (o IZQUIERDA/C1/C1.1). Se reconocen IZQUIERDA, DERECHA, LADO, ARRIBA, ABAJO, PRIMER PLANO y CAM 2, ÁNGULO 3…
+- Cada ángulo es su propia pieza (C1 · Izquierda) y sus videos llevan el ángulo al final: C1-H1-CTA1-IZQ. Si en ese ángulo grabaste los hooks o el CTA, usa esos; si no, los de frente (el mismo número de hook).
+- Antes, una toma en C1/IZQUIERDA/C1.1 reemplazaba en silencio a la C1.1 de frente. Ya no.
+- Videos: filtro por ángulo (Todos · Frente · Izquierda…) y etiqueta «↔ Izquierda» en cada video. En el Plan de la sesión, cada ángulo es una fila: puedes armarlo también en la edición B.
+- El ángulo usa el guion, el copy y el tipo de hook de la toma de frente.
+
 Versión 1.26.0 (se actualiza desde la app con «Actualizar ahora»):
 - Ediciones (A, B, C…): el mismo material editado de otra forma, sin grabar nada más. Videos → «🗂 Plan de la sesión» → «＋ Nueva edición». Cada edición tiene su zoom (en las frases, en el hook, tipo, cada cuánto e intensidad), su música (otra distinta a la A, la misma, o una pista elegida), su plantilla de subtítulos y su ritmo.
 - En la tabla del plan marcas en qué ediciones sale cada cuerpo. La A siempre se arma y sus videos conservan el código de siempre (C1-H1-CTA1); los de la B llevan la letra al final (C1-H1-CTA1-B). «Guardar y armar lo que falta» arma solo lo nuevo.

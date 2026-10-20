@@ -113,7 +113,7 @@ def estado():
     for p in motor.piezas():
         d = motor.leer_subs(p["nombre"])
         proc = S.proc / f"{p['nombre']}.mp4"
-        ps.append({"nombre": p["nombre"], "tipo": p["tipo"], "procesada": proc.exists(),
+        ps.append({"nombre": p["nombre"], "tipo": p["tipo"], "angulo": p.get("angulo") or "", "procesada": proc.exists(),
                    "video": url_media(proc if proc.exists() else p["original"]),
                    "lineas": d["lineas"], "marcas": motor.marcas_de(p["nombre"]),
                    "marcas_editadas": "marcas" in d, "info": motor.info_pieza(p["nombre"])})
@@ -124,12 +124,13 @@ def estado():
         r = S.recetas / f"{c['codigo']}.json"
         info_hook = motor.info_pieza(c["hook"])
         v = c.get("version") or {}
-        etiqueta = v.get("nombre") or f"Hook {c['hook'].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") else "")
+        etiqueta = v.get("nombre") or f"Hook {motor.sin_angulo(c['hook'])[0].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") else "")
         ap = motor.ajustes_portada(c["codigo"])
         av = motor.ajustes_video(c["codigo"])
         # desactualizado: se cambió algo de sus piezas (subtítulos, recortes, zoom) o sus ajustes después de armarlo
         viejo = f.exists() and motor.editado_en(c) > f.stat().st_mtime + 1
-        salidas.append({**c, "edicion": motor.letra_edicion(c), "etiqueta": etiqueta, "es_version": bool(v) and not v.get("propio"), "propio": bool(v.get("propio")),
+        ang = motor.sin_angulo(c["cuerpo"])[1]
+        salidas.append({**c, "edicion": motor.letra_edicion(c), "angulo": ang, "etiqueta": etiqueta, "es_version": bool(v) and not v.get("propio"), "propio": bool(v.get("propio")),
                         "existe": f.exists(), "desactualizado": viejo,
                         "estado": av.get("estado") or "pendiente",
                         "ajustes_portada": {**ap, "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
@@ -181,7 +182,8 @@ def estado():
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
             "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]},
-            "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "pistas_musica": [f.name for f in motor.pistas_musica()], "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "pistas_musica": [f.name for f in motor.pistas_musica()],
+            "angulos": {a: motor.nombre_angulo(a) for a in sorted({p.get("angulo") or "" for p in ps} | {""})}, "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 

@@ -248,6 +248,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line2); padding-left: 3px; }
 .ev-pista { display: flex; align-items: center; height: 46px; margin-top: 4px; }
 .pill.ed { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+.pill.ang { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
 .plan-eds { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 10px 0 18px; }
 .plan-ed { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; background: var(--tarjeta); }
 .plan-ed .letra { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #ede9fe; color: #5b21b6; font-weight: 700; }
@@ -885,6 +886,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <button data-estado="viejo" aria-pressed="false">Sin armar o por rearmar</button>
         </div>
         <div class="segmento" id="filtroEdicion" role="group" aria-label="Filtrar por edición" hidden></div>
+        <div class="segmento" id="filtroAngulo" role="group" aria-label="Filtrar por ángulo" hidden></div>
         <button class="btn sec peq" id="abrirPlan" type="button" title="Qué ediciones (A, B…) se arman de cada cuerpo, y cómo es cada edición: zoom, música, subtítulos y ritmo">🗂 Plan de la sesión</button>
         <div class="leyenda-estado" title="El punto de color de cada video">Punto de cada video: <span><i></i>Por revisar</span>
           <span><i class="editando"></i>Editando (se pone solo al abrirlo en el editor)</span><span><i class="listo"></i>Aprobado</span></div>
@@ -1900,7 +1902,7 @@ function irTab(nombre) {
 }
 
 // ---------- Videos ----------
-let vistaVideos = "cuerpo", filtroEstado = "", filtroEdicion = "";
+let vistaVideos = "cuerpo", filtroEstado = "", filtroEdicion = "", filtroAngulo = null;
 const ESTADOS = { pendiente: "Por revisar", editando: "Editando", listo: "Aprobado" };
 function tarjetaVideo(s) {
   const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
@@ -1909,11 +1911,21 @@ function tarjetaVideo(s) {
     <span class="estado-dot ${s.estado}" title="${ESTADOS[s.estado] || ""}"></span>
     ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>`
       : `<div class="vacia">${esc(s.codigo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
-    <div class="nombre">${esc(s.etiqueta)}${s.edicion && s.edicion !== "A" ? ` <span class="pill ed" title="${esc(((E.ediciones || {})[s.edicion] || {}).nombre || "")}">Ed. ${esc(s.edicion)}</span>` : ""}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
+    <div class="nombre">${esc(s.etiqueta)}${s.angulo ? ` <span class="pill ang" title="Grabado desde otro ángulo">↔ ${esc((E.angulos || {})[s.angulo] || s.angulo)}</span>` : ""}${s.edicion && s.edicion !== "A" ? ` <span class="pill ed" title="${esc(((E.ediciones || {})[s.edicion] || {}).nombre || "")}">Ed. ${esc(s.edicion)}</span>` : ""}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
     <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "Armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">Sin armar</span>`}
       ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ Rearmar</span>` : ""}
       ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}
       <span class="pill" title="Plantilla de subtítulos">Aa ${esc(plantillaDe(s).nombre)}</span></div></button>`;
+}
+function verPieza(n) {  // «C1~IZQ» → «C1 · Izquierda», «C1_H2~IZQ» → «C1_H2 · Izquierda»
+  const [b, a] = String(n || "").split("~");
+  return a ? `${b} · ${(E.angulos || {})[a] || a}` : b;
+}
+function pintarFiltroAngulo() {  // «Todos los ángulos · Frente · Izquierda…»: solo si se grabó desde más de un lado
+  const angs = Object.entries(E.angulos || { "": "Frente" }), caja = $("filtroAngulo");
+  caja.hidden = angs.length < 2;
+  if (angs.length < 2) { filtroAngulo = null; return; }
+  caja.innerHTML = [[null, "Todos los ángulos"], ...angs].map(([k, t]) => `<button data-fang="${k ?? "*"}" aria-pressed="${filtroAngulo === k}">${esc(t)}</button>`).join("");
 }
 function pintarFiltroEdicion() {  // «Todas · A · B…»: solo si la sesión tiene más de una edición
   const eds = Object.entries(E.ediciones || { A: {} }), caja = $("filtroEdicion");
@@ -1927,8 +1939,9 @@ function pintarVideos() {
   const q = $("buscar").value.trim().toLowerCase();
   const lista = E.salidas.filter(s => (!q || s.archivo.toLowerCase().includes(q))
     && (!filtroEstado || (filtroEstado === "viejo" ? s.desactualizado || !s.existe : s.estado === filtroEstado))
-    && (!filtroEdicion || (s.edicion || "A") === filtroEdicion));
-  pintarFiltroEdicion();
+    && (!filtroEdicion || (s.edicion || "A") === filtroEdicion)
+    && (filtroAngulo === null || (s.angulo || "") === filtroAngulo));
+  pintarFiltroEdicion(); pintarFiltroAngulo();
   $("nVideos").textContent = `${E.salidas.filter(s => s.existe).length}/${E.salidas.length}`;
   if (!E.salidas.length) {
     $("videos").innerHTML = `<div class="sin-nada">${E.bajando ? "Bajando la sesión de Drive… los videos aparecen cuando terminen de llegar los clips." : "Todavía no hay piezas en esta sesión. Sube las grabaciones a la carpeta de Drive (Clips) o en Faltantes."}</div>`;
@@ -1943,7 +1956,7 @@ function pintarVideos() {
     const texto = (p?.lineas || []).map(l => l.texto).join(" ") || p?.info?.texto || "";
     const nombreTipo = { cuerpo: "Cuerpo", hook: "Hook", cta: "CTA" }[clave];
     return `<div class="grupo-cuerpo"><div class="grupo-cab ${clave}">
-        <div class="titulo"><span class="cod">${esc(k)}</span>
+        <div class="titulo"><span class="cod">${esc(verPieza(k))}</span>
           <div style="min-width:0"><b style="font-size:13px">${vs.length} video${vs.length === 1 ? "" : "s"}</b> <span class="muted" style="font-size:12px">· ${listos} aprobado${listos === 1 ? "" : "s"}${viejos ? ` · ${viejos} por armar` : ""}${p?.editada ? " · editado" : ""}</span>
           <div class="resumen" title="${esc(texto)}">${esc(texto)}</div></div></div>
         <div class="fila"><div class="progreso" title="${listos} de ${vs.length} aprobados"><i style="width:${vs.length ? listos / vs.length * 100 : 0}%"></i></div>
@@ -1956,6 +1969,8 @@ function pintarVideos() {
 document.addEventListener("click", async e => {
   const v = e.target.closest("[data-vista]");
   if (v) { vistaVideos = v.dataset.vista; document.querySelectorAll("[data-vista]").forEach(b => b.setAttribute("aria-pressed", b === v)); pintarVideos(); try { localStorage.setItem("sala_vista", vistaVideos); } catch (err) {} return; }
+  const fa = e.target.closest("[data-fang]");
+  if (fa) { filtroAngulo = fa.dataset.fang === "*" ? null : fa.dataset.fang; pintarVideos(); return; }
   const fe = e.target.closest("[data-fed]");
   if (fe) { filtroEdicion = fe.dataset.fed; pintarVideos(); return; }
   const f = e.target.closest("[data-estado]");
@@ -3708,7 +3723,7 @@ async function cargarEstructura(codigo, combo) {
   $("evInspector").innerHTML = `<span class="muted">Cargando…</span>`;
   est = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo, ...(combo || {}) })}`)).json();
   if (est.error) { $("evInspector").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
-  const opt = (lista, v) => lista.map(n => `<option ${n === v ? "selected" : ""}>${esc(n)}</option>`).join("");
+  const opt = (lista, v) => lista.map(n => `<option value="${esc(n)}" ${n === v ? "selected" : ""}>${esc(verPieza(n))}</option>`).join("");
   $("evHook").innerHTML = opt(est.opciones.hook, est.hook.nombre);
   $("evCuerpo").innerHTML = opt(est.opciones.cuerpo, est.cuerpo.nombre);
   $("evCta").innerHTML = opt(est.opciones.cta, est.cta.nombre);
@@ -5114,7 +5129,7 @@ function pintarPlan() {
     nuevos += E.salidas.filter(s => s.cuerpo === c && !s.existe && marcadas.includes(s.edicion || "A")).length
       + nb * marcadas.filter(e => !(E.plan[c] || ["A"]).includes(e)).length;
     const texto = (E.piezas.find(p => p.nombre === c)?.lineas || []).map(l => l.texto).join(" ");
-    return `<tr><td><b>${esc(c)}</b> <span class="muted">· ${nb} video${nb === 1 ? "" : "s"} por edición</span><br><span class="muted">${esc(texto.slice(0, 70))}${texto.length > 70 ? "…" : ""}</span></td>
+    return `<tr><td><b>${esc(verPieza(c))}</b> <span class="muted">· ${nb} video${nb === 1 ? "" : "s"} por edición</span><br><span class="muted">${esc(texto.slice(0, 70))}${texto.length > 70 ? "…" : ""}</span></td>
       ${letras.map(k => `<td><input type="checkbox" data-plan="${esc(c)}|${k}" ${marcadas.includes(k) ? "checked" : ""} ${k === "A" ? "disabled title='La A siempre se arma'" : ""} aria-label="${esc(c)} en la edición ${k}"></td>`).join("")}</tr>`;
   }).join("");
   $("planCuerpo").innerHTML = `<div class="fila" style="justify-content:space-between"><h3 style="margin:0">1 · Las ediciones</h3>
