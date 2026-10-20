@@ -725,6 +725,16 @@ def _toma_dice(larga, suelta):
     return iguales >= 0.6 * len(a)
 
 
+_LLAMADO = {"whatsapp", "escribenos", "escribeme", "escribe", "comenta", "comentanos", "comentame", "pidelo", "pide",
+            "pidenos", "compralo", "compra", "link", "enlace", "mensaje", "dm", "llamanos", "inbox", "perfil"}
+
+
+def es_llamado(texto):
+    """¿Esta frase es un CTA completo por sí sola? (pide hacer algo: escribir, comentar, pedir…)"""
+    k = [norm(w) for w in str(texto).split() if norm(w)]
+    return len(k) >= 4 and any(w in _LLAMADO for w in k)
+
+
 def escuchar_tomas_largas(avance=print):
     """Transcribe las tomas largas («C3.1 HASTA C3.4») y las sueltas de esas mismas frases, para saber si de verdad
     las dicen (ver piezas). Queda en caché: solo tarda la primera vez."""
@@ -741,6 +751,13 @@ def escuchar_tomas_largas(avance=print):
         for rango, larga in rangos.get(m.group(1).upper(), []) if m else []:
             if larga is not c and rango[0] <= int(m.group(2)) <= rango[1]:
                 oir += [x for x in (larga, c) if x not in oir]
+    # las partes de un CTA: para saber si son un CTA largo o varios CTA distintos
+    por_cta = {}
+    for c in todos:
+        m = PARTE.match(nombre_automatico(c) or "")
+        if m and "CTA" in m.group(1).upper():
+            por_cta.setdefault(m.group(1).upper(), []).append(c)
+    oir += [c for lista in por_cta.values() if len(lista) > 1 for c in lista if c not in oir]
     for c in oir:
         if transcripcion_clip(c, crear=False) is None:
             avance(f"Escuchando {c['rel']}")
@@ -803,6 +820,20 @@ def piezas():
                     "rel": lista[0][1]["rel"], "rels": [c["rel"] for _, c in lista],
                     "frases": cubre_rel,  # {rel: [frases que dice]} en una pieza grabada en partes
                     "faltan_partes": [k for k in range(1, max(numeros) + 1) if k not in numeros] if numeros else []})
+    # Un CTA en partes donde cada parte ya es un llamado completo («escríbenos por WhatsApp…» y «comenta Suplevet…»)
+    # no es un CTA largo: son CTA distintos. Se separan (CTA1, CTA1B…) y cada video lleva uno solo (ver combinaciones).
+    separados = []
+    for p in out:
+        if p["tipo"] != "cta" or len(p["partes"]) < 2 or p["nombre"] in origen_manual:
+            continue
+        textos = [transcripcion_clip(por_rel[r], crear=False) for r in p["rels"]]
+        if all(t and es_llamado(t) for t in textos):
+            for k, (ruta, rel) in enumerate(zip(p["partes"], p["rels"])):
+                separados.append({**p, "nombre": p["nombre"] + ("" if k == 0 else chr(ord("A") + k)), "partes": [ruta],
+                                  "original": ruta, "rel": rel, "rels": [rel], "frases": {}, "faltan_partes": [],
+                                  "alterna": p["nombre"]})
+            p["separado"] = True
+    out = [p for p in out if not p.get("separado")] + separados
     orden = {"hook": 0, "cuerpo": 1, "cta": 2}
     return sorted(out, key=lambda p: (orden[p["tipo"]], p["nombre"]))
 
@@ -1495,7 +1526,9 @@ NOMBRES_SFX = {"impacto": "impacto", "whoosh": "whoosh", "whoosh_inverso": "whoo
                "notificacion": "notificación", "tecleo": "tecleo", "tension": "tensión", "camara": "obturador de cámara",
                "dinero": "caja registradora", "datos": "datos (bip de computadora)", "error": "error (buzzer)", "papel": "papel",
                "liquido": "líquido", "reloj": "reloj", "aplausos": "aplausos", "electrico": "eléctrico", "boing": "boing",
-               "golpe_texto": "golpe de texto", "riser_largo": "riser largo", "drama": "drama", "corte_silencio": "corte de silencio"}
+               "golpe_texto": "golpe de texto", "riser_largo": "riser largo", "drama": "drama", "corte_silencio": "corte de silencio",
+               "atencion": "«fahhh» (llamar la atención)", "revelar": "magic reveal (revelar)", "click": "click (remarcar texto)",
+               "zoom": "whoosh de zoom"}
 
 
 def plan_sonoro(nombre, info):
@@ -1505,16 +1538,22 @@ def plan_sonoro(nombre, info):
     out = []
     tipo = tipo_de(nombre) if info.get("tipo") != "cuerpo" else "cuerpo"
     if tipo == "hook":
-        t = norm(info.get("tipo", "")) or "default"
+        t = tipo_hook(nombre, info.get("texto", ""))
         for cat in so["arranque_por_tipo"].get(t) or so["arranque_por_tipo"]["default"]:
             out.append({"momento": "inicio", "efecto": cat, "por": f"arranque de hook ({info.get('tipo') or 'general'})"})
         if t in so.get("riser_en_hooks", ["pregunta"]):
             out.append({"momento": "final", "efecto": "riser", "por": "la pregunta sube hasta el cuerpo"})
-        out.append({"momento": "final", "efecto": "whoosh", "por": "corte al cuerpo"})
-    if tipo == "cuerpo":
-        out.append({"momento": "final", "efecto": "whoosh_inverso", "por": "corte al CTA"})
+        ultimas = [norm(w) for w in info.get("texto", "").split()][-4:]
+        if "esto" in ultimas and so.get("revelar_en_hook", True):
+            out.append({"momento": "«esto»", "efecto": "revelar", "por": "revela el producto y pasa al cuerpo"})
+        else:
+            out.append({"momento": "final", "efecto": "whoosh", "por": "corte al cuerpo"})
     if tipo == "cta":
-        cat = so["cta_por_tipo"].get(norm(info.get("tipo", "")) or "anuncio")
+        out.append({"momento": "inicio", "efecto": so.get("transicion_cta", "camara"), "por": "transición al CTA (con destello)"})
+    if tipo == "cta":
+        texto_cta = {norm(w) for w in info.get("texto", "").split()}
+        cat = so["cta_por_tipo"].get(norm(info.get("tipo", ""))) or so["cta_por_tipo"].get(
+            "organico" if texto_cta & {"comenta", "comentanos"} and not texto_cta & {"whatsapp", "escribenos"} else "anuncio")
         if cat:
             out.append({"momento": "inicio", "efecto": cat, "por": f"CTA {info.get('tipo', 'anuncio')}"})
     for m in info.get("marcas", []):
@@ -2036,12 +2075,23 @@ def combinaciones():
     cuerpos = [p["nombre"] for p in ps if p["tipo"] == "cuerpo"]
     hooks = [p["nombre"] for p in ps if p["tipo"] == "hook"]
     ctas = [p["nombre"] for p in ps if p["tipo"] == "cta"]
+    alterna = {p["nombre"]: p.get("alterna") for p in ps}
     vs = leer_versiones()
     for c in cuerpos:
         # Un CTA con prefijo (P1_CTA1) es solo de ese cuerpo; uno sin prefijo (CTA-O) sirve para todos
         propios = [x for x in ctas if "_" not in x or x.split("_")[0] == c]
-        for h in [h for h in hooks if h.split("_")[0] == c]:
+        for i, h in enumerate([h for h in hooks if h.split("_")[0] == c]):
+            # los CTA que salieron de separar uno en partes (CTA1, CTA1B) se turnan: un video con cada uno
+            elegidos, familias = [], set()
             for cta in propios:
+                fam = alterna.get(cta)
+                if not fam:
+                    elegidos.append(cta)
+                elif fam not in familias:
+                    familias.add(fam)
+                    grupo = [x for x in propios if alterna.get(x) == fam]
+                    elegidos.append(grupo[i % len(grupo)])
+            for cta in elegidos:
                 codigo = f"{c}-{h.split('_')[1]}-{cta.split('_')[-1]}"
                 propio = vs.get(codigo) if (vs.get(codigo) or {}).get("propio") else None
                 # con ajustes propios («solo a este video») el video usa los suyos y no los de sus piezas
@@ -2089,7 +2139,7 @@ def guardar_version(datos, vid=None):
             n += 1
         vid = f"{base}-v{n}"
     vs[vid] = {"hook": datos["hook"], "cuerpo": datos["cuerpo"], "cta": datos["cta"],
-               "quitar": sorted({int(i) for i in datos.get("quitar", [])}),
+               "quitar": sorted({int(i) for i in datos.get("quitar", [])}), "orden": _limpiar_orden(datos.get("orden")),
                "recorte_inicio": max(0.0, float(datos.get("recorte_inicio") or 0)),
                "recorte_fin": max(0.0, float(datos.get("recorte_fin") or 0)), "nombre": (datos.get("nombre") or "").strip()[:60],
                # recortes por bloque: [entrada, salida] en segundos dentro del hook, del CTA o de cada frase del cuerpo
@@ -2178,6 +2228,15 @@ def _limpiar_capas(c):
         if lista:
             out[k] = sorted(lista, key=lambda c: c["t"])
     return out
+
+
+def _limpiar_orden(o):
+    """Orden de las frases del cuerpo: [2, 0, 1] (números de parte, sin repetir). El orden normal no se guarda."""
+    try:
+        o = list(dict.fromkeys(int(i) for i in (o or [])))
+    except (TypeError, ValueError):
+        return None
+    return o if o and o != sorted(o) else None
 
 
 def _limpiar_velocidad(v):
@@ -2281,7 +2340,8 @@ def guardar_edicion_piezas(datos):
     nuevos = {
         datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), "velocidad": vel.get("hook"), **propio("hook")},
         datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {}, **propio("cuerpo"),
-                          "velocidad_partes": vel.get("partes"), "quitar": sorted({int(i) for i in datos.get("quitar", [])})},
+                          "velocidad_partes": vel.get("partes"), "quitar": sorted({int(i) for i in datos.get("quitar", [])}),
+                          "orden": _limpiar_orden(datos.get("orden"))},
         datos["cta"]: {"recorte": r.get("cta"), "zoom": z.get("cta"), "velocidad": vel.get("cta"), **propio("cta")},
     }
     cambiadas = []
@@ -2387,7 +2447,88 @@ def _con_silencios_fuera(combo, v):
 def edicion_de(combo):
     """Recortes, frases quitadas y zoom que valen para este video: los de su versión, o los de sus piezas.
     Los bloques sin recorte puesto a mano empiezan justo antes de que se hable (ver _con_silencios_fuera)."""
-    return _con_zoom_alterno(combo, _con_silencios_fuera(combo, _sin_tropiezos(combo, _sin_claqueta(combo, _edicion_guardada(combo)))))
+    return _con_ritmo(combo, _con_zoom_alterno(combo, _con_silencios_fuera(combo, _sin_tropiezos(combo, _sin_claqueta(combo, _edicion_guardada(combo))))))
+
+
+def silabas(w):
+    """Sílabas de una palabra, contando los grupos de vocales (alcanza para medir qué tan rápido se habla)."""
+    w = unicodedata.normalize("NFC", str(w).lower())
+    if re.search(r"\d", w) and not re.search(r"[a-záéíóúüñ]", w):
+        return 2  # «3», «6»: tres, seis
+    return len(re.findall(r"[aeiouáéíóúü]+", w)) if re.search(r"[a-záéíóúüñ]", w) else 0
+
+
+def frases_lentas(nombre, desde=6.0, objetivo=6.5, maximo=1.12, pausa=0.3):
+    """Frases de una pieza que se dicen lento (menos de `desde` sílabas por segundo, sin contar los silencios
+    que ya se cortan): [(a, b, factor)] en s de la pieza, con el factor que las lleva a `objetivo` (tope `maximo`).
+    Se mide frase por frase (y parte por parte en un cuerpo grabado en partes): así una toma larga donde solo
+    una frase se arrastra («las bacterias buenas… de su panza») no acelera todo lo demás."""
+    lineas = leer_subs(nombre)["lineas"]
+    pal = [w for ln in lineas for w in ln["palabras"]]
+    if not pal:
+        return []
+    cortes = [p["fin"] for p in partes_de(nombre)][:-1] if tipo_de(nombre) == "cuerpo" else []
+    grupos, actual = [], []
+    for k, w in enumerate(pal):
+        actual.append(w)
+        fin_parte = k + 1 < len(pal) and any(w["s"] < c <= pal[k + 1]["s"] + 0.05 for c in cortes)
+        if w["w"].strip()[-1:] in ".?!" or fin_parte or k == len(pal) - 1:
+            grupos.append(actual)
+            actual = []
+    try:
+        o = onda(nombre)
+        picos, ps = o.get("picos") or [], o.get("por_seg") or 50
+    except Exception:  # noqa: BLE001
+        picos, ps = [], 50
+    out = []
+    for g in grupos:
+        sil = sum(silabas(w["w"]) for w in g)
+        if sil < 6:
+            continue  # frases muy cortas: no se mide (dos palabras dichas con fuerza no son «lentas»)
+        voz = bordes_de_voz(nombre, max(0.0, g[0]["s"] - 0.05), g[-1]["e"] + 0.05) or (g[0]["s"], g[-1]["e"])
+        a, b = voz
+        quieto = 0.0
+        if picos:
+            x, y = int(a * ps), int(b * ps)
+            while x < y:
+                z = x
+                while z < y and (picos[z] < 0.06) == (picos[x] < 0.06):
+                    z += 1
+                if picos[x] < 0.06 and (z - x) / ps >= pausa:
+                    quieto += (z - x) / ps
+                x = z
+        t = b - a - quieto
+        if t <= 0.3:
+            continue
+        rapidez = sil / t
+        if rapidez < desde:
+            f = round(min(maximo, objetivo / rapidez), 2)
+            if f >= 1.04:
+                out.append((round(a, 2), round(b, 2), f))
+    return out
+
+
+def ajustes_ritmo():
+    """Ritmo de la voz: acelerar (sin cambiar el tono) las frases que se dicen lento. desde/objetivo en sílabas por
+    segundo (un hook con energía va a 7–8), maximo = cuánto se acelera como mucho (1.12 = 12 %)."""
+    return {"acelerar": True, "desde": 6.0, "objetivo": 6.5, "maximo": 1.12, **CONFIG.get("ritmo", {})}
+
+
+def _con_ritmo(combo, v):
+    """Acelera un poco las frases lentas de cada bloque, salvo donde se puso una velocidad a mano."""
+    aj = ajustes_ritmo()
+    if not aj["acelerar"]:
+        return v
+    vel = dict(v.get("velocidad") or {})
+    pausa = float(ajustes_cortes_voz()["pausa"])
+    tramos = {}
+    for clave in ("hook", "cuerpo", "cta"):
+        if vel.get(clave) or (clave == "cuerpo" and vel.get("partes")):
+            continue
+        lista = frases_lentas(combo[clave], float(aj["desde"]), float(aj["objetivo"]), float(aj["maximo"]), pausa)
+        if lista:
+            tramos[clave] = [list(x) for x in lista]
+    return {**v, "velocidad": {**vel, "tramos": tramos}} if tramos else v
 
 
 _CUENTA = [{"3", "tres"}, {"2", "dos"}, {"1", "uno", "una"}]
@@ -2476,7 +2617,7 @@ TIPOS_CORTE_VOZ = {"repetido": "Lo repitió: queda la última vez", "tartamudeo"
 def ajustes_cortes_voz():
     """auto: aplicar solos los cortes seguros · pausa: desde cuántos segundos de silencio se corta · respiro: lo que
     se deja a cada lado del corte de un silencio, para que no suene pegado."""
-    return {"auto": True, "pausa": 0.5, "respiro": 0.12, **CONFIG.get("cortes_voz", {})}
+    return {"auto": True, "pausa": 0.3, "respiro": 0.08, **CONFIG.get("cortes_voz", {})}
 
 
 def _cue_en(k, j):
@@ -2734,7 +2875,7 @@ def _edicion_guardada(combo):
     a = ajustes_piezas()
     h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
     por_pieza = lambda campo: {k: v for k, v in (("hook", h.get(campo)), ("cuerpo", c.get(campo)), ("cta", t.get(campo))) if v}
-    return {"quitar": c.get("quitar", []), "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"), "capas": por_pieza("capas"),
+    return {"quitar": c.get("quitar", []), "orden": c.get("orden") or [], "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"), "capas": por_pieza("capas"),
             "voz_revisada": por_pieza("voz_revisada"),
             "velocidad": {k: v for k, v in (("hook", h.get("velocidad")), ("cta", t.get("velocidad")), ("partes", c.get("velocidad_partes"))) if v},
             "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
@@ -2918,7 +3059,7 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
 
     v = edicion_de({k: c[k] for k in ("hook", "cuerpo", "cta")} if otra else c)  # otra combinación: parte de lo de sus piezas
     return {"codigo": codigo, "base": not c.get("version"), "propio": bool((c.get("version") or {}).get("propio")), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
-            "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "recorte_inicio": v.get("recorte_inicio", 0),
+            "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "orden": v.get("orden") or [], "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
             "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
             "velocidad": v.get("velocidad", {}), "voz_revisada": v.get("voz_revisada") or {},
@@ -2972,6 +3113,9 @@ def _rangos_velocidad(combo, offs, total):
             p = partes.get(int(i))
             if p:
                 out.append((offs[1] + p["ini"], offs[1] + p["fin"], f))
+    o = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
+    for clave, lista in (vel.get("tramos") or {}).items():  # frases lentas aceleradas solas (ver _con_ritmo)
+        out += [(o[clave] + a, o[clave] + b, f) for a, b, f in lista if clave in o]
     return out
 
 
@@ -3002,9 +3146,37 @@ def _trozos(total, rangos, velocidades=()):
     return trozos
 
 
+def _en_su_orden(combo, offs, trozos):
+    """(trozos, reordenado): los tramos que quedan, con las partes del cuerpo en el orden elegido en el editor
+    (edición «orden»: [2, 0, 1] = la frase 3 primero). El hook va siempre primero y el CTA al final.
+    Como los subtítulos, las imágenes y el zoom ya van pegados a la imagen, se mueven con su frase."""
+    orden = [int(i) for i in (edicion_de(combo).get("orden") or [])]
+    partes = partes_de(combo["cuerpo"])
+    if not orden or not partes or orden == sorted(orden):
+        return trozos, False
+    cortes = sorted({offs[1] + p["ini"] for p in partes} | {offs[1] + p["fin"] for p in partes})
+    partidos = []  # un tramo que cruza el borde entre dos frases se parte ahí
+    for a, b, fac in trozos:
+        bordes = [a] + [c for c in cortes if a + 0.01 < c < b - 0.01] + [b]
+        partidos += [(x, y, fac) for x, y in zip(bordes, bordes[1:])]
+    puesto = {i: k for k, i in enumerate(orden)}
+
+    def clave(tr):
+        medio = (tr[0] + tr[1]) / 2
+        if medio < offs[1]:
+            return (0, 0, tr[0])
+        if medio >= offs[2]:
+            return (2, 0, tr[0])
+        i = next((p["i"] for p in partes if offs[1] + p["ini"] <= medio < offs[1] + p["fin"]), partes[-1]["i"])
+        return (1, puesto.get(i, len(orden) + i), tr[0])
+    nuevos = sorted(partidos, key=clave)
+    return nuevos, nuevos != sorted(partidos)
+
+
 def _mapa_tiempo(trozos):
     """(f, duración): f(t) pasa un segundo del video sin recortes al video editado (con las velocidades).
-    Si ese segundo se quitó, devuelve None; con pegar=True, el inicio de lo que sigue."""
+    Si ese segundo se quitó, devuelve None; con pegar=True, el inicio de lo que sigue (en el video sin recortes).
+    Los tramos pueden venir en otro orden (partes del cuerpo reordenadas): se busca el tramo que tiene ese segundo."""
     tabla, g = [], 0.0
     for a, b, fac in trozos:
         tabla.append((a, b, fac, g))
@@ -3012,11 +3184,12 @@ def _mapa_tiempo(trozos):
 
     def f(t, pegar=False):
         for a, b, fac, g0 in tabla:
-            if t < a - 1e-6:
-                return g0 if pegar else None
-            if t <= b + 1e-6:
-                return g0 + (min(t, b) - a) / fac
-        return g if pegar else None
+            if a - 1e-6 <= t <= b + 1e-6:
+                return g0 + (min(max(t, a), b) - a) / fac
+        if not pegar:
+            return None
+        sigue = [x for x in tabla if x[0] > t]
+        return min(sigue, key=lambda x: x[0])[3] if sigue else g
     return f, g
 
 
@@ -3615,10 +3788,26 @@ def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None,
     return [c["codigo"] for c in combinaciones() if pieza in (c["hook"], c["cuerpo"], c["cta"])]
 
 
+def largo_audible(f):
+    """Cuánto suena de verdad un archivo (del primer al último punto fuerte), sin el silencio que trae alrededor."""
+    try:
+        picos = onda_archivo(f, 100)["picos"]
+    except Exception:  # noqa: BLE001
+        return None
+    fuertes = [i for i, v in enumerate(picos) if v >= 0.15]
+    return (fuertes[-1] - fuertes[0]) / 100 if fuertes else 0.0
+
+
 def elegir_sfx(categoria, semilla):
-    """Rota entre las variantes de la categoría para que no suenen iguales en todos los videos."""
+    """Rota entre las variantes de la categoría para que no suenen iguales en todos los videos.
+    En las categorías con tope de largo (config sonidos.largo_audible_maximo: los whoosh de los cortes) solo entran
+    los archivos rápidos: la biblioteca también trae whoosh en cámara lenta de varios segundos que arrastran el corte."""
+    topes = CONFIG["sonidos"].get("largo_audible_maximo", {})
     for cat in [categoria] + CONFIG["sonidos"].get("respaldo", {}).get(categoria, []):
         opciones = sfx_de(cat)
+        if cat in topes:
+            rapidos = [f for f in opciones if 0.12 <= (largo_audible(f) or 0) <= float(topes[cat])]
+            opciones = rapidos or opciones
         if opciones:
             k = int(hashlib.md5(semilla.encode()).hexdigest(), 16) % len(opciones)
             return opciones[k]
@@ -3639,6 +3828,26 @@ def es_numero(w):
     return n.isdigit() or n in {"dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez"}
 
 
+def tipo_hook(nombre, texto=None):
+    """Tipo de un hook (promesa, pregunta, numero, contra, producto): el del guion, o si el guion no lo dice (el que
+    sale de lo grabado dice solo «hook»), lo que se deduce de lo que se dice: «Deja de…», «…no es la solución» → contra;
+    un número al empezar → numero; termina en «?» → pregunta."""
+    t = norm(info_pieza(nombre).get("tipo", "") or "")
+    if t and t not in ("hook", "default"):
+        return t
+    if texto is None:
+        texto = " ".join(w["w"] for ln in leer_subs(nombre)["lineas"] for w in ln["palabras"]) or info_pieza(nombre).get("texto", "")
+    k = [norm(w) for w in str(texto).split() if norm(w)]
+    junto = " ".join(k)
+    if k[:2] in (["deja", "de"], ["dejen", "de"]) or k[:1] in (["nunca"], ["olvida"], ["olvidate"])             or any(x in junto for x in ("no es la solucion", "no funciona", "estas haciendo mal", "error que", "no viene de")):
+        return "contra"
+    if any(es_numero(w) for w in k[:3]):
+        return "numero"
+    if str(texto).strip().endswith("?"):
+        return "pregunta"
+    return "default"
+
+
 def planear_sonidos(combo, offs, total, subs, marcas):
     """Decide qué efecto suena y cuándo. Prioridad 3 = siempre; 1-2 = solo si no hay otro muy cerca."""
     so = CONFIG["sonidos"]
@@ -3651,7 +3860,7 @@ def planear_sonidos(combo, offs, total, subs, marcas):
 
     # Arranque del hook según su tipo (Promesa, Pregunta, Número, Contra, Producto): un solo golpe, justo donde
     # entra la voz (si el hook arranca con silencio, ese pedazo se corta y el golpe cae en la primera sílaba)
-    tipo = norm(info_pieza(hook).get("tipo", "")) or "default"
+    tipo = tipo_hook(hook)
     arranque = so["arranque_por_tipo"].get(tipo) or so["arranque_por_tipo"]["default"]
     for k, cat in enumerate(arranque):
         add(cat, 0.0 + 0.05 * k, 3, f"arranque hook ({tipo})", pegar=True)
@@ -3659,10 +3868,40 @@ def planear_sonidos(combo, offs, total, subs, marcas):
     # último tramo; en un hook que se habla de corrido tapa la voz y se suma al golpe y al whoosh sin aportar nada
     if tipo in so.get("riser_en_hooks", ["pregunta"]):
         add("riser", offs[1], 3, f"riser antes del cuerpo (hook {tipo})")
-    add("whoosh", offs[1] - 0.2, 3, "corte hook→cuerpo", pegar=True)
-    add("whoosh_inverso", offs[2] - 0.25, 3, "corte cuerpo→CTA", pegar=True)
+    v_ed = edicion_de(combo)
+    # «Magic reveal para revelar algo»: un hook que termina mostrando el producto («…sería esto», «esto sí») revela
+    # con brillo en ese «esto», y ese brillo hace de paso al cuerpo (no se suma un whoosh encima)
+    pal_hook = [w for ln in subs[0] for w in ln["palabras"]]
+    revela = next((w for w in reversed(pal_hook[-4:]) if norm(w["w"]) == "esto"), None) if so.get("revelar_en_hook", True) else None
+    if revela:
+        add("revelar", revela["s"] - 0.05, 3, f"revela el producto en «{revela['w']}»")
+    else:
+        add("whoosh", offs[1] - 0.2, 3, "corte hook→cuerpo", pegar=True)
+    # «Camera shutter para hacer transiciones»: el paso al CTA suena a foto (con un destello blanco en la imagen)
+    cat_paso = so.get("transicion_cta", "camara")
+    add(cat_paso, offs[2] + float(((v_ed.get("recortes") or {}).get("cta") or [0])[0]) - 0.03, 3, "transición al CTA", pegar=True)
+    # «Whoosh para hacer zoom in y zoom out»: un whoosh corto donde salta o empieza el zoom de una frase
+    partes_c = {p["i"]: p for p in partes_de(cuerpo)}
+    rec_p = (v_ed.get("recortes") or {}).get("partes") or {}
+    for i, zz in ((v_ed.get("zoom") or {}).get("partes") or {}).items():
+        p = partes_c.get(int(i))
+        if p and zz and int(i) not in (v_ed.get("quitar") or []):
+            add("zoom", offs[1] + p["ini"] + float((rec_p.get(str(i)) or [0])[0]) - 0.08, 2, f"zoom {zz.get('tipo', '')} en la frase {int(i) + 1}", pegar=True)
+    for k_pz, (pz, off) in enumerate((("hook", 0.0), ("cuerpo", offs[1]), ("cta", offs[2]))):
+        pts = sorted(((v_ed.get("zoom") or {}).get("puntos") or {}).get(pz) or [], key=lambda x: x.get("t", 0))
+        for k1, k2 in zip(pts, pts[1:]):
+            if abs(float(k2.get("s", 1)) - float(k1.get("s", 1))) >= 0.08:  # se acerca o se aleja de verdad
+                t_mov = k1["t"] if k1.get("curva") != "golpe" else k2["t"]
+                add("zoom", off + float(t_mov) - 0.05, 2, f"zoom en {pz}", pegar=True)
     # CTA: notificación (anuncio) o tecleo (orgánico)
-    tipo_cta = norm(info_pieza(cta).get("tipo", "")) or ("anuncio" if cta.upper().endswith("A") else "organico")
+    # sin tipo en el guion: por lo que se dice (escribir por WhatsApp → notificación; comentar → tecleo)
+    dicho_cta = {norm(w["w"]) for ln in leer_subs(cta)["lineas"] for w in ln["palabras"]}
+    tipo_cta = norm(info_pieza(cta).get("tipo", ""))
+    if tipo_cta not in so["cta_por_tipo"]:  # el guion sacado de lo grabado dice solo «cta»: no es un tipo de CTA
+        tipo_cta = ""
+    tipo_cta = tipo_cta or ("anuncio" if dicho_cta & {"whatsapp", "escribenos", "mensaje"}
+                                                         else "organico" if dicho_cta & {"comenta", "comentanos"}
+                                                         else "anuncio" if cta.upper().endswith("A") else "organico")
     cat_cta = so["cta_por_tipo"].get(tipo_cta)
     if cat_cta:
         add(cat_cta, offs[2] + 0.3, 3, f"CTA {tipo_cta}", pegar=True)
@@ -3680,6 +3919,8 @@ def planear_sonidos(combo, offs, total, subs, marcas):
                 add("whoosh", t - 0.15, 2, f"entra {m['asset']}")
             if m.get("sub") in ("centro_grande", "palabra_sola") and not m.get("sfx"):
                 add("impacto", t, 2, f"subtítulo grande «{m['palabra']}»")
+            elif m.get("sub") == "resaltado" and not m.get("sfx"):
+                add("click", t, 2, f"texto resaltado «{m['palabra']}»")
     # Situaciones: si se dice una palabra de la lista, su sonido (ingresos → caja registradora, ficha → papel…)
     situaciones = dict(CONFIG.get("sfx_palabras", {}))
     if produccion().get("publico") in ("duenos", "dueños"):
@@ -3705,7 +3946,7 @@ def planear_sonidos(combo, offs, total, subs, marcas):
                 elif es_numero(p["w"]):
                     add("ding", t, 1, f"número «{p['w']}»")
                 elif es_clave(p["w"]):
-                    add("pop", t, 1, f"palabra clave «{p['w']}»")
+                    add(so.get("sonido_palabra_clave", "click"), t, 1, f"palabra clave «{p['w']}»")
 
     # Lo que el equipo cambió a mano en cada pieza (Sonidos del editor): se quitan los marcados y se suman los agregados
     a_mano = ajustes_piezas()
@@ -4108,6 +4349,11 @@ def armar_uno(combo, n_musica=0, extras=None):
 
     eventos, silencios = planear_sonidos(combo, offs, total, subs, marcas)
     tramos, faltan_musica = planear_musica(combo, offs, total, marcas, n_musica)
+    mudo = ajustes_video(combo["codigo"]).get("silenciar") or {}  # pistas silenciadas en el editor de este video
+    if mudo.get("sonidos"):
+        eventos = []
+    if mudo.get("musica"):
+        tramos = []
 
     cmd = [FFMPEG, "-hide_banner", "-y"]
     for a in archivos:
@@ -4144,6 +4390,12 @@ def armar_uno(combo, n_musica=0, extras=None):
         f.append(f"[{v_prev}][e{idx}]overlay={int(float(el.get('x', 0)))}:{int(float(el.get('y', 0)))}:eof_action=pass[v{idx}]")
         v_prev = f"v{idx}"
         idx += 1
+    if CONFIG["sonidos"].get("flash_transicion_cta", True):
+        # transición al CTA como foto: un destello blanco cortito justo donde entra la voz del CTA (con el obturador)
+        t_cta = offs[2] + float(((edicion_de(combo).get("recortes") or {}).get("cta") or [0])[0])
+        f.append(f"[{v_prev}]drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='between(t,{t_cta:.3f},{t_cta + 0.07:.3f})',"
+                 f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='between(t,{t_cta + 0.07:.3f},{t_cta + 0.14:.3f})'[vflash]")
+        v_prev = "vflash"
     if extras:
         f.append(f"[{v_prev}]split=2[vlimpio][vs]")
         f.append("[vs]subtitles=subs.ass:fontsdir=fuentes[v]")
@@ -4153,9 +4405,9 @@ def armar_uno(combo, n_musica=0, extras=None):
     # cortes, frases quitadas y velocidades: en la misma pasada (antes era otra pasada que volvía a codificar todo
     # el video y tardaba lo mismo que el armado)
     rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
-    trozos = _trozos(total, rangos, velocidades)
+    trozos, reordenado = _en_su_orden(combo, offs, _trozos(total, rangos, velocidades))
     salidas_v = [("v", "ac1" if extras else "ac")] + ([("vlimpio", "ac2")] if extras else [])
-    if (rangos or velocidades) and trozos:
+    if (rangos or velocidades or reordenado) and trozos:
         for k, (vl, al) in enumerate(salidas_v):
             f += _filtro_tramos(vl, al, trozos, f"{vl}_c", f"{al}_c", pref=f"q{k}")
         salidas_v = [(f"{vl}_c", f"{al}_c") for vl, al in salidas_v]
@@ -4177,7 +4429,8 @@ def armar_uno(combo, n_musica=0, extras=None):
     silencios_ed = [(a, b) for a, b in silencios_ed if b - a > 0.05]
     eventos_ed = [{**e, "t": mapa(e["t"], e.get("pegar", False))} for e in eventos]
     eventos_ed = [e for e in eventos_ed if e["t"] is not None]
-    _mezclar_audio(base, S.salida / f"{combo['archivo']}.mp4", tramos_ed, silencios_ed, eventos_ed, total_ed, extras)
+    _mezclar_audio(base, S.salida / f"{combo['archivo']}.mp4", tramos_ed, silencios_ed, eventos_ed, total_ed, extras,
+                   sin_voz=bool(mudo.get("voz")))
     if extras:
         _elementos_por_separado(extras, limpio, combo, orden, offs, subs, mapa, overlays)
     total = duracion(S.salida / f"{combo['archivo']}.mp4")
@@ -4201,7 +4454,7 @@ def armar_uno(combo, n_musica=0, extras=None):
               # pistas de música en el video sin recortes, para escucharlas en la vista previa del editor
               "pistas": [{"t0": round(t["t0"], 2), "t1": round(t["t1"], 2), "desde": t["desde"], "archivo": str(t["archivo"]),
                           "id": t["id"]} for t in tramos],
-              "volumen_musica": CONFIG["musica"]["volumen"],
+              "volumen_musica": CONFIG["musica"]["volumen"], "silenciar": mudo,
               "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
     (S.recetas / f"{combo['codigo']}.json").write_text(json.dumps(receta, ensure_ascii=False, indent=1), encoding="utf-8")
     for v in (base, limpio):
@@ -4209,9 +4462,10 @@ def armar_uno(combo, n_musica=0, extras=None):
     return receta
 
 
-def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None):
+def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None, sin_voz=False):
     """Paso 3 del armado: a la voz del video ya cortado se le suman la música (baja sola cuando se habla)
-    y los sonidos. La imagen se copia tal cual. Con extras, deja también voz, música y efectos en .wav."""
+    y los sonidos. La imagen se copia tal cual. Con extras, deja también voz, música y efectos en .wav.
+    sin_voz: la pista de voz silenciada (la música igual baja donde se habla)."""
     cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(base)]
     idx = 1
     i_mus = []
@@ -4223,6 +4477,9 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None)
     salidas_voz = ["[voz]"] + (["[sc]"] if tramos else []) + (["[vozx]"] if extras else [])
     f.append(f"[0:a]asplit={len(salidas_voz)}{''.join(salidas_voz)}" if len(salidas_voz) > 1 else "[0:a]anull[voz]")
     mezcla = ["[voz]"]
+    if sin_voz:
+        f.append("[voz]volume=0[vozm]")
+        mezcla = ["[vozm]"]
     if tramos:
         cruce = 0.4  # segundos de fundido cuando cambia la música
         for k, (tr, i) in enumerate(zip(tramos, i_mus)):

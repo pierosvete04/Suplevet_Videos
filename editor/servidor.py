@@ -179,7 +179,7 @@ def estado():
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": motor.ajustes_cortes_voz(), "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]}, "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -924,6 +924,12 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "portada": url_media(motor.S.portadas / f"{c['archivo']}.jpg")})
             elif u.path == "/api/ajustes_video":
                 b = self._cuerpo()
+                if "silenciar" in b:  # pistas silenciadas de un video (voz, sonidos, música): solo eso
+                    mudo = {k: True for k in ("voz", "sonidos", "musica") if (b.get("silenciar") or {}).get(k)}
+                    motor.guardar_ajustes_video(b["codigo"], {"silenciar": mudo or None})
+                    if b.get("armar"):
+                        lanzar("armar_sel", extra={"codigos": [b["codigo"]]})
+                    return self._json({"ok": True, "silenciar": mudo})
                 if b.get("codigos"):  # varios videos elegidos: solo cambia su plantilla (la altura de cada uno se queda)
                     for cod in b["codigos"]:
                         motor.guardar_ajustes_video(cod, {"plantilla": b.get("plantilla") or None})
@@ -1011,8 +1017,9 @@ class H(BaseHTTPRequestHandler):
                 aj = {"auto": bool(b.get("auto", antes["auto"])),
                       "pausa": max(0.25, min(3.0, float(b.get("pausa", antes["pausa"])))),
                       "respiro": max(0.0, min(0.4, float(b.get("respiro", antes["respiro"]))))}
-                motor.guardar_config({"cortes_voz": aj, "cortes_voz_cambio": time.time()})
-                self._json({"ok": True, **aj})
+                ritmo = {**motor.CONFIG.get("ritmo", {}), "acelerar": bool(b.get("acelerar", motor.ajustes_ritmo()["acelerar"]))}
+                motor.guardar_config({"cortes_voz": aj, "ritmo": ritmo, "cortes_voz_cambio": time.time()})
+                self._json({"ok": True, **aj, "acelerar": ritmo["acelerar"]})
             elif u.path == "/api/sonido":
                 b = self._cuerpo()
                 if b.get("accion") not in ("agregar", "quitar", "cambiar", "mover", "ajustar"):

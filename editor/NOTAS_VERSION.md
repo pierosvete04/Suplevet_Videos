@@ -1,7 +1,19 @@
+Versión 1.24.0 (se actualiza desde la app con «Actualizar ahora»):
+- CTA repetido: si un CTA grabado en partes trae en cada parte un llamado completo («Pídelo hoy, escríbenos por WhatsApp…» y «Comenta Suplevet…»), la sala ya no los pega uno detrás del otro: son dos CTA (CTA1 y CTA1B) y cada video lleva uno solo, turnándose entre los hooks.
+- El sonido del CTA sale de lo que se dice: notificación si pide escribir por WhatsApp, tecleo si pide comentar. Antes, con el guion sacado de lo grabado, el CTA se quedaba sin sonido.
+- Arranque del hook con un whoosh rápido. En los cortes solo entran whoosh cortos (que suenan menos de 0,7 s): la biblioteca también trae whoosh en cámara lenta de varios segundos que arrastraban el corte. El riser ya no se pone solo (va donde lo pidas).
+- Ritmo: los silencios se cortan desde 0,3 s (antes 0,5 s) y las frases que se dicen lento (menos de 6 sílabas por segundo) se aceleran un poco, hasta 12 %, sin cambiar el tono. Se mide frase por frase. Se apaga en «Cortes por voz» → «Acelerar un poco las frases lentas»; donde pongas una velocidad a mano, manda la tuya.
+- Editor: «⏮ Desde el inicio» (tecla Inicio) vuelve al segundo 0 y reproduce.
+- Editor: silenciar pistas. El parlante en «Voz» y «Sonidos» y el botón «🎵 Música» las apagan en este video: se oye así en la vista previa y el video se arma así.
+- Sonidos con los 5 usos que recomienda @comoeditarvideos (TikTok):
+  - «Fahhh» para llamar la atención: arranca los hooks «contra lo común» («Deja de…», «…no es la solución»). Si el guion no dice el tipo de hook, la sala lo deduce de lo que se dice.
+  - Magic reveal para revelar: en el «esto» con que termina el hook («…sería esto») y hace de paso al cuerpo.
+  - Whoosh corto en cada zoom (zoom alternado o fotogramas clave que acercan o alejan).
+  - Click para remarcar: en las palabras clave que se resaltan en el subtítulo (antes era un pop).
+  - Obturador de cámara con un destello blanco en la transición al CTA.
+- Editor: cambiar el orden de las frases del cuerpo. Toca una frase y usa «◀ Mover frase antes / Mover frase después ▶» (o Alt + ← / →). Sus subtítulos, imágenes y encuadre van con ella; vale para todos los videos de ese cuerpo.
+
 Versión 1.23.0 (se actualiza desde la app con «Actualizar ahora»):
-- Nueva pestaña **Carruseles**: arma carruseles de 1080×1350 dentro de la sala. Arrastra las fotos de Flow, tócalas para ponerlas en la lámina y con ✂ se les quita el fondo (sin internet, con el mismo modelo de rembg; la primera vez baja 170 MB). Encima van textos (con *palabra* resaltada), garabatos a mano (rayitas, ?!, flechas, corazón…), formas, la bolsa real y el logo. Se mueve, agranda y gira con el mouse.
-- «Escribir con Claude» en Carruseles: escribe el texto de cada lámina, el prompt de Flow de cada foto y el copy.
-- «Exportar a V.FINALES» deja L01.png, L02.png… y copy.txt en V.FINALES/<carrusel>: el Publicador ya lo toma como carrusel.
 - Cortes más finos: la sala mira la onda de la voz (no solo la transcripción, que estira la primera palabra sobre el silencio) y recorta el silencio del inicio y del final de cada parte del cuerpo, no solo de la primera y la última. Así no queda un hueco mudo donde se pega una toma con la siguiente (por ejemplo, el arranque de C1-1).
 - Las pausas largas en medio también se cortan aunque la transcripción diga que ahí había una palabra.
 - Frase repetida con otras palabras («Panza tranquila, mejor digestión y mejores popos. Panza tranquila y mejor digestión»): se corta la primera y queda la última toma, como con las demás repeticiones. Toca lo tachado para volver a ponerla.

@@ -6,22 +6,24 @@ The sala takes these sounds from your **SOUND FX** folder in Drive (mostly from 
 
 | Moment | Sound | Your folder |
 |---|---|---|
-| Start of a **Promesa** hook | One bass hit, right on the first syllable | 05-BOOM (IMPACTO) |
+| Start of a **Promesa**, **Pregunta** or **Número** hook | One fast whoosh (sounds under 0.7 s) | 36-WHOOSH · 32-SWOSH |
 | Start of a **Producto** hook | Shine | 03-ANIMACION LOGO |
-| Start of a **Pregunta** hook | Short tension | 08-CINEMATICA |
-| Start of a **Contra lo común** hook ("deja de…") | Record scratch | 25-MEMES/Turntable Scratch · 19-EXTRAS/Scratch |
-| Start of a **Número** hook | Hit + ding on the number | 05-BOOM · 14-DING |
-| End of a **Pregunta** hook (only those) | Short riser that ends at the cut (at most the last 40 % of the hook) | 31-RISER · 11-CORPORATE RISER |
-| Hook → body cut | Whoosh | 36-WHOOSH · 32-SWOSH |
-| Body → CTA cut | Transition | 35-TRANSICION |
-| CTA "escríbenos por WhatsApp" | Notification | 19-EXTRAS/Notification… |
-| CTA "comenta VET" | Typing | 10-CLICK/Keyboard |
+| Start of a **Contra lo común** hook ("deja de…", "…no es la solución") | "Fahhh" to grab attention | FX SUPLEVET/ATENCION |
+| Riser | Only when you ask for it (a mark in the script or in the editor); never automatic | 31-RISER · 11-CORPORATE RISER |
+| Hook that ends showing the product ("…sería esto") | Magic reveal on "esto" (it is also the step into the body) | 35-TRANSICION/Magic Spell · 03-ANIMACION LOGO |
+| Hook → body cut (other hooks) | Fast whoosh (under 0.7 s; the slow-motion ones are skipped) | 36-WHOOSH · 32-SWOSH |
+| Body → CTA cut | Camera shutter + short white flash | 07-CAMARA |
+| Each zoom (punch or keyframes that zoom in/out) | Short whoosh | 32-SWOSH |
+| CTA that asks to write on WhatsApp (detected from what is said) | Notification | 19-EXTRAS/Notification… |
+| CTA that asks to comment (detected from what is said) | Typing | 10-CLICK/Keyboard |
 | "Suplevet" is said for the first time | Logo shine | 03-ANIMACION LOGO |
 | A Flow image comes in | Short whoosh | 32-SWOSH |
 | Large subtitle / single word | Hit | 05-BOOM |
 | **Silence cut** (`corte_silencio`) | Music stops for half a second and comes back with a hit | 05-BOOM |
-| Key word (calostro, defensas…) | Pop | 29-POP · FX CARTOON 2/Pop Sounds |
+| Key word highlighted in the subtitle (calostro, defensas…) | Click | sala click (built in) · falls back to pop |
 | Number said aloud | Ding | 14-DING |
+
+Based on the 5 uses recommended by @comoeditarvideos (TikTok): Fahhh to grab attention, magic reveal to reveal, whoosh for zoom, click to highlight text, camera shutter for transitions.
 
 ## 2. Everyday situations (automatic when that word is said)
 

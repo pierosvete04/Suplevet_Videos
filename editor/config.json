@@ -36,26 +36,32 @@
       "riser": 0.8,
       "pop": 0.8,
       "tecleo": 0.9,
-      "glitch": 0.6
+      "glitch": 0.6,
+      "click": 0.9,
+      "atencion": 0.9
     },
-    "riser_en_hooks": [
-      "pregunta"
-    ],
+    "riser_en_hooks": [],
+    "largo_audible_maximo": {
+      "whoosh": 0.7,
+      "whoosh_inverso": 0.8,
+      "zoom": 0.7,
+      "camara": 0.8
+    },
     "arranque_por_tipo": {
       "promesa": [
-        "impacto"
+        "whoosh"
       ],
       "pregunta": [
-        "tension"
+        "whoosh"
       ],
       "numero": [
-        "impacto"
+        "whoosh"
       ],
       "contra": [
-        "scratch"
+        "atencion"
       ],
       "contralocomun": [
-        "scratch"
+        "atencion"
       ],
       "producto": [
         "brillo"
@@ -64,7 +70,7 @@
         "brillo"
       ],
       "default": [
-        "impacto"
+        "whoosh"
       ]
     },
     "cta_por_tipo": {
@@ -97,6 +103,19 @@
       ],
       "glitch": [
         "pop"
+      ],
+      "atencion": [
+        "scratch",
+        "impacto"
+      ],
+      "revelar": [
+        "brillo"
+      ],
+      "click": [
+        "pop"
+      ],
+      "camara": [
+        "whoosh_inverso"
       ]
     },
     "duracion_maxima": {
@@ -125,8 +144,15 @@
       "golpe_texto": 0.9,
       "riser_largo": 3.0,
       "drama": 1.6,
-      "camara": 0.7
-    }
+      "camara": 0.8,
+      "atencion": 1.3,
+      "revelar": 1.6,
+      "click": 0.3
+    },
+    "transicion_cta": "camara",
+    "sonido_palabra_clave": "click",
+    "revelar_en_hook": true,
+    "flash_transicion_cta": true
   },
   "musica": {
     "volumen": 0.22,
@@ -261,6 +287,13 @@
     ],
     "drama": [
       "FX COMMON/Efectos de Sonido_Edwin Arenas/34-TERROS Y DRAMA"
+    ],
+    "atencion": [
+      "FX SUPLEVET/ATENCION"
+    ],
+    "revelar": [
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/35-TRANSICION/Magic Spell Sound Effect ( By Ashish Editz )_01.mp3",
+      "FX COMMON/Efectos de Sonido_Edwin Arenas/03-ANIMACION LOGO"
     ]
   },
   "plantillas_sub": {

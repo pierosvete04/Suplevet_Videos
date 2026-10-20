@@ -247,6 +247,8 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-regla { position: relative; height: 18px; margin-left: 78px; font: 10px var(--mono); color: var(--muted); cursor: pointer; }
 .ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line2); padding-left: 3px; }
 .ev-pista { display: flex; align-items: center; height: 46px; margin-top: 4px; }
+.ev-mudo { margin-left: auto; margin-right: 4px; border: 1px solid var(--borde, #ccd); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 11px; line-height: 1; padding: 3px 4px; cursor: pointer; }
+.ev-mudo[aria-pressed="true"] { background: #fde2e2; color: #b42318; border-color: #f3b4b4; }
 .ev-etq { width: 78px; flex: none; font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); padding-left: 8px; position: sticky; left: 0; background: var(--bg2); z-index: 2; height: 100%; display: flex; align-items: center; }
 .ev-carril { position: relative; height: 100%; cursor: pointer; }
 .ev-b { position: absolute; top: 3px; bottom: 3px; border-radius: 8px; color: #fff; font: 700 11px var(--f); padding: 4px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; border: 2px solid transparent; }
@@ -1493,6 +1495,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         </div>
       </div>
       <div class="ev-controles fila">
+        <button class="btn sec peq" id="evInicio" type="button" title="Vuelve al inicio del video y reproduce desde ahí (tecla Inicio)">⏮ Desde el inicio</button>
         <button class="btn sec peq" id="evPlay" title="Reproducir o pausar (Enter o barra espaciadora)">▶ Reproducir</button>
         <span id="evTiempo" class="muted" style="font-variant-numeric:tabular-nums">0.0 s</span>
         <button class="btn sec peq" id="evCortar" type="button" title="Corta video y audio en el cabezal (tecla S)">✂ Cortar</button>
@@ -1508,6 +1511,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <button class="btn sec peq" id="evSilencios" type="button" title="Corta el silencio del inicio y del final de cada clip y de cada frase, justo antes de que se hable">✂ Quitar silencios</button>
         <label class="btn sec peq" title="Sube una imagen o un clip nuevo y lo pone en el cabezal">⬆ Subir<input type="file" id="evImagenSubir" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" hidden></label>
         <label class="muted fila" style="font-size:12px" title="La vista previa suena con la música y los sonidos del último armado"><input type="checkbox" id="evConMusica" checked> Música y sonidos</label>
+        <button type="button" class="ev-mudo" data-mudo="musica" aria-pressed="false" style="margin:0" title="Silenciar la música en este video">🎵 Música</button>
         <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="6" max="400" value="34"></label>
         <span class="muted" style="font-size:11px">Touchpad: pellizca (o Ctrl + rueda) para acercar · desliza con dos dedos para moverte</span>
       </div>
@@ -1530,12 +1534,12 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <div class="ev-pista"><span class="ev-etq" title="Los clips: hook, frases del cuerpo y CTA. Estira los bordes para recortar.">Video</span><div class="ev-carril" id="evCarrilV"></div></div>
         <div class="ev-pista ev-capas"><span class="ev-etq" title="Imágenes y escenas encima del video">Imágenes</span><div class="ev-carril" id="evCarrilI" title="Imágenes y escenas: arrástralas para moverlas, estira sus bordes para cambiar cuánto duran. También puedes soltar aquí un archivo."></div></div>
         <div class="ev-pista ev-zoom"><span class="ev-etq" title="Zoom con fotogramas clave (tecla K)">Encuadre</span><div class="ev-carril" id="evCarrilZ" title="Fotogramas clave de encuadre: toca uno para ajustarlo, arrástralo para moverlo"></div></div>
-        <div class="ev-pista ev-audio"><span class="ev-etq" title="La voz: en color cuando habla, en gris el silencio">Voz</span><div class="ev-carril" id="evCarrilA"></div></div>
-        <div class="ev-pista ev-efectos"><span class="ev-etq" title="Sonidos: arrástralos para moverlos, tócalos para cambiarlos o quitarlos">Sonidos</span><div class="ev-carril" id="evCarrilE"></div></div>
+        <div class="ev-pista ev-audio"><span class="ev-etq" title="La voz: en color cuando habla, en gris el silencio">Voz<button type="button" class="ev-mudo" data-mudo="voz" aria-pressed="false" title="Silenciar la voz en este video">🔊</button></span><div class="ev-carril" id="evCarrilA"></div></div>
+        <div class="ev-pista ev-efectos"><span class="ev-etq" title="Sonidos: arrástralos para moverlos, tócalos para cambiarlos o quitarlos">Sonidos<button type="button" class="ev-mudo" data-mudo="sonidos" aria-pressed="false" title="Silenciar todos los sonidos de este video">🔊</button></span><div class="ev-carril" id="evCarrilE"></div></div>
         <div class="ev-pista"><span class="ev-etq" title="Toca uno para corregirlo, cortarlo, unirlo o borrarlo; arrástralo para moverlo">Subtítulos</span><div class="ev-carril" id="evCarrilS"></div></div>
         <div class="ev-cabezal" id="evCabezal"></div>
       </div>
-      <p class="muted ev-ayuda">Teclas: <b>Enter</b> o <b>espacio</b> reproduce · <b>←</b> <b>→</b> un cuadro (con Shift, un segundo) · <b>S</b> corta en el cabezal ·
+      <p class="muted ev-ayuda">Teclas: <b>Enter</b> o <b>espacio</b> reproduce · <b>Inicio</b> desde el principio · <b>←</b> <b>→</b> un cuadro (con Shift, un segundo) · <b>S</b> corta en el cabezal ·
         <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
         <b>I</b> imagen o escena en el cabezal.</p>
       <div class="ev-sonido-barra">
@@ -3131,7 +3135,8 @@ async function cargarBiblioteca() {
 let sonCat = "";
 const DESC_SONIDO = { whoosh: "Barrido de aire: cambios de escena y textos que entran", pop: "Golpecito corto: palabras clave y números",
   golpe: "Impacto: frases fuertes", riser: "Sube la tensión antes de algo importante", ding: "Campanita: ideas o datos",
-  click: "Clic: botones, listas", glitch: "Corte digital: transiciones rápidas" };
+  click: "Clic: remarcar textos y palabras clave", glitch: "Corte digital: transiciones rápidas",
+  atencion: "«Fahhh»: llamar la atención al arrancar", revelar: "Magic reveal: revelar el producto", camara: "Obturador: transición al CTA (con destello)" };
 // Navegador: a la izquierda los tipos, al centro los sonidos (una línea cada uno), a la derecha el elegido con su editor
 async function pintarSonidos() {
   await cargarBiblioteca();
@@ -3678,6 +3683,9 @@ async function cargarEstructura(codigo, combo) {
   ed.cortes = JSON.parse(JSON.stringify(est.cortes || {})); ed.quitarR = JSON.parse(JSON.stringify(est.quitar_rangos || {}));
   ed.capas = JSON.parse(JSON.stringify(est.capas || {})); ed.cSel = null;
   ed.vel = JSON.parse(JSON.stringify(est.velocidad || {})); ed.vel.partes = ed.vel.partes || {};
+  // orden de las frases del cuerpo (se puede cambiar con «Mover antes / después»); las que falten van al final
+  const todas = est.cuerpo.partes.map(p => p.i);
+  ed.orden = [...(est.orden || []).filter(i => todas.includes(i)), ...todas.filter(i => !(est.orden || []).includes(i))];
   ed.zoom.puntos = ed.zoom.puntos || {};
   // los tramos de zoom de la versión anterior pasan a fotogramas clave (inicio y fin de cada tramo)
   for (const [pz, ts] of Object.entries(ed.zoom.tramos || {})) {
@@ -3710,6 +3718,10 @@ function pintarAlcance() {
     : !misma ? `<span>⑂</span><span>Elegiste otra combinación de piezas: se guarda como <b>versión aparte</b>.</span>`
     : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se rearman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`;
 }
+function partesEnOrden() {  // las frases del cuerpo en el orden elegido
+  const o = ed.orden || [];
+  return [...est.cuerpo.partes].sort((x, y) => (o.indexOf(x.i) < 0 ? 1e3 + x.i : o.indexOf(x.i)) - (o.indexOf(y.i) < 0 ? 1e3 + y.i : o.indexOf(y.i)));
+}
 // Bloques en orden: hook, frases del cuerpo, CTA. a/b = entrada/salida en segundos del archivo de esa pieza.
 function bloquesEd() {
   if (!est || est.error) return [];
@@ -3718,7 +3730,7 @@ function bloquesEd() {
   const hd = est.hook.dur || 0, cd = est.cta.dur || 0;
   let [a, b] = rango(ed.hook, 0, hd);
   base.push({ key: "hook", pz: "hook", k: "h", t: est.hook.nombre, pieza: est.hook, lo: 0, hi: hd, a, b, zoom: ed.zoom.hook, vel: ed.vel.hook || 1 });
-  est.cuerpo.partes.forEach(p => {
+  partesEnOrden().forEach(p => {
     [a, b] = rango(ed.partes[p.i], p.ini, p.fin);
     base.push({ key: "p" + p.i, pz: "cuerpo", i: p.i, k: "c", t: `${est.cuerpo.nombre}·${p.i + 1}`, pieza: est.cuerpo, lo: p.ini, hi: p.fin, a, b,
                quitada: ed.quitar.has(p.i), fuera: ed.quitar.has(p.i) && ed.vista !== "sin", cortado: ed.quitar.has(p.i) && ed.vista === "sin",
@@ -3822,6 +3834,11 @@ function pintarInspector() {
   if (!b) { $("evInspector").innerHTML = `<span class="muted">Toca un bloque, un pedazo, un fotograma clave o un subtítulo.</span>`; return; }
   const velHtml = (bb) => `<label class="muted ev-campo">Velocidad${bb.i !== undefined ? " de esta frase" : ""}<select id="evVel">${
       [1, 1.1, 1.15, 1.2, 1.25, 1.3, 1.4, 1.5, 1.75, 2, 0.9, 0.8].map(f => `<option value="${f}" ${Math.abs((bb.vel || 1) - f) < .001 ? "selected" : ""}>${f}×${f === 1 ? " (normal)" : f < 1 ? " (más lento)" : ""}</option>`).join("")}</select></label>`;
+  // mover la frase entera del cuerpo (con todos sus pedazos) antes o después de la de al lado
+  const moverHtml = bb => bb.i !== undefined && est.cuerpo.partes.length > 1 ? `<div class="fila" style="gap:6px">
+      <button class="btn sec peq" type="button" data-mover="-1" ${ed.orden.indexOf(bb.i) <= 0 ? "disabled" : ""} title="La frase ${bb.i + 1} va antes (Alt + ←)">◀ Mover frase antes</button>
+      <button class="btn sec peq" type="button" data-mover="1" ${ed.orden.indexOf(bb.i) >= ed.orden.length - 1 ? "disabled" : ""} title="La frase ${bb.i + 1} va después (Alt + →)">Mover frase después ▶</button>
+      <span class="muted" style="font-size:11px">Cambia el orden de las frases del cuerpo</span></div>` : "";
   const pausasHtml = `<button class="btn sec peq" type="button" id="evPausas" title="Corta los silencios largos de este bloque (más de 0,35 s), dejando un respiro">✂ Quitar pausas</button>`;
   if (b.nsub) {  // un pedazo entre cortes
     $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
@@ -3829,6 +3846,7 @@ function pintarInspector() {
       <span class="muted" style="font-size:12px">${(b.b - b.a).toFixed(2)} s · del ${b.a.toFixed(2)} al ${b.b.toFixed(2)} s del clip</span>
       <div class="fila">${b.sub > 0 ? `<button class="btn sec peq" type="button" data-unir="${b.a}">Unir con el anterior</button>` : ""}
         ${b.sub < b.nsub - 1 ? `<button class="btn sec peq" type="button" data-unir="${b.b}">Unir con el siguiente</button>` : ""}${pausasHtml}</div>
+      ${moverHtml(b)}
       <div class="dos">${velHtml(b)}</div>
       <span class="muted" style="font-size:11px">Video y audio van juntos. Quitar un pedazo junta lo de antes con lo de después.</span>`;
     return;
@@ -3837,6 +3855,7 @@ function pintarInspector() {
   $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
       ${b.i !== undefined ? `<label class="fila" style="font-size:13px"><input type="checkbox" id="evVisible" ${b.quitada ? "" : "checked"}> Incluir esta frase</label>` : ""}</div>
     ${b.texto ? `<span class="muted" style="font-size:12px">«${esc(b.texto)}»</span>` : ""}
+    ${moverHtml(b)}
     <div class="dos">
       <label class="muted ev-campo">Entrada (s)<input type="number" id="evA" step="0.05" min="0" value="${(b.a - b.lo).toFixed(2)}"></label>
       <label class="muted ev-campo">Salida (s)<input type="number" id="evB" step="0.05" min="0" value="${(b.b - b.lo).toFixed(2)}"></label>
@@ -4278,6 +4297,18 @@ $("evInspector").addEventListener("change", e => {
   const b = bloquesEd().find(x => x.key === ed.sel); if (b) { alternarPedazo(b); pintarEditor(); vistaEd(); }
 });
 $("evInspector").addEventListener("click", e => { const u = e.target.closest("[data-unir]"); if (u) unirCorte(Number(u.dataset.unir)); });
+// Mover una frase del cuerpo antes o después de la de al lado. Sus subtítulos, imágenes y encuadre van con ella.
+function moverFrase(paso) {
+  const b = bloquesEd().find(x => x.key === ed.sel || x.key.split("#")[0] === ed.sel);
+  if (!b || b.i === undefined) return;
+  const k = ed.orden.indexOf(b.i), j = k + paso;
+  if (k < 0 || j < 0 || j >= ed.orden.length) return;
+  [ed.orden[k], ed.orden[j]] = [ed.orden[j], ed.orden[k]];
+  pararEditor(); pintarEditor();
+  const s = segmentosEd().find(x => x.i === b.i); if (s) irA(s.g0);
+  avisar(`La frase ${b.i + 1} ahora va ${paso < 0 ? "antes" : "después"}. Toca el botón verde para guardar y rearmar.`, "ok");
+}
+$("evInspector").addEventListener("click", e => { const m = e.target.closest("[data-mover]"); if (m) moverFrase(Number(m.dataset.mover)); });
 // Velocidad de un bloque (hook, CTA o una frase del cuerpo): la voz no cambia de tono
 $("evInspector").addEventListener("change", e => {
   if (e.target.id !== "evVel") return;
@@ -4449,7 +4480,7 @@ function pintarVoz() {
     while (k < huecos.length) t += chip(huecos[k++]);
     html += `<div class="ev-voz-pieza"><b>${etq.toUpperCase()} · ${esc(p.nombre)}</b>${t || `<span class="muted">Sin texto (todavía no se transcribió).</span>`}</div>`;
   }
-  const aj = (E && E.cortes_voz) || { auto: true, pausa: .5 };
+  const aj = (E && E.cortes_voz) || { auto: true, pausa: .3, acelerar: true };
   caja.innerHTML = `<div class="ev-voz-cab"><h3>🎙 Cortes por voz</h3>
       <span class="ev-voz-res">${nCortes ? `Se ${nCortes === 1 ? "corta" : "cortan"} <b>${plural(nCortes, "pedazo")}</b> (−${seg.toFixed(1)} s)` : "Sin cortes en medio"}${pend ? ` · <b>${pend}</b> ${pend === 1 ? "sugerencia" : "sugerencias"} por revisar` : ""}</span>
       <span style="flex:1"></span>
@@ -4459,7 +4490,8 @@ function pintarVoz() {
     <div class="ev-voz-texto">${html}</div>
     <div class="ev-voz-leyenda"><span><span class="ev-w cortada">tachado</span> se corta</span><span><span class="ev-w sugerida">ondulado</span> sugerido, todavía suena</span>
       <span><span class="ev-w fuera">gris</span> fuera del recorte del clip</span><span><span class="ev-hueco cortada">⏸ 0.6 s</span> silencio cortado</span></div>
-    <div class="ev-voz-ajustes"><label>Cortar silencios desde <select id="vozPausa">${[.35, .5, .7, 1, 1.5].map(v => `<option value="${v}" ${Math.abs(aj.pausa - v) < .001 ? "selected" : ""}>${String(v).replace(".", ",")} s${v === .5 ? " (recomendado)" : ""}</option>`).join("")}</select></label>
+    <div class="ev-voz-ajustes"><label>Cortar silencios desde <select id="vozPausa">${[.25, .3, .4, .5, .7, 1].map(v => `<option value="${v}" ${Math.abs(aj.pausa - v) < .001 ? "selected" : ""}>${String(v).replace(".", ",")} s${v === .3 ? " (ritmo rápido, recomendado)" : ""}</option>`).join("")}</select></label>
+      <label class="fila" style="gap:6px" title="Las frases que se dicen lento (menos de 6 sílabas por segundo) se aceleran un poco, hasta 12 %, sin cambiar el tono. Donde pongas una velocidad a mano, manda la tuya."><input type="checkbox" id="vozAcelerar" ${aj.acelerar !== false ? "checked" : ""}> Acelerar un poco las frases lentas</label>
       <label class="fila" style="gap:6px"><input type="checkbox" id="vozAuto" ${aj.auto ? "checked" : ""}> Cortar solo lo seguro en las piezas que nadie revisó todavía</label></div>`;
 }
 function selVoz() {  // lo elegido en el texto: [a, b] en segundos del clip y si ya está cortado
@@ -4537,14 +4569,15 @@ $("evVoz").addEventListener("click", e => {
   }
 });
 $("evVoz").addEventListener("change", async e => {
-  if (e.target.id !== "vozPausa" && e.target.id !== "vozAuto") return;
+  if (!["vozPausa", "vozAuto", "vozAcelerar"].includes(e.target.id)) return;
   try {
-    E.cortes_voz = await post("/api/cortes_voz", { auto: $("vozAuto").checked, pausa: Number($("vozPausa").value) });
+    E.cortes_voz = await post("/api/cortes_voz", { auto: $("vozAuto").checked, pausa: Number($("vozPausa").value), acelerar: $("vozAcelerar").checked });
     // se piden de nuevo las sugerencias (con el nuevo largo de pausa) sin perder lo que se está editando
     const nuevo = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo: est.codigo, hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value })}`)).json();
     if (!nuevo.error) for (const k of ["hook", "cuerpo", "cta"]) est[k].voz = nuevo[k].voz;
     pintarVoz();
-    avisar(e.target.id === "vozAuto" ? (E.cortes_voz.auto ? "Listo: al armar, la sala corta sola lo seguro en las piezas que nadie revisó." : "La sala ya no corta sola: solo sugiere.")
+    avisar(e.target.id === "vozAcelerar" ? (E.cortes_voz.acelerar ? "Listo: al armar, las frases lentas se aceleran un poco." : "Las frases lentas ya no se aceleran solas.")
+      : e.target.id === "vozAuto" ? (E.cortes_voz.auto ? "Listo: al armar, la sala corta sola lo seguro en las piezas que nadie revisó." : "La sala ya no corta sola: solo sugiere.")
       : "Listo: sugerencias de silencios recalculadas. Los videos que nadie revisó se rearman con este largo.", "ok");
   } catch (err) { avisar("Error: " + err.message, "err"); }
 });
@@ -4568,9 +4601,13 @@ function marcarPalabraAhora(pz, ct) {
 }
 // Teclado del editor (como en CapCut): no actúa mientras se escribe en un campo
 $("dlgEditor").addEventListener("keydown", e => {
+  if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.target.closest("input, textarea, select, [contenteditable]")) {
+    e.preventDefault(); moverFrase(e.key === "ArrowLeft" ? -1 : 1); return;
+  }
   if (e.target.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
   const tecla = e.key.toLowerCase();
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("evPlay").click(); }
+  else if (e.key === "Home") { e.preventDefault(); $("evInicio").click(); }
   else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     e.preventDefault(); pararEditor();
     irA(ed.t + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 1 : 1 / 30));
@@ -4840,14 +4877,16 @@ function inicioPieza(pz) {  // dónde empieza la pieza en el video armado sin re
   return pz === "hook" ? 0 : pz === "cta" ? hd + cd : hd;
 }
 function realDe(tOrig, pegar = true) {  // segundo del video sin recortes → segundo del video editado (con velocidades)
-  let g = 0;
+  // las frases del cuerpo pueden ir en otro orden: se busca el tramo que tiene ese segundo; si se cortó, el que sigue
+  let g = 0, sigue = null, total = 0;
   for (const s of segmentosEd()) {
     const o = inicioPieza(s.pz) + s.a, d = s.b - s.a, v = s.vel || 1;
-    if (tOrig < o - .01) return pegar ? g : null;
-    if (tOrig <= o + d + .01) return g + Math.min(d, Math.max(0, tOrig - o)) / v;
+    if (tOrig >= o - .01 && tOrig <= o + d + .01) return g + Math.min(d, Math.max(0, tOrig - o)) / v;
+    if (o > tOrig && (!sigue || o < sigue.o)) sigue = { o, g };
     g += d / v;
   }
-  return pegar ? g : null;
+  total = g;
+  return pegar ? (sigue ? sigue.g : total) : null;
 }
 function realEnCabezal() {
   const segs = segmentosEd(); let g = 0;
@@ -4857,9 +4896,10 @@ function realEnCabezal() {
 function sonarPrevia() {
   const r = actual?.receta;
   if (!evReproduciendo || !$("evConMusica").checked || !r) { evMusica.pause(); return; }
+  if (mudoEd("musica")) evMusica.pause();
   const tr = realEnCabezal();
   const k = (r.pistas || []).findIndex(p => tr >= realDe(p.t0) - .01 && tr < realDe(p.t1));
-  if (k < 0) evMusica.pause();
+  if (k < 0 || mudoEd("musica")) evMusica.pause();
   else {
     const url = `/pista?codigo=${encodeURIComponent(actual.codigo)}&k=${k}`;
     if (!evMusica.src.endsWith(url)) evMusica.src = url;
@@ -4871,7 +4911,7 @@ function sonarPrevia() {
     evMusica.volume = Math.min(1, (r.volumen_musica || .22) * (voz > .06 ? .45 : 1));
     if (evMusica.paused) evMusica.play().catch(() => {});
   }
-  if (evFxPrev != null && tr > evFxPrev && tr - evFxPrev < .5) {
+  if (evFxPrev != null && tr > evFxPrev && tr - evFxPrev < .5 && !mudoEd("sonidos")) {
     for (const e of r.efectos || []) {
       const te = realDe(e.t, false);
       if (te != null && te > evFxPrev && te <= tr && e.id && !e.quitado) {
@@ -4886,8 +4926,38 @@ function sonarPrevia() {
 }
 $("evPlay").onclick = () => {
   if (evReproduciendo) return pararEditor();
-  evReproduciendo = true; $("evVideo").muted = false; $("evVideo").play(); $("evPlay").textContent = "❚❚ Pausa"; bucleEd();
+  evReproduciendo = true; $("evVideo").muted = mudoEd("voz"); $("evVideo").play(); $("evPlay").textContent = "❚❚ Pausa"; bucleEd();
 };
+// Desde el inicio: el cabezal vuelve al segundo 0 (y la línea de tiempo también) y reproduce
+$("evInicio").onclick = () => { pararEditor(); $("evTL").scrollLeft = 0; irA(0); $("evPlay").click(); };
+// Pistas silenciadas de este video (como el parlante de cada pista en CapCut): se oye así en la vista previa
+// y el video se arma así. Se guarda al tocar; el video queda con «cambios sin armar».
+function mudoEd(k) { return !!((actual?.ajustes_video || {}).silenciar || {})[k]; }
+function pintarMudos() {
+  document.querySelectorAll("#dlgEditor [data-mudo]").forEach(b => {
+    const m = mudoEd(b.dataset.mudo), nombre = { voz: "la voz", sonidos: "los sonidos", musica: "la música" }[b.dataset.mudo];
+    b.setAttribute("aria-pressed", String(m));
+    b.title = (m ? "Volver a poner " : "Silenciar ") + nombre + " en este video";
+    if (b.dataset.mudo !== "musica") b.textContent = m ? "🔇" : "🔊";
+    else b.textContent = m ? "🔇 Música" : "🎵 Música";
+  });
+  $("evVideo").muted = mudoEd("voz");
+}
+$("dlgEditor").addEventListener("click", async e => {
+  const b = e.target.closest("[data-mudo]");
+  if (!b || !actual) return;
+  e.stopPropagation();
+  const sil = { ...((actual.ajustes_video || {}).silenciar || {}) };
+  sil[b.dataset.mudo] = !sil[b.dataset.mudo];
+  try {
+    const r = await post("/api/ajustes_video", { codigo: actual.codigo, silenciar: sil });
+    actual.ajustes_video = { ...(actual.ajustes_video || {}), silenciar: r.silenciar };
+    pintarMudos();
+    if (b.dataset.mudo === "musica" && sil.musica) evMusica.pause();
+    const nombre = { voz: "La voz", sonidos: "Los sonidos", musica: "La música" }[b.dataset.mudo];
+    avisar(`${nombre} ${sil[b.dataset.mudo] ? "queda en silencio" : "vuelve a sonar"} en este video. Rearma el video para que quede así.`, "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+});
 ["evHook", "evCuerpo", "evCta"].forEach(id => $(id).addEventListener("change", async () => {
   // otra combinación: se cargan esas piezas sobre este video (aunque esa combinación todavía no exista)
   const combo = { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value }, nombre = $("evNombre").value;
@@ -4896,7 +4966,7 @@ $("evPlay").onclick = () => {
 }));
 function datosEd() {
   const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes, tramos: {}, puntos: ed.zoom.puntos || {} };
-  return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar],
+  return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar], orden: ed.orden,
     cortes: ed.cortes, quitar_rangos: ed.quitarR, capas: ed.capas, velocidad: ed.vel,
     recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value,
     voz_revisada: true };  // lo que quedó cortado (o vuelto a poner) lo decidió una persona: la sala ya no corta sola esas piezas
@@ -4949,7 +5019,7 @@ function abrirEditor() {
   $("edTitulo").textContent = "Editar " + actual.archivo;
   if (!$("dlgEditor").open) $("dlgEditor").showModal();
   llenarSelectorSonido(); pintarPendientes();
-  setTimeout(() => { pintarEditor(); vistaEd(); }, 50);
+  setTimeout(() => { pintarEditor(); vistaEd(); pintarMudos(); }, 50);
 }
 $("irEditor").onclick = abrirEditor;
 $("edCerrar").onclick = () => $("dlgEditor").close();
