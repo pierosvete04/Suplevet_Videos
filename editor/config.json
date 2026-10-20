@@ -38,10 +38,12 @@
       "tecleo": 0.9,
       "glitch": 0.6
     },
+    "riser_en_hooks": [
+      "pregunta"
+    ],
     "arranque_por_tipo": {
       "promesa": [
-        "impacto",
-        "brillo"
+        "impacto"
       ],
       "pregunta": [
         "tension"
@@ -56,12 +58,10 @@
         "scratch"
       ],
       "producto": [
-        "brillo",
-        "impacto"
+        "brillo"
       ],
       "productoenmano": [
-        "brillo",
-        "impacto"
+        "brillo"
       ],
       "default": [
         "impacto"
@@ -143,8 +143,20 @@
     "auto": true
   },
   "transcripcion": {
-    "modelo": "small",
-    "vocabulario": "Suplevet, WhatsApp, calostro, lactoferrina, veterinario, paciente senior, DHA, EPA"
+    "modelo": "medium",
+    "vocabulario": "Suplevet, WhatsApp, calostro, lactoferrina, FOS, omega 3, zinc, DHA, EPA, una cucharada, escríbenos, te lo llevamos hoy mismo, tu mascota, tu perro, veterinario, paciente senior, pelaje, pelo opaco, picazón, champú, digestión, popos, pastillas.",
+    "correcciones": {
+      "suplebet": "Suplevet",
+      "suplevet": "Suplevet",
+      "suplevé": "Suplevet",
+      "su plebet": "Suplevet",
+      "su plevet": "Suplevet",
+      "suple vet": "Suplevet",
+      "suple bet": "Suplevet",
+      "escriennos": "escríbenos",
+      "majota": "mascota",
+      "ascupe": "escupe"
+    }
   },
   "panel": {
     "url": "",

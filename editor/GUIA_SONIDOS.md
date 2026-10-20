@@ -6,11 +6,12 @@ The sala takes these sounds from your **SOUND FX** folder in Drive (mostly from 
 
 | Moment | Sound | Your folder |
 |---|---|---|
-| Start of a **Promesa** or **Producto** hook | Bass hit + shine | 05-BOOM (IMPACTO) + 03-ANIMACION LOGO |
+| Start of a **Promesa** hook | One bass hit, right on the first syllable | 05-BOOM (IMPACTO) |
+| Start of a **Producto** hook | Shine | 03-ANIMACION LOGO |
 | Start of a **Pregunta** hook | Short tension | 08-CINEMATICA |
 | Start of a **Contra lo común** hook ("deja de…") | Record scratch | 25-MEMES/Turntable Scratch · 19-EXTRAS/Scratch |
 | Start of a **Número** hook | Hit + ding on the number | 05-BOOM · 14-DING |
-| Just before the body | Riser that ends right at the cut | 31-RISER · 11-CORPORATE RISER |
+| End of a **Pregunta** hook (only those) | Short riser that ends at the cut (at most the last 40 % of the hook) | 31-RISER · 11-CORPORATE RISER |
 | Hook → body cut | Whoosh | 36-WHOOSH · 32-SWOSH |
 | Body → CTA cut | Transition | 35-TRANSICION |
 | CTA "escríbenos por WhatsApp" | Notification | 19-EXTRAS/Notification… |
@@ -55,6 +56,8 @@ The word lists can be edited in `config.json` → `sfx_palabras`.
 - **FX SERIES (Volume 1–10)**: good for specific Foley (animals, home), only when the script asks for it.
 
 ## Rules so it doesn't get tiring
+
+0. One sound to open the hook. No riser under a hook that is spoken straight through: it covers the voice and piles on top of the hit and the whoosh. If a cut removes the silence where a structure sound (hit, whoosh, CTA) was, the sound moves to where the video continues instead of being lost.
 
 1. Maximum one optional sound every 1.5 s.
 2. No effect on top of the spoken key word: it goes just before it, or on the cut.

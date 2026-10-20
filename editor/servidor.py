@@ -300,7 +300,7 @@ def lanzar(accion, pieza=None, extra=None):
         """Sin guion: lo arma con lo que se dijo en cada pieza (y lo sube a Drive y al panel)."""
         n = motor.guion_desde_grabado()
         if n:
-            avance(f"Sin guion: armé uno con lo que se dijo en {n} piezas (puedes subir el de verdad cuando quieras)")
+            avance(f"Guion sacado de lo grabado: {n} piezas al día con lo que se dijo (puedes subir el de verdad cuando quieras)")
             drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
             if motor.CONFIG.get("panel", {}).get("token"):
                 threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()

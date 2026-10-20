@@ -711,6 +711,42 @@ def nombre_automatico(c):
     return None
 
 
+def _toma_dice(larga, suelta):
+    """¿La toma larga («C3.1 HASTA C3.4») dice lo mismo que la toma suelta (C3.1)? Se mira en lo transcrito;
+    si alguno no se escuchó todavía, se cree al nombre (sí)."""
+    import difflib
+    tl, ts = transcripcion_clip(larga, crear=False), transcripcion_clip(suelta, crear=False)
+    if not tl or not ts:
+        return True
+    a, b = [norm(w) for w in ts.split() if norm(w)], [norm(w) for w in tl.split() if norm(w)]
+    if not a:
+        return True
+    iguales = sum(blq.size for blq in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks())
+    return iguales >= 0.6 * len(a)
+
+
+def escuchar_tomas_largas(avance=print):
+    """Transcribe las tomas largas («C3.1 HASTA C3.4») y las sueltas de esas mismas frases, para saber si de verdad
+    las dicen (ver piezas). Queda en caché: solo tarda la primera vez."""
+    asig = leer_asignaciones()
+    todos = [c for c in clips() if not asig.get(c["rel"])]
+    rangos = {}
+    for c in todos:
+        codigo, rango = leer_nombre(nombre_clip(c["ruta"]))
+        if rango:
+            rangos.setdefault(PARTE.match(codigo).group(1).upper(), []).append((rango, c))
+    oir = []
+    for c in todos:
+        m = PARTE.match(nombre_automatico(c) or "")
+        for rango, larga in rangos.get(m.group(1).upper(), []) if m else []:
+            if larga is not c and rango[0] <= int(m.group(2)) <= rango[1]:
+                oir += [x for x in (larga, c) if x not in oir]
+    for c in oir:
+        if transcripcion_clip(c, crear=False) is None:
+            avance(f"Escuchando {c['rel']}")
+            transcripcion_clip(c)
+
+
 def piezas():
     """Piezas listas para editar: [{nombre, tipo, partes: [rutas], original, rel}].
     Un cuerpo grabado en partes (C1_P1, C1_P2…) es una sola pieza C1 con sus partes en orden.
@@ -725,10 +761,23 @@ def piezas():
             if rango:
                 base = PARTE.match(codigo).group(1)
                 cubre.update({(base, k): c["rel"] for k in range(rango[0], rango[1] + 1)})
+    # …salvo que la toma larga no diga esa frase (se ve en lo transcrito): «C3.1 HASTA C3.4» que empieza en la
+    # frase 2 deja entrar a la toma suelta C3.1, y la larga pasa a ser la parte 2
+    por_rel = {c["rel"]: c for c in todos}
+    for c in todos:
+        m = PARTE.match(nombre_automatico(c) or "") if not asig.get(c["rel"]) else None
+        clave = (m.group(1).upper(), int(m.group(2))) if m else None
+        if clave and cubre.get(clave, c["rel"]) != c["rel"] and not _toma_dice(por_rel[cubre[clave]], c):
+            del cubre[clave]
+    inicio_real = {}
+    for (base, k), rel in cubre.items():
+        inicio_real[rel] = min(k, inicio_real.get(rel, k))
     por_nombre, origen_manual = {}, set()
     for c in todos:
         manual = asig.get(c["rel"])
         nombre = manual or nombre_automatico(c)
+        if not manual and c["rel"] in inicio_real and PARTE.match(nombre or ""):
+            nombre = f"{PARTE.match(nombre).group(1)}_P{inicio_real[c['rel']]}"
         m = PARTE.match(nombre or "")
         if not manual and m and cubre.get((m.group(1).upper(), int(m.group(2))), c["rel"]) != c["rel"]:
             continue
@@ -747,7 +796,7 @@ def piezas():
         lista.sort(key=lambda x: x[0])
         partes = [c["ruta"] for _, c in lista]
         # qué frases cubren las partes (C2.1, C2.2, C2.3, C2.5 → falta la 4)
-        cubre_rel = {c["rel"]: list(range(orden, (leer_nombre(nombre_clip(c["ruta"]))[1] or (0, orden))[1] + 1))
+        cubre_rel = {c["rel"]: list(range(orden, max(orden, (leer_nombre(nombre_clip(c["ruta"]))[1] or (0, orden))[1]) + 1))
                      for orden, c in lista if orden}
         numeros = sorted({k for ks in cubre_rel.values() for k in ks})
         out.append({"nombre": nombre, "tipo": tipo_de(nombre), "partes": partes, "original": partes[0],
@@ -947,6 +996,26 @@ def transcribir(video):
     for s in segs:  # se va transcribiendo de a pedazos: se puede cancelar en el medio
         revisar_cancelado()
         out += [{"w": w.word.strip(), "s": round(w.start, 2), "e": round(w.end, 2)} for w in s.words]
+    return corregir_palabras(out)
+
+
+def corregir_palabras(pal):
+    """Arregla lo que la transcripción escribe mal siempre igual (config transcripcion.correcciones: «suplebet»,
+    «su plebet» → Suplevet). Una corrección de dos palabras las junta en una, con el tiempo de las dos."""
+    tabla = {" ".join(norm(x) for x in k.split()): v for k, v in (CONFIG["transcripcion"].get("correcciones") or {}).items()}
+    out, i = [], 0
+    while i < len(pal):
+        for largo in (2, 1):
+            grupo = pal[i:i + largo]
+            clave = " ".join(norm(w["w"]) for w in grupo)
+            if len(grupo) == largo and clave in tabla:
+                cola = re.search(r"[.,;:?!…]*$", grupo[-1]["w"]).group(0)  # la puntuación de la última se queda
+                out.append({"w": tabla[clave] + cola, "s": grupo[0]["s"], "e": grupo[-1]["e"]})
+                i += largo
+                break
+        else:
+            out.append(pal[i])
+            i += 1
     return out
 
 
@@ -967,6 +1036,7 @@ def agrupar_lineas(palabras):
 def procesar(forzar_subs=False, avance=print):
     for d in (S.proc, S.subs):
         d.mkdir(parents=True, exist_ok=True)
+    escuchar_tomas_largas(avance)
     ps = piezas()
     for n, p in enumerate(ps, 1):
         dest = S.proc / f"{p['nombre']}.mp4"
@@ -997,11 +1067,20 @@ def procesar(forzar_subs=False, avance=print):
             firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones}, ensure_ascii=False), encoding="utf-8")
             (S.subs / f"{p['nombre']}.json").unlink(missing_ok=True) if vieja is not None and vieja != lista else None
         sub = S.subs / f"{p['nombre']}.json"
-        if forzar_subs or not sub.exists():
-            avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})")
+        modelo = CONFIG["transcripcion"]["modelo"]
+        try:
+            viejo = json.loads(sub.read_text(encoding="utf-8")) if sub.exists() else None
+        except ValueError:
+            viejo = None
+        # un subtítulo que salió solo de la transcripción (nadie lo tocó) y se hizo con otro modelo se rehace con el
+        # de ahora, que entiende mejor; uno corregido a mano no se toca nunca
+        mejorar = bool(viejo and viejo.get("automatico") and viejo.get("modelo") != modelo)
+        if forzar_subs or not sub.exists() or mejorar:
+            avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})" + (" con el modelo más fino" if mejorar else ""))
             pal = transcribir(dest)
-            sub.write_text(json.dumps({"pieza": p["nombre"], "lineas": agrupar_lineas(pal)},
-                                      ensure_ascii=False, indent=1), encoding="utf-8")
+            marcas = {"marcas": viejo["marcas"]} if mejorar and "marcas" in viejo else {}  # van por palabra: se quedan
+            sub.write_text(json.dumps({"pieza": p["nombre"], "modelo": modelo, "automatico": True,
+                                       "lineas": agrupar_lineas(pal), **marcas}, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 # ---------- Sugerir a qué pieza corresponde cada clip ----------
@@ -1429,9 +1508,10 @@ def plan_sonoro(nombre, info):
         t = norm(info.get("tipo", "")) or "default"
         for cat in so["arranque_por_tipo"].get(t) or so["arranque_por_tipo"]["default"]:
             out.append({"momento": "inicio", "efecto": cat, "por": f"arranque de hook ({info.get('tipo') or 'general'})"})
+        if t in so.get("riser_en_hooks", ["pregunta"]):
+            out.append({"momento": "final", "efecto": "riser", "por": "la pregunta sube hasta el cuerpo"})
         out.append({"momento": "final", "efecto": "whoosh", "por": "corte al cuerpo"})
     if tipo == "cuerpo":
-        out.append({"momento": "inicio", "efecto": "riser", "por": "entrada del cuerpo"})
         out.append({"momento": "final", "efecto": "whoosh_inverso", "por": "corte al CTA"})
     if tipo == "cta":
         cat = so["cta_por_tipo"].get(norm(info.get("tipo", "")) or "anuncio")
@@ -1588,21 +1668,26 @@ def _guion_propio():
 def guion_desde_grabado():
     """Si la sesión no tiene guion, lo escribe con lo que se dijo en cada pieza ya procesada (las transcripciones):
     así se ven el guion, la revisión y el teleprompter aunque nadie lo haya escrito. Si el guion ya salió de lo
-    grabado, solo agrega las piezas nuevas (lo corregido a mano no se pisa). Un guion escrito o subido no se toca.
-    Devuelve cuántas piezas agregó."""
+    grabado, agrega las piezas nuevas y pone al día las que se volvieron a transcribir (lo corregido a mano no se
+    pisa). Un guion escrito o subido no se toca. Devuelve cuántas piezas agregó o puso al día."""
     base = _guion_propio()
     if base.get("piezas") and base.get("origen") != "grabado":
         return 0
     piezas_g = dict(base.get("piezas") or {})
     nuevas = 0
     for p in piezas():
-        if p["nombre"] in piezas_g:
-            continue
         lineas = leer_subs(p["nombre"])["lineas"]
         palabras = [w for ln in lineas for w in ln["palabras"]]
         if not palabras:
             continue
         info = {"tipo": p["tipo"], "texto": " ".join(w["w"] for w in palabras)}
+        info["dicho"] = info["texto"]  # lo que salió de lo grabado: si el texto sigue igual, nadie lo corrigió
+        viejo = piezas_g.get(p["nombre"])
+        # una pieza que ya estaba se rehace solo si se volvió a transcribir (otro clip, otro modelo) y su texto
+        # no se corrigió a mano
+        if viejo and (viejo.get("editado_en_sala") or viejo.get("texto") != viejo.get("dicho", viejo.get("texto"))
+                      or viejo.get("texto") == info["texto"]):
+            continue
         if len(p["partes"]) > 1:  # en partes: cada toma es una frase (se separa por su duración)
             try:
                 dur = json.loads((S.proc / f"{p['nombre']}.partes.json").read_text(encoding="utf-8")).get("duraciones") or []
@@ -1617,7 +1702,7 @@ def guion_desde_grabado():
                 for w in palabras:
                     frases[next((i for i, c in enumerate(cortes) if w["s"] < c), len(dur) - 1)].append(w["w"])
                 info["partes"] = [" ".join(x) for x in frases if x]
-        piezas_g[p["nombre"]] = info
+        piezas_g[p["nombre"]] = {**(viejo or {}), **info}
         nuevas += 1
     if nuevas:
         _guardar_produccion({**base, "origen": "grabado",
@@ -1873,6 +1958,7 @@ def guardar_lineas_editadas(pieza, lineas_nuevas):
             pal = [{"w": w, "s": round(s + i * paso, 2), "e": round(s + (i + 1) * paso, 2)} for i, w in enumerate(palabras)]
         out.append({"texto": texto, "s": s, "e": e, "palabras": pal})
     datos["lineas"] = out
+    datos.pop("automatico", None)  # ya lo tocó una persona: no se vuelve a transcribir solo
     sub.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
@@ -2220,42 +2306,81 @@ def ajustes_silencios():
     return {"auto": True, "margen": 0.08, **CONFIG.get("silencios", {})}
 
 
+def bordes_de_voz(nombre, ini=0.0, fin=None):
+    """(desde, hasta): dónde empieza y termina de verdad la voz entre ini y fin (s de la pieza), o None si ahí no
+    se habla. La transcripción suele estirar la primera palabra sobre el silencio de antes («Se» de 0,0 a 0,7 s
+    cuando la voz entra en 0,68 s), así que el borde se afina con la onda: el golpe de la voz cerca de la primera
+    palabra y la última subida cerca de la última. Un soplido o un ruido de fondo bajito no cuentan como voz."""
+    f = S.proc / f"{nombre}.mp4"
+    if not f.exists():
+        return None
+    fin = dur_audio(f) if fin is None else fin
+    pal = [w for ln in leer_subs(nombre)["lineas"] for w in ln.get("palabras", [])
+           if ini <= (w["s"] + w["e"]) / 2 < fin]  # cada palabra va en el tramo donde cae su mitad
+    if not pal:
+        return None
+    a, b = max(ini, pal[0]["s"]), min(fin, pal[-1]["e"])
+    try:
+        o = onda(nombre)
+    except Exception:  # noqa: BLE001 — sin onda, quedan los bordes de la transcripción
+        return a, b
+    picos, ps = o.get("picos") or [], o.get("por_seg") or 50
+    if not picos:
+        return a, b
+    cuadro = lambda t: max(0, min(len(picos) - 1, int(t * ps)))
+    # inicio: el primer golpe fuerte desde un poco antes de la primera palabra, sin pasarse de esa palabra;
+    # luego se retrocede mientras siga sonando (la «s» o la «f» del arranque son bajitas)
+    k0, k1 = cuadro(max(ini, a - 0.3)), cuadro(min(fin, pal[0]["e"]))
+    golpe = next((k for k in range(k0, k1 + 1) if picos[k] >= 0.3), None)
+    if golpe is not None:
+        g0 = golpe
+        while golpe > k0 and picos[golpe - 1] >= 0.08 and g0 - golpe < 0.15 * ps:
+            golpe -= 1
+        a = max(a, golpe / ps)
+    # final: lo último que suena claro cerca del final de la última palabra (la cola de ruido no cuenta)
+    k0, k1 = cuadro(max(a, pal[-1]["s"])), cuadro(min(fin, pal[-1]["e"] + 0.15))
+    ultimo = next((k for k in range(k1, k0 - 1, -1) if picos[k] >= 0.15), None)
+    if ultimo is not None:
+        b = min(b + 0.15, (ultimo + 1) / ps)
+    return (a, b) if b > a else None
+
+
 def _con_silencios_fuera(combo, v):
     """Si un bloque no tiene recorte puesto a mano, se le corta el silencio del inicio y del final (según dónde
-    empieza la primera palabra y termina la última, más un margen). Así ningún video arranca mudo."""
+    empieza y termina la voz de verdad, más un margen). En un cuerpo grabado en partes se recorta cada parte:
+    así no queda un hueco mudo donde se pega una toma con la siguiente, y ningún video arranca ni termina mudo."""
     aj = ajustes_silencios()
     if not aj["auto"]:
         return v
     m = max(0.0, min(0.5, float(aj["margen"])))
     r = dict(v.get("recortes") or {})
 
-    def limites(nombre):
-        lineas = leer_subs(nombre)["lineas"]
-        f = S.proc / f"{nombre}.mp4"
-        if not lineas or not f.exists():
-            return None
-        return lineas[0]["s"], lineas[-1]["e"], dur_audio(f)
-
     for clave in ("hook", "cta"):
-        if r.get(clave) or not limites(combo[clave]):
+        f = S.proc / f"{combo[clave]}.mp4"
+        voz = bordes_de_voz(combo[clave]) if not r.get(clave) else None
+        if not voz:
             continue
-        s0, e1, dur = limites(combo[clave])
-        a = s0 - m if s0 - m > 0.06 else 0.0
-        b = e1 + m * 2 if e1 + m * 2 < dur - 0.06 else dur
+        dur = dur_audio(f)
+        a = voz[0] - m if voz[0] - m > 0.06 else 0.0
+        b = voz[1] + m * 2 if voz[1] + m * 2 < dur - 0.06 else dur
         if a > 0 or b < dur:
             r[clave] = [round(a, 2), round(b, 2)]
-    partes = partes_de(combo["cuerpo"]) if limites(combo["cuerpo"]) else []
-    if partes:
-        s0, e1, _ = limites(combo["cuerpo"])
-        pr = dict(r.get("partes") or {})
-        p0, pn = partes[0], partes[-1]
-        if str(p0["i"]) not in pr and s0 - m - p0["ini"] > 0.06:
-            pr[str(p0["i"])] = [round(s0 - m - p0["ini"], 2), round(p0["fin"] - p0["ini"], 2)]
-        if str(pn["i"]) not in pr and pn["fin"] - (e1 + m * 2) > 0.06:
-            ini = pr[str(pn["i"])][0] if str(pn["i"]) in pr else 0.0
-            pr[str(pn["i"])] = [ini, round(e1 + m * 2 - pn["ini"], 2)]
-        if pr:
-            r["partes"] = pr
+    pr = dict(r.get("partes") or {})
+    for p in partes_de(combo["cuerpo"]):
+        if str(p["i"]) in pr or p["i"] in (v.get("quitar") or []):
+            continue
+        voz = bordes_de_voz(combo["cuerpo"], p["ini"], p["fin"])
+        if not voz:
+            continue
+        largo = p["fin"] - p["ini"]
+        a = voz[0] - m - p["ini"]
+        b = voz[1] + m * 2 - p["ini"]
+        a = round(a, 2) if a > 0.06 else 0.0
+        b = round(b, 2) if b < largo - 0.06 else round(largo, 2)
+        if a > 0 or b < largo:
+            pr[str(p["i"])] = [a, b]
+    if pr:
+        r["partes"] = pr
     return {**v, "recortes": r}
 
 
@@ -2420,6 +2545,24 @@ def analizar_voz(palabras, picos=(), por_seg=50, dur=None, guion=None, pausa=0.5
             continue
         i += 1
 
+    # 1b · Frase entera dicha otra vez con otras palabras: «Panza tranquila, mejor digestión y mejores popos.
+    # Panza tranquila y mejor digestión.» Pasa cuando una toma suelta repite el final de una toma larga.
+    # Si dos frases seguidas empiezan igual y casi todo lo de la más corta está en la otra, queda la última.
+    import difflib
+    frases, ini = [], 0
+    for x in range(n):
+        if pal[x]["w"].strip()[-1:] in ".?!" or x == n - 1:
+            frases.append((ini, x + 1))
+            ini = x + 1
+    for (a0, a1), (b0, b1) in zip(frases, frases[1:]):
+        fa, fb = k[a0:a1], k[b0:b1]
+        corta = min(len(fa), len(fb))
+        if corta < 3 or fa[:2] != fb[:2] or pal[b0]["s"] - pal[a0]["s"] > 15:
+            continue
+        iguales = sum(blq.size for blq in difflib.SequenceMatcher(None, fa, fb, autojunk=False).get_matching_blocks())
+        if iguales >= 0.75 * corta:
+            poner(desde(a0), hasta(b0), "repetido", a0, b0)
+
     for i in range(n):
         # 2 · Tartamudeo: «pe- perro», «su- suplevet»
         if i + 1 < n:
@@ -2462,7 +2605,9 @@ def analizar_voz(palabras, picos=(), por_seg=50, dur=None, guion=None, pausa=0.5
     if picos and n:
         quieto = [p < 0.06 for p in picos]
         habla0, habla1 = pal[0]["s"], pal[-1]["e"]
-        medios = [(w["s"] + w["e"]) / 2 for w in pal]
+        # una palabra que la transcripción estira sobre el silencio («Panza» de 8,5 s cuando la voz entra en 8,9 s)
+        # no salva la pausa: solo una palabra entera dentro del silencio (algo dicho muy bajito)
+        enteras = [(w["s"], w["e"]) for w in pal]
         x = 0
         while x < len(quieto):
             y = x
@@ -2470,7 +2615,7 @@ def analizar_voz(palabras, picos=(), por_seg=50, dur=None, guion=None, pausa=0.5
                 y += 1
             a, b = x / por_seg, y / por_seg
             if a > habla0 + 0.05 and b < habla1 - 0.05:  # solo en medio: los bordes ya se recortan solos
-                if quieto[x] and b - a >= pausa and not any(a + 0.05 < m < b - 0.05 for m in medios):
+                if quieto[x] and b - a >= pausa and not any(a + 0.05 < ws and we < b - 0.05 for ws, we in enteras):
                     poner(a + respiro, b - respiro, "pausa")
                 elif not quieto[x] and b - a >= 0.3:
                     tapa = sum(max(0.0, min(b, w["e"]) - max(a, w["s"])) for w in pal)
@@ -3500,23 +3645,27 @@ def planear_sonidos(combo, offs, total, subs, marcas):
     cand = []
     hook, cuerpo, cta = combo["hook"], combo["cuerpo"], combo["cta"]
 
-    def add(cat, t, prio, motivo):
-        cand.append({"cat": cat, "t": max(0.0, t), "prio": prio, "motivo": motivo})
+    def add(cat, t, prio, motivo, pegar=False):
+        # pegar: si ese segundo se corta (el silencio antes de la voz), suena donde sigue el video en vez de perderse
+        cand.append({"cat": cat, "t": max(0.0, t), "prio": prio, "motivo": motivo, **({"pegar": True} if pegar else {})})
 
-    # Arranque del hook según su tipo (Promesa, Pregunta, Número, Contra, Producto)
+    # Arranque del hook según su tipo (Promesa, Pregunta, Número, Contra, Producto): un solo golpe, justo donde
+    # entra la voz (si el hook arranca con silencio, ese pedazo se corta y el golpe cae en la primera sílaba)
     tipo = norm(info_pieza(hook).get("tipo", "")) or "default"
     arranque = so["arranque_por_tipo"].get(tipo) or so["arranque_por_tipo"]["default"]
     for k, cat in enumerate(arranque):
-        add(cat, 0.0 + 0.05 * k, 3, f"arranque hook ({tipo})")
-    # Riser que termina justo en el cuerpo, whoosh en los cortes
-    add("riser", offs[1], 3, "riser antes del cuerpo")
-    add("whoosh", offs[1] - 0.2, 3, "corte hook→cuerpo")
-    add("whoosh_inverso", offs[2] - 0.25, 3, "corte cuerpo→CTA")
+        add(cat, 0.0 + 0.05 * k, 3, f"arranque hook ({tipo})", pegar=True)
+    # Riser: solo en los hooks que dejan una pregunta en el aire (config sonidos.riser_en_hooks) y solo en su
+    # último tramo; en un hook que se habla de corrido tapa la voz y se suma al golpe y al whoosh sin aportar nada
+    if tipo in so.get("riser_en_hooks", ["pregunta"]):
+        add("riser", offs[1], 3, f"riser antes del cuerpo (hook {tipo})")
+    add("whoosh", offs[1] - 0.2, 3, "corte hook→cuerpo", pegar=True)
+    add("whoosh_inverso", offs[2] - 0.25, 3, "corte cuerpo→CTA", pegar=True)
     # CTA: notificación (anuncio) o tecleo (orgánico)
     tipo_cta = norm(info_pieza(cta).get("tipo", "")) or ("anuncio" if cta.upper().endswith("A") else "organico")
     cat_cta = so["cta_por_tipo"].get(tipo_cta)
     if cat_cta:
-        add(cat_cta, offs[2] + 0.3, 3, f"CTA {tipo_cta}")
+        add(cat_cta, offs[2] + 0.3, 3, f"CTA {tipo_cta}", pegar=True)
     # Marcas del guion
     silencios = []
     for off, ms in zip(offs, marcas):
@@ -3592,8 +3741,10 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             desde = 0.0
         t, largo = c["t"], min(d - desde, maxd)
         if c["cat"] == "riser" and c["prio"] < 4:
-            # el riser automático termina en el corte; si es largo se usa solo su final
-            desde = max(0.0, d - maxd)
+            # el riser automático termina en el corte y ocupa como mucho el último 40 % del hook; si es largo
+            # se usa solo su final (la parte que más sube)
+            largo = min(largo, max(0.6, 0.4 * offs[1]))
+            desde = max(0.0, d - largo)
             t = max(0.0, c["t"] - largo)
         am = c.get("a_mano") or {}
         if "desde" in am:  # recortado a mano en el editor
@@ -4024,7 +4175,7 @@ def armar_uno(combo, n_musica=0, extras=None):
             tramos_ed.append({**tr, "t0": t0, "t1": t1})
     silencios_ed = [(mapa(a, True), mapa(b, True)) for a, b in silencios]
     silencios_ed = [(a, b) for a, b in silencios_ed if b - a > 0.05]
-    eventos_ed = [{**e, "t": mapa(e["t"])} for e in eventos]
+    eventos_ed = [{**e, "t": mapa(e["t"], e.get("pegar", False))} for e in eventos]
     eventos_ed = [e for e in eventos_ed if e["t"] is not None]
     _mezclar_audio(base, S.salida / f"{combo['archivo']}.mp4", tramos_ed, silencios_ed, eventos_ed, total_ed, extras)
     if extras:
@@ -4043,7 +4194,8 @@ def armar_uno(combo, n_musica=0, extras=None):
                            "id": e.get("id") or id_sonido(e["archivo"]), "t": e["t"],
                            "tm": e.get("tm", e["t"]), "desde": e.get("desde", 0), "largo": e.get("largo"), "dur_archivo": e.get("dur_archivo"),
                            "vol": e.get("vol", 1.0), "vel": e.get("vel", 1.0),
-                           "te": None if mapa(e["t"]) is None else round(mapa(e["t"]), 2), "motivo": e["motivo"]} for e in eventos],
+                           "te": None if mapa(e["t"], e.get("pegar", False)) is None else round(mapa(e["t"], e.get("pegar", False)), 2),
+                           "motivo": e["motivo"]} for e in eventos],
               "imagenes": [{"asset": o["asset"], "t": round(o["t"], 2), "te": round(mapa(o["t"], True), 2), "dur": round(o["dur"], 2),
                             "modo": o["modo"]} for o in overlays],
               # pistas de música en el video sin recortes, para escucharlas en la vista previa del editor
