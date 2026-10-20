@@ -2070,6 +2070,123 @@ def resolver_marcas(pieza, lineas):
 
 # ---------- 2. Armar ----------
 
+# ---------- Ediciones (A, B, C…): el mismo material editado de otra forma ----------
+# La A es la edición de siempre (el estilo de Plantillas, la música del guion). Cada edición nueva tiene su propio
+# estilo de zoom, su música, su plantilla de subtítulos, su ritmo y sus propios cortes y sonidos por pieza.
+# El «Plan de la sesión» dice qué ediciones se arman de cada cuerpo: C1-H1-CTA1 (A) y C1-H1-CTA1-B (B).
+# Los ajustes de una pieza en la edición B se guardan como «C1@B»; mientras no se toquen, usa los de la A.
+
+EDICIONES_LETRAS = "BCDEFGHIJKLMNOPQRSTUVWXYZ"
+MODOS_MUSICA = ("igual", "otra", "pista")
+
+
+def _ediciones_path():
+    return S.subs / "_ediciones.json"
+
+
+def _leer_ediciones():
+    try:
+        d = json.loads(_ediciones_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        d = {}
+    return {"ediciones": d.get("ediciones") or {}, "plan": d.get("plan") or {}}
+
+
+def _guardar_ediciones(d):
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _ediciones_path().write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def ediciones():
+    """{letra: {nombre, estilo, musica, plantilla, ritmo, cambio}}: la A (la de siempre) primero."""
+    d = _leer_ediciones()["ediciones"]
+    return {"A": {"nombre": "Edición A", "base": True}, **{k: d[k] for k in sorted(d)}}
+
+
+def letra_edicion(combo):
+    """Letra de la edición de un video: «A» (la de siempre), «B», «C»…"""
+    return (combo or {}).get("edicion") or "A"
+
+
+def clave_pieza(nombre, e="A"):
+    """Dónde se guardan los ajustes de una pieza en una edición: «C1» en la A, «C1@B» en la B."""
+    return nombre if e in ("A", None, "") else f"{nombre}@{e}"
+
+
+def ajustes_de_pieza(nombre, e="A", todo=None):
+    """Ajustes de una pieza en una edición: los suyos, o los de la A mientras no se hayan tocado en esa edición."""
+    todo = ajustes_piezas() if todo is None else todo
+    k = clave_pieza(nombre, e)
+    return todo[k] if k in todo else todo.get(nombre, {})
+
+
+def crear_edicion(nombre=None, copiar_de="A"):
+    """Una edición nueva (B, C…). copiar_de: arranca con el estilo, la música y la plantilla de otra edición."""
+    d = _leer_ediciones()
+    usadas = set(d["ediciones"]) | {"A"}
+    letra = next((x for x in EDICIONES_LETRAS if x not in usadas), None)
+    if not letra:
+        raise ValueError("Ya no hay más letras para ediciones")
+    base = {k: v for k, v in d["ediciones"].get(copiar_de, {}).items() if k not in ("nombre", "cambio")}
+    d["ediciones"][letra] = {"musica": {"modo": "otra"}, **base, "nombre": str(nombre or f"Edición {letra}")[:40],
+                             "cambio": time.time()}
+    _guardar_ediciones(d)
+    return letra
+
+
+def guardar_edicion(letra, cambios):
+    """Cambia el nombre, el estilo (zoom), la música, la plantilla o el ritmo de una edición (no la A)."""
+    d = _leer_ediciones()
+    if letra not in d["ediciones"]:
+        raise ValueError("Esa edición no existe")
+    ed = dict(d["ediciones"][letra])
+    if "nombre" in cambios:
+        ed["nombre"] = str(cambios["nombre"] or f"Edición {letra}")[:40]
+    if "estilo" in cambios:
+        est = {k: v for k, v in (cambios["estilo"] or {}).items() if k in ESTILO_DEFECTO}
+        ed["estilo"] = {**(ed.get("estilo") or {}), **est}
+    if "musica" in cambios:
+        m = cambios["musica"] or {}
+        modo = m.get("modo") if m.get("modo") in MODOS_MUSICA else "otra"
+        ed["musica"] = {"modo": modo, **({"pista": str(m.get("pista") or "")} if modo == "pista" else {})}
+    if "plantilla" in cambios:
+        ed["plantilla"] = cambios["plantilla"] if cambios["plantilla"] in plantillas() else None
+    if "ritmo" in cambios:
+        ed["ritmo"] = {"acelerar": bool((cambios["ritmo"] or {}).get("acelerar", True))}
+    ed["cambio"] = time.time()
+    d["ediciones"][letra] = {k: v for k, v in ed.items() if v not in (None, "", {})}
+    _guardar_ediciones(d)
+    return [c["codigo"] for c in combinaciones() if letra_edicion(c) == letra]
+
+
+def borrar_edicion(letra):
+    """Quita una edición, sus ajustes por pieza y la saca del plan (sus videos ya armados quedan en la carpeta)."""
+    d = _leer_ediciones()
+    d["ediciones"].pop(letra, None)
+    d["plan"] = {c: [e for e in ls if e != letra] for c, ls in d["plan"].items()}
+    _guardar_ediciones(d)
+    todo = ajustes_piezas()
+    if any(k.endswith(f"@{letra}") for k in todo):
+        _ajustes_piezas_path().write_text(json.dumps({k: v for k, v in todo.items() if not k.endswith(f"@{letra}")},
+                                                     ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def plan_sesion():
+    """{cuerpo: [letras]}: qué ediciones se arman de cada cuerpo. La A siempre."""
+    d, eds = _leer_ediciones(), ediciones()
+    cuerpos = [p["nombre"] for p in piezas() if p["tipo"] == "cuerpo"]
+    return {c: ["A"] + [e for e in d["plan"].get(c, []) if e in eds and e != "A"] for c in cuerpos}
+
+
+def guardar_plan(plan):
+    """plan = {cuerpo: [letras]}: lo marcado en la tabla «Plan de la sesión»."""
+    d, eds = _leer_ediciones(), ediciones()
+    limpio = {c: sorted({e for e in (ls or []) if e in eds and e != "A"}) for c, ls in (plan or {}).items()}
+    d["plan"] = {c: ls for c, ls in limpio.items() if ls}
+    _guardar_ediciones(d)
+    return plan_sesion()
+
+
 def combinaciones():
     ps = piezas()
     cuerpos = [p["nombre"] for p in ps if p["tipo"] == "cuerpo"]
@@ -2077,6 +2194,7 @@ def combinaciones():
     ctas = [p["nombre"] for p in ps if p["tipo"] == "cta"]
     alterna = {p["nombre"]: p.get("alterna") for p in ps}
     vs = leer_versiones()
+    plan, eds = _leer_ediciones()["plan"], ediciones()
     for c in cuerpos:
         # Un CTA con prefijo (P1_CTA1) es solo de ese cuerpo; uno sin prefijo (CTA-O) sirve para todos
         propios = [x for x in ctas if "_" not in x or x.split("_")[0] == c]
@@ -2092,11 +2210,14 @@ def combinaciones():
                     grupo = [x for x in propios if alterna.get(x) == fam]
                     elegidos.append(grupo[i % len(grupo)])
             for cta in elegidos:
-                codigo = f"{c}-{h.split('_')[1]}-{cta.split('_')[-1]}"
-                propio = vs.get(codigo) if (vs.get(codigo) or {}).get("propio") else None
-                # con ajustes propios («solo a este video») el video usa los suyos y no los de sus piezas
-                yield {"codigo": codigo, "archivo": f"{S.prefijo}-{codigo}", "hook": h, "cuerpo": c, "cta": cta,
-                       **({"version": propio} if propio else {})}
+                base = f"{c}-{h.split('_')[1]}-{cta.split('_')[-1]}"
+                # la A con el código de siempre; las otras ediciones del plan, con su letra al final (C1-H1-CTA1-B)
+                for e in ["A"] + [x for x in plan.get(c, []) if x in eds and x != "A"]:
+                    codigo = base if e == "A" else f"{base}-{e}"
+                    propio = vs.get(codigo) if (vs.get(codigo) or {}).get("propio") else None
+                    # con ajustes propios («solo a este video») el video usa los suyos y no los de sus piezas
+                    yield {"codigo": codigo, "archivo": f"{S.prefijo}-{codigo}", "hook": h, "cuerpo": c, "cta": cta,
+                           **({"edicion": e} if e != "A" else {}), **({"version": propio} if propio else {})}
     nombres = {p["nombre"] for p in ps}
     for vid, v in vs.items():
         if v.get("propio"):
@@ -2337,6 +2458,7 @@ def guardar_edicion_piezas(datos):
     vel = _limpiar_velocidad(datos.get("velocidad"))
     propio = lambda pz: {"zoom_tramos": (z.get("tramos") or {}).get(pz), "zoom_puntos": (z.get("puntos") or {}).get(pz),
                          "cortes": cortes.get(pz), "quitar_rangos": rangos.get(pz), "capas": capas.get(pz)}
+    e = datos.get("edicion") if datos.get("edicion") in ediciones() else "A"
     nuevos = {
         datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), "velocidad": vel.get("hook"), **propio("hook")},
         datos["cuerpo"]: {"partes": r.get("partes") or {}, "zoom_partes": z.get("partes") or {}, **propio("cuerpo"),
@@ -2350,15 +2472,16 @@ def guardar_edicion_piezas(datos):
             val["voz_revisada"] = True
         val = {k: v for k, v in val.items() if v not in (None, {}, [])}
         propios = ("editado", "sonidos", "sonidos_quitar")  # los sonidos a mano se guardan aparte (Sonidos del editor)
-        antes = {k: v for k, v in todo.get(pieza, {}).items() if k not in propios}
+        actual = ajustes_de_pieza(pieza, e, todo)  # en una edición nueva, arranca de lo de la A
+        antes = {k: v for k, v in actual.items() if k not in propios}
         if val != antes:
-            sonidos = {k: v for k, v in todo.get(pieza, {}).items() if k in ("sonidos", "sonidos_quitar")}
-            todo[pieza] = {**val, **sonidos, "editado": time.time()}  # la fecha queda aunque se deshaga: sus videos se re-arman
+            sonidos = {k: v for k, v in actual.items() if k in ("sonidos", "sonidos_quitar")}
+            todo[clave_pieza(pieza, e)] = {**val, **sonidos, "editado": time.time()}  # la fecha queda aunque se deshaga: sus videos se re-arman
             cambiadas.append(pieza)
     todo = {k: v for k, v in todo.items() if v}
     S.subs.mkdir(parents=True, exist_ok=True)
     _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
-    return [c["codigo"] for c in combinaciones() if not c.get("version")
+    return [c["codigo"] for c in combinaciones() if not c.get("version") and letra_edicion(c) == e
             and {c["hook"], c["cuerpo"], c["cta"]} & set(cambiadas)]
 
 
@@ -2508,15 +2631,16 @@ def frases_lentas(nombre, desde=6.0, objetivo=6.5, maximo=1.12, pausa=0.3):
     return out
 
 
-def ajustes_ritmo():
+def ajustes_ritmo(combo=None):
     """Ritmo de la voz: acelerar (sin cambiar el tono) las frases que se dicen lento. desde/objetivo en sílabas por
     segundo (un hook con energía va a 7–8), maximo = cuánto se acelera como mucho (1.12 = 12 %)."""
-    return {"acelerar": True, "desde": 6.0, "objetivo": 6.5, "maximo": 1.12, **CONFIG.get("ritmo", {})}
+    propio = (ediciones().get(letra_edicion(combo), {}).get("ritmo") or {}) if combo else {}
+    return {"acelerar": True, "desde": 6.0, "objetivo": 6.5, "maximo": 1.12, **CONFIG.get("ritmo", {}), **propio}
 
 
 def _con_ritmo(combo, v):
     """Acelera un poco las frases lentas de cada bloque, salvo donde se puso una velocidad a mano."""
-    aj = ajustes_ritmo()
+    aj = ajustes_ritmo(combo)
     if not aj["acelerar"]:
         return v
     vel = dict(v.get("velocidad") or {})
@@ -2836,8 +2960,10 @@ ESTILO_DEFECTO = {
 }
 
 
-def estilo_edicion():
-    return {**ESTILO_DEFECTO, **CONFIG.get("estilo_edicion", {})}
+def estilo_edicion(combo=None):
+    """Estilo de edición (Plantillas → Estilo de edición); en una edición B, C…, con lo que cambia esa edición."""
+    propio = (ediciones().get(letra_edicion(combo), {}).get("estilo") or {}) if combo else {}
+    return {**ESTILO_DEFECTO, **CONFIG.get("estilo_edicion", {}), **propio}
 
 
 def _con_zoom_alterno(combo, v):
@@ -2845,7 +2971,7 @@ def _con_zoom_alterno(combo, v):
     · «Zoom alternado» en las frases del cuerpo: salto, acercar, alejar o mezcla; frase sí, frase no o en todas.
     · «Zoom en el hook»: acercamiento lento durante el hook.
     Si una pieza tiene fotogramas clave de zoom, se respeta tal cual."""
-    est = estilo_edicion()
+    est = estilo_edicion(combo)
     if not est["zoom_alterno"] and not est["zoom_hook"]:
         return v
     z = dict(v.get("zoom") or {})
@@ -2872,8 +2998,8 @@ def _con_zoom_alterno(combo, v):
 def _edicion_guardada(combo):
     if combo.get("version"):
         return combo["version"]
-    a = ajustes_piezas()
-    h, c, t = a.get(combo["hook"], {}), a.get(combo["cuerpo"], {}), a.get(combo["cta"], {})
+    a, e = ajustes_piezas(), letra_edicion(combo)
+    h, c, t = (ajustes_de_pieza(combo[k], e, a) for k in ("hook", "cuerpo", "cta"))
     por_pieza = lambda campo: {k: v for k, v in (("hook", h.get(campo)), ("cuerpo", c.get(campo)), ("cta", t.get(campo))) if v}
     return {"quitar": c.get("quitar", []), "orden": c.get("orden") or [], "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"), "capas": por_pieza("capas"),
             "voz_revisada": por_pieza("voz_revisada"),
@@ -2886,9 +3012,10 @@ def _edicion_guardada(combo):
 def editado_en(combo):
     """Último cambio (segundos) en algo que usa este video: subtítulos, marcas o recortes de sus piezas, o sus ajustes."""
     a = {} if combo.get("version") else ajustes_piezas()  # una versión guarda sus propios recortes
-    t = 0.0
+    e = letra_edicion(combo)
+    t = float(ediciones().get(e, {}).get("cambio") or 0)  # el estilo, la música o la plantilla de su edición
     for n in (combo["hook"], combo["cuerpo"], combo["cta"]):
-        t = max(t, a.get(n, {}).get("editado", 0))
+        t = max(t, ajustes_de_pieza(n, e, a).get("editado", 0))
         f = S.subs / f"{n}.json"
         if f.exists():
             t = max(t, f.stat().st_mtime)
@@ -3058,7 +3185,7 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
                 "voz": cortes_por_voz(nombre)}
 
     v = edicion_de({k: c[k] for k in ("hook", "cuerpo", "cta")} if otra else c)  # otra combinación: parte de lo de sus piezas
-    return {"codigo": codigo, "base": not c.get("version"), "propio": bool((c.get("version") or {}).get("propio")), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
+    return {"codigo": codigo, "edicion": letra_edicion(c), "base": not c.get("version"), "propio": bool((c.get("version") or {}).get("propio")), "original": original, "hook": bloque(c["hook"]), "cuerpo": {**bloque(c["cuerpo"]), "partes": partes_de(c["cuerpo"])},
             "cta": bloque(c["cta"]), "quitar": v.get("quitar", []), "orden": v.get("orden") or [], "recorte_inicio": v.get("recorte_inicio", 0),
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
             "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
@@ -3288,7 +3415,8 @@ def plantilla_sub(combo=None):
     """Plantilla de subtítulos (fuente, colores, resaltador, posición). Si el video tiene una propia, esa."""
     todas = plantillas()
     propia = ajustes_video(combo["codigo"]).get("plantilla") if combo else None
-    base = todas.get(propia) or todas[id_plantilla()]
+    de_edicion = ediciones().get(letra_edicion(combo), {}).get("plantilla") if combo else None
+    base = todas.get(propia) or todas.get(de_edicion) or todas[id_plantilla()]
     pl = {**PLANTILLA_BASE, **{k: v for k, v in base.items() if v not in (None, "")},
           **(ajustes_video(combo["codigo"]).get("ajustes_sub", {}) if combo else {})}
     if not float(pl.get("tamano") or 0):
@@ -3762,6 +3890,8 @@ def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None,
     ajustar (mover y/o recortar: t_nuevo, desde, largo, vol). t es el segundo con el que la sala conoce ese sonido
     (para los automáticos, el de su marca). Devuelve los videos a re-armar."""
     todo = ajustes_piezas()
+    if "@" in pieza and pieza not in todo:  # primer cambio en esta edición: parte de lo que tiene la pieza en la A
+        todo[pieza] = json.loads(json.dumps(todo.get(pieza.split("@")[0], {})))
     a = todo.setdefault(pieza, {})
     t = round(float(t), 2)
     manuales = a.setdefault("sonidos", [])
@@ -3785,7 +3915,8 @@ def editar_sonido(pieza, accion, t, cat, sid=None, cat_nuevo=None, t_nuevo=None,
     todo[pieza] = {k: v for k, v in a.items() if v not in ([], None)}
     S.subs.mkdir(parents=True, exist_ok=True)
     _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
-    return [c["codigo"] for c in combinaciones() if pieza in (c["hook"], c["cuerpo"], c["cta"])]
+    nombre, e = (pieza.split("@") + ["A"])[:2]
+    return [c["codigo"] for c in combinaciones() if nombre in (c["hook"], c["cuerpo"], c["cta"]) and letra_edicion(c) == e]
 
 
 def largo_audible(f):
@@ -3951,7 +4082,7 @@ def planear_sonidos(combo, offs, total, subs, marcas):
     # Lo que el equipo cambió a mano en cada pieza (Sonidos del editor): se quitan los marcados y se suman los agregados
     a_mano = ajustes_piezas()
     for off, n in zip(offs, (hook, cuerpo, cta)):
-        ap = a_mano.get(n, {})
+        ap = ajustes_de_pieza(n, letra_edicion(combo), a_mano)
         for q in ap.get("sonidos_quitar", []):
             cand = [c for c in cand if not (c["cat"] == q["cat"] and abs(c["t"] - (off + q["t"])) < 0.25)]
         for sm in ap.get("sonidos", []):
@@ -4039,6 +4170,15 @@ def planear_musica(combo, offs, total, marcas, n_musica=0):
     """Tramos de música [{id, archivo, t0, t1, desde}]. Una pista por video (la del cuerpo); solo cambia donde
     el guion lo pide: el hook o el CTA con su propia pista, o una marca {"palabra", "musica"}."""
     hook, cuerpo, cta = combo["hook"], combo["cuerpo"], combo["cta"]
+    mus_ed = ediciones().get(letra_edicion(combo), {}).get("musica") or {}
+    if letra_edicion(combo) != "A" and mus_ed.get("modo") in ("otra", "pista"):
+        # otra edición con su propia música: una sola pista para todo el video
+        rotacion = pistas_musica()
+        archivo = next((f for f in rotacion if f.name == mus_ed.get("pista")), None) if mus_ed.get("modo") == "pista" else None
+        if not archivo and rotacion:  # «otra»: una distinta de la que usa la A, que rota con el video
+            letra = max(1, EDICIONES_LETRAS.find(letra_edicion(combo)) + 1)
+            archivo = rotacion[(n_musica + letra * max(1, len(rotacion) // 3)) % len(rotacion)]
+        return ([{"id": None, "archivo": archivo, "t0": 0.0, "t1": total, "desde": 0.0}] if archivo else []), []
     base = (produccion().get("videos", {}).get(combo["codigo"], {}).get("musica")
             or info_pieza(cuerpo).get("musica") or produccion().get("musica_por_defecto"))
     cambios = [(0.0, info_pieza(hook).get("musica") or base)]

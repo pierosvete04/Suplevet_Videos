@@ -1,3 +1,9 @@
+Versión 1.26.0 (se actualiza desde la app con «Actualizar ahora»):
+- Ediciones (A, B, C…): el mismo material editado de otra forma, sin grabar nada más. Videos → «🗂 Plan de la sesión» → «＋ Nueva edición». Cada edición tiene su zoom (en las frases, en el hook, tipo, cada cuánto e intensidad), su música (otra distinta a la A, la misma, o una pista elegida), su plantilla de subtítulos y su ritmo.
+- En la tabla del plan marcas en qué ediciones sale cada cuerpo. La A siempre se arma y sus videos conservan el código de siempre (C1-H1-CTA1); los de la B llevan la letra al final (C1-H1-CTA1-B). «Guardar y armar lo que falta» arma solo lo nuevo.
+- En el editor, arriba se ve en qué edición estás. Los cortes, el orden de las frases y los sonidos que cambies en la B quedan solo en la B; mientras no toques una pieza en la B, usa lo de la A.
+- Videos: filtro por edición (Todas · A · B…) y una etiqueta «Ed. B» en cada video de otra edición.
+
 Versión 1.25.0 (se actualiza desde la app con «Actualizar ahora»):
 - La sala ahora se llama **Estudio Suplevet**: ya no es solo para videos. Los datos, la carpeta y las actualizaciones siguen igual.
 - Nueva pestaña **Carruseles**: arma carruseles de 1080×1350 dentro del Estudio. Arrastra las fotos de Flow, tócalas para ponerlas en la lámina y con ✂ se les quita el fondo (sin internet, con el mismo modelo de rembg; la primera vez baja 170 MB). Encima van textos (con *palabra* resaltada), garabatos a mano (rayitas, ?!, flechas, corazón…), formas, la bolsa real y el logo. Se mueve, agranda y gira con el mouse.

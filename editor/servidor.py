@@ -129,7 +129,7 @@ def estado():
         av = motor.ajustes_video(c["codigo"])
         # desactualizado: se cambió algo de sus piezas (subtítulos, recortes, zoom) o sus ajustes después de armarlo
         viejo = f.exists() and motor.editado_en(c) > f.stat().st_mtime + 1
-        salidas.append({**c, "etiqueta": etiqueta, "es_version": bool(v) and not v.get("propio"), "propio": bool(v.get("propio")),
+        salidas.append({**c, "edicion": motor.letra_edicion(c), "etiqueta": etiqueta, "es_version": bool(v) and not v.get("propio"), "propio": bool(v.get("propio")),
                         "existe": f.exists(), "desactualizado": viejo,
                         "estado": av.get("estado") or "pendiente",
                         "ajustes_portada": {**ap, "posicion": ap.get("posicion", "centro"), "logo": ap.get("logo", True)},
@@ -180,7 +180,8 @@ def estado():
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]}, "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
+            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]},
+            "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "pistas_musica": [f.name for f in motor.pistas_musica()], "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
@@ -1044,11 +1045,32 @@ class H(BaseHTTPRequestHandler):
                 ritmo = {**motor.CONFIG.get("ritmo", {}), "acelerar": bool(b.get("acelerar", motor.ajustes_ritmo()["acelerar"]))}
                 motor.guardar_config({"cortes_voz": aj, "ritmo": ritmo, "cortes_voz_cambio": time.time()})
                 self._json({"ok": True, **aj, "acelerar": ritmo["acelerar"]})
+            elif u.path == "/api/ediciones":  # ediciones A, B, C…: crear, cambiar su estilo/música/plantilla o borrar
+                b = self._cuerpo()
+                codigos = []
+                if b.get("accion") == "crear":
+                    letra = motor.crear_edicion(b.get("nombre"), b.get("copiar_de") or "A")
+                elif b.get("accion") == "borrar":
+                    letra = b["letra"]
+                    motor.borrar_edicion(letra)
+                else:
+                    letra = b["letra"]
+                    codigos = motor.guardar_edicion(letra, {k: b[k] for k in ("nombre", "estilo", "musica", "plantilla", "ritmo") if k in b})
+                self._json({"ok": True, "letra": letra, "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "codigos": codigos})
+            elif u.path == "/api/plan":  # «Plan de la sesión»: qué ediciones se arman de cada cuerpo
+                b = self._cuerpo()
+                plan = motor.guardar_plan(b.get("plan") or {})
+                todos = list(motor.combinaciones())
+                faltan = [c["codigo"] for c in todos if not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
+                if b.get("armar") and faltan:
+                    lanzar("armar_sel", extra={"codigos": faltan})
+                self._json({"ok": True, "plan": plan, "faltan": faltan, "total": len(todos)})
             elif u.path == "/api/sonido":
                 b = self._cuerpo()
                 if b.get("accion") not in ("agregar", "quitar", "cambiar", "mover", "ajustar"):
                     raise ValueError("Acción no válida")
-                codigos = motor.editar_sonido(b["pieza"], b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"),
+                pieza = motor.clave_pieza(b["pieza"], b.get("edicion") if b.get("edicion") in motor.ediciones() else "A")
+                codigos = motor.editar_sonido(pieza, b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"),
                                               b.get("desde"), b.get("largo"), b.get("vol"), b.get("vel"))
                 self._json({"ok": True, "codigos": codigos})
             elif u.path == "/api/abrir_listos":  # abre en el explorador la carpeta de los videos exportados (V.FINALES)

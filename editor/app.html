@@ -247,6 +247,18 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-regla { position: relative; height: 18px; margin-left: 78px; font: 10px var(--mono); color: var(--muted); cursor: pointer; }
 .ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line2); padding-left: 3px; }
 .ev-pista { display: flex; align-items: center; height: 46px; margin-top: 4px; }
+.pill.ed { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+.plan-eds { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 10px 0 18px; }
+.plan-ed { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; background: var(--tarjeta); }
+.plan-ed .letra { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #ede9fe; color: #5b21b6; font-weight: 700; }
+.plan-ed label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.plan-ed .fila label { display: flex; gap: 6px; align-items: center; }
+.plan-ed label.fila { display: flex; gap: 6px; align-items: center; color: var(--ink); font-size: 13px; }
+.plan-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.plan-tabla th, .plan-tabla td { border-bottom: 1px solid var(--line); padding: 8px; text-align: center; }
+.plan-tabla th:first-child, .plan-tabla td:first-child { text-align: left; }
+.plan-tabla td .muted { font-size: 11px; }
+.plan-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-top: 14px; }
 .ev-mudo { margin-left: auto; margin-right: 4px; border: 1px solid var(--borde, #ccd); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 11px; line-height: 1; padding: 3px 4px; cursor: pointer; }
 .ev-mudo[aria-pressed="true"] { background: #fde2e2; color: #b42318; border-color: #f3b4b4; }
 .ev-etq { width: 78px; flex: none; font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); padding-left: 8px; position: sticky; left: 0; background: var(--bg2); z-index: 2; height: 100%; display: flex; align-items: center; }
@@ -872,6 +884,8 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
           <button data-estado="listo" aria-pressed="false">Aprobados</button>
           <button data-estado="viejo" aria-pressed="false">Sin armar o por rearmar</button>
         </div>
+        <div class="segmento" id="filtroEdicion" role="group" aria-label="Filtrar por edición" hidden></div>
+        <button class="btn sec peq" id="abrirPlan" type="button" title="Qué ediciones (A, B…) se arman de cada cuerpo, y cómo es cada edición: zoom, música, subtítulos y ritmo">🗂 Plan de la sesión</button>
         <div class="leyenda-estado" title="El punto de color de cada video">Punto de cada video: <span><i></i>Por revisar</span>
           <span><i class="editando"></i>Editando (se pone solo al abrirlo en el editor)</span><span><i class="listo"></i>Aprobado</span></div>
       </div>
@@ -1393,6 +1407,12 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 </dialog>
 <!-- el editor de sonido (#dsForm) vive en la página Sonidos; desde el editor del video o en pantallas angostas se muda aquí -->
 <dialog id="dlgSonido" aria-labelledby="dsTit" style="width:min(460px,96vw)"><div id="dsDlgCuerpo" style="padding:16px"></div></dialog>
+<dialog id="dlgPlan" aria-labelledby="planTit" style="width:min(1000px,96vw)">
+  <div class="dlg-cab"><div class="fila"><h2 id="planTit" style="margin:0">Plan de la sesión</h2>
+    <span class="muted" style="font-size:12px">El mismo material, editado de otra forma: cada edición tiene su zoom, su música, sus subtítulos y su ritmo.</span></div>
+    <button class="btn sec peq" type="button" id="planCerrar">Cerrar</button></div>
+  <div id="planCuerpo" style="padding:16px"></div>
+</dialog>
 <dialog id="dlgEditor" aria-labelledby="edTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="muted" style="font-size:12px">Lo que cambies en el cuerpo se aplica a todos sus videos.</span></div>
     <button class="btn sec peq" id="edCerrar">← Volver al video</button></div>
@@ -1880,7 +1900,7 @@ function irTab(nombre) {
 }
 
 // ---------- Videos ----------
-let vistaVideos = "cuerpo", filtroEstado = "";
+let vistaVideos = "cuerpo", filtroEstado = "", filtroEdicion = "";
 const ESTADOS = { pendiente: "Por revisar", editando: "Editando", listo: "Aprobado" };
 function tarjetaVideo(s) {
   const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
@@ -1889,16 +1909,26 @@ function tarjetaVideo(s) {
     <span class="estado-dot ${s.estado}" title="${ESTADOS[s.estado] || ""}"></span>
     ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>`
       : `<div class="vacia">${esc(s.codigo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
-    <div class="nombre">${esc(s.etiqueta)}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
+    <div class="nombre">${esc(s.etiqueta)}${s.edicion && s.edicion !== "A" ? ` <span class="pill ed" title="${esc(((E.ediciones || {})[s.edicion] || {}).nombre || "")}">Ed. ${esc(s.edicion)}</span>` : ""}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
     <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "Armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">Sin armar</span>`}
       ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ Rearmar</span>` : ""}
       ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}
       <span class="pill" title="Plantilla de subtítulos">Aa ${esc(plantillaDe(s).nombre)}</span></div></button>`;
 }
+function pintarFiltroEdicion() {  // «Todas · A · B…»: solo si la sesión tiene más de una edición
+  const eds = Object.entries(E.ediciones || { A: {} }), caja = $("filtroEdicion");
+  caja.hidden = eds.length < 2;
+  if (eds.length < 2) { filtroEdicion = ""; return; }
+  if (filtroEdicion && !(E.ediciones || {})[filtroEdicion]) filtroEdicion = "";
+  caja.innerHTML = [["", "Todas las ediciones"], ...eds.map(([k, v]) => [k, `${k} · ${v.nombre || "Edición " + k}`])]
+    .map(([k, t]) => `<button data-fed="${k}" aria-pressed="${filtroEdicion === k}">${esc(t)}</button>`).join("");
+}
 function pintarVideos() {
   const q = $("buscar").value.trim().toLowerCase();
   const lista = E.salidas.filter(s => (!q || s.archivo.toLowerCase().includes(q))
-    && (!filtroEstado || (filtroEstado === "viejo" ? s.desactualizado || !s.existe : s.estado === filtroEstado)));
+    && (!filtroEstado || (filtroEstado === "viejo" ? s.desactualizado || !s.existe : s.estado === filtroEstado))
+    && (!filtroEdicion || (s.edicion || "A") === filtroEdicion));
+  pintarFiltroEdicion();
   $("nVideos").textContent = `${E.salidas.filter(s => s.existe).length}/${E.salidas.length}`;
   if (!E.salidas.length) {
     $("videos").innerHTML = `<div class="sin-nada">${E.bajando ? "Bajando la sesión de Drive… los videos aparecen cuando terminen de llegar los clips." : "Todavía no hay piezas en esta sesión. Sube las grabaciones a la carpeta de Drive (Clips) o en Faltantes."}</div>`;
@@ -1926,6 +1956,8 @@ function pintarVideos() {
 document.addEventListener("click", async e => {
   const v = e.target.closest("[data-vista]");
   if (v) { vistaVideos = v.dataset.vista; document.querySelectorAll("[data-vista]").forEach(b => b.setAttribute("aria-pressed", b === v)); pintarVideos(); try { localStorage.setItem("sala_vista", vistaVideos); } catch (err) {} return; }
+  const fe = e.target.closest("[data-fed]");
+  if (fe) { filtroEdicion = fe.dataset.fed; pintarVideos(); return; }
   const f = e.target.closest("[data-estado]");
   if (f) { filtroEstado = f.dataset.estado; document.querySelectorAll("[data-estado]").forEach(b => b.setAttribute("aria-pressed", b === f)); pintarVideos(); return; }
   const ge = e.target.closest("[data-grupo-editar]");
@@ -3565,7 +3597,7 @@ function pintarPendientes() {
 }
 async function cambiarSonido(cambio) {
   try {
-    const r = await post("/api/sonido", cambio);
+    const r = await post("/api/sonido", { ...cambio, edicion: est?.edicion || "A" });
     sonPend.push({ ...cambio, codigos: r.codigos });
     pintarPendientes(); pintarEfectos();
     $("evSonInfo").textContent = `Guardado en ${cambio.pieza}: vale para sus ${r.codigos.length} videos. Rearma para escucharlo.`;
@@ -3705,7 +3737,7 @@ async function cargarEstructura(codigo, combo) {
 }
 function pintarAlcance() {
   if (!est || est.error) return;
-  const cuantos = (campo, n) => E.salidas.filter(s => !s.es_version && !s.propio && s[campo] === n).length;
+  const cuantos = (campo, n) => E.salidas.filter(s => !s.es_version && !s.propio && s[campo] === n && (s.edicion || "A") === (est.edicion || "A")).length;
   const o = est.original || { hook: est.hook.nombre, cuerpo: est.cuerpo.nombre, cta: est.cta.nombre };
   const misma = $("evHook").value === o.hook && $("evCuerpo").value === o.cuerpo && $("evCta").value === o.cta;
   const nCuerpo = cuantos("cuerpo", est.cuerpo.nombre);
@@ -3717,12 +3749,15 @@ function pintarAlcance() {
   $("evGuardar").hidden = est.base && !misma;
   $("evBorrar").hidden = est.base;
   $("evBorrar").textContent = est.propio ? `Volver a lo de ${est.cuerpo.nombre}` : "Borrar esta versión";
-  $("evAlcance").innerHTML = est.propio
+  const enEd = est.edicion && est.edicion !== "A" ? `<div style="display:flex;gap:8px;align-items:center"><span class="pill ed">${esc(est.edicion)}</span><span><b>Edición ${esc(est.edicion)} · ${esc(((E.ediciones || {})[est.edicion] || {}).nombre || "")}</b>: lo que cambies aquí vale solo para los videos de la edición ${esc(est.edicion)}; la A no se toca.</span></div>` : "";
+  const resto = (est.propio
     ? `<span>✎</span><span><b>${esc(est.codigo)}</b> tiene ajustes propios: lo que cambies aquí queda solo en este video, y lo que se edite en ${esc(est.cuerpo.nombre)} ya no le llega. «Volver a lo de ${esc(est.cuerpo.nombre)}» le quita sus ajustes propios.</span>`
     : !est.base
     ? `<span>✎</span><span>Estás editando la versión <b>${esc(est.codigo)}</b>: los cambios solo afectan a esta versión.</span>`
     : !misma ? `<span>⑂</span><span>Elegiste otra combinación de piezas: se guarda como <b>versión aparte</b>.</span>`
-    : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se rearman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`;
+    : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se rearman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`);
+  // en otra edición, primero el aviso de la edición y debajo lo de siempre
+  $("evAlcance").innerHTML = enEd ? `<div style="display:grid;gap:6px;width:100%">${enEd}<div style="display:flex;gap:8px">${resto}</div></div>` : resto;
 }
 function partesEnOrden() {  // las frases del cuerpo en el orden elegido
   const o = ed.orden || [];
@@ -4972,7 +5007,7 @@ $("dlgEditor").addEventListener("click", async e => {
 }));
 function datosEd() {
   const zoom = { hook: ed.zoom.hook || undefined, cta: ed.zoom.cta || undefined, partes: ed.zoom.partes, tramos: {}, puntos: ed.zoom.puntos || {} };
-  return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar], orden: ed.orden,
+  return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar], orden: ed.orden, edicion: est.edicion || "A",
     cortes: ed.cortes, quitar_rangos: ed.quitarR, capas: ed.capas, velocidad: ed.vel,
     recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value,
     voz_revisada: true };  // lo que quedó cortado (o vuelto a poner) lo decidió una persona: la sala ya no corta sola esas piezas
@@ -5040,6 +5075,114 @@ $("evBorrar").onclick = async () => {
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("dlg").addEventListener("close", pararEditor);
+
+// ---------- Plan de la sesión: ediciones (A, B…) y qué se arma de cada cuerpo ----------
+let planBorrador = null;  // lo marcado en la tabla, antes de guardar
+const ZOOM_TIPOS = [["punch", "Salto (punch)"], ["in", "Acercar despacio"], ["out", "Alejar despacio"], ["mezcla", "Mezcla"]];
+function videosBase(c) { return E.salidas.filter(s => s.cuerpo === c && (s.edicion || "A") === "A" && !s.es_version).length; }
+function pintarPlan() {
+  const eds = E.ediciones || { A: { nombre: "Edición A" } }, letras = Object.keys(eds);
+  planBorrador = planBorrador || JSON.parse(JSON.stringify(E.plan || {}));
+  const est = { zoom_alterno: false, zoom_tipo: "punch", zoom_fuerza: .14, zoom_cada: 2, zoom_hook: false, ...(E.estilo_edicion || {}) };
+  const opt = (lista, v) => lista.map(([k, t]) => `<option value="${esc(k)}" ${String(v) === String(k) ? "selected" : ""}>${esc(t)}</option>`).join("");
+  const tarjeta = (k, ed) => {
+    if (k === "A") return `<div class="plan-ed"><div class="fila" style="gap:8px"><span class="letra">A</span><b>Edición A · la de siempre</b></div>
+      <span class="muted" style="font-size:12px">Usa el estilo de Plantillas → Estilo de edición, la música del guion y la plantilla de subtítulos en uso. Sus videos tienen el código de siempre (C1-H1-CTA1).</span></div>`;
+    const z = { ...est, ...(ed.estilo || {}) }, m = ed.musica || { modo: "otra" }, r = ed.ritmo || {};
+    const musV = m.modo === "pista" ? "pista:" + (m.pista || "") : m.modo;
+    return `<div class="plan-ed" data-ed="${k}"><div class="fila" style="gap:8px"><span class="letra">${k}</span>
+        <input data-ec="nombre" value="${esc(ed.nombre || "Edición " + k)}" aria-label="Nombre de la edición ${k}" style="flex:1;min-width:0">
+        <button class="btn sec peq" type="button" data-ed-borrar="${k}" title="Quitar la edición ${k} (sus videos ya armados quedan en la carpeta)">🗑</button></div>
+      <div class="fila" style="gap:10px;flex-wrap:wrap"><label><input type="checkbox" data-ec="zoom_alterno" ${z.zoom_alterno ? "checked" : ""}> Zoom en las frases</label>
+        <label><input type="checkbox" data-ec="zoom_hook" ${z.zoom_hook ? "checked" : ""}> Zoom en el hook</label></div>
+      <div class="dos" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label>Tipo de zoom<select data-ec="zoom_tipo">${opt(ZOOM_TIPOS, z.zoom_tipo)}</select></label>
+        <label>Cada cuánto<select data-ec="zoom_cada">${opt([[2, "Frase sí, frase no"], [1, "En todas las frases"]], z.zoom_cada)}</select></label>
+        <label>Intensidad<select data-ec="zoom_fuerza">${opt([[.08, "Suave"], [.14, "Media"], [.22, "Fuerte"]], z.zoom_fuerza)}</select></label>
+        <label>Música<select data-ec="musica">${opt([["otra", "Otra distinta a la A"], ["igual", "La misma que la A"],
+          ...(E.pistas_musica || []).map(n => ["pista:" + n, "♪ " + n])], musV)}</select></label>
+        <label style="grid-column:1/-1">Subtítulos<select data-ec="plantilla">${opt([["", "Los mismos que la A"], ...Object.entries(E.plantillas || {}).map(([id, pl]) => [id, pl.nombre || id])], ed.plantilla || "")}</select></label>
+      </div>
+      <label class="fila" style="gap:6px"><input type="checkbox" data-ec="acelerar" ${r.acelerar !== false ? "checked" : ""}> Acelerar un poco las frases lentas</label>
+    </div>`;
+  };
+  const cuerpos = Object.keys(planBorrador).length ? Object.keys(planBorrador) : E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
+  let total = 0, nuevos = 0;
+  const filas = cuerpos.map(c => {
+    const nb = videosBase(c), marcadas = planBorrador[c] || ["A"];
+    total += nb * marcadas.length;
+    nuevos += E.salidas.filter(s => s.cuerpo === c && !s.existe && marcadas.includes(s.edicion || "A")).length
+      + nb * marcadas.filter(e => !(E.plan[c] || ["A"]).includes(e)).length;
+    const texto = (E.piezas.find(p => p.nombre === c)?.lineas || []).map(l => l.texto).join(" ");
+    return `<tr><td><b>${esc(c)}</b> <span class="muted">· ${nb} video${nb === 1 ? "" : "s"} por edición</span><br><span class="muted">${esc(texto.slice(0, 70))}${texto.length > 70 ? "…" : ""}</span></td>
+      ${letras.map(k => `<td><input type="checkbox" data-plan="${esc(c)}|${k}" ${marcadas.includes(k) ? "checked" : ""} ${k === "A" ? "disabled title='La A siempre se arma'" : ""} aria-label="${esc(c)} en la edición ${k}"></td>`).join("")}</tr>`;
+  }).join("");
+  $("planCuerpo").innerHTML = `<div class="fila" style="justify-content:space-between"><h3 style="margin:0">1 · Las ediciones</h3>
+      <button class="btn peq" type="button" id="planNueva" title="Crea otra edición (B, C…) con su propio zoom, música, subtítulos y ritmo">＋ Nueva edición</button></div>
+    <div class="plan-eds">${letras.map(k => tarjeta(k, eds[k])).join("")}</div>
+    <h3 style="margin:0 0 6px">2 · Qué se arma de cada cuerpo</h3>
+    <span class="muted" style="font-size:12px">Marca en qué ediciones sale cada cuerpo. Cada marca son los videos de ese cuerpo (todos sus hooks) editados así. Los cortes y sonidos que cambies en una edición quedan en esa edición.</span>
+    <table class="plan-tabla" style="margin-top:8px"><thead><tr><th>Cuerpo</th>${letras.map(k => `<th>${k}<br><span class="muted" style="font-weight:400">${esc(eds[k].nombre || "")}</span></th>`).join("")}</tr></thead>
+      <tbody>${filas}</tbody></table>
+    <div class="plan-pie"><span><b>${total}</b> videos en la sesión${nuevos ? ` · <b>${nuevos}</b> por armar` : ""}</span>
+      <div class="fila" style="gap:8px"><button class="btn sec" type="button" id="planGuardar">Guardar plan</button>
+        <button class="btn" type="button" id="planArmar">Guardar y armar lo que falta</button></div></div>`;
+}
+$("abrirPlan").onclick = () => { planBorrador = null; pintarPlan(); $("dlgPlan").showModal(); };
+$("planCerrar").onclick = () => $("dlgPlan").close();
+async function guardarCampoEdicion(letra, campo, valor) {
+  const ed = (E.ediciones || {})[letra] || {};
+  const cambio = campo === "nombre" ? { nombre: valor }
+    : campo === "musica" ? { musica: String(valor).startsWith("pista:") ? { modo: "pista", pista: String(valor).slice(6) } : { modo: valor } }
+    : campo === "plantilla" ? { plantilla: valor || null }
+    : campo === "acelerar" ? { ritmo: { acelerar: !!valor } }
+    : { estilo: { ...(ed.estilo || {}), [campo]: ["zoom_cada"].includes(campo) ? Number(valor) : ["zoom_fuerza"].includes(campo) ? Number(valor) : valor } };
+  const r = await post("/api/ediciones", { accion: "guardar", letra, ...cambio });
+  E.ediciones = r.ediciones;
+  avisar(r.codigos.length ? `Edición ${letra} guardada: ${plural(r.codigos.length, "video")} de esa edición quedan por rearmar.` : `Edición ${letra} guardada.`, "ok");
+}
+$("planCuerpo").addEventListener("change", async e => {
+  const t = e.target;
+  try {
+    if (t.dataset.plan) {
+      const [c, k] = t.dataset.plan.split("|"), ls = new Set(planBorrador[c] || ["A"]);
+      t.checked ? ls.add(k) : ls.delete(k);
+      planBorrador[c] = ["A", ...Object.keys(E.ediciones).filter(x => x !== "A" && ls.has(x))];
+      pintarPlan(); return;
+    }
+    const caja = t.closest("[data-ed]");
+    if (caja && t.dataset.ec) await guardarCampoEdicion(caja.dataset.ed, t.dataset.ec, t.type === "checkbox" ? t.checked : t.value);
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+});
+$("planCuerpo").addEventListener("click", async e => {
+  try {
+    if (e.target.id === "planNueva") {
+      const ultimas = Object.keys(E.ediciones || {}), copiar = ultimas[ultimas.length - 1];
+      const r = await post("/api/ediciones", { accion: "crear", copiar_de: copiar });
+      E.ediciones = r.ediciones; E.plan = r.plan; pintarPlan();
+      avisar(`Lista la edición ${r.letra}. Ajústale el zoom, la música y los subtítulos, y márcala en los cuerpos que quieras.`, "ok");
+    }
+    const b = e.target.closest("[data-ed-borrar]");
+    if (b && confirm(`¿Quitar la edición ${b.dataset.edBorrar}? Sus cortes y sonidos propios se pierden; sus videos ya armados quedan en la carpeta.`)) {
+      const r = await post("/api/ediciones", { accion: "borrar", letra: b.dataset.edBorrar });
+      E.ediciones = r.ediciones; E.plan = r.plan; planBorrador = null; pintarPlan(); await cargar();
+    }
+    if (e.target.id === "planGuardar" || e.target.id === "planArmar") {
+      const armar = e.target.id === "planArmar";
+      const r = await post("/api/plan", { plan: planBorrador, armar });
+      $("dlgPlan").close(); await cargar();
+      avisar(armar && r.faltan.length ? `Plan guardado: armando ${plural(r.faltan.length, "video")}…` : `Plan guardado: ${plural(r.total, "video")} en la sesión.`, "ok");
+      if (armar) vigilar(await (await fetch("/api/trabajo")).json());
+    }
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+});
+// el nombre se guarda al salir del campo (no en cada letra)
+$("planCuerpo").addEventListener("focusout", async e => {
+  const t = e.target, caja = t.closest("[data-ed]");
+  if (caja && t.dataset.ec === "nombre" && t.value !== ((E.ediciones || {})[caja.dataset.ed] || {}).nombre) {
+    try { await guardarCampoEdicion(caja.dataset.ed, "nombre", t.value); pintarVideos(); } catch (err) { avisar("Error: " + err.message, "err"); }
+  }
+});
 
 // ---------- Guion ----------
 async function pintarGuion() {
