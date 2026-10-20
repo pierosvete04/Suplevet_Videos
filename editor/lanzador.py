@@ -1,4 +1,4 @@
-"""SalaSuplevet.exe: abre la sala de edición en su propia ventana (como un programa) y la reinicia cuando se actualiza.
+"""SalaSuplevet.exe: abre el Estudio Suplevet (videos y carruseles) en su propia ventana (como un programa) y la reinicia cuando se actualiza.
 
 Carpeta portable (lo que se instala):
   SalaSuplevet/
@@ -35,7 +35,7 @@ except Exception:  # noqa: BLE001
 
 PUERTO = int(os.environ.get("SALA_PUERTO") or 8765)  # otro puerto solo para probar con la sala abierta
 URL = f"http://127.0.0.1:{PUERTO}"
-TITULO = "Sala de edición"
+TITULO = "Estudio Suplevet"
 
 
 def base():

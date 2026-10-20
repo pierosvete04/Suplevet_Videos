@@ -1,3 +1,10 @@
+Versión 1.25.0 (se actualiza desde la app con «Actualizar ahora»):
+- La sala ahora se llama **Estudio Suplevet**: ya no es solo para videos. Los datos, la carpeta y las actualizaciones siguen igual.
+- Nueva pestaña **Carruseles**: arma carruseles de 1080×1350 dentro del Estudio. Arrastra las fotos de Flow, tócalas para ponerlas en la lámina y con ✂ se les quita el fondo (sin internet, con el mismo modelo de rembg; la primera vez baja 170 MB). Encima van textos (con *palabra* resaltada), garabatos a mano (rayitas, ?!, flechas, corazón…), formas, la bolsa real y el logo. Se mueve, agranda y gira con el mouse.
+- «Escribir con Claude» en Carruseles: escribe el texto de cada lámina, el prompt de Flow de cada foto y el copy.
+- «Exportar a V.FINALES» deja L01.png, L02.png… y copy.txt en V.FINALES/<carrusel>: el Publicador ya lo toma como carrusel.
+- Exportar espera a que carguen todas las fotos: ninguna lámina sale vacía.
+
 Versión 1.24.0 (se actualiza desde la app con «Actualizar ahora»):
 - CTA repetido: si un CTA grabado en partes trae en cada parte un llamado completo («Pídelo hoy, escríbenos por WhatsApp…» y «Comenta Suplevet…»), la sala ya no los pega uno detrás del otro: son dos CTA (CTA1 y CTA1B) y cada video lleva uno solo, turnándose entre los hooks.
 - El sonido del CTA sale de lo que se dice: notificación si pide escribir por WhatsApp, tecleo si pide comentar. Antes, con el guion sacado de lo grabado, el CTA se quedaba sin sonido.

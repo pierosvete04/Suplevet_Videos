@@ -202,3 +202,30 @@ La sala aplica el plan sola cuando termines."""
         avance("Plan aplicado. Rearma los videos para verlo.")
         return {"texto": texto, "aplicado": r}
     return {"texto": texto, "aplicado": None}
+
+
+def escribir_carrusel(titulo, idea, laminas, nivel, estilo, avance=print):
+    """Claude escribe el carrusel: texto de cada lámina, prompt de Flow para su foto y el copy.
+    Devuelve {"laminas": [{"rol", "titulo", "texto", "flow"}], "copy"}; la pestaña Carruseles lo pone en las plantillas."""
+    actualizar_conocimiento(avance)
+    prompt = f"""Lee el contexto de la marca en contexto/ (marca, voz, claims y producto) y escribe un carrusel de Instagram
+de {laminas} láminas (1080×1350) para dueños de mascotas.
+Tema: {titulo}
+{('Idea del equipo: ' + idea.strip()) if idea.strip() else ''}
+Nivel del embudo: {nivel or 'elige tú (TOFU no nombra a Suplevet; MOFU y BOFU sí, con «comenta VET»)'}
+Estilo visual: {estilo or 'elige tú entre A nariz a cámara, B estudio con color sólido, C metáfora creativa, D foto + garabatos, E lifestyle'}
+
+Reglas: palabras simples (picazón, no prurito; flora, no microbiota). Portada de 8 palabras como máximo.
+Una sola idea por lámina, títulos de 2 a 6 palabras y textos de 20 palabras como máximo. Verbos permitidos: ayuda, contribuye,
+favorece, aporta (nunca cura, trata, elimina, garantiza). Los resultados van con su plazo (pelaje: 4 semanas).
+La última lámina cierra con «guárdalo / mándaselo a…» o, si nombra a Suplevet, con «comenta VET».
+Para cada lámina escribe el prompt de Google Flow de su foto: una mascota sola, sin texto, sin productos ni bolsas
+(la bolsa real se pone después), fondo liso o fácil de recortar si la lámina va sobre color.
+En el título marca con *asteriscos* la palabra que va resaltada.
+Responde SOLO con JSON, sin texto antes ni después:
+{{"laminas": [{{"rol": "portada | idea | señal | cierre", "titulo": "…", "texto": "…", "flow": "prompt en inglés"}}], "copy": "copy de Instagram con 3 a 5 hashtags"}}"""
+    texto = correr(prompt, [], avance=avance, max_turnos=20)
+    inicio, fin = texto.find("{"), texto.rfind("}")
+    if inicio < 0 or fin < 0:
+        raise RuntimeError("Claude no devolvió el carrusel. Intenta de nuevo.")
+    return json.loads(texto[inicio:fin + 1])
