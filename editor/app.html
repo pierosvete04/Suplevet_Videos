@@ -5911,7 +5911,7 @@ $("actBuscar").onclick = async () => {
     infoVersion = await (await fetch("/api/version?forzar")).json();
     $("actVersion").textContent = "v" + infoVersion.actual;
     $("confPAct").className = "punto-estado " + (infoVersion.error ? "" : infoVersion.nueva ? "warn" : "ok");
-    if (infoVersion.error) $("actResultado").innerHTML = `<span class="pill warn">Sin internet</span> No se pudo revisar: ${esc(infoVersion.error)}`;
+    if (infoVersion.error) $("actResultado").innerHTML = `<span class="pill warn">Sin conexión con GitHub</span> ${esc(infoVersion.error)}`;
     else if (!infoVersion.nueva) $("actResultado").innerHTML = `<span class="pill ok">✓ Al día</span> Tienes la última versión de la sala (v${esc(infoVersion.actual)}).`;
     else {
       $("actResultado").innerHTML = `<span class="pill azul">Nueva</span> Hay una versión nueva: <b>v${esc(infoVersion.nueva)}</b> (tienes v${esc(infoVersion.actual)}).

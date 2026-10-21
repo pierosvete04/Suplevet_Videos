@@ -1,3 +1,6 @@
+Versión 1.27.1 (se actualiza desde la app con «Actualizar ahora»):
+- Actualizaciones más tercas: si la conexión con GitHub se corta (pasa a ratos con algunas redes), la sala reintenta sola y, si la ruta normal no responde, prueba por la página de descargas de GitHub. Si aun así no puede, el aviso dice «Sin conexión con GitHub» (antes decía «Sin internet» aunque hubiera internet) y el próximo «Buscar actualizaciones» vuelve a preguntar de verdad (antes el error quedaba guardado una hora).
+
 Versión 1.27.0 (se actualiza desde la app con «Actualizar ahora»):
 - Ángulos: el mismo guion grabado desde otro lado arma sus propios videos. Lo de frente va como siempre (C1/C1.1, C1/C1-H1); el otro ángulo, en una carpeta con su nombre: C1/IZQUIERDA/C1.1 (o IZQUIERDA/C1/C1.1). Se reconocen IZQUIERDA, DERECHA, LADO, ARRIBA, ABAJO, PRIMER PLANO y CAM 2, ÁNGULO 3…
 - Cada ángulo es su propia pieza (C1 · Izquierda) y sus videos llevan el ángulo al final: C1-H1-CTA1-IZQ. Si en ese ángulo grabaste los hooks o el CTA, usa esos; si no, los de frente (el mismo número de hook).

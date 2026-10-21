@@ -15,6 +15,7 @@ import shutil
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -31,13 +32,39 @@ def _cfg():
     return a.get("repo", ""), motor.CONFIG.get("github_token") or a.get("token", "")
 
 
-def _pedir(url, binario=False):
+def _pedir(url, binario=False, intentos=3):
+    """Pide algo a GitHub. Si la conexión se corta (pasa a ratos con algunas redes), vuelve a intentar."""
     repo, token = _cfg()
     h = {"Accept": "application/octet-stream" if binario else "application/vnd.github+json", "User-Agent": "SalaSuplevet"}
-    if token:
+    if token and "api.github.com" in url:
         h["Authorization"] = f"Bearer {token}"
-    with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=120 if binario else 15) as r:
-        return r.read()
+    ultimo = None
+    for k in range(intentos):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=120 if binario else 15) as r:
+                return r.read()
+        except urllib.error.HTTPError:
+            raise  # GitHub respondió (404, 403…): reintentar no cambia nada
+        except Exception as e:  # se cortó o no respondió a tiempo
+            ultimo = e
+            time.sleep(1.5 * (k + 1))
+    raise ultimo
+
+
+def _ultima_por_la_web(repo):
+    """Si la API de GitHub no responde, la última versión se saca de la página de releases (otro servidor)."""
+    h = {"User-Agent": "SalaSuplevet"}
+    ultimo = None
+    for k in range(2):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(f"https://github.com/{repo}/releases/latest", headers=h), timeout=15) as r:
+                tag = r.geturl().rstrip("/").rsplit("/", 1)[-1]
+            if tag.startswith("v"):
+                return tag
+        except Exception as e:  # noqa: BLE001
+            ultimo = e
+            time.sleep(1.5 * (k + 1))
+    raise ultimo or RuntimeError("no se encontró la última versión")
 
 
 def _num(v):
@@ -53,7 +80,15 @@ def revisar(forzar=False):
     if not forzar and _cache["datos"] and time.time() - _cache["t"] < 3600:
         return _cache["datos"]
     try:
-        rel = json.loads(_pedir(f"https://api.github.com/repos/{repo}/releases/latest"))
+        try:
+            rel = json.loads(_pedir(f"https://api.github.com/repos/{repo}/releases/latest"))
+        except urllib.error.HTTPError:
+            raise
+        except Exception:  # la API no respondió: se mira la página de releases y se baja el zip directo
+            tag = _ultima_por_la_web(repo)
+            rel = {"tag_name": tag, "body": "", "html_url": f"https://github.com/{repo}/releases/tag/{tag}",
+                   "assets": [{"name": f"app-{tag}.zip", "url": None,
+                               "browser_download_url": f"https://github.com/{repo}/releases/download/{tag}/app-{tag}.zip"}]}
         nueva = rel["tag_name"].lstrip("v")
         app = next((a for a in rel["assets"] if a["name"].startswith("app-") and a["name"].endswith(".zip")), None)
         completa = next((a for a in rel["assets"] if "Instalador" in a["name"] and a["name"].endswith(".exe")), None)             or next((a for a in rel["assets"] if a["name"].startswith("SalaSuplevet-")), None)
@@ -62,12 +97,14 @@ def revisar(forzar=False):
         out.update({
             "nueva": nueva if _num(nueva) > _num(motor.VERSION) else None,
             "notas": (rel.get("body") or "").strip()[:1500],
-            "url_app": app["url"] if app else None,
+            "url_app": (app.get("url") or app.get("browser_download_url")) if app else None,
+            "url_app_directa": app.get("browser_download_url") if app else None,
             "url_completa": completa["browser_download_url"] if completa else rel.get("html_url"),
             "requiere_completa": bool(LANZADOR) and _num(minimo) > _num(LANZADOR or "0"),
         })
     except Exception as e:  # sin internet, repo privado sin token, etc.
-        out["error"] = f"No se pudo revisar: {e}"
+        out["error"] = f"GitHub no respondió ({e}). La conexión con GitHub se está cortando: vuelve a intentar en un rato."
+        return out  # el error no se guarda: el próximo intento vuelve a preguntar
     _cache.update(t=time.time(), datos=out)
     return out
 
@@ -81,7 +118,16 @@ def aplicar():
         raise RuntimeError("Esta versión necesita bajar la sala completa de nuevo: " + (info.get("url_completa") or ""))
     if not info.get("url_app"):
         raise RuntimeError("El release no trae app-*.zip")
-    datos = _pedir(info["url_app"], binario=True)
+    datos = None
+    for url in dict.fromkeys(u for u in (info["url_app"], info.get("url_app_directa")) if u):  # API y, si falla, descarga directa
+        try:
+            datos = _pedir(url, binario=True)
+            zipfile.ZipFile(io.BytesIO(datos)).testzip()  # si se cortó a medias, el zip no sirve: se prueba el otro camino
+            break
+        except Exception as e:  # noqa: BLE001
+            datos, ultimo = None, e
+    if datos is None:
+        raise RuntimeError(f"No se pudo bajar la versión nueva: {ultimo}")
     destino = motor.RAIZ
     with tempfile.TemporaryDirectory() as tmp:
         zipfile.ZipFile(io.BytesIO(datos)).extractall(tmp)
