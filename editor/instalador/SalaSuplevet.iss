@@ -14,8 +14,7 @@
 AppId={{6E1F4A2C-5B7D-4C1E-9A3B-5355504C4556}
 AppName=Sala de edición
 AppVersion={#Version}
-AppPublisher=Suplevet
-AppPublisherURL=https://suplevet.pe
+AppPublisher=Piero Svete
 DefaultDirName={localappdata}\SalaSuplevet
 DisableDirPage=yes
 DisableProgramGroupPage=yes

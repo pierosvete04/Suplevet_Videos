@@ -1,3 +1,6 @@
+Versión 1.28.1 (se actualiza desde la app con «Actualizar ahora»):
+- Ícono nuevo: una **E** azul, de la misma familia que la Sala de diseño (D) y el Publicador (P), sin el logo de Suplevet. Para ver el ícono nuevo en el escritorio hay que pasar una vez el instalador completo (SalaSuplevet-Instalador-v1.28.1.exe); «Actualizar ahora» cambia solo la letra de adentro.
+
 Versión 1.28.0 (se actualiza desde la app con «Actualizar ahora»):
 - Vuelve a llamarse **Sala de edición** y es solo para videos.
 - Los carruseles y posts pasan a la **Sala de diseño**, un programa aparte con su propio instalador (github.com/pierosvete04/Suplevet_Diseno). Se publican igual con el Publicador.
