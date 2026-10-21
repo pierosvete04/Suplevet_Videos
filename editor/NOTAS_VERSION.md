@@ -1,3 +1,8 @@
+Versión 1.32.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Rehacer imagen con una nota**: en Faltantes, debajo de cada imagen o clip de Flow, «✎ Rehacer imagen con una nota». Escribes qué está mal («tiene arándanos, que se vea el polvo encima de las croquetas») y Claude escribe el prompt nuevo con tu nota y las reglas de la marca. Queda guardado en el guion; lo copias, generas en Flow y arrastras la imagen nueva a su cuadro.
+- La nota queda guardada debajo de la imagen, con la fecha. Si la rehaces otra vez, Claude respeta también las notas anteriores.
+- **La comida es la real**: si una imagen muestra un plato, son croquetas o comida simple con el polvo encima, nunca frutas, salmón ni verduras.
+
 Versión 1.31.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Crear prompts de Flow**: si el guion no tiene prompts de imágenes (por ejemplo, uno armado con lo grabado), la pestaña Guion lo avisa y Claude los escribe a partir del texto de cada cuerpo y hook, sin cambiar el texto. Después se generan en Flow y aparecen en Faltantes.
 - En cada imagen sale una mascota mostrando lo que dice la frase: decaída si habla de una mascota mal, contenta si habla del resultado. Nunca células ni órganos.

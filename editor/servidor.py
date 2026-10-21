@@ -430,6 +430,13 @@ def lanzar(accion, pieza=None, extra=None):
                         drive.subir(motor.S.drive, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
                     avance("Prompts de Flow listos: ahora se generan las imágenes (pestaña Faltantes)")
+                if accion == "rehacer":  # la nota del equipo sobre una imagen -> su prompt de Flow nuevo
+                    r = asistente.rehacer_imagen(extra["id"], extra["nota"], avance=avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = r
+                    avance(f"Prompt nuevo de {extra['id']}: {(r.get('cambio') or 'listo').rstrip('. ')}. Cópialo y genera la imagen en Flow.")
                 if accion == "temas":
                     TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
                     avance("Temas propuestos: elige uno por cuerpo.")
@@ -1116,6 +1123,11 @@ class H(BaseHTTPRequestHandler):
                     lanzar("guion", extra={"sesion": sesion, "pedido": str(b.get("pedido", ""))[:4000]})
                 elif b.get("accion") == "revisar":
                     lanzar("revisar")
+                elif b.get("accion") == "rehacer":
+                    nota = str(b.get("nota", "")).strip()[:1000]
+                    if len(nota) < 3:
+                        raise ValueError("Escribe qué hay que cambiar en la imagen")
+                    lanzar("rehacer", extra={"id": str(b.get("id", "")), "nota": nota})
                 elif b.get("accion") == "temas":
                     lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
                                            "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",

@@ -2409,7 +2409,13 @@ function pintarFaltan() {
       <pre>${esc(prompt)}</pre>
       <div class="fila"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button>${a.flow?.plan_b ? `<button class="btn sec peq" data-copiar="${esc(a.flow.plan_b)}" title="Por si Flow rechaza el prompt: el mismo plano dicho más neutro">Copiar plan B</button>` : ""}
         <button class="btn sec peq" data-copiar="${esc(prompt)}">Copiar JSON</button></div>
-      ${zona("assets", a.id, ya?.url, ya?.es_video, a.tipo === "clip" ? "video/*" : "image/*,video/*")}</div>`;
+      ${zona("assets", a.id, ya?.url, ya?.es_video, a.tipo === "clip" ? "video/*" : "image/*,video/*")}
+      ${(a.notas || []).map(n => `<span class="muted" style="font-size:12px">✎ ${esc(n.fecha)}: ${esc(n.nota)}</span>`).join("")}
+      <details><summary class="muted" style="font-size:12px;cursor:pointer">✎ Rehacer ${a.tipo === "clip" ? "clip" : "imagen"} con una nota</summary>
+        <textarea data-nota-img="${esc(a.id)}" rows="2" style="width:100%;margin-top:6px" placeholder="Qué está mal. Ej.: tiene arándanos y salmón; que sean croquetas con el polvo encima"></textarea>
+        <button class="btn peq" data-rehacer-img="${esc(a.id)}">Rehacer con Claude</button>
+        <p class="muted" style="margin:4px 0 0;font-size:12px">Claude escribe el prompt nuevo con tu nota y lo guarda en el guion. Después lo copias, generas en Flow y arrastras la imagen nueva aquí.</p>
+      </details></div>`;
   }).join("") || `<p class="muted">El guion de esta semana no pide imágenes ni clips.</p>`;
 }
 
@@ -2524,7 +2530,16 @@ document.addEventListener("click", e => {
   }
   const cp = e.target.closest("[data-copiar]");
   if (cp) { navigator.clipboard.writeText(cp.dataset.copiar); avisar("Copiado.", "ok"); }
+  const rh = e.target.closest("[data-rehacer-img]");
+  if (rh) rehacerImagen(rh.dataset.rehacerImg);
 });
+async function rehacerImagen(id) {
+  const nota = ([...document.querySelectorAll("[data-nota-img]")].find(t => t.dataset.notaImg === id)?.value || "").trim();
+  if (nota.length < 3) return avisar("Escribe qué hay que cambiar en la imagen.", "err");
+  if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
+  try { await post("/api/claude", { accion: "rehacer", id, nota }); vigilar(await (await fetch("/api/trabajo")).json()); avisar(`Claude está rehaciendo el prompt de ${id}…`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-plant]");
   if (b) elegirPlantilla(b.dataset.plant);
@@ -2693,7 +2708,7 @@ const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
-  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow" };
+  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow", rehacer: "Claude rehace el prompt de una imagen" };
 let procTimer = null, pestanaProc = "recientes", historialProc = null, detalleAbierto = false;
 const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
 async function pintarProcesos() {

@@ -159,6 +159,11 @@ Los prompts de Flow y de música van siempre. Al terminar responde en 5 líneas:
     return texto
 
 
+COMIDA = ("- La comida es la real: si sale un plato o comida, son croquetas o comida simple de mascota con el polvo claro "
+          "del suplemento espolvoreado encima, o una cuchara con polvo sobre el plato. Nunca frutas, arándanos, salmón, pescado, "
+          "verduras ni adornos en el plato: el producto es un polvo que se echa a la comida.")
+
+
 def generar_prompts_flow(avance=print):
     """Agrega a produccion.json los prompts de Flow (assets) y las marcas de imagen de cada pieza, a partir de su texto.
     No cambia el texto, los tiempos ni lo que ya tiene el guion. Sirve para un guion armado con lo grabado."""
@@ -183,6 +188,7 @@ Reglas:
 - Siempre hay una mascota de por medio: cada imagen muestra a un perro o gato real, de cuerpo entero o medio cuerpo, nunca solo un objeto o una persona sin animal.
 - La mascota muestra el estado que dice la frase, en su cara y su cuerpo: si habla de una mascota decaída, triste o mal, se ve decaída y triste (cabeza baja, echada, sin energía, con la mirada apagada); si habla de energía, bienestar o un resultado bueno, se ve activa y contenta (jugando, pelo brillante, panza tranquila). Si la frase habla de algo interno (defensas, digestión, piel, pelo), muestra el efecto en el animal, nunca células, órganos, intestinos, bacterias, microscopios ni cuerpos abiertos o en corte.
 - Para los estados malos usa las palabras de reemplazo de «Prompts limpios» (por ejemplo «quiet cat resting on a blanket, relaxed», «tired dog resting with head down»): nada de sick, ill, pain ni similares.
+{COMIDA}
 - Sin texto, sin logos ni envases con marca. La imagen sirve para lo que dice la frase, sin dar datos.
 - `palabra` debe aparecer tal cual en el texto de SU pieza (en minúsculas, 1 a 3 palabras). Si no aparece, no pongas la marca.
 - Prompts en inglés, fotorrealistas, sin texto ni logos. Nada de palabras de la lista prohibida de «Prompts limpios».
@@ -200,6 +206,47 @@ Al terminar responde en 3 líneas: cuántas imágenes agregaste y en qué piezas
     if not datos.get("assets"):
         raise RuntimeError("Claude no agregó prompts de Flow. " + texto[:200])
     return texto
+
+
+def rehacer_imagen(asset_id, nota, avance=print):
+    """La nota del equipo sobre una imagen o clip de Flow («tiene arándanos, que se vea el polvo») -> Claude reescribe su prompt.
+    El prompt nuevo y la nota quedan en produccion.json; la imagen se vuelve a generar en Flow con ese prompt."""
+    actualizar_conocimiento(avance)
+    motor.usar_semana(motor.S.semana)
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise RuntimeError("Esta sesión no tiene guion")
+    datos = json.loads(prod.read_text(encoding="utf-8"))
+    a = next((x for x in datos.get("assets", []) if str(x.get("id", "")).lower() == asset_id.lower()), None)
+    if not a:
+        raise RuntimeError(f"No encuentro {asset_id} en el guion")
+    flow = a.setdefault("flow", {})
+    pieza = (datos.get("piezas") or {}).get(a.get("pieza"), {})
+    antes = [n["nota"] for n in a.get("notas", []) if n.get("nota")]
+    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    prompt = f"""Hay que rehacer en Google Flow {'el clip' if a.get('tipo') == 'clip' else 'la imagen'} «{a['id']}» de un video.
+Lo que dice la pieza {a.get('pieza', '')}: «{pieza.get('texto', '') if isinstance(pieza, dict) else ''}»
+La imagen aparece cuando se dice «{a.get('palabra', '')}».
+Prompt con el que se hizo: {flow.get('prompt') or '(no hay: escríbelo desde cero)'}
+Lo que está mal, según el equipo: {nota.strip()}
+{('Notas anteriores de esta misma imagen (también valen): ' + ' | '.join(antes)) if antes else ''}
+
+Lee la sección «Prompts limpios» de {reglas} antes de escribir. Además:
+- Siempre hay un perro o un gato real, y muestra el estado que dice la frase.
+{COMIDA}
+- Formato {flow.get('formato') or '9:16 vertical'}, fotorrealista, en inglés, sin texto, sin logos ni envases con marca.
+Escribe el prompt nuevo completo (no solo el cambio): corrige lo que dice el equipo y mantén lo que estaba bien.
+No edites ningún archivo. Responde SOLO con JSON, sin texto antes ni después:
+{{"prompt": "…", "plan_b": "el mismo plano dicho más neutro", "que_muestra": "en español, qué se ve", "cambio": "qué cambiaste, en una frase en español"}}"""
+    respuesta = correr(prompt, [], avance=avance, max_turnos=10)
+    inicio, fin = respuesta.find("{"), respuesta.rfind("}")
+    nuevo = json.loads(respuesta[inicio:fin + 1]) if 0 <= inicio < fin else {}
+    if not str(nuevo.get("prompt", "")).strip():
+        raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
+    a.setdefault("notas", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "nota": nota.strip(), "prompt_anterior": flow.get("prompt", "")})
+    flow.update({k: nuevo[k] for k in ("prompt", "plan_b", "que_muestra") if nuevo.get(k)})
+    prod.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
+    return nuevo
 
 
 def proponer_temas(cuerpos, publico, idea, avance=print):
