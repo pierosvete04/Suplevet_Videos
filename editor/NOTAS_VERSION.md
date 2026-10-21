@@ -1,3 +1,6 @@
+Versión 1.30.0 (se actualiza desde la app con «Actualizar ahora»):
+- La **Configuración** tiene el mismo diseño en las tres apps (menú a la izquierda, secciones a la derecha), con **Cuenta y dispositivos** y **Buscar actualizaciones**.
+
 Versión 1.29.1 (se actualiza desde la app con «Actualizar ahora»):
 - Arreglo: «Iniciar sesión en Claude» no encontraba la app de escritorio de Claude (movió su Claude Code a otra carpeta).
 

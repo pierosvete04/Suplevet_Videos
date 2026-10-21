@@ -1253,6 +1253,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <div class="conf">
       <aside class="conf-menu" aria-label="Secciones de configuración">
         <div class="conf-tit"><span class="conf-ico">⚙</span><div><b>Configuración</b><small>De esta PC</small></div></div>
+        <a href="#confCuenta">👤 Cuenta y dispositivos <span class="punto-estado ok"></span></a>
         <a href="#confConexiones" class="activo">🔌 Conexiones <span class="pill" id="confNCon"></span></a>
         <a href="#confDrive">☁ Google Drive <span class="punto-estado" id="confPDrive"></span></a>
         <a href="#confTablet">📱 Teleprompter <span class="punto-estado" id="confPRed"></span></a>
@@ -1260,6 +1261,14 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <a href="#confNotas">✎ Notas para Claude</a>
       </aside>
       <div class="conf-cuerpo">
+        <section class="caja conf-sec" id="confCuenta">
+          <div class="conf-cab">
+            <div><h2>Cuenta y dispositivos</h2>
+              <p class="muted">Con qué cuenta de Google entraste, en qué PCs se abrió y cerrar sesión. Es la misma sesión de las tres apps.</p></div>
+          </div>
+          <div id="cfgCuenta"></div>
+        </section>
+
         <section class="caja conf-sec" id="confConexiones">
           <div class="conf-cab">
             <div><h2>Conexiones para trabajar</h2>
@@ -2787,7 +2796,7 @@ $("procActual").addEventListener("click", async e => {
   e.target.disabled = true; e.target.textContent = "Cancelando…";
   try { await post("/api/cancelar"); } catch (err) { avisar("Error: " + err.message, "err"); }
 });
-$("abrirAjustes").onclick = () => irTab("notas");
+$("abrirAjustes").onclick = () => { irTab("notas"); Cuenta.pintarEn($("cfgCuenta")); };
 function irConf(id) { irTab("notas"); $(id).scrollIntoView({ behavior: "smooth", block: "start" }); marcarMenuConf(id); }
 function marcarMenuConf(id) { document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id)); }
 document.querySelectorAll(".conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
@@ -5971,7 +5980,8 @@ document.addEventListener("play", e => {
 }, true);
 (async () => {
   await Cuenta.iniciar({ app: "Sala de edición", letra: "E", fondo: "linear-gradient(135deg,#1d4ed8,#3d8bff 60%,#5ee1ff)",
-                         lugar: $("cuentaChip"), alVolver: () => location.reload() });
+                         lugar: $("cuentaChip"), alVolver: () => location.reload(),
+                         alAbrirCuenta: () => { irConf("confCuenta"); Cuenta.pintarEn($("cfgCuenta")); } });
   revisarClaude();
   cargar();
 })();
