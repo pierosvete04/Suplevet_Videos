@@ -1,3 +1,6 @@
+Versión 1.28.2 (se actualiza desde la app con «Actualizar ahora»):
+- La sala abre más rápido: la ventana aparece al instante con «Abriendo…» y la app carga apenas está lista (antes no se veía nada hasta que todo arrancaba). Para tenerlo hay que pasar una vez el instalador completo de esta versión; con «Actualizar ahora» todo sigue funcionando igual que antes.
+
 Versión 1.28.1 (se actualiza desde la app con «Actualizar ahora»):
 - Ícono nuevo: una **E** azul, de la misma familia que la Sala de diseño (D) y el Publicador (P), sin el logo de Suplevet. Para ver el ícono nuevo en el escritorio hay que pasar una vez el instalador completo (SalaSuplevet-Instalador-v1.28.1.exe); «Actualizar ahora» cambia solo la letra de adentro.
 

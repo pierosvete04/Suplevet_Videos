@@ -17,7 +17,7 @@ el cuadro negro al abrir. Lo que escribe la sala va a datos/sala.log, y ffmpeg, 
 Si cambias este archivo o las librerías, sube LANZADOR_VERSION y el archivo LANZADOR_MINIMO:
 la sala pedirá bajar la versión completa en vez de actualizar solo el código.
 """
-LANZADOR_VERSION = "2.1.0"
+LANZADOR_VERSION = "2.2.0"
 
 # Imports explícitos para que PyInstaller empaquete lo que usa el código de app/ (que no analiza).
 import argparse, ctypes, glob, hashlib, http.server, io, json, mimetypes, re, runpy, secrets, shutil, socket  # noqa: E401,F401
@@ -26,8 +26,12 @@ import difflib, http.cookies, urllib.parse, urllib.request, zipfile  # noqa: E40
 import os
 from pathlib import Path
 
-import numpy  # noqa: F401
-import faster_whisper  # noqa: F401
+
+def _para_el_empaquetador():  # nunca se llama: así el lanzador abre rápido y PyInstaller igual las incluye
+    import numpy  # noqa: F401
+    import faster_whisper  # noqa: F401
+
+
 try:
     import webview  # ventana propia; si falta, se usa Edge
 except Exception:  # noqa: BLE001
@@ -117,15 +121,33 @@ def navegador_app():
     return None
 
 
-def ventana_propia(datos, log):
+ABRIENDO = """<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;
+background:#04060b;color:#8494b4;font:15px 'Segoe UI',system-ui,sans-serif"><div style="text-align:center">
+<div style="font:700 20px 'Segoe UI',system-ui,sans-serif;color:#edf3ff;margin-bottom:10px">{titulo}</div>
+<div>Abriendo…</div></div></body>"""
+NO_ARRANCO = """<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;
+background:#04060b;color:#edf3ff;font:15px 'Segoe UI',system-ui,sans-serif"><div style="max-width:520px;text-align:center">
+<div style="font:700 20px 'Segoe UI';margin-bottom:10px">{titulo} no pudo arrancar</div>
+<div style="color:#8494b4">Mándale a Claude el archivo<br><code>{log}</code></div></div></body>"""
+
+
+def cargar(ventana, listo, log_ruta):
+    """Con la ventana ya abierta («Abriendo…»), espera al servidor y entonces muestra la app."""
+    if listo():
+        ventana.load_url(URL)
+    else:
+        ventana.load_html(NO_ARRANCO.format(titulo=TITULO, log=log_ruta))
+
+
+def ventana_propia(datos, log, listo=None, log_ruta=""):
     """Abre la sala en su propia ventana y espera a que se cierre. False si en esta PC no se pudo (falta WebView2)."""
     if webview is None:
         return False
     try:
         webview.settings["ALLOW_DOWNLOADS"] = True
         webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True  # teleprompter, Drive, Google: en el navegador
-        webview.create_window(TITULO, URL, width=1440, height=920, min_size=(900, 600), text_select=True)
-        webview.start(gui="edgechromium", private_mode=False, storage_path=str(datos / "ventana_app"))
+        ventana = webview.create_window(TITULO, None if listo else URL, html=ABRIENDO.format(titulo=TITULO) if listo else None, width=1440, height=920, min_size=(900, 600), text_select=True)
+        webview.start(cargar if listo else None, (ventana, listo, log_ruta) if listo else None, gui="edgechromium", private_mode=False, storage_path=str(datos / "ventana_app"))
         return True
     except Exception:  # noqa: BLE001
         log.write("No se pudo abrir la ventana propia; se usa Edge.\n" + traceback.format_exc())
@@ -168,11 +190,15 @@ def main():
     log.flush()
     cmd = [sys.executable, "--servidor"] if getattr(sys, "frozen", False) else [sys.executable, __file__, "--servidor"]
     estado = {"proc": subprocess.Popen(cmd, stdout=log, stderr=log), "codigo": None}
-    for _ in range(120):
-        if en_uso() or estado["proc"].poll() is not None:
-            break
-        time.sleep(0.25)
-    if estado["proc"].poll() is not None:
+    def listo():  # True cuando el servidor responde; False si se cerró o no arrancó en 90 s
+        for _ in range(360):
+            if en_uso():
+                return True
+            if estado["proc"].poll() is not None:
+                return False
+            time.sleep(0.25)
+        return False
+    if webview is None and not listo():  # sin ventana propia: se espera aquí, como antes
         mensaje(f"La sala no pudo arrancar. Mándale a Claude el archivo:\n{datos / 'sala.log'}")
         return
 
@@ -185,11 +211,12 @@ def main():
             estado["proc"] = subprocess.Popen(cmd, stdout=log, stderr=log)  # la ventana sigue abierta y se recarga sola
     hilo = threading.Thread(target=servidor, daemon=True)
     hilo.start()
-    if ventana_propia(datos, log):  # espera aquí hasta que se cierre la ventana
+    if ventana_propia(datos, log, listo, str(datos / 'sala.log')):  # espera aquí hasta que se cierre la ventana
         avisar_cierre()
     else:
         # Edge pasa la ventana a su propio proceso, así que no se la puede esperar: la página avisa con un latido
         # y la sala se apaga sola (código 0) cuando se cierra la ventana.
+        listo()  # Edge no tiene «Abriendo…»: se espera a que el servidor responda
         abrir_ventana(datos)
     hilo.join()
     if estado["codigo"] not in (0, None):
