@@ -139,13 +139,32 @@ def traer_sesion_vieja():
         pass
 
 
-def _quien():
-    """Correo, nombre y foto de la cuenta de Google con la que se entró (API de Drive, con la misma llave)."""
-    rc("lsjson", f"{REMOTO}:", "--max-depth", "1", "--dirs-only", timeout=60)  # renueva la llave si venció
+_token = {"valor": "", "hasta": 0}
+
+
+def token():
+    """Llave de acceso a la API de Drive (la misma sesión de rclone), renovada si está por vencer."""
+    if _token["valor"] and time.time() < _token["hasta"]:
+        return _token["valor"]
+    rc("lsjson", f"{REMOTO}:", "--max-depth", "1", "--dirs-only", timeout=60)  # rclone renueva la llave si venció
     m = re.search(r"^token\s*=\s*(\{.*\})\s*$", _llave(), re.M)
     if not m:
         raise RuntimeError("Google no devolvió la llave")
-    token = json.loads(m.group(1))["access_token"]
+    _token.update(valor=json.loads(m.group(1))["access_token"], hasta=time.time() + 600)
+    return _token["valor"]
+
+
+def api_drive(ruta):
+    """GET a la API de Drive v3 con la sesión de la cuenta (ej.: «files/<id>?fields=thumbnailLink»)."""
+    req = urllib.request.Request("https://www.googleapis.com/drive/v3/" + ruta, headers={"Authorization": f"Bearer {token()}"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def _quien():
+    """Correo, nombre y foto de la cuenta de Google con la que se entró (API de Drive, con la misma llave)."""
+    _token["hasta"] = 0
+    token = globals()["token"]()
     req = urllib.request.Request("https://www.googleapis.com/drive/v3/about?fields=user", headers={"Authorization": f"Bearer {token}"})
     with urllib.request.urlopen(req, timeout=20) as r:
         u = json.loads(r.read())["user"]
