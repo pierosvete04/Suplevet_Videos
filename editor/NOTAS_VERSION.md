@@ -1,3 +1,7 @@
+Versión 1.28.0 (se actualiza desde la app con «Actualizar ahora»):
+- Vuelve a llamarse **Sala de edición** y es solo para videos.
+- Los carruseles y posts pasan a la **Sala de diseño**, un programa aparte con su propio instalador (github.com/pierosvete04/Suplevet_Diseno). Se publican igual con el Publicador.
+
 Versión 1.27.1 (se actualiza desde la app con «Actualizar ahora»):
 - Actualizaciones más tercas: si la conexión con GitHub se corta (pasa a ratos con algunas redes), la sala reintenta sola y, si la ruta normal no responde, prueba por la página de descargas de GitHub. Si aun así no puede, el aviso dice «Sin conexión con GitHub» (antes decía «Sin internet» aunque hubiera internet) y el próximo «Buscar actualizaciones» vuelve a preguntar de verdad (antes el error quedaba guardado una hora).
 

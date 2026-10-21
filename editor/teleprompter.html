@@ -252,7 +252,7 @@ function auto(on) {
 // ---------- PIN (desde la tablet por WiFi) ----------
 function pedirPin() {
   document.body.innerHTML = `<div class="pin"><form id="f"><b style="text-align:center">Teleprompter Suplevet</b>
-    <span style="color:var(--muted);text-align:center;font-size:14px">Escribe el PIN que aparece en el Estudio Suplevet</span>
+    <span style="color:var(--muted);text-align:center;font-size:14px">Escribe el PIN que aparece en la Sala de edición</span>
     <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
     <button class="grande">Entrar</button><span id="err" style="color:#f07a6a;text-align:center"></span></form></div>`;
   document.getElementById("f").onsubmit = async e => {

@@ -1,4 +1,4 @@
-"""Estudio Suplevet (antes «sala de edición»): revisar videos, portadas y copies; corregir subtítulos y marcas; subir assets.
+"""Sala de edición: revisar videos, portadas y copies; corregir subtítulos y marcas; subir assets.
 
 Abrir:  python servidor.py   →   http://localhost:8765   (o doble clic en abrir_sala.bat)
 """
@@ -17,7 +17,6 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import actualizador
 import asistente
-import carruseles
 import drive
 import motor
 import panel
@@ -423,10 +422,6 @@ def lanzar(accion, pieza=None, extra=None):
                         drive.subir(sesion, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
                     avance("Guion listo: " + (texto.strip().splitlines() or [""])[0][:120])
-                if accion == "carrusel":
-                    TRABAJO["resultado"] = asistente.escribir_carrusel(extra["titulo"], extra.get("idea", ""), extra["laminas"],
-                                                                       extra.get("nivel", ""), extra.get("estilo", ""), avance=avance)
-                    avance("Carrusel escrito: revisa los textos y genera las fotos en Flow.")
                 if accion == "temas":
                     TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
                     avance("Temas propuestos: elige uno por cuerpo.")
@@ -557,25 +552,6 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(b)
-        elif u.path == "/carruseles":
-            b = (motor.RAIZ / "carruseles.html").read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(b)))
-            self.send_header("Cache-Control", "no-cache")
-            self.end_headers()
-            self.wfile.write(b)
-        elif u.path == "/api/carruseles":
-            self._json({"sesion": motor.S.semana, "carruseles": carruseles.listar(), "marca": carruseles.marca(),
-                        "recortador": {"listo": carruseles.modelo_listo(), **carruseles.ESTADO_MODELO}})
-        elif u.path == "/api/carrusel":
-            cid = parse_qs(u.query)["id"][0]
-            self._json({"id": cid, "datos": carruseles.leer(cid), "imagenes": carruseles.imagenes(cid)})
-        elif u.path == "/carrusel_img":
-            q2 = parse_qs(u.query)
-            self._archivo(carruseles.ruta_imagen(q2["id"][0]), q2["f"][0])
-        elif u.path.startswith("/carrusel_marca/"):
-            self._archivo(carruseles.MARCA, unquote(u.path[len("/carrusel_marca/"):]))
         elif u.path == "/api/estado":
             self._json(estado())
         elif u.path == "/api/trabajo":
@@ -1096,43 +1072,6 @@ class H(BaseHTTPRequestHandler):
                 if b.get("armar") and codigos:
                     lanzar("armar_sel", extra={"codigos": codigos})
                 self._json({"ok": True, "codigos": codigos})
-            elif u.path == "/api/carrusel_nuevo":
-                b = self._cuerpo()
-                cid, datos = carruseles.nuevo(str(b.get("titulo") or "Carrusel")[:120], max(1, min(10, int(b.get("laminas") or 4))))
-                self._json({"ok": True, "id": cid, "datos": datos})
-            elif u.path == "/api/carrusel":
-                b = self._cuerpo()
-                self._json({"ok": True, "datos": carruseles.guardar(b["id"], b["datos"])})
-            elif u.path == "/api/carrusel_imagen":  # cuerpo: la foto tal cual (?id=&nombre=)
-                n = int(self.headers.get("Content-Length") or 0)
-                if n > 40 * 1024 * 1024:
-                    raise ValueError("La foto pesa más de 40 MB")
-                self._json({"ok": True, "archivo": carruseles.guardar_imagen(q["id"][0], q["nombre"][0], self.rfile.read(n))})
-            elif u.path == "/api/carrusel_mascara":  # cuerpo: 1024×1024 RGB; respuesta: 1024×1024 de máscara
-                n = int(self.headers.get("Content-Length") or 0)
-                datos = self.rfile.read(n)
-                if not carruseles.preparar_modelo():
-                    return self._json({"ok": False, "bajando": True, **carruseles.ESTADO_MODELO}, 202)
-                m = carruseles.mascara(datos)
-                self.send_response(200)
-                self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Length", str(len(m)))
-                self.end_headers()
-                self.wfile.write(m)
-            elif u.path == "/api/carrusel_exportar":
-                import base64
-                b = self._cuerpo()
-                pngs = [base64.b64decode(x.split(",", 1)[-1]) for x in b["laminas"]]
-                destino = carruseles.exportar(b["id"], pngs, b.get("copy", ""))
-                try:
-                    drive.subir_en_segundo_plano(motor.S.drive, [Path(destino).relative_to(motor.S.principal).as_posix(),
-                                                                 f"Carruseles/{b['id']}"])
-                except ValueError:
-                    pass
-                self._json({"ok": True, "carpeta": destino})
-            elif u.path == "/api/abrir_carpeta_carrusel":
-                os.startfile(str(carruseles.finales() / carruseles._id_seguro(self._cuerpo()["id"])))
-                self._json({"ok": True})
             elif u.path == "/api/claude":
                 b = self._cuerpo()
                 if b.get("accion") == "login":
@@ -1144,10 +1083,6 @@ class H(BaseHTTPRequestHandler):
                     lanzar("guion", extra={"sesion": sesion, "pedido": str(b.get("pedido", ""))[:4000]})
                 elif b.get("accion") == "revisar":
                     lanzar("revisar")
-                elif b.get("accion") == "carrusel":
-                    lanzar("carrusel", extra={"titulo": str(b.get("titulo", ""))[:200], "idea": str(b.get("idea", ""))[:2000],
-                                              "laminas": max(1, min(10, int(b.get("laminas") or 4))),
-                                              "nivel": str(b.get("nivel", ""))[:10], "estilo": str(b.get("estilo", ""))[:20]})
                 elif b.get("accion") == "temas":
                     lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
                                            "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",
@@ -1232,7 +1167,7 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     host = "0.0.0.0" if red()["activa"] else "127.0.0.1"
-    print(f"Estudio Suplevet en http://localhost:{PUERTO}  (sesión {motor.S.semana})", flush=True)
+    print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})", flush=True)
     vigilar_ventana()
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")

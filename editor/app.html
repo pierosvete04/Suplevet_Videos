@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Estudio Suplevet</title>
+<title>Sala de edición</title>
 <script>
 try { const t = localStorage.getItem("sala_tema") || (matchMedia("(prefers-color-scheme: light)").matches ? "claro" : "oscuro"); document.documentElement.dataset.tema = t; } catch (e) {}
 </script>
@@ -753,7 +753,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 <body>
 <header id="cab">
   <div class="marca-app"><div class="logo-app" aria-hidden="true">S</div>
-    <div style="min-width:0"><h1>ESTUDIO SUPLEVET <span class="muted" id="prefijo"></span></h1></div></div>
+    <div style="min-width:0"><h1>SALA DE EDICIÓN <span class="muted" id="prefijo"></span></h1></div></div>
   <div class="fila">
     <label class="muted" for="semana" style="font-size:12px">Sesión</label>
     <select id="semana"></select>
@@ -776,7 +776,6 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   <button role="tab" data-tab="guion" aria-selected="false">Guion</button>
   <button role="tab" data-tab="piezas" aria-selected="false">Piezas y subtítulos</button>
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
-  <button role="tab" data-tab="carruseles" aria-selected="false">Carruseles</button>
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
   <button role="tab" data-tab="sonidos" aria-selected="false">Sonidos</button>
   <button role="tab" data-tab="publicar" aria-selected="false">Exportar</button>
@@ -1053,10 +1052,6 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
       <p class="muted" style="margin:0 0 8px">Copia el prompt, genéralo en Flow, descárgalo y arrástralo a su cuadro. No hace falta renombrarlo.</p>
       <div class="grid-assets" id="assets"></div>
     </div>
-  </section>
-
-  <section data-panel="carruseles" hidden class="panel-carruseles">
-    <iframe id="marcoCarruseles" title="Carruseles" style="width:100%;height:calc(100vh - 120px);border:1px solid var(--line);border-radius:14px;background:var(--bg)"></iframe>
   </section>
 
   <section data-panel="plantillas" hidden>
@@ -1636,7 +1631,7 @@ async function cargar() {
   E = await (await fetch("/api/estado")).json();
   cargarFuentesCSS();
   $("prefijo").textContent = `- ${E.semana}`;
-  document.title = `Estudio Suplevet · ${E.semana}`;
+  document.title = `Sala de edición · ${E.semana}`;
   const activas = sesionesActivas();
   $("semana").innerHTML = [...activas].reverse().map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("")
     + (activas.includes(E.semana) ? "" : `<option value="${esc(E.semana)}" selected>${esc(E.semana)} (archivada)</option>`)
@@ -2486,7 +2481,6 @@ document.addEventListener("click", e => {
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
     if (tab.dataset.tab === "sonidos") { if (dsEnVentana() && !$("dlgSonido").open) dsAlPanel(); scrollTo(0, 0); pintarSonidos(); pintarNivelSonidos(); requestAnimationFrame(ajustarAltoSonidos); }
     if (tab.dataset.tab === "guion") pintarGuion();
-    if (tab.dataset.tab === "carruseles" && !$("marcoCarruseles").src) $("marcoCarruseles").src = "/carruseles";
     return;
   }
   const card = e.target.closest("[data-cod]");

@@ -1,6 +1,6 @@
-# Estudio Suplevet: guía para el editor
+# Sala de edición: guía para el editor
 
-Antes se llamaba «Sala de edición». Ahora arma videos y carruseles; el programa sigue siendo `SalaSuplevet.exe`.
+Es la sala de los videos. Los carruseles y posts se hacen en la **Sala de diseño** (otro programa); se publican con el **Publicador**.
 
 ## Instalar (una sola vez)
 
