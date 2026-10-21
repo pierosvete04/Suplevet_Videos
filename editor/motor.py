@@ -1424,7 +1424,7 @@ def revision_guion():
         out.append(fila)
     sin_escuchar = sum(1 for c in clips_sin_asignar() if transcripcion_clip(c, crear=False) is None)
     return {"hay_guion": bool(prod.get("piezas")), "origen": prod.get("origen"), "archivo": prod.get("archivo"),
-            "piezas": out, "sin_escuchar": sin_escuchar,
+            "sin_prompts": faltan_prompts_flow(), "piezas": out, "sin_escuchar": sin_escuchar,
             "sin_procesar": sum(1 for f in out if f["clips"] and not f["procesada"]), "sin_asignar": len(sugs)}
 
 
@@ -1762,6 +1762,12 @@ def _guion_propio():
             except ValueError:
                 return {}
     return {}
+
+
+def faltan_prompts_flow():
+    """Hay piezas en el guion y ningún asset de Flow: la sala no tiene imágenes que generar (p. ej. guion armado con lo grabado)."""
+    p = _guion_propio()
+    return bool(p.get("piezas")) and not p.get("assets")
 
 
 def guion_desde_grabado():

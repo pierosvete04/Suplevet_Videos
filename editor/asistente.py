@@ -159,6 +159,49 @@ Los prompts de Flow y de música van siempre. Al terminar responde en 5 líneas:
     return texto
 
 
+def generar_prompts_flow(avance=print):
+    """Agrega a produccion.json los prompts de Flow (assets) y las marcas de imagen de cada pieza, a partir de su texto.
+    No cambia el texto, los tiempos ni lo que ya tiene el guion. Sirve para un guion armado con lo grabado."""
+    actualizar_conocimiento(avance)
+    motor.usar_semana(motor.S.semana)
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    prompt = f"""Lee el guion de la sesión «{motor.S.semana}»: {prod}
+Las reglas para escribir prompts de Flow están en la sección «Prompts limpios» de {reglas}. Léela antes de escribir.
+
+Esta sala no tiene imágenes para sus clips todavía. Agrega, sin cambiar nada más del archivo:
+1. En `assets`, una imagen por cada cuerpo (C1, C2…) y una por cada hook (C1_H1, C1_H2…). Los CTA no llevan imagen.
+   Cada asset: {{"id": "<pieza>_IMG1", "tipo": "imagen", "pieza": "<pieza>", "palabra": "<palabra marcada>",
+   "flow": {{"herramienta": "Google Flow · Imagen", "formato": "9:16 vertical", "prompt": "…", "plan_b": "…",
+   "que_muestra": "…", "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style"}}}}
+2. En cada pieza con imagen, agrega a `marcas` una marca por asset: {{"palabra": "…", "asset": "<id>", "dur": 1.5,
+   "modo": "completa", "mov": "zoom_in"}} (alterna zoom_in y zoom_out entre marcas).
+
+Reglas:
+- Siempre hay una mascota de por medio: cada imagen muestra a un perro o gato real, de cuerpo entero o medio cuerpo, nunca solo un objeto o una persona sin animal.
+- La mascota muestra el estado que dice la frase, en su cara y su cuerpo: si habla de una mascota decaída, triste o mal, se ve decaída y triste (cabeza baja, echada, sin energía, con la mirada apagada); si habla de energía, bienestar o un resultado bueno, se ve activa y contenta (jugando, pelo brillante, panza tranquila). Si la frase habla de algo interno (defensas, digestión, piel, pelo), muestra el efecto en el animal, nunca células, órganos, intestinos, bacterias, microscopios ni cuerpos abiertos o en corte.
+- Para los estados malos usa las palabras de reemplazo de «Prompts limpios» (por ejemplo «quiet cat resting on a blanket, relaxed», «tired dog resting with head down»): nada de sick, ill, pain ni similares.
+- Sin texto, sin logos ni envases con marca. La imagen sirve para lo que dice la frase, sin dar datos.
+- `palabra` debe aparecer tal cual en el texto de SU pieza (en minúsculas, 1 a 3 palabras). Si no aparece, no pongas la marca.
+- Prompts en inglés, fotorrealistas, sin texto ni logos. Nada de palabras de la lista prohibida de «Prompts limpios».
+- No toques `texto`, `partes`, `dicho`, `origen`, `nota`, ni las marcas que ya existen (`sub`, `sfx`, `musica`).
+- Usa Edit para cambiar el archivo. Al final el archivo debe ser JSON válido.
+
+Al terminar responde en 3 líneas: cuántas imágenes agregaste y en qué piezas."""
+    texto = correr(prompt, [motor.S.guion], avance=avance)
+    try:
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    except ValueError as e:
+        avance("El produccion.json salió con un error de formato: Claude lo corrige…")
+        correr(f"El archivo {prod} no es JSON válido ({e}). Corrígelo sin cambiar el contenido.", [motor.S.guion], avance=avance, max_turnos=15)
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    if not datos.get("assets"):
+        raise RuntimeError("Claude no agregó prompts de Flow. " + texto[:200])
+    return texto
+
+
 def proponer_temas(cuerpos, publico, idea, avance=print):
     """Claude propone de qué habla cada cuerpo (idea + ángulo), para elegir antes de escribir el guion.
     Devuelve [{"tema", "angulo", "por_que"}] (2 opciones por cuerpo, para que el equipo elija)."""

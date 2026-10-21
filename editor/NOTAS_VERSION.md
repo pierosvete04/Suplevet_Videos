@@ -1,3 +1,7 @@
+Versión 1.31.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Crear prompts de Flow**: si el guion no tiene prompts de imágenes (por ejemplo, uno armado con lo grabado), la pestaña Guion lo avisa y Claude los escribe a partir del texto de cada cuerpo y hook, sin cambiar el texto. Después se generan en Flow y aparecen en Faltantes.
+- En cada imagen sale una mascota mostrando lo que dice la frase: decaída si habla de una mascota mal, contenta si habla del resultado. Nunca células ni órganos.
+
 Versión 1.30.0 (se actualiza desde la app con «Actualizar ahora»):
 - La **Configuración** tiene el mismo diseño en las tres apps (menú a la izquierda, secciones a la derecha), con **Cuenta y dispositivos** y **Buscar actualizaciones**.
 

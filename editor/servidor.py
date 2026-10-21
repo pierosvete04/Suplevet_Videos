@@ -423,6 +423,13 @@ def lanzar(accion, pieza=None, extra=None):
                         drive.subir(sesion, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
                     avance("Guion listo: " + (texto.strip().splitlines() or [""])[0][:120])
+                if accion == "prompts_flow":
+                    texto = asistente.generar_prompts_flow(avance=avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = texto
+                    avance("Prompts de Flow listos: ahora se generan las imágenes (pestaña Faltantes)")
                 if accion == "temas":
                     TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
                     avance("Temas propuestos: elige uno por cuerpo.")

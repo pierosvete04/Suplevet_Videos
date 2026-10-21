@@ -909,6 +909,10 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         </div>
       </div>
       <p id="gOrigen" class="muted" style="font-size:12px;margin:8px 0 0" hidden></p>
+      <div id="gSinPrompts" class="caja" style="margin:8px 0 0" hidden>
+        <p class="muted" style="margin:0 0 8px">Este guion no tiene prompts de Flow: por eso no hay imágenes que generar. Claude los escribe a partir del texto de cada pieza.</p>
+        <button class="btn peq" id="gPromptsFlow">Crear prompts de Flow</button>
+      </div>
       <div class="pasos-guion">
         <button class="btn" id="gAnalizar"><b>1</b> Analizar clips</button>
         <span class="flecha" aria-hidden="true">→</span>
@@ -2689,7 +2693,7 @@ const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
-  guion_grabado: "Armar el guion con lo grabado" };
+  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow" };
 let procTimer = null, pestanaProc = "recientes", historialProc = null, detalleAbierto = false;
 const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
 async function pintarProcesos() {
@@ -5217,6 +5221,8 @@ async function pintarGuion() {
     $("gSinGuion").onclick = () => trabajo("guion_grabado");
     return; }
   ultimoGuion = g;
+  $("gSinPrompts").hidden = !g.sin_prompts;
+  $("gPromptsFlow").onclick = () => trabajo("prompts_flow");
   pintarGuionLista(); pintarEstadoGuion();
 }
 $("gSubirGuion").onchange = async e => {
