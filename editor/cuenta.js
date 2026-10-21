@@ -87,12 +87,10 @@
     opc.lugar.querySelector("button").onclick = abrirPanel;
   }
 
-  async function abrirPanel() {
-    dlg?.remove();
-    dlg = document.createElement("dialog");
-    dlg.className = "cta-dlg";
-    document.body.appendChild(dlg);
-    dlg.innerHTML = `<div class="cta-yo">${avatar(estado)}<div><h2>${esc(estado.nombre || "Tu cuenta")}</h2>
+  let caja = null;  // donde está dibujado el panel ahora (la ventana o una página de la app)
+  function montar(el, enVentana) {
+    caja = el;
+    el.innerHTML = `<div class="cta-yo">${avatar(estado)}<div><h2>${esc(estado.nombre || "Tu cuenta")}</h2>
         <div class="cta-mut">${esc(estado.email)}</div><div class="cta-mut">Esta PC: ${esc(estado.dispositivo)}</div></div>
         <span style="flex:1"></span><button class="cta-btn peligro" data-cta="salir">Cerrar sesión</button></div>
       <h3>Dispositivos con tu cuenta</h3><div id="cta-lista" class="cta-mut">Buscando en Drive…</div>
@@ -104,15 +102,15 @@
         <li>Si ves un dispositivo que no reconoces, ciérralo y cambia la contraseña de tu Google: <a href="https://myaccount.google.com/device-activity" target="_blank" rel="noopener">actividad de tu cuenta de Google</a>.</li>
         <li>Las llaves nunca salen de cada PC: no viajan por Drive ni por GitHub.</li>
       </ul>
-      <div class="cta-fila" style="justify-content:flex-end;margin-top:16px"><button class="cta-btn" data-cta="cerrar">Listo</button></div>`;
-    dlg.onclick = async e => {
+      ${enVentana ? '<div class="cta-fila" style="justify-content:flex-end;margin-top:16px"><button class="cta-btn" data-cta="cerrar">Listo</button></div>' : ""}`;
+    el.onclick = async e => {
       const b = e.target.closest("[data-cta]"); if (!b) return;
       const a = b.dataset.cta;
       try {
-        if (a === "cerrar") return dlg.close();
+        if (a === "cerrar") return dlg?.close();
         if (a === "salir") {
           if (!confirm("¿Cerrar sesión en esta PC? Las tres apps volverán a pedir entrar con Google.")) return;
-          await pedir("/api/salir", {}); dlg.close(); estado = await pedir("/api/cuenta"); return volverAEntrar();
+          await pedir("/api/salir", {}); dlg?.close(); estado = await pedir("/api/cuenta"); return volverAEntrar();
         }
         if (a === "otros") {
           if (!confirm("¿Cerrar la sesión en todos los demás dispositivos?")) return;
@@ -121,12 +119,21 @@
         if (a === "uno") { await pedir("/api/cerrar_dispositivo", { id: b.dataset.id }); b.textContent = "Cierre pedido"; b.disabled = true; }
       } catch (er) { alert(er.message); }
     };
-    dlg.showModal();
     cargarDispositivos();
   }
 
+  function abrirPanel() {
+    if (opc.alAbrirCuenta) return opc.alAbrirCuenta();  // la app lo muestra en su propia página
+    dlg?.remove();
+    dlg = document.createElement("dialog");
+    dlg.className = "cta-dlg";
+    document.body.appendChild(dlg);
+    montar(dlg, true);
+    dlg.showModal();
+  }
+
   async function cargarDispositivos() {
-    const lista = dlg?.querySelector("#cta-lista"); if (!lista) return;
+    const lista = caja?.querySelector("#cta-lista"); if (!lista) return;
     try {
       const { dispositivos, dias_nuevo } = await pedir("/api/dispositivos");
       lista.className = "";
@@ -165,5 +172,6 @@
     },
     estado: () => estado,
     abrirPanel,
+    pintarEn: el => { estilo(); montar(el, false); },
   };
 })();

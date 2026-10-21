@@ -28,7 +28,8 @@ def encontrar():
     # el que trae la app de escritorio de Claude (pestaña Code), el más nuevo. Si la app vino de la Microsoft Store,
     # Windows guarda su carpeta dentro del paquete (Packages\Claude_…\LocalCache\Roaming) y fuera de él no se ve en APPDATA.
     patrones = [os.path.join(appdata, "Claude", "claude-code", "*", "*", "claude.exe"),
-                os.path.join(local, "Packages", "Claude_*", "LocalCache", "Roaming", "Claude", "claude-code", "*", "*", "claude.exe")]
+                os.path.join(local, "Packages", "Claude_*", "LocalCache", "Roaming", "Claude", "claude-code", "*", "*", "claude.exe"),
+                os.path.join(local, "Claude-Data", "*", "claude-code", "*", "*", "claude.exe")]  # app de escritorio desde 2026-10
     candidatos += sorted((p for pat in patrones for p in glob.glob(pat)), key=lambda p: os.path.getmtime(p), reverse=True)
     candidatos.append(os.path.join(appdata, "npm", "claude.cmd"))
     return next((c for c in candidatos if c and os.path.isfile(c)), None)
