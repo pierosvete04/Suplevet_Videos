@@ -763,6 +763,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
     <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar todos los videos</button>
     <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
     <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
+    <span id="cuentaChip"></span>
     <button class="btn sec icono" id="abrirAjustes" title="Configuración: Drive, teleprompter en la tablet, notas" aria-label="Configuración">⚙</button>
   </div>
   <div id="avisoVersion" hidden>
@@ -1585,6 +1586,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   </div>
 </dialog>
 
+<script src="/cuenta.js"></script>
 <script>
 // Notificaciones: cada aviso que importa (listo, error) queda guardado en esta PC; la campana muestra los no leídos
 const NOTIF_IGNORAR = /^(Guardando|Buscando|Revisando|Cargando)/;
@@ -5967,8 +5969,12 @@ document.addEventListener("play", e => {
   });
   if (nuevo !== reproductor && !reproductor.paused) reproductor.pause();
 }, true);
-revisarClaude();
-cargar();
+(async () => {
+  await Cuenta.iniciar({ app: "Sala de edición", letra: "E", fondo: "linear-gradient(135deg,#1d4ed8,#3d8bff 60%,#5ee1ff)",
+                         lugar: $("cuentaChip"), alVolver: () => location.reload() });
+  revisarClaude();
+  cargar();
+})();
 </script>
 </body>
 </html>

@@ -24,10 +24,11 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import cuenta
 import motor
 
-REMOTO = "suplevet"
-CONF = motor.DATOS / "rclone.conf"
+REMOTO = cuenta.REMOTO  # la sesión de Google es la común de las tres salas (cuenta.py)
+CONF = cuenta.CONF
 CACHE = motor.DATOS / "drive"
 LISTA = motor.DATOS / "drive_sesiones.json"
 # Bloopers: tomas que el equipo apartó (la sala no las usa; bajarlas solo gasta tiempo y disco)
@@ -91,7 +92,7 @@ def carpeta_id(link):
 
 def estado():
     cfg = motor.CONFIG.get("drive", {})
-    conectado = CONF.exists() and f"[{REMOTO}]" in CONF.read_text(encoding="utf-8", errors="ignore") and "token" in CONF.read_text(encoding="utf-8", errors="ignore")
+    conectado = cuenta.estado()["conectado"]
     return {"activo": bool(cfg.get("activo")) and conectado, "conectado": conectado, "link": cfg.get("link", ""),
             "carpeta_id": cfg.get("carpeta_id", ""), "credenciales_propias": bool(cfg.get("credenciales_propias")),
             "sesiones": sesiones_en_drive()}
@@ -101,22 +102,36 @@ def conectar(link, client_id="", client_secret="", avance=print):
     """Abre Google en el navegador para dar acceso (una sola vez) y deja la sala trabajando contra esa carpeta.
     client_id/client_secret: las credenciales OAuth del proyecto de Google Cloud del equipo (tipo «App de escritorio»).
     Sin ellas usa las de rclone, que comparten cuota con todos sus usuarios: sirve para probar."""
-    cid = carpeta_id(link)
+    carpeta_id(link)  # avisa si el link no sirve
+    if client_id.strip():  # el cliente de Google del equipo: queda para las próximas entradas
+        info = cuenta._leer(cuenta.INFO)
+        info["cliente"] = {"id": client_id.strip(), "secreto": client_secret.strip()}
+        cuenta._guardar(cuenta.INFO, info)
     avance("Se abrió Google en el navegador: entra con la cuenta que tiene acceso a la carpeta y acepta.")
-    if CONF.exists():
-        _rc("config", "delete", REMOTO)
-    extra = [f"client_id={client_id.strip()}", f"client_secret={client_secret.strip()}"] if client_id.strip() else []
-    _rc("config", "create", REMOTO, "drive", "scope=drive", f"root_folder_id={cid}", *extra, timeout=600)
-    avance("Google dio el acceso. Comprobando que se ve la carpeta…")
-    _rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)  # comprueba que la carpeta se ve
+    cuenta.entrar(link)
     avance("Leyendo las sesiones de Drive…")
-    motor.guardar_config({"drive": {"activo": True, "carpeta_id": cid, "link": link, "credenciales_propias": bool(extra)},
-                          "carpeta_trabajo": str(CACHE), "biblioteca": str(CACHE / "SOUND FX")})
-    actualizar_lista()
+    asegurar_config(forzar=True)
     avance("Conectado a Google Drive.")
 
 
+def asegurar_config(forzar=False):
+    """Con la sesión común abierta (se entró desde cualquiera de las salas), la sala trabaja contra ese proyecto."""
+    c = cuenta.estado()
+    cfg = motor.CONFIG.get("drive", {})
+    if not c["conectado"] or (not forzar and cfg.get("activo") and cfg.get("carpeta_id") == c["carpeta_id"]):
+        return False
+    motor.guardar_config({"drive": {"activo": True, "carpeta_id": c["carpeta_id"], "link": c["link"],
+                                    "credenciales_propias": bool(cuenta._leer(cuenta.INFO).get("cliente"))},
+                          "carpeta_trabajo": str(CACHE), "biblioteca": str(CACHE / "SOUND FX")})
+    try:
+        actualizar_lista()
+    except Exception as e:  # sin internet: la lista se trae después
+        print("Drive:", e, flush=True)
+    return True
+
+
 def desconectar():
+    cuenta.cerrar_sesion()
     motor.guardar_config({"drive": {**motor.CONFIG.get("drive", {}), "activo": False}})
 
 

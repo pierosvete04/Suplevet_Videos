@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import actualizador
 import asistente
+import cuenta
 import drive
 import motor
 import panel
@@ -620,7 +621,19 @@ class H(BaseHTTPRequestHandler):
         elif u.path == "/api/latido":
             if "ping" in u.query:
                 LATIDO["ultimo"] = time.time()
+                cuenta.latido()
             self._json({"viva": time.time() - LATIDO["ultimo"] < 20})
+        elif u.path == "/cuenta.js":
+            b = (motor.RAIZ / "cuenta.js").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+        elif u.path == "/api/cuenta":
+            self._json(cuenta.estado())
+        elif u.path == "/api/dispositivos":
+            self._json({"dispositivos": cuenta.dispositivos(), "dias_nuevo": cuenta.DIAS_NUEVO})
         elif u.path == "/api/sonidos":
             self._json(motor.biblioteca_sonidos())
         elif u.path == "/sfx":  # el sonido con su edición de la página Sonidos (&original=1: tal cual el archivo)
@@ -781,6 +794,19 @@ class H(BaseHTTPRequestHandler):
                 if TRABAJO["activo"]:
                     motor.cancelar()
                 return self._json({"ok": True})
+            if u.path == "/api/entrar":  # entrar con Google: sesión común de las tres salas
+                e = cuenta.entrar(str(self._cuerpo().get("link", "")))
+                drive.asegurar_config(forzar=True)
+                return self._json({"ok": True, "cuenta": e})
+            if u.path == "/api/salir":
+                cuenta.cerrar_sesion()
+                motor.guardar_config({"drive": {**motor.CONFIG.get("drive", {}), "activo": False}})
+                return self._json({"ok": True})
+            if u.path == "/api/cerrar_dispositivo":
+                cuenta.cerrar_en(str(self._cuerpo()["id"]))
+                return self._json({"ok": True})
+            if u.path == "/api/cerrar_otros":
+                return self._json({"ok": True, "cerrados": cuenta.cerrar_en_todas_menos_esta()})
             if u.path == "/api/adios":
                 LATIDO["adios"] = time.time()
                 al_cerrar_ventana()
@@ -1169,6 +1195,9 @@ if __name__ == "__main__":
     host = "0.0.0.0" if red()["activa"] else "127.0.0.1"
     print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})", flush=True)
     vigilar_ventana()
+    cuenta.iniciar("Sala de edición", motor.VERSION)
+    threading.Thread(target=lambda: _sin_error(drive.asegurar_config), daemon=True).start()
+    cuenta.latido(forzar=True)
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")
     ThreadingHTTPServer((host, PUERTO), H).serve_forever()
