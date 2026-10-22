@@ -497,8 +497,9 @@ def plan_director():
 # Es de la sesión: lo puede pedir el guion («formato»: "horizontal") o elegirse en la sala (se anota en el plan).
 # Las plantillas de subtítulos se diseñan sobre el vertical y se adaptan solas al 16:9 (ver _al_lienzo).
 FORMATOS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
-# ventana de imagen por defecto (x, y, ancho): en el vertical arriba de la cara; en el 16:9 al centro
-VENTANA_DEFECTO = {"vertical": (110, 330, 860), "horizontal": (600, 180, 720)}
+# ventana de imagen por defecto (x, y, ancho): en el vertical arriba de la cara; en el 16:9 a la derecha, porque
+# el que habla se para en el tercio izquierdo (como en YouTube) y deja libre ese lado
+VENTANA_DEFECTO = {"vertical": (110, 330, 860), "horizontal": (1120, 180, 720)}
 POSICIONES_TITULO = {"vertical": {"arriba": 560, "centro": 960, "abajo": 1380},  # dentro del recorte 4:5 del perfil de Instagram
                      "horizontal": {"arriba": 250, "centro": 540, "abajo": 830}}
 

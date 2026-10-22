@@ -1,3 +1,6 @@
+Versión 1.35.1 (se actualiza desde la app con «Actualizar ahora»):
+- En 16:9, la imagen «En ventana» ahora entra a la derecha y no al centro: quien habla se para en el tercio izquierdo (como en YouTube) y la ventana va del lado libre, sin taparle la cara. Se puede seguir arrastrando a donde quieras.
+
 Versión 1.35.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Videos horizontales 16:9**: arriba, junto a la sesión, ahora eliges «Vertical 9:16» u «Horizontal 16:9». En 16:9 la sesión arma videos de 1920×1080 para la web, YouTube o los correos: las piezas, las imágenes de Flow, el zoom, la portada y la exportación salen horizontales, y las vistas previas de la sala también.
 - Las plantillas de subtítulos sirven para los dos formatos: en 16:9 se adaptan solas (letra un poco más chica y el subtítulo más cerca del borde de abajo, porque no hay botones de TikTok que esquivar).
