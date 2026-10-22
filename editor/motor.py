@@ -1,7 +1,8 @@
 """Motor de edición de Suplevet: piezas grabadas -> videos terminados con portada y copy.
 
 Flujo:
-  1. procesar:  recorta silencios, iguala volumen y formato (1080x1920) y transcribe cada pieza.
+  1. procesar:  recorta silencios, iguala volumen y formato (1080x1920, o 1920x1080 si la sesión es 16:9)
+                y transcribe cada pieza.
                 Los subtítulos se guardan en subtitulos/<SEMANA>/<pieza>.json y NO se sobrescriben
                 si ya existen (así se conservan las correcciones hechas a mano).
   2. armar:     une hook + cuerpo + CTA; inserta imágenes y clips en la palabra que marca el guion,
@@ -472,7 +473,7 @@ def _sumar_plan(base):
     if not plan:
         return base
     out = {**base}
-    for k in ("musica", "musica_por_defecto", "plantilla_sub", "calendario"):
+    for k in ("musica", "musica_por_defecto", "plantilla_sub", "calendario", "formato", "formato_cambio"):
         if k in plan:
             out[k] = plan[k]
     for k in ("videos", "piezas"):
@@ -490,6 +491,66 @@ def plan_director():
         return json.loads(_plan_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         return {}
+
+
+# ---------- Formato: vertical 9:16 (Reels, TikTok, Shorts) u horizontal 16:9 (web, YouTube, correos) ----------
+# Es de la sesión: lo puede pedir el guion («formato»: "horizontal") o elegirse en la sala (se anota en el plan).
+# Las plantillas de subtítulos se diseñan sobre el vertical y se adaptan solas al 16:9 (ver _al_lienzo).
+FORMATOS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
+# ventana de imagen por defecto (x, y, ancho): en el vertical arriba de la cara; en el 16:9 al centro
+VENTANA_DEFECTO = {"vertical": (110, 330, 860), "horizontal": (600, 180, 720)}
+POSICIONES_TITULO = {"vertical": {"arriba": 560, "centro": 960, "abajo": 1380},  # dentro del recorte 4:5 del perfil de Instagram
+                     "horizontal": {"arriba": 250, "centro": 540, "abajo": 830}}
+
+
+def formato():
+    f = produccion().get("formato")
+    return f if f in FORMATOS else "vertical"
+
+
+def lienzo():
+    """(ancho, alto) en píxeles del video de la sesión."""
+    return FORMATOS[formato()]
+
+
+def guardar_formato(f):
+    """Cambia el formato de la sesión. Las piezas se vuelven a preparar con el tamaño nuevo y los videos quedan
+    «por re-armar» (los subtítulos corregidos se conservan: la voz es la misma)."""
+    global _prod_cache
+    if f not in FORMATOS:
+        raise ValueError("Formato no válido")
+    if f == formato():
+        return
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _plan_path().write_text(json.dumps({**plan_director(), "formato": f, "formato_cambio": time.time()},
+                                       ensure_ascii=False, indent=1), encoding="utf-8")
+    _prod_cache = None
+    (S.proc / "_fondo.jpg").unlink(missing_ok=True)  # el cuadro de muestra de las plantillas se rehace con el tamaño nuevo
+
+
+def _al_lienzo(pl):
+    """La plantilla (medidas en px del video vertical 1080×1920) llevada al lienzo de la sesión. En 16:9 se mantiene
+    el lugar a lo ancho, la letra baja un 20 % y el subtítulo va más cerca del borde de abajo (no hay botones de
+    TikTok que esquivar)."""
+    W, H = lienzo()
+    if (W, H) == FORMATOS["vertical"]:
+        return pl
+    st = CONFIG["subtitulos"]
+    kx, ky, kt = W / 1080, H / 1920, 0.8
+    out = {**pl}
+    for c in ("tamano", "borde", "sombra", "desenfoque"):
+        if out.get(c) not in (None, ""):
+            out[c] = float(out[c]) * kt
+    out["x_centro"] = float(pl.get("x_centro", 540)) * kx
+    out["ancho_max"] = min(W - 160, float(pl.get("ancho_max", 960)) * kx)
+    out["altura_desde_abajo"] = float(pl.get("altura_desde_abajo", st["altura_desde_abajo"])) * ky * 0.6
+    for c in ("altura_hook", "altura_cta"):
+        if pl.get(c) not in (None, ""):
+            out[c] = float(pl[c]) * ky * 0.6
+    out["altura_desde_arriba"] = float(pl.get("altura_desde_arriba", st.get("altura_desde_arriba", 300))) * ky
+    out["elementos"] = [{**e, "x": float(e.get("x", 0)) * kx, "y": float(e.get("y", 0)) * ky,
+                         "ancho": float(e.get("ancho", 200)) * kt} for e in pl.get("elementos") or []]
+    return out
 
 
 def info_pieza(nombre):
@@ -1151,17 +1212,19 @@ def procesar(forzar_subs=False, avance=print):
         firma = S.proc / f"{p['nombre']}.partes.json"
         lista = [str(x) for x in p["partes"]]
         vieja = json.loads(firma.read_text(encoding="utf-8")) if firma.exists() else None
+        formato_viejo = vieja.get("formato", "vertical") if isinstance(vieja, dict) else "vertical"
         if isinstance(vieja, dict):
             vieja = vieja.get("partes")
-        if (not dest.exists() or vieja != lista
+        if (not dest.exists() or vieja != lista or formato_viejo != formato()
                 or dest.stat().st_mtime < max(x.stat().st_mtime for x in p["partes"])):
             avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
             trozos = []
+            W, H = lienzo()
             for k, parte in enumerate(p["partes"]):
                 ini, fin = limites_de_voz(parte)
                 t = dest if len(lista) == 1 else S.proc / f"_{p['nombre']}_{k}.mp4"
                 run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
-                     "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
+                     "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1",
                      "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2", "-dn", "-map_chapters", "-1",
                      "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", str(t)])
                 trozos.append(t)
@@ -1172,7 +1235,7 @@ def procesar(forzar_subs=False, avance=print):
                 run([FFMPEG, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", lst.name, "-c", "copy", dest.name], cwd=S.proc)
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
-            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones}, ensure_ascii=False), encoding="utf-8")
+            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "formato": formato()}, ensure_ascii=False), encoding="utf-8")
             (S.subs / f"{p['nombre']}.json").unlink(missing_ok=True) if vieja is not None and vieja != lista else None
         sub = S.subs / f"{p['nombre']}.json"
         modelo = CONFIG["transcripcion"]["modelo"]
@@ -1484,6 +1547,9 @@ def aplicar_plan(plan):
     resto = {k: v for k, v in plan.items() if k != "piezas"}
     resto["piezas"] = {n: {k: v for k, v in i.items() if k != "marcas"} for n, i in plan.get("piezas", {}).items()}
     resto["piezas"] = {n: i for n, i in resto["piezas"].items() if i}
+    for k in ("formato", "formato_cambio"):  # lo elige el equipo en la sala: un plan nuevo del director no lo borra
+        if k not in resto and k in plan_director():
+            resto[k] = plan_director()[k]
     S.subs.mkdir(parents=True, exist_ok=True)
     _plan_path().write_text(json.dumps(resto, ensure_ascii=False, indent=1), encoding="utf-8")
     global _prod_cache
@@ -2515,7 +2581,8 @@ def _limpiar_puntos(lista):
 
 def _limpiar_capas(c):
     """Pista «Imágenes y escenas» del editor: {pieza: [{id, t, dur, modo, mov, x, y, ancho}]}. id = imagen o clip de
-    la carpeta Flow de la sesión; t en segundos del clip de la pieza; en modo ventana, x/y/ancho en px del video 1080×1920."""
+    la carpeta Flow de la sesión; t en segundos del clip de la pieza; en modo ventana, x/y/ancho en px del video
+    (1080×1920 o, en 16:9, 1920×1080)."""
     out = {}
     for k, v in (c or {}).items():
         if k not in ("hook", "cuerpo", "cta"):
@@ -2531,8 +2598,10 @@ def _limpiar_capas(c):
                         "modo": "ventana" if x.get("modo") == "ventana" else "completa",
                         "mov": x.get("mov") if x.get("mov") in ("fijo", "zoom_in", "zoom_out") else "fijo"}
                 if capa["modo"] == "ventana":
-                    capa.update(ancho=int(min(1080, max(200, float(x.get("ancho", 860))))),
-                                x=int(min(1080, max(-200, float(x.get("x", 110))))), y=int(min(1920, max(-200, float(x.get("y", 330))))))
+                    W, H = lienzo()
+                    vx, vy, va = VENTANA_DEFECTO[formato()]
+                    capa.update(ancho=int(min(min(W, H), max(200, float(x.get("ancho", va))))),
+                                x=int(min(W, max(-200, float(x.get("x", vx))))), y=int(min(H, max(-200, float(x.get("y", vy))))))
                 lista.append(capa)
             except (TypeError, ValueError, KeyError):
                 continue
@@ -3211,7 +3280,7 @@ def editado_en(combo):
             t = max(t, f.stat().st_mtime)
     # también si se cambió su plantilla de subtítulos o cuál es la predeterminada
     t = max(t, float(plantilla_sub(combo).get("editado") or 0), float(CONFIG.get("estilo_cambio") or 0),
-            float(CONFIG.get("cortes_voz_cambio") or 0))
+            float(CONFIG.get("cortes_voz_cambio") or 0), float(produccion().get("formato_cambio") or 0))
     if id_plantilla_de(combo) == id_plantilla():  # usa la predeterminada: cuenta si se cambió cuál es
         t = max(t, float(CONFIG.get("plantilla_activa_cambio") or 0))
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
@@ -3659,8 +3728,9 @@ def _caja(w, h, r):
 
 
 def cabecera_ass(fuente_nombre, pl):
+    W, H = lienzo()
     return "\n".join([
-        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 2",
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 2",
         "ScaledBorderAndShadow: yes", "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
@@ -3699,7 +3769,8 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
     —una caja del color de la marca— detrás de la palabra clave o de la que se está diciendo."""
     import fuentes
     st = CONFIG["subtitulos"]
-    pl = plantilla_sub(combo)
+    pl = _al_lienzo(plantilla_sub(combo))
+    W, H = lienzo()
     fu = fuentes.cargar(pl["fuente"])
     res = pl.get("resaltador") or {}
     modo = res.get("modo", "")  # "clave", "activa", "ambas" o "" (sin caja)
@@ -3739,9 +3810,9 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         except Exception:
             fu2 = fu
     c_texto2 = color_ass(l2["color"]) if l2.get("color") else c_texto
-    # cuadro de texto: dónde va el subtítulo (centro horizontal y ancho máximo, en píxeles del video 1080×1920)
-    x_centro = float(pl.get("x_centro", 540))
-    ancho_max = max(200.0, min(1080.0, float(pl.get("ancho_max", 960))))
+    # cuadro de texto: dónde va el subtítulo (centro horizontal y ancho máximo, en píxeles del video)
+    x_centro = float(pl.get("x_centro", W / 2))
+    ancho_max = max(200.0, min(float(W), float(pl.get("ancho_max", 960))))
     blur = f"\\blur{float(pl['desenfoque']):.1f}" if pl.get("desenfoque") else ""
 
     def partir(textos, tam0=None):
@@ -3781,12 +3852,12 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         bloque = sum(altos)
         # la altura del subtítulo normal se mueve desde la plantilla (o desde el ajuste del video)
         if estilo == "normal":
-            y_fin = 1920 - (alt_base if altura is None else altura)
+            y_fin = H - (alt_base if altura is None else altura)
             y0 = y_fin - bloque
         elif estilo == "arriba":
             y0 = pl.get("altura_desde_arriba", st.get("altura_desde_arriba", 300))
         else:
-            y0 = 960 - bloque / 2
+            y0 = H / 2 - bloque / 2
         a, b = t_ass(ini), t_ass(fin)
         for m, alto_fila in zip(medidas, altos):
             y = y0 + alto_fila / 2
@@ -4426,7 +4497,8 @@ def pistas_musica():
 def filtro_broll(i, ov):
     """Cadena de filtro para una imagen/clip que entra en ov['t'] y dura ov['dur']."""
     dur, t, modo = ov["dur"], ov["t"], ov.get("modo", "completa")
-    W, H, x, y = (1080, 1920, 0, 0) if modo == "completa" else (860, 860, 110, 330)
+    vx, vy, va = VENTANA_DEFECTO[formato()]
+    W, H, x, y = (*lienzo(), 0, 0) if modo == "completa" else (va, va, vx, vy)
     if modo != "completa" and ov.get("ancho"):  # ventana colocada a mano en el editor
         W = H = int(ov["ancho"]) // 2 * 2
         x, y = int(ov.get("x", x)), int(ov.get("y", y))
@@ -4452,8 +4524,6 @@ def filtro_broll(i, ov):
 
 
 # ---------- Portada ----------
-
-POSICION_TITULO = {"arriba": 560, "centro": 960, "abajo": 1380}  # dentro del recorte 4:5 que muestra el perfil de Instagram
 
 
 def _portadas_path():
@@ -4561,7 +4631,7 @@ CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "logo", "oscurecer", "fu
 
 
 def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
-    """JPG 1080x1920: un cuadro del hook (o una imagen propia) con el título y el logo, y los elementos que se agreguen.
+    """JPG del tamaño del video (1080x1920 o 1920x1080): un cuadro del hook (o una imagen propia) con el título y el logo, y los elementos que se agreguen.
     *palabra* entre asteriscos sale con el color de acento. prueba: ajustes sin guardar (para ver mientras se edita)."""
     S.portadas.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
@@ -4582,7 +4652,8 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     else:  # en minúsculas, la primera letra va en mayúscula (también después de ¿ o ¡)
         titulo = re.sub(r"^([¿¡*\s]*)(\w)", lambda m: m.group(1) + m.group(2).upper(), titulo)
     titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c{blanco}}}", limpiar(titulo.replace("{", "")))
-    y = int(float(aj["y"])) if aj.get("y") not in (None, "") else POSICION_TITULO.get(aj.get("posicion", "centro"), 960)
+    W, H = lienzo()
+    y = int(float(aj["y"])) if aj.get("y") not in (None, "") else POSICIONES_TITULO[formato()].get(aj.get("posicion", "centro"), H // 2)
     tam = int(float(aj.get("tamano") or cfg["tamano"]))
     borde = float(aj["borde"]) if aj.get("borde") not in (None, "") else 12
     if aj.get("caja"):  # caja de color detrás del título (estilo de borde 3: el borde se vuelve caja)
@@ -4591,18 +4662,18 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     else:
         estilo, contorno, sombra = 1, color_ass(aj.get("color_borde") or pl.get("color_borde", "#000000")), 7
     cab = "\n".join([
-        "[Script Info]", "ScriptType: v4.00+", "PlayResX: 1080", "PlayResY: 1920", "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: T,{fuente},{tam},{blanco},&H00FFFFFF&,{contorno},&H90000000&,0,0,0,0,100,100,0,0,{estilo},{borde},{sombra},5,90,90,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos(540,{y})}}{titulo}",
+        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos({W // 2},{y})}}{titulo}",
     ])
     (trabajo / "portada.ass").write_text(cab + "\n", encoding="utf-8")
     salida = destino or S.portadas / f"{combo['archivo']}.jpg"
     oscuro = float(aj.get("oscurecer", 0))
-    llenar = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1"
+    llenar = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1"
     fondo = ruta_elemento(aj["fondo"]) if aj.get("fondo") else None
     if fondo:  # imagen propia de portada
         cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(fondo)]
@@ -4627,7 +4698,7 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     logo = BIBLIO_BASE / "marca" / "logo-blanco.png"
     if aj.get("logo", True) and logo.exists() and not aj.get("solo_imagen"):
         # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
-        ylogo = 1490 if y < 900 else 330
+        ylogo = (1490 if y < 900 else 330) if H > W else (H - 190 if y < H / 2 else 70)
         cmd += ["-i", str(logo)]
         f.append(f"[{k}:v]scale=380:-1,split[l][s];[s]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.6,boxblur=8[sombra];"  # sombra suave
                  f"[t][sombra]overlay=(W-w)/2+3:{ylogo}+4[t2];[t2][l]overlay=(W-w)/2:{ylogo}[v]")
@@ -4657,6 +4728,8 @@ def armar_uno(combo, n_musica=None, extras=None):
         d.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
     orden = [combo["hook"], combo["cuerpo"], combo["cta"]]
+    if viejas := piezas_en_otro_formato(orden):
+        raise RuntimeError(f"{', '.join(viejas)} sigue en el formato anterior: prepara las piezas otra vez antes de armar")
     archivos = [S.proc / f"{n}.mp4" for n in orden]
     durs = [duracion(a) for a in archivos]
     offs = [0, durs[0], durs[0] + durs[1]]
@@ -4720,7 +4793,7 @@ def armar_uno(combo, n_musica=None, extras=None):
     v_prev = "vc"
     zexpr = _expresion_zoom(combo, offs, total)
     if zexpr:  # zoom (antes de imágenes y subtítulos, que no se acercan); el punto de foco queda fijo en pantalla
-        f.append(f"[vc]zoompan=z='{zexpr['z']}':x='{zexpr['x']}':y='{zexpr['y']}':d=1:s=1080x1920:fps=30,setsar=1[vz]")
+        f.append(f"[vc]zoompan=z='{zexpr['z']}':x='{zexpr['x']}':y='{zexpr['y']}':d=1:s={'x'.join(map(str, lienzo()))}:fps=30,setsar=1[vz]")
         v_prev = "vz"
     for ov in overlays:
         if ov["es_imagen"]:
@@ -4733,7 +4806,7 @@ def armar_uno(combo, n_musica=None, extras=None):
         v_prev = f"v{idx}"
         idx += 1
     # Elementos de la plantilla (logo, imágenes, GIF): encima del video y debajo del subtítulo, todo el video
-    for el in plantilla_sub(combo).get("elementos") or []:
+    for el in _al_lienzo(plantilla_sub(combo)).get("elementos") or []:
         arch = ruta_elemento(el.get("archivo", ""))
         if not arch:
             continue
@@ -4944,10 +5017,28 @@ def exportar_partes(codigos, avance=print):
     return hechos
 
 
+def piezas_en_otro_formato(nombres=None):
+    """Piezas ya preparadas con el tamaño del otro formato (se cambió el formato de la sesión después)."""
+    out = []
+    for n in nombres or [p["nombre"] for p in piezas()]:
+        if not (S.proc / f"{n}.mp4").exists():
+            continue
+        try:  # sin anotación (preparada antes de que existiera el 16:9): es vertical
+            f = json.loads((S.proc / f"{n}.partes.json").read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            f = {}
+        if (f.get("formato", "vertical") if isinstance(f, dict) else "vertical") != formato():
+            out.append(n)
+    return out
+
+
 def armar(pieza=None, avance=print, codigos=None):
     hechos = []
     todos = [c for c in combinaciones() if (not pieza or pieza in (c["hook"], c["cuerpo"], c["cta"]))
              and (codigos is None or c["codigo"] in codigos)]
+    if piezas_en_otro_formato():  # se cambió el formato: primero las piezas con el tamaño nuevo
+        avance("Preparando las piezas en el formato nuevo")
+        procesar(avance=avance)
     for n, combo in enumerate(todos):
         avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)})")
         r = armar_uno(combo)
@@ -5044,6 +5135,8 @@ def _render_final(video, portada, destino, aj):
     """Video final para subir a redes con los ajustes de exportación. Con «portada_inicio», el primer cuadro del video
     es la portada (Instagram y TikTok la toman como miniatura si eliges el primer cuadro)."""
     w, h = RESOLUCIONES.get(str(aj["resolucion"]), (1080, 1920))
+    if formato() == "horizontal":  # las resoluciones se nombran por el lado corto: 1080p en 16:9 es 1920×1080
+        w, h = h, w
     fps = int(aj.get("fps") or 30)
     crf = CALIDADES.get(aj.get("calidad"), 19)
     venc = (["-c:v", "libx265", "-tag:v", "hvc1", "-crf", str(crf + 4)] if aj.get("codec") == "hevc"
@@ -5145,9 +5238,10 @@ def revisar_calidad(codigos=None, avance=print):
             except (FileNotFoundError, ValueError):
                 r = {}
             dur = r.get("duracion") or duracion(v)
-            if dur > 90:
+            vertical = formato() == "vertical"  # el 16:9 es para la web o YouTube: el largo de Reels y TikTok no aplica
+            if vertical and dur > 90:
                 p.append({"nivel": "err", "txt": f"Dura {dur:.0f} s: muy largo para Reels o TikTok (ideal menos de 60 s)"})
-            elif dur > 60:
+            elif vertical and dur > 60:
                 p.append({"nivel": "warn", "txt": f"Dura {dur:.0f} s: más de 60 s"})
             if not r.get("musica"):
                 p.append({"nivel": "warn", "txt": "No tiene música"})
@@ -5171,7 +5265,7 @@ def revisar_calidad(codigos=None, avance=print):
         extra = []
         pl = plantilla_sub(c)
         altura = min(float(x) for x in (pl.get("altura_desde_abajo") or 560, pl.get("altura_hook"), pl.get("altura_cta")) if x not in (None, ""))
-        if altura < 330:
+        if altura < 330 and formato() == "vertical":
             extra.append({"nivel": "warn", "txt": f"Subtítulo muy abajo ({altura:.0f} px): lo tapan el texto y los botones de TikTok o Instagram (mínimo ~330 px)"})
         if editado_en(c) > v.stat().st_mtime + 1:
             extra.append({"nivel": "warn", "txt": "Tiene cambios sin armar: re-ármalo antes de exportar"})

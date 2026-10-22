@@ -178,6 +178,8 @@ def estado():
             "elementos": elementos(),
             "claves": [motor.norm(x) for x in motor.CONFIG["palabras_clave"]],
             "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
+            "formato": motor.formato(), "lienzo": motor.lienzo(), "ventana_defecto": motor.VENTANA_DEFECTO[motor.formato()],
+            "posiciones_titulo": motor.POSICIONES_TITULO[motor.formato()], "piezas_otro_formato": motor.piezas_en_otro_formato(),
             "archivadas": motor.archivadas(), "siguiente_produccion": motor.siguiente_produccion(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
@@ -954,6 +956,11 @@ class H(BaseHTTPRequestHandler):
                 if motor.CONFIG.get("panel", {}).get("token"):
                     threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
                 self._json({"ok": True, **r})
+            elif u.path == "/api/formato":
+                if TRABAJO["activo"]:
+                    raise RuntimeError("Hay un trabajo en curso: espera a que termine para cambiar el formato.")
+                motor.guardar_formato(self._cuerpo()["formato"])
+                self._json({"ok": True, "formato": motor.formato()})
             elif u.path == "/api/semana":
                 sem = " ".join(self._cuerpo()["semana"].split())
                 sem = sem.replace("/", "／")  # Drive permite "11/10 SESIÓN"; en disco se guarda con la barra ancha

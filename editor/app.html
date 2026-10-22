@@ -748,6 +748,20 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 :root[data-tema="claro"] .grupo-cab { background: linear-gradient(90deg, rgba(37,99,235,.10), #ffffff 45%); }
 :root[data-tema="claro"] .caja, :root[data-tema="claro"] .tarjeta { box-shadow: 0 1px 2px rgba(15,35,80,.05); }
 #tema { min-width: 38px; }
+/* Sesión en 16:9 (web, YouTube, correos): las vistas del video se vuelven horizontales y más anchas */
+body.horizontal .tarjeta .img, body.horizontal .vacia, body.horizontal .dlg-cuerpo video, body.horizontal .visor,
+body.horizontal .ev-visor, body.horizontal .dia .mini div, body.horizontal #porVista { aspect-ratio: 16/9; }
+body.horizontal .visor { max-width: 100%; }
+body.horizontal .visor .sub.normal, body.horizontal .visor .sub.sublinea.normal { bottom: 17.5%; }
+body.horizontal .visor .broll.ventana { inset: 16.7% auto auto 31.25%; width: 37.5%; }
+body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+@media (min-width: 1101px) {
+  body.horizontal .piezas-layout { grid-template-columns: 210px minmax(0, 560px) minmax(0, 1fr); }
+  body.horizontal .dlg-cuerpo { grid-template-columns: minmax(0, 480px) minmax(0, 260px) minmax(0, 1fr); }
+}
+@media (min-width: 681px) { body.horizontal .ev-arriba { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); } }
+@media (max-width: 680px) { body.horizontal .visor { max-width: 100%; } }
+#formato { min-width: 0; }
 </style>
 </head>
 <body>
@@ -757,6 +771,8 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   <div class="fila">
     <label class="muted" for="semana" style="font-size:12px">Sesión</label>
     <select id="semana"></select>
+    <select id="formato" title="Formato de los videos de esta sesión" aria-label="Formato de los videos de esta sesión">
+      <option value="vertical">Vertical 9:16</option><option value="horizontal">Horizontal 16:9</option></select>
     <button class="btn sec" id="tema" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro"></button>
     <a class="btn sec" href="/teleprompter" target="_blank">Teleprompter</a>
     <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir todo</button>
@@ -1661,6 +1677,8 @@ async function cargar() {
   cargarFuentesCSS();
   $("prefijo").textContent = `- ${E.semana}`;
   document.title = `Sala de edición · ${E.semana}`;
+  $("formato").value = E.formato || "vertical";
+  document.body.classList.toggle("horizontal", esHorizontal());
   const activas = sesionesActivas();
   $("semana").innerHTML = [...activas].reverse().map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("")
     + (activas.includes(E.semana) ? "" : `<option value="${esc(E.semana)}" selected>${esc(E.semana)} (archivada)</option>`)
@@ -2103,7 +2121,8 @@ function pintarPieza() {
   if (!p) { $("tituloPieza").textContent = "Pieza"; $("lineas").innerHTML = ""; $("marcas").innerHTML = ""; return; }
   $("tituloPieza").textContent = `${p.nombre} · ${p.tipo}${p.info.tipo && p.tipo === "hook" ? " · " + p.info.tipo : ""}`;
   const v = $("vPieza");
-  if (!v.src.includes(p.video.split("?")[0])) v.src = p.video;
+  const [ruta, ver] = p.video.split("?");  // también si se volvió a preparar (otra versión: p. ej. al cambiar el formato)
+  if (!v.src.includes(ruta) || (ver && !v.src.includes(ver))) v.src = p.video;
   $("lineas").innerHTML = p.lineas.map((l, i) =>
     `<div class="linea" data-i="${i}"><button type="button" data-t="${l.s}">${fmt(l.s)}</button>
      <input id="ln-${i}" value="${esc(l.texto)}" data-orig="${esc(l.texto)}" aria-label="Subtítulo de ${fmt(l.s)} a ${fmt(l.e)}"></div>`).join("")
@@ -2302,7 +2321,7 @@ function vivo() {
     if (m.sub === "resaltado") res2.add(pos.wi);
   });
   if (!estilo) estilo = broll?.a && broll.m.modo !== "ventana" ? "sobre_imagen" : "normal";
-  const pl = E.plantillas[E.plantilla];
+  const pl = plVista(E.plantillas[E.plantilla]);
   const ancho = $("visor").clientWidth || 300;
   const claves = new Set(l.palabras.map((w, i) => (res2.has(i) || (E.claves || []).includes(norm(w.w))) ? i : -1).filter(i => i >= 0));
   if (solas.has(wi)) { sub.className = "sub palabra_sola sublinea"; pintarLinea(sub, [l.palabras[wi].w], 0, new Set(), { ...pl, tamano: pl.tamano * 2 }, ancho); return; }
@@ -2665,8 +2684,16 @@ function pintarExport() {
   $("exSel").textContent = exElegidos.size ? `Exportar ${exElegidos.size} seleccionado${exElegidos.size === 1 ? "" : "s"}` : "Exportar seleccionados";
   pintarFicha();
 }
+// medidas de cada resolución (se nombran por el lado corto: en 16:9, 1080p es 1920×1080)
+const LADOS_RES = { "720": [720, 1280], "1080": [1080, 1920], "1440": [1440, 2560], "2160": [2160, 3840] };
+function medidasRes(r) { const [a, b] = LADOS_RES[r] || LADOS_RES["1080"]; return esHorizontal() ? `${b}×${a}` : `${a}×${b}`; }
+function pintarOpcionesRes() {
+  const nombres = { "720": "720p", "1080": "1080p", "1440": "2K", "2160": "4K" };
+  [...$("exRes").options].forEach(o => { o.textContent = `${nombres[o.value]} (${medidasRes(o.value)})` + (o.value === "1080" ? " · recomendada" : ""); });
+}
 function pintarFicha() {
-  const aj = ajustesExport(), res = { "720": "720×1280", "1080": "1080×1920", "1440": "1440×2560", "2160": "2160×3840" }[aj.resolucion];
+  pintarOpcionesRes();
+  const aj = ajustesExport(), res = medidasRes(aj.resolucion);
   const lista = exElegidos.size ? E.salidas.filter(s => exElegidos.has(s.codigo)) : E.salidas.filter(s => s.existe);
   const seg = lista.reduce((a, s) => a + (s.receta?.duracion || 35), 0);
   const factor = ({ "720": .45, "1080": 1, "1440": 1.7, "2160": 3.6 }[aj.resolucion]) * (aj.fps >= 60 ? 1.5 : 1) * (aj.codec === "hevc" ? .55 : 1);
@@ -2875,6 +2902,33 @@ $("copiarCopy").onclick = () => {
   const t = red === "youtube" ? $("cYtTitulo").value + "\n\n" + $("cYoutube").value : red === "tiktok" ? $("cTiktok").value : $("cInstagram").value;
   navigator.clipboard.writeText(t); avisar("Copy copiado.", "ok");
 };
+// Formato de la sesión: vertical 9:16 o horizontal 16:9. Al cambiarlo, las piezas se preparan otra vez con el tamaño
+// nuevo y los videos quedan por re-armar (los subtítulos corregidos se conservan).
+$("formato").onchange = async e => {
+  const f = e.target.value, nombre = f === "horizontal" ? "horizontal 16:9" : "vertical 9:16";
+  const preparadas = (E.piezas || []).some(p => p.procesada);
+  if (!confirm(`¿Pasar esta sesión a ${nombre}?` + (preparadas ? "\n\nLas piezas se preparan otra vez con el tamaño nuevo y después hay que re-armar los videos. Los subtítulos corregidos se conservan." : ""))) {
+    e.target.value = E.formato || "vertical"; return;
+  }
+  try {
+    await post("/api/formato", { formato: f });
+    await cargar();
+    avisar(`Sesión en ${nombre}.` + (preparadas ? " Preparando las piezas con el tamaño nuevo…" : ""), "ok");
+    if (preparadas) trabajo("procesar");
+  } catch (err) { avisar("Error: " + err.message, "err"); cargar(); }
+};
+function esHorizontal() { return (E && E.formato) === "horizontal"; }
+// dónde y de qué tamaño entra una imagen «en ventana» si nadie la movió (px del video)
+function ventanaDefecto() { const [x, y, ancho] = (E && E.ventana_defecto) || [110, 330, 860]; return { x, y, ancho }; }
+// La plantilla (diseñada sobre el vertical 1080×1920) llevada al lienzo de la sesión, igual que _al_lienzo del motor
+function plVista(pl) {
+  if (!pl || !esHorizontal()) return pl;
+  const [W, H] = E.lienzo, kx = W / 1080, ky = H / 1920, kt = .8, n = (v, d) => Number(v ?? d);
+  return { ...pl, _ancho_ref: W, tamano: n(pl.tamano, 80) * kt, borde: n(pl.borde, 0) * kt, sombra: n(pl.sombra, 0) * kt,
+    desenfoque: n(pl.desenfoque, 0) * kt, x_centro: n(pl.x_centro, 540) * kx, ancho_max: Math.min(W - 160, n(pl.ancho_max, 960) * kx) };
+}
+// cuánto de la altura del subtítulo (px desde abajo, medida sobre el vertical) se usa en el lienzo de la sesión
+function factorAltura() { return esHorizontal() ? .6 : 1; }
 $("semana").onchange = async e => {
   let s = e.target.value;
   if (s === "__buscar") { irTab("inicio"); await cargar(); $("inBuscar").focus(); $("cajaSesiones").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
@@ -2974,7 +3028,8 @@ function abrirPortada() {
   $("porBorde").value = a.borde ?? 12;
   $("porColorBorde").value = a.color_borde || "#000000";
   $("porCaja").checked = !!a.caja; $("porColorCaja").value = a.color_caja || "#1d4ed8";
-  $("porY").value = a.y ?? ({ arriba: 560, centro: 960, abajo: 1380 }[a.posicion || "centro"]);
+  $("porY").max = (E.lienzo || [1080, 1920])[1] - 140;
+  $("porY").value = a.y ?? ((E.posiciones_titulo || { arriba: 560, centro: 960, abajo: 1380 })[a.posicion || "centro"]);
   $("porYTxt").textContent = $("porY").value + " px desde arriba";
   $("porLogo").checked = a.logo !== false;
   $("porSolo").checked = !!a.solo_imagen;
@@ -2997,7 +3052,7 @@ function pintarElemsPortada() {
   $("porElems").innerHTML = porDiseno.elementos.map((e, i) => `<div class="fila-elem-por"><span title="${esc(e.archivo)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.archivo)}</span>
       <input type="number" data-pe="${i}" data-k="x" value="${e.x}" title="Desde la izquierda (px)"><input type="number" data-pe="${i}" data-k="y" value="${e.y}" title="Desde arriba (px)">
       <input type="number" data-pe="${i}" data-k="ancho" value="${e.ancho}" title="Ancho (px)"><button class="btn sec peq" data-pe-quitar="${i}" type="button">✕</button></div>`).join("")
-    || `<span class="muted" style="font-size:12px">Sin imágenes encima. Medidas en px del video (1080 × 1920): izquierda, arriba, ancho.</span>`;
+    || `<span class="muted" style="font-size:12px">Sin imágenes encima. Medidas en px del video (${(E.lienzo || [1080, 1920]).join(" × ")}): izquierda, arriba, ancho.</span>`;
 }
 // Vista en vivo: cada cambio rehace la portada al instante, sin guardarla
 function verPortadaEnVivo(espera = 250) {
@@ -4274,7 +4329,7 @@ $("evCarrilI").addEventListener("pointerup", () => {
     if (!movido) { irA(g0); return; }  // un toque: el cabezal va a la imagen y se ve en la vista previa
     const d = piezaDeG(Math.max(0, g0 + (dx || 0) / escalaEd()));
     const cp = { id: im.asset, t: +d.tp.toFixed(2), dur: +im.dur.toFixed(2), modo: im.modo === "ventana" ? "ventana" : "completa", mov: "zoom_in",
-                 ...(im.modo === "ventana" ? { x: 110, y: 330, ancho: 860 } : {}) };
+                 ...(im.modo === "ventana" ? ventanaDefecto() : {}) };
     ed.capas[d.pz] = ed.capas[d.pz] || []; ed.capas[d.pz].push(cp); ed.capas[d.pz].sort((a, b) => a.t - b.t);
     im.movida = true; ed.cSel = { pz: d.pz, i: ed.capas[d.pz].indexOf(cp) }; ed.kSel = null; ed.sel = null;
     pintarEditor(); irA(gDePieza(d.pz, cp.t) ?? 0);
@@ -4300,7 +4355,7 @@ function pintarInspectorCapa() {
       <label class="muted ev-campo">Empieza (s del clip)<input type="number" id="cT" step="0.05" min="0" value="${cp.t.toFixed(2)}"></label>
       <label class="muted ev-campo">Dura (s)<input type="number" id="cDur" step="0.1" min="0.3" value="${cp.dur.toFixed(2)}"></label>
       <label class="muted ev-campo">Movimiento<select id="cMov">${opt([["fijo", "Fijo"], ["zoom_in", "Acercar despacio"], ["zoom_out", "Alejar despacio"]], cp.mov)}</select></label>
-      ${ven ? `<label class="muted ev-campo">Tamaño: <b id="cAnchoT">${cp.ancho || 860}px</b><input type="range" id="cAncho" min="200" max="1080" step="10" value="${cp.ancho || 860}"></label>` : ""}
+      ${ven ? `<label class="muted ev-campo">Tamaño: <b id="cAnchoT">${cp.ancho || ventanaDefecto().ancho}px</b><input type="range" id="cAncho" min="200" max="${Math.min(...(E.lienzo || [1080, 1920]))}" step="10" value="${cp.ancho || ventanaDefecto().ancho}"></label>` : ""}
     </div>
     <span class="muted" style="font-size:11.5px">${ven ? "Arrastra la ventana en el video para ponerla donde quieras." : "Tapa todo el video; el subtítulo pasa al centro solo mientras se ve."}
       Los clips entran sin su sonido: se escucha la voz.</span>`;
@@ -4310,7 +4365,7 @@ function cambiarCapa(cambio) {
   Object.assign(cp, cambio);
   const fin = finPieza(ed.cSel.pz);
   cp.t = +Math.max(0, Math.min(cp.t, fin - .3)).toFixed(3); cp.dur = +Math.max(.3, Math.min(cp.dur, fin - cp.t)).toFixed(3);
-  if (cp.modo === "ventana") { cp.ancho = cp.ancho || 860; cp.x = cp.x ?? 110; cp.y = cp.y ?? 330; }
+  if (cp.modo === "ventana") { const d = ventanaDefecto(); cp.ancho = cp.ancho || d.ancho; cp.x = cp.x ?? d.x; cp.y = cp.y ?? d.y; }
   else { delete cp.ancho; delete cp.x; delete cp.y; }
   pintarCapas(); vistaEd();
 }
@@ -4338,7 +4393,7 @@ function vistaCapa(pz, tp) {  // la imagen o escena que toca en ese segundo, enc
   let cp = [...(ed.capas[pz] || [])].reverse().find(c => tp >= c.t - .02 && tp <= c.t + c.dur);
   if (!cp && actual?.receta && est && !est.error) {  // si no hay una puesta a mano, la del guion que toca en ese segundo
     const o = inicioPieza(pz) + tp, gi = (actual.receta.imagenes || []).find(i => !i.movida && o >= i.t - .02 && o <= i.t + i.dur);
-    if (gi) cp = { id: gi.asset, t: gi.t - inicioPieza(pz), dur: gi.dur, modo: gi.modo, mov: "zoom_in", x: 110, y: 330, ancho: 860 };
+    if (gi) cp = { id: gi.asset, t: gi.t - inicioPieza(pz), dur: gi.dur, modo: gi.modo, mov: "zoom_in", ...ventanaDefecto() };
   }
   const a = cp && assetDe(cp.id);
   if (!a) { el.hidden = true; el.dataset.url = ""; return; }
@@ -4350,7 +4405,8 @@ function vistaCapa(pz, tp) {  // la imagen o escena que toca en ese segundo, enc
   if (vid) { const t = Math.max(0, tp - cp.t); if (Math.abs(vid.currentTime - t) > .25) vid.currentTime = t; evReproduciendo ? vid.play().catch(() => {}) : vid.pause(); }
   const ven = cp.modo === "ventana";
   el.className = "ev-capa-vista" + (ven ? " ventana" : "");
-  el.style.cssText = ven ? `left:${cp.x / 10.8}%;top:${cp.y / 19.2}%;width:${cp.ancho / 10.8}%;aspect-ratio:1` : "inset:0";
+  const [W, H] = E.lienzo || [1080, 1920];
+  el.style.cssText = ven ? `left:${cp.x / W * 100}%;top:${cp.y / H * 100}%;width:${cp.ancho / W * 100}%;aspect-ratio:1` : "inset:0";
   const p = Math.min(1, Math.max(0, (tp - cp.t) / cp.dur)), z = cp.mov === "zoom_in" ? 1 + .12 * p : cp.mov === "zoom_out" ? 1.12 - .12 * p : 1;
   const media = el.firstElementChild; if (media) media.style.transform = `scale(${z.toFixed(3)})`;
   el.hidden = false;
@@ -4364,7 +4420,7 @@ $("evCapa").addEventListener("pointerdown", e => {
   e.stopPropagation(); e.preventDefault(); pararEditor();
   ed.cSel = { pz: s.pz, i }; ed.kSel = null; ed.sel = null;
   const r = $("evVisor").getBoundingClientRect(), cp = ed.capas[s.pz][i];
-  arrVent = { cp, x0: e.clientX, y0: e.clientY, cx: cp.x, cy: cp.y, k: 1080 / r.width };
+  arrVent = { cp, x0: e.clientX, y0: e.clientY, cx: cp.x, cy: cp.y, k: (E.lienzo || [1080])[0] / r.width };
   try { c.setPointerCapture(e.pointerId); } catch (err) {}
   pintarEditor();
 });
@@ -4950,7 +5006,7 @@ function vistaEd() {
   const pl = plantillaEd();
   const sub = $("evSub");
   evPzSub = s.pz;
-  if (l && pl) { sub.hidden = false; pintarLinea(sub, l.texto.split(" "), -1, new Set(), pl, $("evVisor").clientWidth || 220); colocarSub(); } else sub.hidden = true;
+  if (l && pl) { sub.hidden = false; pintarLinea(sub, l.texto.split(" "), -1, new Set(), plVista(pl), $("evVisor").clientWidth || 220); colocarSub(); } else sub.hidden = true;
 }
 function plantillaEd() {
   const pls = (E && E.plantillas) || {};
@@ -4959,7 +5015,7 @@ function plantillaEd() {
 let evPzSub = "cuerpo";  // la parte que se ve en el editor: el subtítulo va a la altura de esa parte
 function colocarSub() {
   const sub = $("evSub"), h = alturaDe(evPzSub);
-  sub.style.top = "auto"; sub.style.bottom = (h / 1920 * 100) + "%";
+  sub.style.top = "auto"; sub.style.bottom = (h * factorAltura() / 1920 * 100) + "%";
 }
 // Arrastrar el subtítulo para subirlo o bajarlo (se guarda con «Guardar y rearmar» de Subtítulos de este video)
 let arrSub = null;
@@ -4973,7 +5029,7 @@ $("evSub").addEventListener("pointerdown", e => {
 });
 $("evSub").addEventListener("pointermove", e => {
   if (!arrSub) return;
-  const h = Math.round(Math.max(150, Math.min(1500, arrSub.h0 + (arrSub.y0 - e.clientY) / arrSub.alto * 1920)) / 10) * 10;
+  const h = Math.round(Math.max(150, Math.min(1500, arrSub.h0 + (arrSub.y0 - e.clientY) / arrSub.alto * 1920 / factorAltura())) / 10) * 10;
   $(arrSub.rango).value = h; pintarAlturas();
   const parte = { hook: "hook", cta: "CTA" }[evPzSub] || "cuerpo";
   $("evPos").hidden = false; $("evPos").textContent = `${parte}: ${h} px desde abajo`;
@@ -5680,7 +5736,8 @@ function cargarFuentesCSS() {
   if (!st) { st = document.createElement("style"); st.id = "ffaces"; document.head.appendChild(st); }
   st.textContent = (E.fuentes || []).map(f => `@font-face{font-family:"F_${f.archivo}";src:url("/fuentes/${encodeURIComponent(f.archivo)}");font-display:block}`).join("\n");
 }
-// Dibuja una línea de subtítulo con la plantilla, en un contenedor de ancho `ancho` px (1080 = video completo)
+// Dibuja una línea de subtítulo con la plantilla, en un contenedor de ancho `ancho` px (1080 = video completo;
+// con plVista, el ancho del lienzo de la sesión)
 function partirRenglones(palabras, pl) {
   // igual que el motor: con «segunda línea» la frase va en dos renglones parejos por cantidad de letras
   const n = palabras.length, todos = palabras.map((_, j) => j);
@@ -5696,7 +5753,7 @@ function rgba(hex, a) {
   return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${Math.max(0, Math.min(1, a))})`;
 }
 function pintarLinea(el, palabras, activa, claves, pl, ancho) {
-  const k = ancho / 1080, res = pl.resaltador || {}, modo = res.modo || "", l2 = pl.linea2 || {};
+  const k = ancho / (pl._ancho_ref || 1080), res = pl.resaltador || {}, modo = res.modo || "", l2 = pl.linea2 || {};
   el.style.fontFamily = `"F_${pl.fuente}", "Arial Black", sans-serif`;
   el.style.fontSize = (pl.tamano * k) + "px";
   const span = (w, j, segunda) => {

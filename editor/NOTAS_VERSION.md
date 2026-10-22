@@ -1,3 +1,9 @@
+Versión 1.35.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Videos horizontales 16:9**: arriba, junto a la sesión, ahora eliges «Vertical 9:16» u «Horizontal 16:9». En 16:9 la sesión arma videos de 1920×1080 para la web, YouTube o los correos: las piezas, las imágenes de Flow, el zoom, la portada y la exportación salen horizontales, y las vistas previas de la sala también.
+- Las plantillas de subtítulos sirven para los dos formatos: en 16:9 se adaptan solas (letra un poco más chica y el subtítulo más cerca del borde de abajo, porque no hay botones de TikTok que esquivar).
+- Al cambiar el formato, la sala vuelve a preparar las piezas con el tamaño nuevo y los videos quedan «por re-armar». Los subtítulos corregidos no se pierden. El guion también puede pedirlo con «formato»: "horizontal".
+- En 16:9 no salen los avisos de «más de 60 s» ni de «subtítulo muy abajo», que son de Reels y TikTok.
+
 Versión 1.34.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Dos ángulos grabados por pasadas**: si grabas un guion completo en un ángulo y después completo en otro, al «Analizar y renombrar todo» la sala lo nota por el orden de grabación (la fecha que guarda el celular, aunque sean dos celulares): la primera pasada es la de frente y la segunda el «Ángulo 2». Antes se quedaba con una sola toma y perdía el otro ángulo.
 - Cada pasada arma sus propios videos (C1-H1-CTA1 y C1-H1-CTA1-A2). Si en el ángulo 2 falta un hook, ese video usa el hook de frente. Las tomas del ángulo 2 quedan en Clips/C1/Ángulo 2/.
