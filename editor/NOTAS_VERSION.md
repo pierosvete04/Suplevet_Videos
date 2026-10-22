@@ -1,3 +1,9 @@
+Versión 1.34.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Dos ángulos grabados por pasadas**: si grabas un guion completo en un ángulo y después completo en otro, al «Analizar y renombrar todo» la sala lo nota por el orden de grabación (la fecha que guarda el celular, aunque sean dos celulares): la primera pasada es la de frente y la segunda el «Ángulo 2». Antes se quedaba con una sola toma y perdía el otro ángulo.
+- Cada pasada arma sus propios videos (C1-H1-CTA1 y C1-H1-CTA1-A2). Si en el ángulo 2 falta un hook, ese video usa el hook de frente. Las tomas del ángulo 2 quedan en Clips/C1/Ángulo 2/.
+- Una frase que repites enseguida, o al final para corregirla, sigue siendo otra toma, no otro ángulo.
+- Arreglo: los clips dentro de subcarpetas de Clips/ (por ejemplo, «Clips/Clips iphone de mi papa/») no se veían. Ahora se leen como los demás.
+
 Versión 1.33.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Altura del subtítulo en el hook y el CTA**: en «Subtítulos de este video» ahora hay tres alturas: cuerpo, hook y CTA. El hook y el CTA vienen «igual que el cuerpo»; quita esa casilla (o arrastra el subtítulo en el editor mientras se ve el hook o el CTA) para darles su propia altura. Solo cambia ese video (o los del cuerpo, si marcas «Igual en todos los videos»).
 - Arreglo: en los hooks con imagen a pantalla completa, el subtítulo se quedaba al centro (encima de la cara) toda la frase, aunque la imagen ya se hubiera ido, y cambiar la plantilla no lo movía. Ahora va donde dice la plantilla y solo sube al centro mientras se ve la imagen, igual que en la vista previa.

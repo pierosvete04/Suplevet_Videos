@@ -607,7 +607,7 @@ def guardar_asignacion(rel, pieza):
         if sesion not in S.miembros:
             raise ValueError("Ese clip no es de este grupo")
     if pieza:
-        if not CODIGO_PIEZA.match(pieza):
+        if not CODIGO_PIEZA.match(sin_angulo_codigo(pieza)[0]):
             raise ValueError(f"«{pieza}» no es un código de pieza (C1_H2, C3, C1_P2, CTA-A…)")
         pieza = pieza.upper()
         for m in S.miembros:  # el clip que tenía esa pieza queda libre (en un grupo, en cualquiera de sus sesiones)
@@ -654,6 +654,14 @@ def clips():
                     vistos.add(f)
                     out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None,
                                 "a_mano": sueltos in por_cuerpo})  # sueltos en Clips/: la sala los ordena
+      # en subcarpetas de Clips/ con cualquier nombre («Clips/Clips iphone de mi papa/…», «Clips/C1/Ángulo 2/…»):
+      # también son sueltos (salvo _DESCARTADOS, Bloopers…)
+      if (sesion / CARPETA_SUELTOS).is_dir():
+          raiz_sueltos = sesion / CARPETA_SUELTOS
+          for f in sorted(raiz_sueltos.rglob("*"), key=lambda x: x.as_posix().lower()):
+              if f not in vistos and not _apartado(f, raiz_sueltos) and es_video(f):
+                  vistos.add(f)
+                  out.append({"rel": f.relative_to(S.grab).as_posix(), "ruta": f, "tipo_carpeta": None, "a_mano": False})
       # ordenado a mano sin Clips/: «P04 …/C1/C1-H1», «…/C1/C1.1», «…/CTA/CTA 1.2» (Bloopers y lo demás no se mira)
       for d in carpetas_de_piezas(sesion):
         tipo = "cta" if d.name.upper().startswith("CTA") else None
@@ -718,6 +726,12 @@ def sin_angulo(nombre):
     """(nombre de frente, ángulo): «C1_H1~IZQ» → («C1_H1», «IZQ»)."""
     base, _, ang = str(nombre).partition("~")
     return base, ang
+
+
+def sin_angulo_codigo(codigo):
+    """Como sin_angulo, pero también para una parte: «C1~A2_P3» → («C1_P3», «A2»)."""
+    m = re.search(r"~([A-Z0-9]+)", str(codigo), re.I)
+    return (str(codigo)[:m.start()] + str(codigo)[m.end():], m.group(1).upper()) if m else (str(codigo), "")
 
 
 def carpetas_de_piezas(sesion):
@@ -939,16 +953,19 @@ def plan_renombrar():
             continue
         sesion, rel = c["rel"].split("/", 1) if S.es_grupo else (S.semana, c["rel"])
         ext = c["ruta"].suffix.upper() if c["ruta"].suffix.lower() in EXT_VID else ""
+        # el ángulo lo dice la carpeta («Clips/C1/Ángulo 2/C1_P3.MOV»), no el nombre del archivo
+        base, ang = sin_angulo_codigo(codigo)
         if c.get("a_mano"):
             # ordenado a mano en C1/, CTA/…: no se saca de su carpeta, y si su nombre ya dice la pieza, ni se toca
-            if leer_nombre(nombre_clip(c["ruta"]))[0] == codigo:
+            if leer_nombre(nombre_clip(c["ruta"]))[0] in (codigo, base):
                 continue
-            carpeta, quiere = Path(rel).parent, ("CTA" if "CTA" in codigo else codigo.split("_")[0])
+            carpeta, quiere = Path(rel).parent, ("CTA" if "CTA" in base else base.split("_")[0])
             if carpeta.name.upper() != quiere and re.fullmatch(r"[CP]\d+|CTA", carpeta.name, re.I):
                 carpeta = carpeta.parent / quiere  # estaba en C2/ pero es de C3: va a la carpeta de al lado
-            nuevo = f"{carpeta.as_posix()}/{codigo}{ext}"
+            nuevo = f"{carpeta.as_posix()}/{base}{ext}"
         else:
-            nuevo = f"{_carpeta_destino(S.raiz / sesion, codigo)}/{codigo}{ext}"
+            nuevo = (f"{_carpeta_destino(S.raiz / sesion, base)}/" + (f"{nombre_angulo(ang)}/" if ang else "")
+                     + f"{base}{ext}")
         if rel == nuevo:
             continue
         if (sesion, nuevo.lower()) in destinos or (S.raiz / sesion / nuevo).exists():
@@ -1212,9 +1229,86 @@ def _parecido(a, b):
     return difflib.SequenceMatcher(None, wa, wb, autojunk=False).ratio()
 
 
+def _fecha_iso(texto):
+    """«2026-10-19T15:32:10-0500» o «…Z» → segundos; None si no se entiende."""
+    import datetime
+    t = re.sub(r"([+-]\d\d)(\d\d)$", r"\1:\2", str(texto).strip().replace("Z", "+00:00"))
+    try:
+        return datetime.datetime.fromisoformat(t).timestamp()
+    except ValueError:
+        return None
+
+
+def fecha_grabacion(c):
+    """Cuándo se grabó el clip: la fecha que el celular guarda dentro del video (no cambia al copiarlo a Drive ni
+    entre celulares); si no la trae, la del archivo. En caché, junto a lo escuchado."""
+    f = S.transcripciones / "_grabado.json"
+    try:
+        cache = json.loads(f.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        cache = {}
+    st = c["ruta"].stat()
+    firma = f"{st.st_size}-{int(st.st_mtime)}"
+    if cache.get(c["rel"], {}).get("firma") == firma:
+        return cache[c["rel"]]["t"]
+    t = None
+    try:
+        tags = json.loads(run([FFPROBE, "-v", "error", "-show_entries", "format_tags", "-of", "json", str(c["ruta"])]).stdout or "{}")
+        tags = {k.lower(): v for k, v in tags.get("format", {}).get("tags", {}).items()}
+        t = _fecha_iso(tags.get("com.apple.quicktime.creationdate", "")) or _fecha_iso(tags.get("creation_time", ""))
+    except Exception:
+        pass
+    t = t or st.st_mtime
+    cache[c["rel"]] = {"firma": firma, "t": t}
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    return t
+
+
+def _cuerpo_de_pieza(n):
+    """A qué guion pertenece una pieza: «C3_P2», «C3_H1», «C3_CTA1» y «CTA3» → «C3»; «CTA-A» → «CTA-A»."""
+    if m := re.match(r"([CP]\d+)", n, re.I):
+        return m.group(1).upper()
+    if m := re.fullmatch(r"CTA-?(\d+)(?:_P\d+)?", n, re.I):
+        return f"C{int(m.group(1))}"
+    return n.split("_")[0].upper()
+
+
+def angulos_por_pasadas(pieza_de, por_rel):
+    """{rel: ángulo} cuando un guion se grabó completo dos veces, una por ángulo (todo en un ángulo y después todo
+    en el otro): la 1.ª pasada es la de frente («»), la 2.ª «A2», la 3.ª «A3». Se mira guion por guion, en el orden
+    en que se grabó: una pieza que vuelve después de haber pasado por otras tres empieza otra pasada (una que se
+    repite enseguida es solo otra toma). Una pasada que no repite ni la mitad de la primera no es otro ángulo: son
+    tomas repetidas y se quedan con la pasada de antes."""
+    grupos = {}
+    for rel, pieza in pieza_de.items():
+        grupos.setdefault(_cuerpo_de_pieza(pieza), []).append(rel)
+    out = {}
+    for rels in grupos.values():
+        rels.sort(key=lambda r: (fecha_grabacion(por_rel[r]), r))
+        pasadas = [[]]
+        for r in rels:
+            vistas = [pieza_de[x] for x in pasadas[-1]]
+            p = pieza_de[r]
+            if p in vistas and vistas[-1] != p and len(set(vistas[vistas.index(p) + 1:]) - {p}) >= 3:
+                pasadas.append([])
+            pasadas[-1].append(r)
+        juntas = [pasadas[0]]
+        for pas in pasadas[1:]:
+            if 2 * len({pieza_de[x] for x in pas}) >= len({pieza_de[x] for x in juntas[0]}):
+                juntas.append(pas)
+            else:
+                juntas[-1] += pas
+        if len(juntas) > 1:
+            for k, pas in enumerate(juntas):
+                out.update({r: "" if k == 0 else f"A{k + 1}" for r in pas})
+    return out
+
+
 def sugerencias():
     """{rel: {texto, pieza, parecido, mejor}}. «mejor» marca la toma más parecida de cada pieza;
-    si hay empate gana la última grabada (suele ser la buena)."""
+    si hay empate gana la última grabada (suele ser la buena). Un guion grabado completo dos veces (una pasada
+    por ángulo) da piezas de otro ángulo: C1~A2_P3 (ver angulos_por_pasadas)."""
     esperadas = {n: i.get("texto", "") for n, i in produccion().get("piezas", {}).items() if i.get("texto")}
     # un cuerpo grabado frase por frase: cada toma se compara también con cada frase (C2_P1, C2_P2…)
     for n, i in produccion().get("piezas", {}).items():
@@ -1223,13 +1317,22 @@ def sugerencias():
                 esperadas[f"{n}_P{k}"] = frase
     ya = {p["nombre"] for p in piezas()}
     ya |= {f"{p['nombre']}_P{k}" for p in piezas() for ks in p["frases"].values() for k in ks}
-    out = {}
+    out, por_rel, propia = {}, {}, {}
     for c in clips_sin_asignar():
         texto = transcripcion_clip(c, crear=False)
         if texto is None:
             continue
+        por_rel[c["rel"]] = c
+        cerca = max(((n, _parecido(texto, t)) for n, t in esperadas.items()), key=lambda x: x[1], default=(None, 0))
+        if cerca[1] >= 0.35:
+            propia[c["rel"]] = cerca[0]
         mejor = max(((n, _parecido(texto, t)) for n, t in esperadas.items() if n not in ya), key=lambda x: x[1], default=(None, 0))
         out[c["rel"]] = {"texto": texto, "pieza": mejor[0] if mejor[1] >= 0.35 else None, "parecido": round(mejor[1], 2)}
+    # dos pasadas del mismo guion: la segunda es otro ángulo y no compite con la primera
+    for rel, ang in angulos_por_pasadas(propia, por_rel).items():
+        pieza = con_angulo(propia[rel], ang) if ang else propia[rel]
+        if pieza not in ya:
+            out[rel].update({"pieza": pieza, "parecido": round(_parecido(out[rel]["texto"], esperadas[propia[rel]]), 2)})
     por_pieza = {}
     for rel, sug in out.items():
         if sug["pieza"]:
