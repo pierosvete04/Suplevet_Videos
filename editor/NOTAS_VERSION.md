@@ -1,3 +1,8 @@
+Versión 1.33.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Generar en Flow con Chrome**: en Faltantes, «✦ Generar lo que falta». Claude abre tu Chrome (con la extensión de Claude), genera en Google Flow las imágenes y en Flow Music la música que faltan, y las guarda en su cuadro con su nombre. Después solo rearmas los videos.
+- Si el guion no tiene música (por ejemplo, uno armado con lo grabado), Claude primero escribe sus prompts: de 2 a 4 pistas instrumentales según el tono de cada cuerpo, y qué pista usa cada uno.
+- Si Chrome está cerrado, la sala lo abre. Si Google pide entrar, un captcha o se acabó el cupo, se detiene y te dice qué falta. Usa los créditos de tu plan de Flow, sin APIs de pago.
+
 Versión 1.32.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Rehacer imagen con una nota**: en Faltantes, debajo de cada imagen o clip de Flow, «✎ Rehacer imagen con una nota». Escribes qué está mal («tiene arándanos, que se vea el polvo encima de las croquetas») y Claude escribe el prompt nuevo con tu nota y las reglas de la marca. Queda guardado en el guion; lo copias, generas en Flow y arrastras la imagen nueva a su cuadro.
 - La nota queda guardada debajo de la imagen, con la fecha. Si la rehaces otra vez, Claude respeta también las notas anteriores.

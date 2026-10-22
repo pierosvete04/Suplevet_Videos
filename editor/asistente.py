@@ -79,14 +79,15 @@ def actualizar_conocimiento(avance=print):
         raise RuntimeError("Faltan las skills de Claude. Pídele a Claude, en la PC principal, «sube las skills a la sala».")
 
 
-def correr(prompt, carpetas, avance=print, max_turnos=80):
-    """Corre Claude Code sin ventana y va contando lo que hace. Devuelve el texto final."""
+def correr(prompt, carpetas, avance=print, max_turnos=80, chrome=False):
+    """Corre Claude Code sin ventana y va contando lo que hace. Devuelve el texto final.
+    chrome=True: también maneja el Chrome de esta PC con la extensión de Claude (Flow y Flow Music en la cuenta del usuario)."""
     ruta = encontrar()
     if not ruta:
         raise RuntimeError("No encuentro Claude Code en esta PC (ver Inicio → Claude)")
     cmd = [ruta, "-p", prompt, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
-           "--allowedTools", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "TodoWrite",
-           "--disallowedTools", "Bash", "WebFetch", "WebSearch", "--max-turns", str(max_turnos)]
+           "--allowedTools", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "TodoWrite", *(["mcp__claude-in-chrome"] if chrome else []),
+           "--disallowedTools", "Bash", "WebFetch", "WebSearch", "--max-turns", str(max_turnos), *(["--chrome"] if chrome else [])]
     for c in carpetas:
         cmd += ["--add-dir", str(c)]
     p = subprocess.Popen(cmd, cwd=str(CONOCIMIENTO), stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
@@ -106,7 +107,11 @@ def correr(prompt, carpetas, avance=print, max_turnos=80):
                     pasos += 1
                     arg = b.get("input", {})
                     que = arg.get("file_path") or arg.get("pattern") or arg.get("skill") or ""
-                    avance(f"Claude · {nombres.get(b.get('name'), b.get('name'))} {Path(str(que)).name}".strip())
+                    nombre = b.get("name", "")
+                    if nombre.startswith("mcp__claude-in-chrome__"):
+                        avance("Claude · Chrome · " + (arg.get("action_summary") or arg.get("action") or nombre.split("__")[-1]))
+                    else:
+                        avance(f"Claude · {nombres.get(nombre, nombre)} {Path(str(que)).name}".strip())
                 elif b.get("type") == "text" and b.get("text", "").strip():
                     avance("Claude · " + b["text"].strip().splitlines()[0][:140])
         elif ev.get("type") == "result":
@@ -206,6 +211,77 @@ Al terminar responde en 3 líneas: cuántas imágenes agregaste y en qué piezas
     if not datos.get("assets"):
         raise RuntimeError("Claude no agregó prompts de Flow. " + texto[:200])
     return texto
+
+
+def generar_prompts_musica(avance=print):
+    """Agrega a produccion.json la música (prompts de Flow Music) y qué pista usa cada cuerpo, si el guion no la trae.
+    No cambia el texto, los tiempos ni lo que ya tiene el guion."""
+    actualizar_conocimiento(avance)
+    motor.usar_semana(motor.S.semana)
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    prompt = f"""Lee el guion de la sesión «{motor.S.semana}»: {prod}
+Las reglas de la música están en la sección «Música» de {reglas}, y las palabras prohibidas en «Prompts limpios». Léelas antes de escribir.
+
+Este guion no tiene música. Agrega, sin cambiar nada más del archivo:
+1. `musica`: de 2 a 4 pistas según el tono de los cuerpos, con el formato de la skill:
+   {{"id": "MUS_A", "uso": "C1 y C3 (…)", "desde": 0, "prompt": {{"herramienta": "Google Flow Music", "prompt": "…", "evitar": "…", "duracion": "60 s"}}}}
+   Los id son MUS_A, MUS_B, MUS_C… El prompt en inglés, siempre instrumental, sin nombres de artistas ni canciones.
+2. En cada cuerpo (C1, C2…), `"musica": "<id>"` con la pista que le toca. Los hooks y el CTA no llevan, salvo que la skill lo pida.
+3. `"musica_por_defecto": "<id de la pista más usada>"`.
+No toques `texto`, `partes`, `dicho`, `marcas`, `assets` ni nada de lo que ya existe. Usa Edit. Al final el archivo debe ser JSON válido.
+Al terminar responde en 2 líneas: cuántas pistas y qué cuerpo usa cada una."""
+    texto = correr(prompt, [motor.S.guion], avance=avance, max_turnos=25)
+    try:
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    except ValueError as e:
+        avance("El produccion.json salió con un error de formato: Claude lo corrige…")
+        correr(f"El archivo {prod} no es JSON válido ({e}). Corrígelo sin cambiar el contenido.", [motor.S.guion], avance=avance, max_turnos=15)
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    if not datos.get("musica"):
+        raise RuntimeError("Claude no agregó la música. " + texto[:200])
+    return texto
+
+
+def generar_en_flow(imagenes, musica, carpeta_descargas, avance=print):
+    """Claude abre el Chrome de esta PC (con la extensión de Claude) y genera en Google Flow las imágenes y clips, y en
+    Flow Music las pistas, con la cuenta del usuario. Las deja en Descargas y dice qué archivo es cada id.
+    imagenes: [{id, tipo, prompt, plan_b, formato, que_muestra}] · musica: [{id, prompt, evitar}]
+    Devuelve {"archivos": {id: nombre en Descargas}, "urls": {id de pista: URL del audio}, "pendientes": [{id, motivo}]}."""
+    actualizar_conocimiento(avance)
+    skill = CONOCIMIENTO / ".claude" / "skills" / "suplevet-flow-chrome" / "SKILL.md"
+    pedido = json.dumps({"imagenes": imagenes, "musica": musica}, ensure_ascii=False, indent=1)
+    prompt = f"""Genera en el Chrome de esta PC lo que le falta a la sesión «{motor.S.semana}». Lo que hay que hacer:
+{pedido}
+
+Sigue la skill {skill} (léela primero: tiene los pasos y el mapa de pantallas de Flow y Flow Music).
+- Imágenes y clips: en Google Flow (flow.google.com), en el proyecto con el nombre de la sesión (si no existe, créalo).
+  Revisa que la configuración del agente esté en 9:16 y x1 (o el formato que diga cada una). Pide todas en un solo
+  pedido, cada una con su código. Si Google rechaza un prompt, reenvíalo una vez; si vuelve a fallar, usa su plan_b.
+- Música: en Flow Music (botón «Flow Music» de flow.google.com). El prompt empieza con «Instrumental only, no vocals, no lyrics.».
+  Cada pedido saca dos versiones: quédate con la que no tenga voces ni cortes.
+- Música: no la bajes. Para cada pista elegida, saca la URL de su audio (storage.googleapis.com/producer-app-public/clips/…,
+  enganchando HTMLMediaElement.prototype.play y tocando «Play», como dice la skill) y ponla en «urls»: la sala la baja sola.
+- Imágenes y clips: van a la carpeta Descargas de Chrome ({carpeta_descargas}). Baja cada archivo desde la página con fetch
+  y un enlace <a download> cuyo nombre empiece con su id (por ejemplo «C1_IMG1.jpg»), en tamaño original (en la URL de la
+  imagen cambia «=s512-rw» por «=s0»).
+- Si Google pide iniciar sesión, elegir cuenta, aceptar términos o un captcha, o si se acabó el cupo: para y dilo. Nunca
+  escribas contraseñas, no compres créditos ni cambies el plan. No generes nada que no esté en la lista.
+- Cierra las pestañas que abriste al terminar. No edites archivos de la PC.
+Al final responde SOLO con JSON, sin texto antes ni después:
+{{"archivos": {{"<id de imagen o clip>": "<nombre exacto del archivo en Descargas>"}}, "urls": {{"<id de pista>": "<URL del audio>"}},
+ "pendientes": [{{"id": "<id>", "motivo": "…"}}]}}"""
+    respuesta = correr(prompt, [], avance=avance, max_turnos=150, chrome=True)
+    inicio, fin = respuesta.find("{"), respuesta.rfind("}")
+    try:
+        datos = json.loads(respuesta[inicio:fin + 1]) if 0 <= inicio < fin else {}
+    except ValueError:
+        datos = {}
+    if "archivos" not in datos:
+        raise RuntimeError("Claude no terminó en Chrome: " + respuesta.strip()[:300])
+    return datos
 
 
 def rehacer_imagen(asset_id, nota, avance=print):

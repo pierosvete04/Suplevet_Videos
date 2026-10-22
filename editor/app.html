@@ -1000,6 +1000,14 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   </section>
 
   <section data-panel="faltan" hidden>
+    <div class="caja" style="margin-bottom:14px" id="cajaGenerar">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Generar en Flow con Chrome</h2>
+          <span class="muted" style="font-size:12px" id="generarInfo">Claude abre tu Chrome, genera en Google Flow las imágenes y en Flow Music la música que faltan, y las guarda en su cuadro. Si el guion no tiene música, primero escribe sus prompts.</span></div>
+        <button class="btn" id="generarFlow" type="button">✦ Generar lo que falta</button>
+      </div>
+      <p class="muted" style="margin:8px 0 0;font-size:12px">Necesita Chrome con la extensión de Claude (la misma cuenta de esta sala) y tu sesión de Google abierta en Flow. Usa los créditos de tu plan de Flow. Si Google pide entrar o un captcha, se detiene y te avisa.</p>
+    </div>
     <div class="caja" style="margin-bottom:14px" id="cajaDescargas">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Descargas recientes</h2>
@@ -2392,6 +2400,9 @@ function pintarFaltan() {
   pintarSinAsignar();
   pintarMusica();
   const ch = E.checklist;
+  const nImg = ch.assets.filter(a => !a.listo).length, nMus = (ch.musica || []).filter(m => !m.listo).length;
+  $("generarFlow").textContent = !(ch.musica || []).length ? "✦ Crear la música y generar lo que falta"
+    : nImg + nMus ? `✦ Generar ${[nImg && `${nImg} imagen${nImg === 1 ? "" : "es"}`, nMus && `${nMus} pista${nMus === 1 ? "" : "s"}`].filter(Boolean).join(" y ")}` : "✓ No falta nada";
   const faltaAssets = ch.assets.filter(a => !a.listo).length + (ch.musica || []).filter(m => !m.listo).length;
   const total = ch.piezas_faltan.length + faltaAssets;
   $("nFaltan").textContent = total || "✓"; $("nFaltan").className = "pill " + (total ? "warn" : "ok");
@@ -2446,7 +2457,7 @@ function vigilar(t) {
   caja.hidden = !t.activo;
   $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["producir", "todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas"].forEach(id => $(id).disabled = t.activo);
+  ["producir", "todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas", "generarFlow"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -2708,7 +2719,8 @@ const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
-  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow", rehacer: "Claude rehace el prompt de una imagen" };
+  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow", rehacer: "Claude rehace el prompt de una imagen",
+  generar_flow: "Claude genera en Flow con Chrome" };
 let procTimer = null, pestanaProc = "recientes", historialProc = null, detalleAbierto = false;
 const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
 async function pintarProcesos() {
@@ -5520,6 +5532,12 @@ async function asignarClip(rel, pieza) {
     if (r.procesando) vigilar(await (await fetch("/api/trabajo")).json());
   } catch (err) { avisar("Error: " + err.message, "err"); }
 }
+
+$("generarFlow").onclick = () => {
+  if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
+  if (!confirm("Claude va a abrir tu Chrome y generar en Flow lo que falta, con los créditos de tu plan. Mientras trabaja, no uses esa ventana de Chrome. ¿Seguir?")) return;
+  trabajo("generar_flow");
+};
 
 // ---------- Descargas recientes: lo bajado de Flow, Flow Music o Suno pasa a su pieza con un clic ----------
 let ultimasDescargas = null;

@@ -7,6 +7,7 @@ import mimetypes
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -216,6 +217,104 @@ def carpeta_descargas():
         except Exception:  # noqa: BLE001
             pass
     return Path.home() / "Downloads"
+
+
+def importar_descarga(nombre, aid, destino):
+    """Un archivo de Descargas pasa a la sesión con el nombre que pide el guion (Musica o Flow). Devuelve (archivo, carpeta)."""
+    base = carpeta_descargas().resolve()
+    f = (base / nombre).resolve()
+    if f.parent != base or not f.is_file() or not NOMBRE_OK.match(aid) or destino not in ("musica", "assets"):
+        raise ValueError("Archivo o nombre no válido")
+    ext = f.suffix.lower()
+    if ext not in (motor.EXT_AUDIO if destino == "musica" else motor.EXT_IMG | motor.EXT_VID):
+        raise ValueError("Ese archivo no es " + ("de audio" if destino == "musica" else "una imagen ni un clip"))
+    carpeta = motor.S.musica if destino == "musica" else motor.S.assets
+    carpeta.mkdir(parents=True, exist_ok=True)
+    for viejo in carpeta.glob(f"{aid}.*"):  # reemplaza la versión anterior aunque tenga otra extensión
+        viejo.unlink()
+    shutil.copy2(f, carpeta / f"{aid}{ext}")
+    return f"{aid}{ext}", carpeta
+
+
+FLOW_MUSIC_AUDIO = re.compile(r"https://storage\.googleapis\.com/producer-app-public/clips/[\w-]+\.(m4a|mp3|wav)")
+
+
+def bajar_pista(aid, url):
+    """El audio de una canción de Flow Music es público: se baja a Descargas con el id como nombre. Solo de ese dominio."""
+    m = FLOW_MUSIC_AUDIO.fullmatch(url)
+    if not m or not NOMBRE_OK.match(aid):
+        raise ValueError("no es una URL de audio de Flow Music")
+    import urllib.request
+    destino = carpeta_descargas() / f"{aid}.{m.group(1)}"
+    with urllib.request.urlopen(url, timeout=120) as r, open(destino, "wb") as f:
+        shutil.copyfileobj(r, f)
+    if destino.stat().st_size < 20_000:
+        destino.unlink()
+        raise ValueError("el audio llegó vacío")
+    return destino.name
+
+
+def abrir_chrome(avance):
+    """Claude in Chrome necesita Chrome abierto: si está cerrado, se abre (con el último perfil usado) y se le da tiempo
+    a la extensión para conectarse."""
+    if os.name != "nt":
+        return
+    r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/NH"], capture_output=True, text=True, errors="replace")
+    if "chrome.exe" in r.stdout:
+        return
+    rutas = [Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe"
+             for v in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+    chrome = next((p for p in rutas if p.is_file()), None)
+    if not chrome:
+        raise RuntimeError("No encuentro Google Chrome en esta PC: hace falta Chrome con la extensión de Claude")
+    avance("Abriendo Chrome…")
+    subprocess.Popen([str(chrome)])
+    time.sleep(20)
+
+
+def generar_en_flow(avance):
+    """«Generar en Flow»: si el guion no trae música, Claude escribe sus prompts; después genera en Flow y Flow Music
+    (en el Chrome de esta PC) lo que falta, lo guarda en Flow/ y Musica/ con su id y lo sube a Drive."""
+    if not motor.produccion().get("musica"):
+        avance("El guion no tiene música: Claude escribe sus prompts…")
+        asistente.generar_prompts_musica(avance=avance)
+        motor._prod_cache = None
+    ch = motor.checklist()
+    imagenes = [{"id": a["id"], "tipo": a.get("tipo", "imagen"), **{k: a.get("flow", {}).get(k, "") for k in ("prompt", "plan_b", "formato", "que_muestra")}}
+                for a in ch["assets"] if not a["listo"]]
+    musica = [{"id": m["id"], "prompt": (m.get("prompt") or {}).get("prompt", ""), "evitar": (m.get("prompt") or {}).get("evitar", "")}
+              for m in ch["musica"] if not m["listo"]]
+    if not imagenes and not musica:
+        return {"hechos": [], "pendientes": [], "mensaje": "No falta nada: todas las imágenes y la música ya están."}
+    avance(f"Falta generar {len(imagenes)} imágenes o clips y {len(musica)} pistas")
+    abrir_chrome(avance)
+    inicio = time.time() - 5
+    r = asistente.generar_en_flow(imagenes, musica, carpeta_descargas(), avance=avance)
+    destinos = {**{x["id"]: "assets" for x in imagenes}, **{x["id"]: "musica" for x in musica}}
+    hechos, pendientes = [], [p for p in (r.get("pendientes") or []) if p.get("id") not in (r.get("urls") or {})]
+    archivos = dict(r.get("archivos") or {})
+    for aid, url in (r.get("urls") or {}).items():  # la música se baja desde aquí: Chrome frena varias descargas seguidas
+        if destinos.get(aid) != "musica":
+            continue
+        try:
+            archivos[aid] = bajar_pista(aid, str(url))
+        except (ValueError, OSError) as e:
+            pendientes.append({"id": aid, "motivo": f"no pude bajar su audio ({e})"})
+    for aid, nombre in archivos.items():
+        if aid not in destinos:
+            continue
+        f = carpeta_descargas() / str(nombre)
+        if not f.is_file() or f.stat().st_mtime < inicio:  # solo lo que se bajó ahora, nunca un archivo viejo
+            pendientes.append({"id": aid, "motivo": f"no encontré «{nombre}» recién bajado en Descargas"})
+            continue
+        try:
+            importar_descarga(f.name, aid, destinos[aid])
+            hechos.append(aid)
+        except ValueError as e:
+            pendientes.append({"id": aid, "motivo": str(e)})
+    if hechos and drive.estado()["activo"]:
+        drive.subir(motor.S.drive, sorted({motor.S.musica.name if destinos[a] == "musica" else motor.S.assets.name for a in hechos}), avance=avance)
+    return {"hechos": hechos, "pendientes": pendientes}
 
 
 def descargas_recientes(dias=7):
@@ -430,6 +529,15 @@ def lanzar(accion, pieza=None, extra=None):
                         drive.subir(motor.S.drive, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
                     avance("Prompts de Flow listos: ahora se generan las imágenes (pestaña Faltantes)")
+                if accion == "generar_flow":  # la música (y sus prompts si faltan) y las imágenes, en Flow con Chrome
+                    r = generar_en_flow(avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = r
+                    falta = "; ".join(f"{p['id']}: {p.get('motivo', '')}" for p in r["pendientes"])
+                    avance(r.get("mensaje") or (f"Generados en Flow y guardados: {', '.join(r['hechos']) or 'ninguno'}."
+                                                + (f" Faltan: {falta}" if falta else " Ahora rearma los videos.")))
                 if accion == "rehacer":  # la nota del equipo sobre una imagen -> su prompt de Flow nuevo
                     r = asistente.rehacer_imagen(extra["id"], extra["nota"], avance=avance)
                     motor._prod_cache = None
@@ -867,21 +975,10 @@ class H(BaseHTTPRequestHandler):
                 # un archivo de Descargas pasa a la sesión con el nombre que pide el guion, se sube a Drive
                 # y se dice qué videos lo usan (para re-armar solo esos)
                 b = self._cuerpo()
-                base = carpeta_descargas().resolve()
-                f = (base / str(b.get("nombre", ""))).resolve()
                 aid, destino = str(b.get("id", "")), b.get("destino")
-                if f.parent != base or not f.is_file() or not NOMBRE_OK.match(aid) or destino not in ("musica", "assets"):
-                    raise ValueError("Archivo o nombre no válido")
-                ext = f.suffix.lower()
-                if ext not in (motor.EXT_AUDIO if destino == "musica" else motor.EXT_IMG | motor.EXT_VID):
-                    raise ValueError("Ese archivo no es " + ("de audio" if destino == "musica" else "una imagen ni un clip"))
-                carpeta = motor.S.musica if destino == "musica" else motor.S.assets
-                carpeta.mkdir(parents=True, exist_ok=True)
-                for viejo in carpeta.glob(f"{aid}.*"):  # reemplaza la versión anterior aunque tenga otra extensión
-                    viejo.unlink()
-                shutil.copy2(f, carpeta / f"{aid}{ext}")
+                archivo, carpeta = importar_descarga(str(b.get("nombre", "")), aid, destino)
                 drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
-                self._json({"ok": True, "archivo": f"{aid}{ext}", "codigos": motor.videos_que_usan(aid, destino)})
+                self._json({"ok": True, "archivo": archivo, "codigos": motor.videos_que_usan(aid, destino)})
             elif u.path == "/api/archivar":  # una sesión terminada deja de salir en las listas (se encuentra buscando)
                 b = self._cuerpo()
                 sesion = b.get("sesion")

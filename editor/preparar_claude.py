@@ -19,7 +19,7 @@ CONTEXTO = [*sorted((TRABAJOS / "PÁGINA WEB - SUPLEVET" / "_context").glob("*.m
             TRABAJOS / "GUIONES - SUPLEVET" / "01_Guia_de_Hooks_Suplevet.md",
             TRABAJOS / "GUIONES - SUPLEVET" / "02_Guiones_B2B_Veterinarios_6x5.md",
             motor.RAIZ / "GUIA_SONIDOS.md"]
-USAR = ["suplevet-guionista-modular", "suplevet-director"]
+USAR = ["suplevet-guionista-modular", "suplevet-director", "suplevet-flow-chrome"]
 
 CLAUDE_MD = """# Claude dentro de la sala de edición
 
