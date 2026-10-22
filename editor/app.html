@@ -469,14 +469,42 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .conexion details summary::before { content: "▸ "; } .conexion details[open] summary::before { content: "▾ "; }
 .conexion ol { margin: 8px 0 4px; padding-left: 20px; font-size: 12.5px; display: grid; gap: 4px; }
 .conexion .marca { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
-/* Menú de la cuenta: se abre desde tu foto arriba a la derecha; cada opción es su propia página de configuración */
-.menu-cuenta { position: absolute; top: calc(100% + 6px); right: 16px; z-index: 20; width: 290px; display: grid; gap: 2px; padding: 8px;
-  border-radius: 14px; border: 1px solid var(--line2); background: var(--flotante); box-shadow: 0 24px 60px rgba(0,0,0,.35); animation: pn-entra .16s ease-out; }
+/* Cabecera en tres bloques: marca · sesión · acciones. Se acomoda sola al ancho de la ventana */
+#avisoVersion { order: 4; }
+.cab-sesion { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.cab-sesion label { font-size: 12px; flex: none; }
+.cab-sesion #semana { flex: 0 1 280px; min-width: 120px; text-overflow: ellipsis; }
+.cab-sesion #formato { flex: none; }
+.cab-acciones { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.marca-app h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.marca-app { flex: 0 1 auto; max-width: 34%; }
+.txt-corto { display: none; }
+@media (max-width: 1400px) { .marca-app #prefijo { display: none; } }
+@media (max-width: 1440px) { .txt-largo { display: none; } .txt-corto { display: inline; } }
+@media (max-width: 1050px) { #cuentaChip .cta-chip { padding: 3px; } #cuentaChip .cta-chip span { display: none; } }
+@media (max-width: 1180px) {  /* dos filas: marca y acciones arriba, la sesión abajo a todo lo ancho */
+  .marca-app { max-width: none; }
+  .cab-sesion { order: 3; flex-basis: 100%; }
+  .cab-sesion #semana { flex: 1 1 auto; }
+}
+@media (max-width: 560px) {  /* en el celular: sin la marca y sin el botón de teleprompter (está en el menú de la cuenta) */
+  .marca-app, .cab-acciones > a[href="/teleprompter"] { display: none; }
+  .cab-acciones { flex: 1 1 auto; justify-content: flex-end; gap: 6px; }
+  .cab-acciones .btn:not(.icono) { padding: 7px 10px; }
+}
+/* Menú de la cuenta: cuelga de tu cuenta (arriba a la derecha); cada opción es su propia página de configuración */
+.cuenta-ancla { position: relative; display: inline-flex; }
+.menu-cuenta { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; width: 290px; max-width: calc(100vw - 24px); display: grid; gap: 2px; padding: 8px;
+  border-radius: 14px; border: 1px solid var(--line2); background: var(--surface); box-shadow: 0 24px 60px rgba(0,0,0,.35); animation: pn-entra .16s ease-out; }
+.menu-cuenta::before { content: ""; position: absolute; top: -6px; right: 22px; width: 10px; height: 10px; transform: rotate(45deg);
+  background: var(--surface); border-left: 1px solid var(--line2); border-top: 1px solid var(--line2); }  /* piquito hacia tu cuenta */
+.menu-cuenta hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; width: auto; }
+#cuentaChip .cta-chip[aria-expanded="true"] { border-color: var(--accent); box-shadow: var(--glow); }
 .menu-cuenta .mc-yo { display: flex; gap: 10px; align-items: center; padding: 6px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); min-width: 0; }
 .menu-cuenta .mc-yo b, .menu-cuenta .mc-yo small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-cuenta .mc-yo small { color: var(--muted); font-size: 11.5px; }
-.menu-cuenta button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 9px; background: none; color: var(--ink); font: 600 13px var(--f); text-align: left; cursor: pointer; }
-.menu-cuenta button:hover, .menu-cuenta button:focus-visible { background: var(--surface2); }
+.menu-cuenta button, .menu-cuenta a { text-decoration: none; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 9px; background: none; color: var(--ink); font: 600 13px var(--f); text-align: left; cursor: pointer; }
+.menu-cuenta button:hover, .menu-cuenta button:focus-visible, .menu-cuenta a:hover, .menu-cuenta a:focus-visible { background: var(--surface2); }
 .menu-cuenta button .pill, .menu-cuenta button .punto-estado { margin-left: auto; }
 .menu-cuenta button[aria-current="true"] { box-shadow: inset 3px 0 0 var(--accent); background: var(--surface2); }
 @media (max-width: 860px) { .conf { grid-template-columns: 1fr; } .conf-menu { position: static; grid-auto-flow: column; overflow-x: auto; } .conf-tit { display: none; } .conf-menu a { white-space: nowrap; } }
@@ -665,20 +693,29 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 /* Estilo de edición: dos opciones con interruptor, una al lado de la otra */
 .es-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 12px; }
 .es-cab h2 { margin: 0; } .es-cab p { margin: 0; font-size: 12.5px; }
-.es-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; align-items: start; }
-.es-opcion { display: grid; gap: 12px; align-content: start; padding: 12px 14px; border: 1px solid var(--line);
-  border-radius: 12px; background: var(--bg2); transition: border-color .18s, background .18s; }
-.es-fila { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; cursor: pointer; }
-.es-ajustes { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.es-grupos { display: grid; gap: 22px; max-width: 880px; }
+.es-grupo > header { all: unset; display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px 2px; }
+.es-grupo > header h3 { margin: 0; font: 700 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent2); }
+.es-grupo > header span { font-size: 12px; color: var(--muted); }
+.es-lista { border: 1px solid var(--line); border-radius: 14px; background: var(--tarjeta); overflow: hidden; }
+.es-opcion { display: grid; gap: 0; min-width: 0; padding: 14px 16px; border-top: 1px solid var(--line); transition: background .15s; }
+.es-opcion:first-child { border-top: 0; }
+.es-fila { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 14px; cursor: pointer; }
+.es-ajustes { display: grid; gap: 10px; margin: 12px 0 2px 54px; padding: 12px 14px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); }
 .es-ajustes[hidden] { display: none; }
-.es-ajuste { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 12px; color: var(--muted); }
-.es-ajuste .ds-seg button { padding: 5px 10px; font-size: 12px; min-height: 30px; }
-.es-opcion { min-width: 0; }
+.es-ajuste { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.es-ajuste > :last-child { justify-self: start; }
 .es-ajuste .ds-seg { flex-wrap: wrap; max-width: 100%; width: auto; }  /* con muchas opciones, los botones bajan de línea */
-.es-ajuste select { max-width: 200px; }
-.es-opcion:hover { border-color: var(--line2); }
-.es-opcion:has(.interruptor:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--bg2)); }
-.es-opcion:has(.interruptor:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.es-ajuste .ds-seg button { padding: 5px 11px; font-size: 12px; min-height: 30px; }
+.es-ajuste select { max-width: 240px; }
+.es-opcion:hover { background: color-mix(in srgb, var(--accent) 3%, transparent); }
+.es-opcion:has(.interruptor:checked) .es-ico { background: var(--accent); color: #fff; }
+.es-opcion:has(.interruptor:checked) .es-ico rect { opacity: .5; }
+@media (max-width: 640px) { .es-ajustes { margin-left: 0; } .es-ajuste { grid-template-columns: 1fr; } }
+/* Plantillas: dos páginas, «Estilo de edición» y «Subtítulos» */
+.plant-vistas { margin-bottom: 14px; }
+.plant-vistas button { padding: 7px 16px; font-size: 13px; }
+.es-opcion:has(.interruptor:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
 .es-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
 .es-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .es-ico rect { fill: currentColor; stroke: none; opacity: .35; } .es-ico rect + rect { fill: none; stroke: currentColor; opacity: 1; }
@@ -750,9 +787,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
   .visor { max-width: 300px; margin: 0 auto; }
   .grid-portadas { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
   .telefono { margin: 8px auto 0; }
-  header { position: static; }
-  header .fila { width: 100%; }
-  header .fila select { flex: 1; }
+  header { position: relative; }  /* no se pega arriba, pero su menú sigue por encima de la página */
   #carpeta { display: none; }
   nav { top: 0; }
 }
@@ -762,7 +797,6 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 :root[data-tema="claro"] dialog::backdrop { background: rgba(15,25,45,.45); }
 :root[data-tema="claro"] .grupo-cab { background: linear-gradient(90deg, rgba(37,99,235,.10), #ffffff 45%); }
 :root[data-tema="claro"] .caja, :root[data-tema="claro"] .tarjeta { box-shadow: 0 1px 2px rgba(15,35,80,.05); }
-#tema { min-width: 38px; }
 /* Sesión en 16:9 (web, YouTube, correos): las vistas del video se vuelven horizontales y más anchas */
 body.horizontal .tarjeta .img, body.horizontal .vacia, body.horizontal .dlg-cuerpo video, body.horizontal .visor,
 body.horizontal .ev-visor, body.horizontal .dia .mini div, body.horizontal #porVista { aspect-ratio: 16/9; }
@@ -783,27 +817,33 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 <header id="cab">
   <div class="marca-app"><div class="logo-app" aria-hidden="true">E</div>
     <div style="min-width:0"><h1>SALA DE EDICIÓN <span class="muted" id="prefijo"></span></h1></div></div>
-  <div class="fila">
-    <label class="muted" for="semana" style="font-size:12px">Sesión</label>
+  <div class="cab-sesion">
+    <label class="muted" for="semana">Sesión</label>
     <select id="semana"></select>
     <select id="formato" title="Formato de los videos de esta sesión" aria-label="Formato de los videos de esta sesión">
       <option value="vertical">Vertical 9:16</option><option value="horizontal">Horizontal 16:9</option></select>
-    <button class="btn sec" id="tema" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro"></button>
-    <a class="btn sec" href="/teleprompter" target="_blank">Teleprompter</a>
-    <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir todo</button>
-    <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar todos los videos</button>
+  </div>
+  <div class="cab-acciones">
+    <a class="btn sec" href="/teleprompter" target="_blank" title="Abrir el teleprompter" aria-label="Teleprompter"><span aria-hidden="true">📜</span><span class="txt-largo"> Teleprompter</span></a>
+    <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir<span class="txt-largo"> todo</span></button>
+    <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todo</span></button>
     <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
     <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
-    <span id="cuentaChip"></span>
-  </div>
-  <div id="menuCuenta" class="menu-cuenta" role="menu" aria-label="Tu cuenta y configuración" hidden>
-    <div class="mc-yo" id="mcYo"></div>
-    <button role="menuitem" data-conf="confCuenta">👤 Cuenta y dispositivos</button>
-    <button role="menuitem" data-conf="confConexiones">🔌 Conexiones <span class="pill" id="mcNCon"></span></button>
-    <button role="menuitem" data-conf="confDrive">☁ Google Drive <span class="punto-estado" id="mcPDrive"></span></button>
-    <button role="menuitem" data-conf="confTablet">📱 Teleprompter en la tablet <span class="punto-estado" id="mcPRed"></span></button>
-    <button role="menuitem" data-conf="confAct">⟳ Actualizaciones <span class="punto-estado" id="mcPAct"></span></button>
-    <button role="menuitem" data-conf="confNotas">✎ Notas para Claude</button>
+    <span class="cuenta-ancla">
+      <span id="cuentaChip"></span>
+      <div id="menuCuenta" class="menu-cuenta" role="menu" aria-label="Tu cuenta y configuración" hidden>
+        <div class="mc-yo" id="mcYo"></div>
+        <button role="menuitem" data-conf="confCuenta">👤 Cuenta y dispositivos</button>
+        <button role="menuitem" data-conf="confConexiones">🔌 Conexiones <span class="pill" id="mcNCon"></span></button>
+        <button role="menuitem" data-conf="confDrive">☁ Google Drive <span class="punto-estado" id="mcPDrive"></span></button>
+        <button role="menuitem" data-conf="confTablet">📱 Teleprompter en la tablet <span class="punto-estado" id="mcPRed"></span></button>
+        <button role="menuitem" data-conf="confAct">⟳ Actualizaciones <span class="punto-estado" id="mcPAct"></span></button>
+        <button role="menuitem" data-conf="confNotas">✎ Notas para Claude</button>
+        <hr>
+        <a role="menuitem" href="/teleprompter" target="_blank">📜 Abrir el teleprompter</a>
+        <button role="menuitem" id="tema" title="Cambiar entre modo claro y oscuro"></button>
+      </div>
+    </span>
   </div>
   <div id="avisoVersion" hidden>
     <span><b>Hay una versión nueva de la sala: <span id="vNueva"></span></b> <span class="muted" id="vActual"></span></span>
@@ -1107,8 +1147,12 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   </section>
 
   <section data-panel="plantillas" hidden>
-    <div class="caja" style="margin-bottom:14px" id="cajaEstiloEd"></div>
-    <div class="plant-layout">
+    <div class="segmento plant-vistas" role="tablist" aria-label="Qué ver en Plantillas">
+      <button type="button" role="tab" data-pv="estilo" aria-pressed="true">🎬 Estilo de edición</button>
+      <button type="button" role="tab" data-pv="subs" aria-pressed="false">Aa Subtítulos</button>
+    </div>
+    <div class="caja" id="cajaEstiloEd" data-pv-panel="estilo"></div>
+    <div class="plant-layout" data-pv-panel="subs" hidden>
       <div class="caja">
         <div class="fila" style="justify-content:space-between;margin-bottom:8px">
           <div><h2 style="margin:0">Plantillas de subtítulos</h2>
@@ -2558,7 +2602,8 @@ document.addEventListener("click", e => {
   if (tab) {
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
-    if (tab.dataset.tab === "plantillas") { pintarPlantillas(); pintarEstiloEdicion(); }
+    if (tab.dataset.tab === "plantillas") verPlantillas(vistaPlant);
+    else clearInterval(plantTimer);
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
     if (tab.dataset.tab === "sonidos") { if (dsEnVentana() && !$("dlgSonido").open) dsAlPanel(); scrollTo(0, 0); pintarSonidos(); pintarNivelSonidos(); requestAnimationFrame(ajustarAltoSonidos); }
     if (tab.dataset.tab === "guion") pintarGuion();
@@ -2602,6 +2647,8 @@ async function rehacerImagen(id) {
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-plant]");
+  if (b && b.dataset.plant !== plantSel && plantSucia()
+    && !confirm(`Tienes cambios sin guardar en «${plantEdit.nombre || plantSel}». ¿Cambiar de plantilla y perderlos?`)) return;
   if (b) elegirPlantilla(b.dataset.plant);
 });
 document.addEventListener("keydown", e => {
@@ -2757,13 +2804,16 @@ $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMues
 // como predeterminada y los cambios sin guardar se perdían: el cuadro volvía a su lugar)
 $("plantPredet").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit, true), "Plantilla guardada y en uso en los videos."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
-  const nombre = prompt("Nombre de la nueva plantilla:", (E.plantillas[plantSel].nombre || plantSel) + " (mía)");
+  leerFormPlantilla();
+  const nombre = prompt("Nombre de la nueva plantilla:", (plantEdit.nombre || plantSel) + " (mía)");
   if (!nombre) return;
-  const id = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
-  try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(E.plantillas[plantSel])), nombre, descripcion: "Plantilla propia" }); avisar("Plantilla creada: edítala a la derecha.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
+  const base = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
+  let id = base;
+  for (let n = 2; E.plantillas[id]; n++) id = `${base}_${n}`;  // antes, con un nombre repetido se pisaba la otra plantilla
+  try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(plantEdit)), nombre, descripcion: "Plantilla propia" }); avisar(`Plantilla «${nombre}» creada: es la que estás editando ahora.`, "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("plantGuardar").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit), "Plantilla guardada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
-$("plantBorrar").onclick = async () => { if (!confirm(E.fabrica.includes(plantSel) ? "¿Volver esta plantilla a como venía de fábrica?" : "¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); if (!E.fabrica.includes(plantSel)) plantSel = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantBorrar").onclick = async () => { if (!confirm(E.fabrica.includes(plantSel) ? "¿Volver esta plantilla a como venía de fábrica?" : "¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); if (!E.fabrica.includes(plantSel)) plantSel = null; plantEdit = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("subirFuente").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}`, f, true); avisar(`Fuente ${f.name} agregada.`, "ok"); await cargar(); pintarPlantillas(); }
@@ -2918,7 +2968,7 @@ document.addEventListener("keydown", e => {
   if ($("menuCuenta").hidden) return;
   if (e.key === "Escape") { cerrarMenuCuenta(); $("cuentaChip").querySelector("button")?.focus(); }
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    const bs = [...$("menuCuenta").querySelectorAll("[data-conf]")], i = bs.indexOf(document.activeElement);
+    const bs = [...$("menuCuenta").querySelectorAll("[role=menuitem]")], i = bs.indexOf(document.activeElement);
     bs[(i + (e.key === "ArrowDown" ? 1 : -1) + bs.length) % bs.length].focus(); e.preventDefault();
   }
 });
@@ -5882,7 +5932,7 @@ function pintarPlantillas() {
   $("plantFuente").innerHTML = $("plantFuente2").innerHTML = E.fuentes.map(f => `<option value="${esc(f.archivo)}">${esc(f.nombre)}${f.propia ? " (propia)" : ""}</option>`).join("");
   $("plantElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("") || `<option value="">Sube una imagen primero</option>`;
   $("plantLienzo").style.backgroundImage = fondo ? `url('${fondo}')` : "";
-  elegirPlantilla(plantSel);
+  elegirPlantilla(plantSel, true);
 }
 // ---------- Estilo de edición (como edita el equipo): zoom alternado y fundido de imágenes ----------
 function pintarEstiloEdicion() {
@@ -5901,38 +5951,43 @@ function pintarEstiloEdicion() {
         <input type="checkbox" role="switch" class="interruptor" id="${id}" ${on ? "checked" : ""}></label>
       ${ajustes ? `<div class="es-ajustes" ${on ? "" : "hidden"}>${ajustes}</div>` : ""}</div>`;
   const fila = (nombre, control) => `<div class="es-ajuste"><span>${nombre}</span>${control}</div>`;
+  const grupo = (titulo, sub, items) => `<section class="es-grupo"><header><h3>${titulo}</h3><span>${sub}</span></header><div class="es-lista">${items.join("")}</div></section>`;
   caja.innerHTML = `<div class="es-cab"><h2>Estilo de edición</h2>
-      <p class="muted">Retoques que la sala pone sola en todos los videos, como edita el equipo en CapCut. Donde pongas un zoom a mano, manda el tuyo.</p></div>
-    <div class="es-opciones">
-      ${opcion("esZoom", est.zoom_alterno, "Zoom alternado", "Movimiento de cámara en las frases del cuerpo, para que no se sienta quieto.",
-        `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5"/></svg>`,
-        fila("Tipo", seg("zoom_tipo", est.zoom_tipo, [["punch", "Salto"], ["in", "Acercar"], ["out", "Alejar"], ["mezcla", "Mezcla"]]))
-        + fila("Intensidad", fuerza("zoom_fuerza", est.zoom_fuerza, [[.08, "Suave"], [.14, "Media"], [.22, "Fuerte"]]))
-        + fila("Cada cuánto", seg("zoom_cada", est.zoom_cada, [[2, "Frase sí, frase no"], [1, "Todas las frases"]])))}
-      ${opcion("esHook", est.zoom_hook, "Zoom en el hook", "Se acerca despacio durante todo el hook, para enganchar en los primeros segundos.",
-        `<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></svg>`,
-        fila("Intensidad", fuerza("zoom_hook_fuerza", est.zoom_hook_fuerza, [[.06, "Suave"], [.1, "Media"], [.16, "Fuerte"]])))}
-      ${opcion("esFundido", fundidoOn, "Fundido suave", "Las imágenes y los clips de Flow entran y salen con un fundido. Apagado, aparecen de golpe.",
-        `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2"/></svg>`,
-        fila("Largo", fuerza("fundido", fundidoOn ? est.fundido : .3, [[.2, "Rápido"], [.3, "Normal"], [.6, "Lento"]])))}
-      ${opcion("esCara", est.seguir_cara !== false, "Seguir la cara", "El zoom se centra en la cara aunque te muevas o te salgas un poco del centro.",
-        `<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="4.5"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>`)}
-      ${opcion("esVoz", vozOn, "Voz limpia", "Quita el ruido de fondo (aire, calle, eco), suaviza las «s» fuertes y deja la voz pareja.",
-        `<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
-        fila("Nivel", seg("limpieza_voz", vozOn ? est.limpieza_voz : "suave", [["suave", "Suave"], ["media", "Media"], ["fuerte", "Fuerte"]])))}
-      ${opcion("esLut", !!est.lut, "Color (LUT)", "Le da a lo grabado el color de un LUT (.cube), como un filtro de CapCut. Las imágenes de Flow no se tocan.",
-        `<svg viewBox="0 0 24 24"><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>`,
-        fila("LUT", `<span class="fila" style="gap:6px"><select id="esLutSel">${(E.luts || []).map(n => `<option ${n === est.lut ? "selected" : ""}>${esc(n)}</option>`).join("")
-          || `<option value="">Sube un LUT primero</option>`}</select>
-          <label class="btn sec peq" style="cursor:pointer">Subir LUT<input type="file" id="esLutSubir" accept=".cube,.3dl" hidden></label></span>`)
-        + fila("Intensidad", fuerza("lut_fuerza", est.lut_fuerza ?? 1, [[.3, "Suave"], [.6, "Media"], [1, "Completa"]])))}
-      ${opcion("esEfecto", efectoOn, "Efecto de imagen", "Un acabado para todo el video: bordes oscuros (viñeta) o grano de película.",
-        `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15l3-4 3 3 2-2 3 3"/></svg>`,
-        fila("Cuál", seg("efecto", efectoOn ? est.efecto : "vineta", [["vineta", "Viñeta"], ["grano", "Grano"], ["vineta_grano", "Las dos"]])))}
-      ${opcion("esTrans", transOn, "Transiciones", "Un golpe visual en los cortes, para que el video tenga ritmo. Va junto con el sonido del corte.",
-        `<svg viewBox="0 0 24 24"><path d="M4 6h7v12H4zM13 6h7v12h-7z"/><path d="M11 12h2"/></svg>`,
-        fila("Tipo", seg("transicion", transOn ? est.transicion : "flash", [["flash", "Destello"], ["zoom", "Zoom"], ["sacudida", "Sacudida"], ["glitch", "Glitch"], ["desenfoque", "Desenfoque"]]))
-        + fila("Dónde", seg("transicion_donde", est.transicion_donde || "cta", [["cta", "Al entrar el CTA"], ["piezas", "Hook → cuerpo → CTA"], ["frases", "También entre frases"]])))}
+      <p class="muted">Retoques que la sala pone sola en todos los videos al armarlos, como en CapCut. Donde pongas un zoom a mano, manda el tuyo.</p></div>
+    <div class="es-grupos">
+      ${grupo("Cámara", "Cómo se mueve el encuadre", [
+        opcion("esZoom", est.zoom_alterno, "Zoom alternado", "Movimiento de cámara en las frases del cuerpo, para que no se sienta quieto.",
+          `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5"/></svg>`,
+          fila("Tipo", seg("zoom_tipo", est.zoom_tipo, [["punch", "Salto"], ["in", "Acercar"], ["out", "Alejar"], ["mezcla", "Mezcla"]]))
+          + fila("Intensidad", fuerza("zoom_fuerza", est.zoom_fuerza, [[.08, "Suave"], [.14, "Media"], [.22, "Fuerte"]]))
+          + fila("Cada cuánto", seg("zoom_cada", est.zoom_cada, [[2, "Frase sí, frase no"], [1, "Todas las frases"]]))),
+        opcion("esHook", est.zoom_hook, "Zoom en el hook", "Se acerca despacio durante todo el hook, para enganchar en los primeros segundos.",
+          `<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></svg>`,
+          fila("Intensidad", fuerza("zoom_hook_fuerza", est.zoom_hook_fuerza, [[.06, "Suave"], [.1, "Media"], [.16, "Fuerte"]]))),
+        opcion("esCara", est.seguir_cara !== false, "Seguir la cara", "Los zooms se centran en la cara aunque te muevas o te salgas un poco del centro.",
+          `<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="4.5"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>`)])}
+      ${grupo("Imagen", "El color y el acabado de lo grabado", [
+        opcion("esLut", !!est.lut, "Color (LUT)", "Le da a lo grabado el color de un LUT (.cube o .3dl), como un filtro de CapCut. Las imágenes de Flow no se tocan.",
+          `<svg viewBox="0 0 24 24"><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>`,
+          fila("LUT", `<span class="fila" style="gap:6px"><select id="esLutSel" aria-label="LUT">${(E.luts || []).map(n => `<option ${n === est.lut ? "selected" : ""}>${esc(n)}</option>`).join("")
+            || `<option value="">Sube un LUT primero</option>`}</select>
+            <label class="btn sec peq" style="cursor:pointer">Subir LUT<input type="file" id="esLutSubir" accept=".cube,.3dl" hidden></label></span>`)
+          + fila("Intensidad", fuerza("lut_fuerza", est.lut_fuerza ?? 1, [[.3, "Suave"], [.6, "Media"], [1, "Completa"]]))),
+        opcion("esEfecto", efectoOn, "Efecto de imagen", "Un acabado para todo el video: bordes oscuros (viñeta) o grano de película.",
+          `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15l3-4 3 3 2-2 3 3"/></svg>`,
+          fila("Cuál", seg("efecto", efectoOn ? est.efecto : "vineta", [["vineta", "Viñeta"], ["grano", "Grano"], ["vineta_grano", "Las dos"]]))),
+        opcion("esFundido", fundidoOn, "Fundido de imágenes", "Las imágenes y los clips de Flow entran y salen con un fundido. Apagado, aparecen de golpe.",
+          `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2"/></svg>`,
+          fila("Largo", fuerza("fundido", fundidoOn ? est.fundido : .3, [[.2, "Rápido"], [.3, "Normal"], [.6, "Lento"]])))])}
+      ${grupo("Cortes", "Qué pasa cuando cambia de frase o de pieza", [
+        opcion("esTrans", transOn, "Transiciones", "Un golpe visual en los cortes, para que el video tenga ritmo. Va junto con el sonido del corte.",
+          `<svg viewBox="0 0 24 24"><path d="M4 6h7v12H4zM13 6h7v12h-7z"/><path d="M11 12h2"/></svg>`,
+          fila("Tipo", seg("transicion", transOn ? est.transicion : "flash", [["flash", "Destello"], ["zoom", "Zoom"], ["sacudida", "Sacudida"], ["glitch", "Glitch"], ["desenfoque", "Desenfoque"]]))
+          + fila("Dónde", seg("transicion_donde", est.transicion_donde || "cta", [["cta", "Al entrar el CTA"], ["piezas", "Hook → cuerpo → CTA"], ["frases", "También entre frases"]])))])}
+      ${grupo("Sonido", "Cómo se oye la voz", [
+        opcion("esVoz", vozOn, "Voz limpia", "Quita el ruido de fondo (aire, calle, eco), suaviza las «s» fuertes y deja la voz pareja.",
+          `<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
+          fila("Nivel", seg("limpieza_voz", vozOn ? est.limpieza_voz : "suave", [["suave", "Suave"], ["media", "Media"], ["fuerte", "Fuerte"]])))])}
     </div>`;
   const guardar = async cambio => {
     try {
@@ -5964,8 +6019,10 @@ function pintarEstiloEdicion() {
 }
 const DEFECTO_PLANT = { salto_auto: "false", frase_completa: "false", "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", altura_desde_abajo: "560",
   x_centro: "540", ancho_max: "960", espaciado: "0", desenfoque: "0", opacidad_sombra: "50", color_sombra: "#000000" };
-function elegirPlantilla(id) {
-  plantSel = id; plantEdit = JSON.parse(JSON.stringify(E.plantillas[id]));
+function elegirPlantilla(id, conservar) {
+  const seguir = conservar && plantEdit && plantSel === id;  // repintar sin perder lo que se está editando
+  plantSel = id;
+  if (!seguir) plantEdit = JSON.parse(JSON.stringify(E.plantillas[id]));
   plantEdit.elementos = plantEdit.elementos || [];
   document.querySelectorAll(".plant").forEach(b => b.setAttribute("aria-pressed", b.dataset.plant === id));
   const deFabrica = E.fabrica.includes(id), editada = deFabrica && E.propias.includes(id);
@@ -5980,8 +6037,26 @@ function elegirPlantilla(id) {
   $("plantBorrar").hidden = deFabrica && !editada;
   $("plantBorrar").textContent = deFabrica ? "Restaurar original" : "Borrar";
   $("plantAviso").textContent = deFabrica ? "Plantilla de fábrica: tus cambios se guardan encima y con «Restaurar original» vuelve a como venía." : "";
+  if (!seguir) { leerFormPlantilla(); plantFirma = JSON.stringify(plantEdit); }
   pintarElementos(); animarMuestra();
 }
+// ¿Hay cambios sin guardar en la plantilla abierta? (se compara con cómo estaba al elegirla)
+let plantFirma = null;
+function plantSucia() { return !!plantEdit && JSON.stringify(plantEdit) !== plantFirma; }
+function marcarPlantSucia() {
+  $("plantTitulo").innerHTML = esc(plantEdit?.nombre || plantSel || "Plantilla") + (plantSucia() ? ' <span class="pill warn">Sin guardar</span>' : "");
+}
+// Plantillas tiene dos páginas: «Estilo de edición» y «Subtítulos»
+let vistaPlant = "estilo";
+try { vistaPlant = localStorage.getItem("sala_plant_vista") === "subs" ? "subs" : "estilo"; } catch (e) {}
+function verPlantillas(v) {
+  vistaPlant = v;
+  try { localStorage.setItem("sala_plant_vista", v); } catch (e) {}
+  document.querySelectorAll("[data-pv]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pv === v));
+  document.querySelectorAll("[data-pv-panel]").forEach(p => p.hidden = p.dataset.pvPanel !== v);
+  if (v === "subs") pintarPlantillas(); else { clearInterval(plantTimer); pintarEstiloEdicion(); }
+}
+document.querySelectorAll("[data-pv]").forEach(b => b.onclick = () => verPlantillas(b.dataset.pv));
 function leerFormPlantilla() {
   if (!plantEdit) return;
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
@@ -6008,6 +6083,7 @@ function colocarCaja() {
 }
 function animarMuestra() {
   clearInterval(plantTimer);
+  marcarPlantSucia();
   let i = 0;
   const pintar = () => {
     colocarCaja();
@@ -6018,6 +6094,7 @@ function animarMuestra() {
   pintar(); plantTimer = setInterval(pintar, 700);
 }
 function pintarElementos() {
+  marcarPlantSucia();
   const k = escalaLienzo(), url = a => (E.elementos || []).find(e => e.archivo === a)?.url || "";
   $("plantElems").innerHTML = plantEdit.elementos.map((e, i) => `<div class="elem" data-elem="${i}" style="left:${(e.x || 0) * k}px;top:${(e.y || 0) * k}px;width:${(e.ancho || 200) * k}px;opacity:${(e.opacidad ?? 100) / 100}">
       <img src="${url(e.archivo)}" alt=""><span class="asa-elem" data-asa-elem="${i}"></span></div>`).join("");
@@ -6046,7 +6123,7 @@ $("plantLienzo").addEventListener("pointermove", e => {
   if (a.tipo === "elem") { const el = plantEdit.elementos[a.i]; el.x = Math.round(a.ex + dx); el.y = Math.round(a.ey + dy); pintarElementos(); }
   if (a.tipo === "tamElem") { plantEdit.elementos[a.i].ancho = Math.max(20, Math.round(a.a0 + dx)); pintarElementos(); }
 });
-$("plantLienzo").addEventListener("pointerup", () => { if (arrLienzo) { arrLienzo = null; animarMuestra(); } });
+["pointerup", "pointercancel"].forEach(ev => $("plantLienzo").addEventListener(ev, () => { if (arrLienzo) { arrLienzo = null; animarMuestra(); } }));
 $("plantElemAgregar").onclick = () => {
   const archivo = $("plantElemSel").value; if (!archivo) return;
   plantEdit.elementos.push({ archivo, x: 760, y: 80, ancho: 260, opacidad: 100 }); pintarElementos();
@@ -6069,7 +6146,7 @@ async function guardarPlantilla(id, datos, predeterminada) {
   const r = await post("/api/plantilla", { id, datos, predeterminada });
   // la sala se recarga por detrás (tarda unos segundos): la pregunta de rearmar sale al instante
   plantSel = id;
-  cargar().then(() => { plantSel = id; pintarPlantillas(); }).catch(e => avisar("Error: " + e.message, "err"));
+  cargar().then(() => { plantSel = id; plantEdit = null; pintarPlantillas(); }).catch(e => avisar("Error: " + e.message, "err"));
   return r;
 }
 // después de guardar: los videos que usan la plantilla se rearman para verla en el video (no cambian solos)
@@ -6206,7 +6283,7 @@ const latir = () => fetch("/api/latido?ping").catch(() => {});
 latir(); setInterval(latir, 5000);
 addEventListener("pagehide", () => navigator.sendBeacon("/api/adios"));
 try { const v = localStorage.getItem("sala_vista"); if (v) { vistaVideos = v; document.querySelectorAll("[data-vista]").forEach(b => b.setAttribute("aria-pressed", b.dataset.vista === v)); } } catch (e) {}
-function pintarTema() { const claro = document.documentElement.dataset.tema === "claro"; $("tema").textContent = claro ? "☾ Oscuro" : "☀ Claro"; }
+function pintarTema() { const claro = document.documentElement.dataset.tema === "claro"; $("tema").textContent = claro ? "☾ Pasar a modo oscuro" : "☀ Pasar a modo claro"; }
 $("tema").onclick = () => {
   const t = document.documentElement.dataset.tema === "claro" ? "oscuro" : "claro";
   document.documentElement.dataset.tema = t; pintarTema();

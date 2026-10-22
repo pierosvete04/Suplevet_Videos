@@ -1,3 +1,9 @@
+Versión 1.36.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Cabecera nueva**: marca, sesión y botones en una sola fila que se acomoda al ancho de la ventana (en laptop pasa a dos filas ordenadas; en pantallas chicas los botones se acortan). Nada se sale de la pantalla.
+- El menú de la cuenta **cuelga de tu cuenta** (con un piquito que la señala), ya no flota en la esquina, y es sólido: ya no se ve la página de atrás. Ahí también están «Abrir el teleprompter» y el cambio a modo claro u oscuro.
+- **Plantillas** tiene dos páginas: «Estilo de edición» y «Subtítulos». El estilo de edición ahora es una lista vertical ordenada en Cámara, Imagen, Cortes y Sonido, con los ajustes de cada opción debajo de ella.
+- Arreglos en Plantillas: los cambios sin guardar de una plantilla ya no se borran al cambiar de pestaña o subir una fuente; al elegir otra plantilla te pregunta antes de perderlos; el título avisa «Sin guardar»; «Duplicar» copia lo que estás viendo y ya no pisa otra plantilla con el mismo nombre; un arrastre interrumpido en el lienzo ya no se queda pegado; la animación de muestra se para al salir de la página.
+
 Versión 1.36.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Retoques como en CapCut**, en Plantillas → Estilo de edición (se aplican al armar; cada edición B, C… puede tener los suyos):
   - **Voz limpia** con 3 niveles (Suave, Media, Fuerte): quita el ruido de fondo, suaviza las «s» fuertes y deja la voz pareja. Viene prendida en Suave.
