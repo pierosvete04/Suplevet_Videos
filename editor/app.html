@@ -1508,7 +1508,13 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
         <span class="muted" style="font-size:12px">Plantilla y posición. También puedes <b>arrastrar el subtítulo</b> en la vista del editor de abajo.</span></div>
       <div class="fila" style="margin-top:8px">
         <label class="muted" style="display:grid;gap:3px;font-size:12px">Plantilla<select id="vidPlantilla"></select></label>
-        <label class="muted" style="display:grid;gap:3px;font-size:12px;min-width:220px">Altura del subtítulo: <b id="vidAlturaTxt"></b><input type="range" id="vidAltura" min="150" max="1500" step="10"></label>
+        <label class="muted" style="display:grid;gap:3px;font-size:12px;min-width:220px">Altura del subtítulo (cuerpo): <b id="vidAlturaTxt"></b><input type="range" id="vidAltura" min="150" max="1500" step="10"></label>
+        <span style="display:grid;gap:3px;font-size:12px;min-width:220px" class="muted"><span>Hook: <b id="vidAlturaHookTxt"></b>
+          <label class="fila" style="display:inline-flex;gap:4px;margin-left:6px"><input type="checkbox" id="vidHookIgual"> igual que el cuerpo</label></span>
+          <input type="range" id="vidAlturaHook" min="150" max="1500" step="10"></span>
+        <span style="display:grid;gap:3px;font-size:12px;min-width:220px" class="muted"><span>CTA: <b id="vidAlturaCtaTxt"></b>
+          <label class="fila" style="display:inline-flex;gap:4px;margin-left:6px"><input type="checkbox" id="vidCtaIgual"> igual que el cuerpo</label></span>
+          <input type="range" id="vidAlturaCta" min="150" max="1500" step="10"></span>
         <label class="fila muted" style="font-size:12px"><input type="checkbox" id="vidTodoCuerpo"> Igual en todos los videos de <b id="vidCuerpoNom"></b></label>
         <button class="btn sec" id="vidSubsGuardar">Guardar y rearmar</button>
       </div>
@@ -3050,17 +3056,43 @@ function abrirSubsVideo() {
   $("vidPlantilla").innerHTML = `<option value="">La que está en uso (${esc(E.plantillas[E.plantilla]?.nombre || "")})</option>` +
     Object.entries(E.plantillas).map(([id, p]) => `<option value="${id}" ${av.plantilla === id ? "selected" : ""}>${esc(p.nombre || id)}</option>`).join("");
   const pl = E.plantillas[av.plantilla] || E.plantillas[E.plantilla];
-  $("vidAltura").value = (av.ajustes_sub || {}).altura_desde_abajo ?? pl.altura_desde_abajo ?? 560;
-  $("vidAlturaTxt").textContent = `${$("vidAltura").value} px desde abajo`;
+  const aj = av.ajustes_sub || {};
+  $("vidAltura").value = aj.altura_desde_abajo ?? pl.altura_desde_abajo ?? 560;
+  for (const [pz, [rango, igual]] of Object.entries(ALTURA_PARTE)) {
+    const propia = aj["altura_" + pz];
+    $(igual).checked = propia == null;
+    $(rango).value = propia ?? $("vidAltura").value;
+  }
+  pintarAlturas();
   $("vidCuerpoNom").textContent = actual.cuerpo;
   $("vidTodoCuerpo").checked = false;
 }
-$("vidAltura").addEventListener("input", () => { $("vidAlturaTxt").textContent = `${$("vidAltura").value} px desde abajo`; vistaEd(); });
+// El hook y el CTA pueden llevar el subtítulo a otra altura que el cuerpo (solo en este video)
+const ALTURA_PARTE = { hook: ["vidAlturaHook", "vidHookIgual"], cta: ["vidAlturaCta", "vidCtaIgual"] };
+function alturaDe(pz) {
+  const p = ALTURA_PARTE[pz];
+  return Number((p && !$(p[1]).checked ? $(p[0]) : $("vidAltura")).value || 560);
+}
+function pintarAlturas() {
+  $("vidAlturaTxt").textContent = `${$("vidAltura").value} px desde abajo`;
+  for (const [pz, [rango, igual]] of Object.entries(ALTURA_PARTE)) {
+    if ($(igual).checked) $(rango).value = $("vidAltura").value;
+    $(rango).disabled = $(igual).checked;
+    $(rango + "Txt").textContent = `${alturaDe(pz)} px desde abajo`;
+  }
+}
+$("vidAltura").addEventListener("input", () => { pintarAlturas(); vistaEd(); });
+for (const [rango, igual] of Object.values(ALTURA_PARTE)) {
+  $(rango).addEventListener("input", () => { pintarAlturas(); vistaEd(); });
+  $(igual).addEventListener("change", () => { pintarAlturas(); vistaEd(); });
+}
 $("vidPlantilla").addEventListener("change", () => vistaEd());
 $("vidSubsGuardar").onclick = async () => {
   try {
     const todo = $("vidTodoCuerpo").checked, cod = actual.codigo;
-    const r = await post("/api/ajustes_video", { codigo: cod, plantilla: $("vidPlantilla").value, ajustes_sub: { altura_desde_abajo: Number($("vidAltura").value) },
+    const ajustes_sub = { altura_desde_abajo: Number($("vidAltura").value) };
+    for (const [pz, [rango, igual]] of Object.entries(ALTURA_PARTE)) if (!$(igual).checked) ajustes_sub["altura_" + pz] = Number($(rango).value);
+    const r = await post("/api/ajustes_video", { codigo: cod, plantilla: $("vidPlantilla").value, ajustes_sub,
       todo_el_cuerpo: todo, armar: true });
     $("dlg").close();
     if (r.codigos.length === 1) reabrir = cod;
@@ -4917,27 +4949,34 @@ function vistaEd() {
   const l = s.pieza.lineas.find(x => ct >= x.s && ct < x.e + .05) || (arrSub ? s.pieza.lineas[0] : null);
   const pl = plantillaEd();
   const sub = $("evSub");
+  evPzSub = s.pz;
   if (l && pl) { sub.hidden = false; pintarLinea(sub, l.texto.split(" "), -1, new Set(), pl, $("evVisor").clientWidth || 220); colocarSub(); } else sub.hidden = true;
 }
 function plantillaEd() {
   const pls = (E && E.plantillas) || {};
   return pls[$("vidPlantilla").value] || pls[(actual?.ajustes_video || {}).plantilla] || pls[E?.plantilla] || Object.values(pls)[0];
 }
+let evPzSub = "cuerpo";  // la parte que se ve en el editor: el subtítulo va a la altura de esa parte
 function colocarSub() {
-  const sub = $("evSub"), h = Number($("vidAltura").value || 560);
+  const sub = $("evSub"), h = alturaDe(evPzSub);
   sub.style.top = "auto"; sub.style.bottom = (h / 1920 * 100) + "%";
 }
 // Arrastrar el subtítulo para subirlo o bajarlo (se guarda con «Guardar y rearmar» de Subtítulos de este video)
 let arrSub = null;
 $("evSub").addEventListener("pointerdown", e => {
-  arrSub = { y0: e.clientY, h0: Number($("vidAltura").value || 560), alto: $("evVisor").getBoundingClientRect().height };
+  // se mueve la altura de la parte que se ve: en el hook o el CTA, la suya (deja de ser «igual que el cuerpo»)
+  const p = ALTURA_PARTE[evPzSub];
+  if (p && $(p[1]).checked) { $(p[1]).checked = false; pintarAlturas(); }
+  const rango = p ? p[0] : "vidAltura";
+  arrSub = { y0: e.clientY, h0: Number($(rango).value || 560), alto: $("evVisor").getBoundingClientRect().height, rango };
   $("evSub").setPointerCapture(e.pointerId); $("evSub").classList.add("arrastrando"); e.preventDefault();
 });
 $("evSub").addEventListener("pointermove", e => {
   if (!arrSub) return;
   const h = Math.round(Math.max(150, Math.min(1500, arrSub.h0 + (arrSub.y0 - e.clientY) / arrSub.alto * 1920)) / 10) * 10;
-  $("vidAltura").value = h; $("vidAlturaTxt").textContent = `${h} px desde abajo`;
-  $("evPos").hidden = false; $("evPos").textContent = `${h} px desde abajo`;
+  $(arrSub.rango).value = h; pintarAlturas();
+  const parte = { hook: "hook", cta: "CTA" }[evPzSub] || "cuerpo";
+  $("evPos").hidden = false; $("evPos").textContent = `${parte}: ${h} px desde abajo`;
   colocarSub();
 });
 $("evSub").addEventListener("pointerup", () => {

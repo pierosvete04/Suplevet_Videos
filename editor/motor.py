@@ -1388,6 +1388,17 @@ def aplicar_plan(plan):
     return perdidas
 
 
+def fijar_plantilla_sesion(pid):
+    """El guion o el plan pueden fijar «plantilla_sub», y esa gana a la predeterminada. Si el equipo elige otra
+    predeterminada en la sala, se anota en el plan de la sesión; si no, elegirla no cambiaba nada."""
+    global _prod_cache
+    if produccion().get("plantilla_sub") in (None, "", pid):
+        return
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _plan_path().write_text(json.dumps({**plan_director(), "plantilla_sub": pid}, ensure_ascii=False, indent=1), encoding="utf-8")
+    _prod_cache = None
+
+
 # ---------- Revisión del guion contra lo grabado ----------
 
 def revision_guion():
@@ -3098,7 +3109,7 @@ def editado_en(combo):
     # también si se cambió su plantilla de subtítulos o cuál es la predeterminada
     t = max(t, float(plantilla_sub(combo).get("editado") or 0), float(CONFIG.get("estilo_cambio") or 0),
             float(CONFIG.get("cortes_voz_cambio") or 0))
-    if not ajustes_video(combo["codigo"]).get("plantilla"):
+    if id_plantilla_de(combo) == id_plantilla():  # usa la predeterminada: cuenta si se cambió cuál es
         t = max(t, float(CONFIG.get("plantilla_activa_cambio") or 0))
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
 
@@ -3487,12 +3498,19 @@ PLANTILLA_BASE = {"fuente": "Anton-Regular.ttf", "tamano": 80, "mayusculas": Tru
                   "escala_activa": 108, "espaciado": 0, "desenfoque": 0, "x_centro": 540, "ancho_max": 960}
 
 
+def id_plantilla_de(combo=None):
+    """Qué plantilla usa un video: la suya, si no la de su edición (B, C…), si no la predeterminada."""
+    todas = plantillas()
+    if combo:
+        for pid in (ajustes_video(combo["codigo"]).get("plantilla"), ediciones().get(letra_edicion(combo), {}).get("plantilla")):
+            if pid in todas:
+                return pid
+    return id_plantilla()
+
+
 def plantilla_sub(combo=None):
     """Plantilla de subtítulos (fuente, colores, resaltador, posición). Si el video tiene una propia, esa."""
-    todas = plantillas()
-    propia = ajustes_video(combo["codigo"]).get("plantilla") if combo else None
-    de_edicion = ediciones().get(letra_edicion(combo), {}).get("plantilla") if combo else None
-    base = todas.get(propia) or todas.get(de_edicion) or todas[id_plantilla()]
+    base = plantillas()[id_plantilla_de(combo)]
     pl = {**PLANTILLA_BASE, **{k: v for k, v in base.items() if v not in (None, "")},
           **(ajustes_video(combo["codigo"]).get("ajustes_sub", {}) if combo else {})}
     if not float(pl.get("tamano") or 0):
@@ -3586,8 +3604,12 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
     c_marca = color_ass(pl.get("color_resaltado", st.get("color_resaltado", "#4DE1FF")))
     ev = []
 
+    # altura del subtítulo normal por parte: el hook y el CTA pueden tener la suya (ajuste del video); si no, la de siempre
+    alt_base = pl.get("altura_desde_abajo", st["altura_desde_abajo"])
+    alturas = [pl.get("altura_hook"), None, pl.get("altura_cta")]
     todas = []
-    for off, lineas, marcas in segmentos:
+    for k_seg, (off, lineas, marcas) in enumerate(segmentos):
+        altura_seg = float(alturas[k_seg] if k_seg < len(alturas) and alturas[k_seg] not in (None, "") else alt_base)
         if pl.get("frase_completa"):  # la frase entera en pantalla, no de a 2 o 3 palabras
             lineas, mapa_li = _frases(lineas)
             marcas = [{**m, "linea": mapa_li.get((m["linea"], m["indice"]), (m["linea"], m["indice"]))[0],
@@ -3602,7 +3624,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
             elif sub == "resaltado":
                 resaltadas.add((m["linea"], m["indice"]))
         for li, ln in enumerate(lineas):
-            todas.append((off, li, ln, estilo_linea.get(li), solas, resaltadas))
+            todas.append((off, li, ln, estilo_linea.get(li), solas, resaltadas, altura_seg))
 
     # Segunda línea con otra fuente (opcional): la frase se parte en dos renglones; el de abajo usa su propia fuente,
     # tamaño y color. Si la fuente no está, se usa la principal.
@@ -3632,7 +3654,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         mejor = min(range(1, n), key=lambda k: abs(sum(largos[:k]) - sum(largos[k:])))
         return [list(range(mejor)), list(range(mejor, n))]
 
-    def poner_linea(palabras, activa, estilo, ini, fin, cajas, coloreadas, pop):
+    def poner_linea(palabras, activa, estilo, ini, fin, cajas, coloreadas, pop, altura=None):
         tam0 = pl["tamano"] * ESCALA_ESTILO[estilo]
         textos = [limpiar(w.upper() if pl.get("mayusculas", True) else w) for w in palabras]
         filas = partir(textos, tam0) if estilo != "palabra_sola" else [list(range(len(textos)))]
@@ -3656,7 +3678,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         bloque = sum(altos)
         # la altura del subtítulo normal se mueve desde la plantilla (o desde el ajuste del video)
         if estilo == "normal":
-            y_fin = 1920 - pl.get("altura_desde_abajo", st["altura_desde_abajo"])
+            y_fin = 1920 - (alt_base if altura is None else altura)
             y0 = y_fin - bloque
         elif estilo == "arriba":
             y0 = pl.get("altura_desde_arriba", st.get("altura_desde_arriba", 300))
@@ -3690,7 +3712,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
                           f"\\fscx{escala}\\fscy{escala}{anim}}}{t}")
                 x += w + m["esp"]
 
-    for idx, (off, li, ln, estilo, solas, resaltadas) in enumerate(todas):
+    for idx, (off, li, ln, estilo, solas, resaltadas, altura_seg) in enumerate(todas):
         pal = ln["palabras"]
         if not pal:
             continue
@@ -3699,15 +3721,20 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
         fin_linea = off + ln["e"]
         if siguiente is not None and siguiente - fin_linea < 0.4:
             fin_linea = siguiente
-        if estilo is None:  # regla automática: sobre una imagen a pantalla completa el subtítulo va al centro
-            ta0, tb0 = off + ln["s"], fin_linea
-            estilo = "sobre_imagen" if any(ta0 < tb and tb0 > ta for ta, tb in tapas) else "normal"
         claves = {j for j, q in enumerate(pal) if es_clave(q["w"]) or (li, j) in resaltadas}
         for i, p in enumerate(pal):
             ini = off + (ln["s"] if i == 0 else p["s"])
             fin = off + pal[i + 1]["s"] if i + 1 < len(pal) else fin_linea
             if fin <= ini:
                 continue
+            # regla automática: sobre una imagen a pantalla completa el subtítulo va al centro, pero solo mientras se ve
+            # la imagen (como en la vista previa). Antes se decidía por la frase entera: con «frase completa» la frase
+            # seguía al centro, encima de la cara, cuando la imagen ya se había ido, y la altura de la plantilla no contaba.
+            if estilo is not None:
+                est = estilo
+            else:
+                medio = (ini + fin) / 2
+                est = "sobre_imagen" if any(ta <= medio < tb for ta, tb in tapas) else "normal"
             if (li, i) in solas:
                 poner_linea([p["w"]], 0, "palabra_sola", ini, fin, {0} if modo else set(), set(), True)
                 continue
@@ -3716,7 +3743,7 @@ def escribir_ass(segmentos, ruta, tapas=(), combo=None):
                 cajas |= claves
             if modo in ("activa", "ambas"):
                 cajas.add(i)
-            poner_linea([q["w"] for q in pal], i, estilo, ini, fin, cajas, claves - cajas, i == 0)
+            poner_linea([q["w"] for q in pal], i, est, ini, fin, cajas, claves - cajas, i == 0, altura_seg)
     ruta.write_text(cabecera_ass(fu.nombre, pl) + "\n".join(ev) + "\n", encoding="utf-8")
 
 
@@ -4508,10 +4535,21 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
 
 # ---------- Armar un video ----------
 
-def armar_uno(combo, n_musica=0, extras=None):
+def n_musica_de(combo):
+    """Qué pista de la rotación le toca a un video: sale de su lugar en la sesión, no del lote que se está armando.
+    Antes era el número dentro del lote: el mismo video salía con otra canción si se armaba solo, con todos o al exportar."""
+    if not CONFIG["musica"]["rotar_pistas"]:
+        return 0
+    codigos = [c["codigo"] for c in combinaciones()]
+    return codigos.index(combo["codigo"]) if combo["codigo"] in codigos else 0
+
+
+def armar_uno(combo, n_musica=None, extras=None):
     """Arma un video. Paso 1: imagen (zoom, imágenes, subtítulos) con la voz. Paso 2: cortes y velocidades.
     Paso 3: música y sonidos sobre el video ya cortado (así la música sigue de corrido y no se acelera).
     extras: carpeta donde dejar además los elementos por separado (sin subtítulos, voz, música, efectos, .srt)."""
+    if n_musica is None:
+        n_musica = n_musica_de(combo)
     for d in (S.salida, S.recetas):
         d.mkdir(parents=True, exist_ok=True)
     trabajo = carpeta_trabajo()
@@ -4809,7 +4847,7 @@ def armar(pieza=None, avance=print, codigos=None):
              and (codigos is None or c["codigo"] in codigos)]
     for n, combo in enumerate(todos):
         avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)})")
-        r = armar_uno(combo, n if CONFIG["musica"]["rotar_pistas"] else 0)
+        r = armar_uno(combo)
         hechos.append(r["codigo"])
     return hechos
 
@@ -5029,7 +5067,7 @@ def revisar_calidad(codigos=None, avance=print):
         # lo que depende de la plantilla o de cambios pendientes se mira siempre (no se guarda)
         extra = []
         pl = plantilla_sub(c)
-        altura = float(ajustes_video(c["codigo"]).get("altura") or pl.get("altura_desde_abajo") or 560)
+        altura = min(float(x) for x in (pl.get("altura_desde_abajo") or 560, pl.get("altura_hook"), pl.get("altura_cta")) if x not in (None, ""))
         if altura < 330:
             extra.append({"nivel": "warn", "txt": f"Subtítulo muy abajo ({altura:.0f} px): lo tapan el texto y los botones de TikTok o Instagram (mínimo ~330 px)"})
         if editado_en(c) > v.stat().st_mtime + 1:

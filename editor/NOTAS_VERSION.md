@@ -1,3 +1,9 @@
+Versión 1.33.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Altura del subtítulo en el hook y el CTA**: en «Subtítulos de este video» ahora hay tres alturas: cuerpo, hook y CTA. El hook y el CTA vienen «igual que el cuerpo»; quita esa casilla (o arrastra el subtítulo en el editor mientras se ve el hook o el CTA) para darles su propia altura. Solo cambia ese video (o los del cuerpo, si marcas «Igual en todos los videos»).
+- Arreglo: en los hooks con imagen a pantalla completa, el subtítulo se quedaba al centro (encima de la cara) toda la frase, aunque la imagen ya se hubiera ido, y cambiar la plantilla no lo movía. Ahora va donde dice la plantilla y solo sube al centro mientras se ve la imagen, igual que en la vista previa.
+- Arreglo: la música que rota entre videos ya no cambia según armes un video solo, todos juntos o al exportar: cada video tiene siempre la misma.
+- Arreglo: al guardar una plantilla, la sala ofrece rearmar también los videos de las ediciones B, C… que la usan; y elegir otra predeterminada ahora gana a la que fija el guion.
+
 Versión 1.33.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Generar en Flow con Chrome**: en Faltantes, «✦ Generar lo que falta». Claude abre tu Chrome (con la extensión de Claude), genera en Google Flow las imágenes y en Flow Music la música que faltan, y las guarda en su cuadro con su nombre. Después solo rearmas los videos.
 - Si el guion no tiene música (por ejemplo, uno armado con lo grabado), Claude primero escribe sus prompts: de 2 a 4 pistas instrumentales según el tono de cada cuerpo, y qué pista usa cada uno.

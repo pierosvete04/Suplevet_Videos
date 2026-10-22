@@ -1030,9 +1030,9 @@ class H(BaseHTTPRequestHandler):
                     motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: datos}})
                 if b.get("predeterminada"):
                     motor.guardar_config({"plantilla_activa": pid, "plantilla_activa_cambio": time.time()})
+                    motor.fijar_plantilla_sesion(pid)
                 # los videos que usan esta plantilla (para ofrecer re-armarlos)
-                usan = [c["codigo"] for c in motor.combinaciones()
-                        if (motor.ajustes_video(c["codigo"]).get("plantilla") or motor.id_plantilla()) == pid]
+                usan = [c["codigo"] for c in motor.combinaciones() if motor.id_plantilla_de(c) == pid]
                 self._json({"ok": True, "codigos": usan})
             elif u.path == "/api/elemento":
                 nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])[-80:]
