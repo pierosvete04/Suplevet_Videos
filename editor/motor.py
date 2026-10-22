@@ -3217,13 +3217,228 @@ ESTILO_DEFECTO = {
     "zoom_hook": False,     # acercamiento lento durante todo el hook
     "zoom_hook_fuerza": 0.10,
     "fundido": 0.12,        # segundos de entrada y salida de imágenes y clips (0.12 = casi de golpe)
+    "limpieza_voz": "suave",  # apagada | suave | media | fuerte (quita ruido de fondo y deja la voz pareja)
+    "seguir_cara": True,    # el zoom se centra en la cara aunque la persona se mueva
+    "lut": "",              # LUT de color (.cube) subido en Estilo de edición; vacío = sin LUT
+    "lut_fuerza": 1.0,      # 0.3 suave · 0.6 media · 1 completa
+    "efecto": "ninguno",    # ninguno | vineta | grano | vineta_grano
+    "transicion": "flash",  # ninguna | flash | zoom | sacudida | glitch | desenfoque
+    "transicion_donde": "cta",  # cta (solo al entrar el CTA) | piezas (hook→cuerpo y cuerpo→CTA) | frases (también entre frases)
 }
+LIMPIEZAS_VOZ = {  # filtros de ffmpeg sobre la voz ya cortada; al final se vuelve a igualar el volumen
+    "suave": "highpass=f=80,afftdn=nr=10:nf=-42:tn=1,deesser=i=0.3",
+    "media": "highpass=f=80,afftdn=nr=14:nf=-38:tn=1,deesser=i=0.4,acompressor=threshold=-20dB:ratio=3:attack=5:release=80",
+    "fuerte": "highpass=f=90,afftdn=nr=24:nf=-32:tn=1,deesser=i=0.5,equalizer=f=3000:t=q:w=1:g=2,"
+              "acompressor=threshold=-22dB:ratio=4:attack=5:release=80",
+}
+EFECTOS_VIDEO = {"vineta": "vignette=angle=PI/5", "grano": "noise=alls=6:allf=t", "vineta_grano": "vignette=angle=PI/5,noise=alls=6:allf=t"}
+TRANSICIONES = ("ninguna", "flash", "zoom", "sacudida", "glitch", "desenfoque")
+DONDE_TRANSICION = ("cta", "piezas", "frases")
 
 
 def estilo_edicion(combo=None):
     """Estilo de edición (Plantillas → Estilo de edición); en una edición B, C…, con lo que cambia esa edición."""
     propio = (ediciones().get(letra_edicion(combo), {}).get("estilo") or {}) if combo else {}
-    return {**ESTILO_DEFECTO, **CONFIG.get("estilo_edicion", {}), **propio}
+    base = dict(ESTILO_DEFECTO)
+    if not CONFIG["sonidos"].get("flash_transicion_cta", True):  # quien apagó el destello del CTA no lo ve volver
+        base["transicion"] = "ninguna"
+    return {**base, **CONFIG.get("estilo_edicion", {}), **propio}
+
+
+# ---------- LUT de color ----------
+LUTS = DATOS / "luts"  # los .cube que sube el equipo (Estilo de edición → Color)
+EXT_LUT = {".cube", ".3dl"}
+
+
+def luts():
+    return sorted(f.name for f in LUTS.glob("*") if f.suffix.lower() in EXT_LUT) if LUTS.exists() else []
+
+
+def ruta_lut(nombre):
+    f = LUTS / Path(str(nombre)).name
+    return f if nombre and f.exists() and f.suffix.lower() in EXT_LUT else None
+
+
+def guardar_lut(nombre, datos):
+    nombre = re.sub(r"[^\w.\- ]", "_", Path(nombre).name).strip() or "lut.cube"
+    if Path(nombre).suffix.lower() not in EXT_LUT:
+        raise ValueError("El LUT tiene que ser un archivo .cube o .3dl")
+    if b"LUT_3D_SIZE" not in datos[:20000] and Path(nombre).suffix.lower() == ".cube":
+        raise ValueError("Ese .cube no parece un LUT 3D (le falta LUT_3D_SIZE)")
+    LUTS.mkdir(parents=True, exist_ok=True)
+    (LUTS / nombre).write_bytes(datos)
+    return nombre
+
+
+def filtros_color(combo, trabajo, entrada, salida):
+    """LUT (con su fuerza) y efecto de imagen (viñeta, grano) del estilo: lista de filtros de [entrada] a [salida].
+    El LUT se copia a la carpeta de trabajo como lut.cube para no pelear con las rutas de Windows dentro del filtro."""
+    est = estilo_edicion(combo)
+    f, previo = [], entrada
+    lut = ruta_lut(est.get("lut"))
+    if lut:
+        local = f"lut{lut.suffix.lower()}"
+        shutil.copyfile(lut, trabajo / local)
+        fuerza = max(0.0, min(1.0, float(est.get("lut_fuerza", 1.0))))
+        if fuerza >= 0.99:
+            f.append(f"[{previo}]lut3d=file={local}[lut_o]")
+        else:  # mezcla del original con el LUT
+            f.append(f"[{previo}]split[lut_a][lut_b];[lut_b]lut3d=file={local}[lut_c];[lut_c][lut_a]blend=all_mode=normal:all_opacity={fuerza:.2f}[lut_o]")
+        previo = "lut_o"
+    if est.get("efecto") in EFECTOS_VIDEO:
+        f.append(f"[{previo}]{EFECTOS_VIDEO[est['efecto']]}[efx_o]")
+        previo = "efx_o"
+    if not f:
+        return []
+    f[-1] = f[-1][: f[-1].rindex("[")] + f"[{salida}]"
+    return f
+
+
+# ---------- Seguir la cara (para que el zoom se centre en ella) ----------
+MODELO_CARA = BIBLIO_BASE / "modelos" / "cara-ultraface-320.onnx"  # UltraFace RFB-320 (MIT), corre con onnxruntime
+_SESION_CARA = {}
+
+
+def _detector_cara():
+    if "s" not in _SESION_CARA:
+        try:
+            import onnxruntime as ort
+            so = ort.SessionOptions()
+            so.log_severity_level = 3
+            _SESION_CARA["s"] = ort.InferenceSession(str(MODELO_CARA), so, providers=["CPUExecutionProvider"]) if MODELO_CARA.exists() else None
+        except Exception:
+            _SESION_CARA["s"] = None
+    return _SESION_CARA["s"]
+
+
+def caras(nombre, por_seg=4):
+    """Centro de la cara (x, y de 0 a 1) a lo largo de una pieza procesada: [(t, x, y)], suavizado y con pocos puntos.
+    Se guarda junto a la pieza y se rehace si la pieza cambia. [] si no hay detector o no se ve ninguna cara."""
+    video = S.proc / f"{nombre}.mp4"
+    cache = S.proc / f"{nombre}.caras.json"
+    if not video.exists():
+        return []
+    try:
+        d = json.loads(cache.read_text(encoding="utf-8"))
+        if d.get("mtime") == video.stat().st_mtime:
+            return [tuple(p) for p in d["puntos"]]
+    except (FileNotFoundError, ValueError, KeyError):
+        pass
+    sesion = _detector_cara()
+    if not sesion:
+        return []
+    import numpy as np
+    W, H = lienzo()
+    # cada cuadro entra entero en 320x240 (con barras), para no deformar la cara
+    k = min(320 / W, 240 / H)
+    w, h = max(2, int(W * k) // 2 * 2), max(2, int(H * k) // 2 * 2)
+    px, py = (320 - w) // 2, (240 - h) // 2
+    proc = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(video), "-an",
+                           "-vf", f"fps={por_seg},scale={w}:{h},pad=320:240:{px}:{py}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                          capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    cuadros = np.frombuffer(proc.stdout, np.uint8)
+    n = cuadros.size // (320 * 240 * 3)
+    crudos = []
+    for i in range(n):
+        img = cuadros[i * 230400:(i + 1) * 230400].reshape(240, 320, 3).astype(np.float32)
+        x = ((img - 127.0) / 128.0).transpose(2, 0, 1)[None]
+        scores, boxes = sesion.run(None, {"input": x})
+        s, b = scores[0, :, 1], boxes[0]
+        ok = s > 0.7
+        if not ok.any():
+            crudos.append(None)
+            continue
+        area = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
+        j = int(np.argmax(np.where(ok, s * area, -1)))  # la cara más grande y segura (la de quien habla)
+        cx, cy = (b[j, 0] + b[j, 2]) / 2 * 320, (b[j, 1] + b[j, 3]) / 2 * 240
+        crudos.append(((cx - px) / w, (cy - py) / h))
+    vistos = [c for c in crudos if c]
+    if len(vistos) < max(2, n // 5):  # casi nunca se ve una cara: mejor el encuadre de siempre
+        puntos = []
+    else:
+        ult = vistos[0]
+        llenos = []
+        for c in crudos:  # donde no se vio, se queda donde estaba
+            ult = c or ult
+            llenos.append(ult)
+        suave = []
+        for i in range(len(llenos)):  # mediana de 5 (quita saltos sueltos) y después promedio
+            v = llenos[max(0, i - 2):i + 3]
+            suave.append((float(np.median([p[0] for p in v])), float(np.median([p[1] for p in v]))))
+        suave = [(float(np.mean([p[0] for p in suave[max(0, i - 2):i + 3]])), float(np.mean([p[1] for p in suave[max(0, i - 2):i + 3]])))
+                 for i in range(len(suave))]
+        puntos = [(0.0, *suave[0])]
+        for i in range(1, len(suave)):  # solo los puntos donde la cara se movió de verdad
+            if i == len(suave) - 1 or abs(suave[i][0] - puntos[-1][1]) > 0.02 or abs(suave[i][1] - puntos[-1][2]) > 0.02:
+                puntos.append((i / por_seg, *suave[i]))
+        puntos = [(round(t, 2), round(min(0.9, max(0.1, x)), 3), round(min(0.85, max(0.1, y)), 3)) for t, x, y in puntos]
+    cache.write_text(json.dumps({"mtime": video.stat().st_mtime, "puntos": puntos}), encoding="utf-8")
+    return puntos
+
+
+def _cara_en(combo, offs, t):
+    """(x, y) de la cara en el segundo t del video sin recortes (números, no expresión); donde suele estar si no se sabe."""
+    if estilo_edicion(combo).get("seguir_cara", True):
+        for nombre, o, fin in zip((combo["hook"], combo["cuerpo"], combo["cta"]), offs, [*offs[1:], float("inf")]):
+            if o <= t < fin and (ps := caras(nombre)):
+                tp = t - o
+                for p, q in zip(ps, ps[1:]):
+                    if p[0] <= tp < q[0]:
+                        k = (tp - p[0]) / max(1e-6, q[0] - p[0])
+                        return p[1] + (q[1] - p[1]) * k, p[2] + (q[2] - p[2]) * k
+                return ps[-1][1], ps[-1][2]
+    return 0.5, 0.38
+
+
+def _expresion_cara(combo, offs, eje):
+    """Expresión (según it, el tiempo del video sin recortes) del centro de la cara en un eje (1 = x, 2 = y).
+    None si no hay que seguirla o no se encontró."""
+    if not estilo_edicion(combo).get("seguir_cara", True):
+        return None
+    defecto = "0.5" if eje == 1 else "0.38"
+    tramos = []  # (t0, t1, v0, v1) en el video sin recortes
+    hay = False
+    for nombre, o in zip((combo["hook"], combo["cuerpo"], combo["cta"]), offs):
+        try:
+            ps = caras(nombre)
+        except Exception:
+            ps = []
+        if not ps:
+            continue
+        hay = True
+        for p, q in zip(ps, ps[1:] + [(ps[-1][0] + 3600, *ps[-1][1:])]):
+            tramos.append((o + p[0], o + q[0], p[eje], q[eje]))
+    if not hay:
+        return None
+    expr = defecto
+    for t0, t1, v0, v1 in sorted(tramos, reverse=True):
+        dv = v1 - v0
+        val = f"{v0}" if abs(dv) < 1e-4 else f"({v0}+({dv:.4f})*(it-{t0:.2f})/{t1 - t0:.2f})"
+        expr = f"if(lt(it,{t1:.2f}),{val},{expr})" if t0 <= 0.001 else f"if(between(it,{t0:.2f},{t1:.2f}),{val},{expr})"
+    return expr
+
+
+# ---------- Transiciones entre cortes ----------
+def momentos_transicion(combo, offs):
+    """Segundos (del video sin recortes) donde va la transición: entrada del CTA, del cuerpo y, si se pide, de cada frase."""
+    est = estilo_edicion(combo)
+    if est.get("transicion", "flash") == "ninguna":
+        return []
+    ed = edicion_de(combo)
+    t_cta = offs[2] + float(((ed.get("recortes") or {}).get("cta") or [0])[0])
+    if est.get("transicion_donde", "cta") == "cta":
+        return [t_cta]
+    partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
+    quitar = set(ed.get("quitar") or [])
+    orden = [i for i in (ed.get("orden") or []) if i in partes] or sorted(partes)
+    orden += [i for i in sorted(partes) if i not in orden]
+    visibles = [i for i in orden if i not in quitar]
+    recorte_partes = (ed.get("recortes") or {}).get("partes") or {}
+    ini = lambda i: offs[1] + max(partes[i]["ini"], float((recorte_partes.get(str(i)) or [partes[i]["ini"]])[0]))
+    ts = [ini(visibles[0])] if visibles else [offs[1]]
+    if est.get("transicion_donde") == "frases":
+        ts += [ini(i) for i in visibles[1:]]
+    return sorted(set(round(t, 3) for t in ts + [t_cta]))
 
 
 def _con_zoom_alterno(combo, v):
@@ -3296,9 +3511,13 @@ def _expresion_zoom(combo, offs, total):
     """Expresiones de zoompan (zoom, x, y) según el tiempo del video sin recortes (it): primero los tramos de zoom
     (fotogramas clave con punto de foco); donde no hay tramo, el zoom por bloque de siempre. None si no hay zoom."""
     z = edicion_de(combo).get("zoom") or {}
-    if not z:
+    trans = estilo_edicion(combo).get("transicion")
+    golpes = momentos_transicion(combo, offs) if trans in ("zoom", "sacudida") else []
+    if not z and not golpes:
         return None
     base = _expresion_zoom_bloques(combo, offs, total, z) or "1"
+    if trans == "zoom":  # transición «zoom»: un empujón de cámara que se suelta en 0.3 s en cada corte
+        base = f"({base})+" + "+".join(f"between(it,{t:.3f},{t + 0.3:.3f})*0.16*pow(1-(it-{t:.3f})/0.3,2)" for t in golpes)
     inicio = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
     fin = {"hook": offs[1], "cuerpo": offs[2], "cta": total}
     segs = []  # (t0, t1, zoom, fx, fy) con fx/fy = punto fijo (ancla)
@@ -3346,12 +3565,18 @@ def _expresion_zoom(combo, offs, total):
                 if c - b > 0.02:
                     q = _curva(f"min(1,max(0,(it-{b:.3f})/{c - b:.3f}))", "suave")
                     segs.append((b, c, f"({t['z1']}+({1 - t['z1']:.3f})*{q})", f"{t['fx1']}", f"{t['fy1']}"))
+    # el punto fijo del zoom de siempre: la cara (seguida en el tiempo) o, si no se encontró, donde suele estar
+    fx, fy = _expresion_cara(combo, offs, 1) or "0.5", _expresion_cara(combo, offs, 2) or "0.38"
+    if trans == "sacudida":  # transición «sacudida»: la cámara tiembla 0.3 s en cada corte
+        for t in golpes:  # con la cara de ese momento en número (la trayectoria entera repetida en cada corte no cabe en Windows)
+            x, y = _cara_en(combo, offs, t)
+            segs.append((t, t + 0.3, "1.08", f"({x:.3f}+0.03*sin(it*61))", f"({y:.3f}+0.03*cos(it*53))"))
     if not segs and not puntos_segs and base == "1":
         return None
     # Todo se lleva a «centro de lo que se ve» (cx, cy). Un punto fijo f (tramos y zoom de siempre, hacia la cara)
     # equivale a un centro f·(1−1/zoom) + 0.5/zoom.
     ancla = lambda f: f"(({f})*(1-1/zoom)+0.5/zoom)"
-    zoom, cx, cy = f"({base})", ancla("0.5"), ancla("0.38")
+    zoom, cx, cy = f"({base})", ancla(fx), ancla(fy)
     todos = [(t0, t1, ze, ancla(xe), ancla(ye)) for t0, t1, ze, xe, ye in segs] + puntos_segs
     for t0, t1, ze, xe, ye in sorted(todos, key=lambda s: s[0], reverse=True):
         cond = f"between(it,{t0:.3f},{t1:.3f})"
@@ -4682,6 +4907,9 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
         segundo = float(aj["segundo"]) if aj.get("segundo") is not None else segundo_portada(combo)
         cmd = [FFMPEG, "-hide_banner", "-y", "-ss", f"{segundo:.2f}", "-i", str(S.proc / f"{combo['hook']}.mp4")]
     f = [f"[0:v]{llenar}" + (f",drawbox=x=0:y=0:w=iw:h=ih:color=black@{oscuro}:t=fill" if oscuro > 0 else "") + "[base]"]
+    if not fondo and (color := filtros_color(combo, trabajo, "base0", "base")):  # el mismo color (LUT) que el video
+        f[0] = f[0].replace("[base]", "[base0]")
+        f += color
     previo, k = "base", 1
     # elementos encima de la imagen (stickers, logos, fotos del producto) y debajo del título
     for el in aj.get("elementos") or []:
@@ -4796,6 +5024,10 @@ def armar_uno(combo, n_musica=None, extras=None):
     if zexpr:  # zoom (antes de imágenes y subtítulos, que no se acercan); el punto de foco queda fijo en pantalla
         f.append(f"[vc]zoompan=z='{zexpr['z']}':x='{zexpr['x']}':y='{zexpr['y']}':d=1:s={'x'.join(map(str, lienzo()))}:fps=30,setsar=1[vz]")
         v_prev = "vz"
+    # color (LUT) y efecto de imagen: solo sobre lo grabado, no sobre las imágenes de Flow ni los subtítulos
+    if color := filtros_color(combo, trabajo, v_prev, "vcol"):
+        f += color
+        v_prev = "vcol"
     for ov in overlays:
         if ov["es_imagen"]:
             cmd += ["-loop", "1", "-framerate", "30", "-t", f"{ov['dur']:.2f}", "-i", str(ov["archivo"])]
@@ -4821,12 +5053,22 @@ def armar_uno(combo, n_musica=None, extras=None):
         f.append(f"[{v_prev}][e{idx}]overlay={int(float(el.get('x', 0)))}:{int(float(el.get('y', 0)))}:eof_action=pass[v{idx}]")
         v_prev = f"v{idx}"
         idx += 1
-    if CONFIG["sonidos"].get("flash_transicion_cta", True):
-        # transición al CTA como foto: un destello blanco cortito justo donde entra la voz del CTA (con el obturador)
-        t_cta = offs[2] + float(((edicion_de(combo).get("recortes") or {}).get("cta") or [0])[0])
-        f.append(f"[{v_prev}]drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='between(t,{t_cta:.3f},{t_cta + 0.07:.3f})',"
-                 f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='between(t,{t_cta + 0.07:.3f},{t_cta + 0.14:.3f})'[vflash]")
-        v_prev = "vflash"
+    # transiciones en los cortes (Estilo de edición); «zoom» y «sacudida» ya van dentro del zoom de arriba
+    trans = estilo_edicion(combo).get("transicion", "flash")
+    momentos = momentos_transicion(combo, offs) if trans in ("flash", "glitch", "desenfoque") else []
+    en = lambda a, b: "+".join(f"between(t,{t + a:.3f},{t + b:.3f})" for t in momentos)
+    if trans == "flash" and momentos:  # como foto: un destello blanco cortito donde entra la voz (con el obturador)
+        f.append(f"[{v_prev}]drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='{en(0, 0.07)}',"
+                 f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='{en(0.07, 0.14)}'[vtrans]")
+        v_prev = "vtrans"
+    elif trans == "glitch" and momentos:  # los colores se separan y aparece estática un instante
+        f.append(f"[{v_prev}]rgbashift=rh=-18:bh=18:rv=6:enable='{en(0, 0.09)}',rgbashift=rh=10:bh=-10:enable='{en(0.09, 0.16)}',"
+                 f"noise=alls=40:allf=t:enable='{en(0, 0.12)}'[vtrans]")
+        v_prev = "vtrans"
+    elif trans == "desenfoque" and momentos:  # entra desenfocado y se aclara
+        f.append(f"[{v_prev}]gblur=sigma=24:enable='{en(0, 0.08)}',gblur=sigma=10:enable='{en(0.08, 0.16)}',"
+                 f"gblur=sigma=4:enable='{en(0.16, 0.24)}'[vtrans]")
+        v_prev = "vtrans"
     if extras:
         f.append(f"[{v_prev}]split=2[vlimpio][vs]")
         f.append("[vs]subtitles=subs.ass:fontsdir=fuentes[v]")
@@ -4845,7 +5087,12 @@ def armar_uno(combo, n_musica=None, extras=None):
     # paso 1: la imagen con la voz, ya cortada (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
     base, limpio = trabajo / "base.mkv", trabajo / "limpio.mkv"
     venc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "pcm_s16le", "-t", f"{total:.2f}"]
-    cmd += ["-filter_complex", ";".join(f)]
+    grafo = ";".join(f)
+    if len(grafo) > 20000:  # Windows corta la línea de comandos en ~32 000 letras: ffmpeg lo lee de un archivo
+        (trabajo / "grafo.txt").write_text(grafo, encoding="utf-8")
+        cmd += ["-/filter_complex", "grafo.txt"]
+    else:
+        cmd += ["-filter_complex", grafo]
     for (vl, al), destino in zip(salidas_v, (base, limpio)):
         cmd += ["-map", f"[{vl}]", "-map", f"[{al}]", "-dn", "-map_chapters", "-1", *venc, str(destino)]
     run(cmd, cwd=trabajo)
@@ -4861,7 +5108,7 @@ def armar_uno(combo, n_musica=None, extras=None):
     eventos_ed = [{**e, "t": mapa(e["t"], e.get("pegar", False))} for e in eventos]
     eventos_ed = [e for e in eventos_ed if e["t"] is not None]
     _mezclar_audio(base, S.salida / f"{combo['archivo']}.mp4", tramos_ed, silencios_ed, eventos_ed, total_ed, extras,
-                   sin_voz=bool(mudo.get("voz")))
+                   sin_voz=bool(mudo.get("voz")), limpieza=LIMPIEZAS_VOZ.get(estilo_edicion(combo).get("limpieza_voz")))
     if extras:
         _elementos_por_separado(extras, limpio, combo, orden, offs, subs, mapa, overlays)
     total = duracion(S.salida / f"{combo['archivo']}.mp4")
@@ -4893,10 +5140,11 @@ def armar_uno(combo, n_musica=None, extras=None):
     return receta
 
 
-def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None, sin_voz=False):
+def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None, sin_voz=False, limpieza=None):
     """Paso 3 del armado: a la voz del video ya cortado se le suman la música (baja sola cuando se habla)
     y los sonidos. La imagen se copia tal cual. Con extras, deja también voz, música y efectos en .wav.
-    sin_voz: la pista de voz silenciada (la música igual baja donde se habla)."""
+    sin_voz: la pista de voz silenciada (la música igual baja donde se habla).
+    limpieza: filtros que limpian la voz (LIMPIEZAS_VOZ); después se vuelve a igualar su volumen."""
     cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(base)]
     idx = 1
     i_mus = []
@@ -4905,8 +5153,12 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None,
         i_mus.append(idx)
         idx += 1
     f = []
+    voz_in = "[0:a]"
+    if limpieza:
+        f.append(f"[0:a]{limpieza},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[vlimpia]")
+        voz_in = "[vlimpia]"
     salidas_voz = ["[voz]"] + (["[sc]"] if tramos else []) + (["[vozx]"] if extras else [])
-    f.append(f"[0:a]asplit={len(salidas_voz)}{''.join(salidas_voz)}" if len(salidas_voz) > 1 else "[0:a]anull[voz]")
+    f.append(f"{voz_in}asplit={len(salidas_voz)}{''.join(salidas_voz)}" if len(salidas_voz) > 1 else f"{voz_in}anull[voz]")
     mezcla = ["[voz]"]
     if sin_voz:
         f.append("[voz]volume=0[vozm]")

@@ -1,3 +1,12 @@
+Versión 1.36.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Retoques como en CapCut**, en Plantillas → Estilo de edición (se aplican al armar; cada edición B, C… puede tener los suyos):
+  - **Voz limpia** con 3 niveles (Suave, Media, Fuerte): quita el ruido de fondo, suaviza las «s» fuertes y deja la voz pareja. Viene prendida en Suave.
+  - **Seguir la cara**: el zoom se centra en la cara aunque la persona se mueva. La sala busca la cara en cada pieza una sola vez y lo recuerda. Viene prendido.
+  - **Color (LUT)**: sube un LUT .cube o .3dl y elige su intensidad (Suave, Media, Completa). Pinta lo grabado y la portada; las imágenes de Flow y los subtítulos no se tocan.
+  - **Efecto de imagen**: viñeta, grano de película o los dos.
+  - **Transiciones**: destello, zoom, sacudida, glitch o desenfoque; solo al entrar el CTA (como antes), entre hook, cuerpo y CTA, o también entre frases.
+- Los videos ya armados no cambian solos: tócalos con «Armar todos los videos» cuando quieras verlos con lo nuevo.
+
 Versión 1.35.2 (se actualiza desde la app con «Actualizar ahora»):
 - Al abrir Notificaciones, Procesos o cualquier ventana, la sala ya no salta: la barra de arriba se queda en su sitio y nada se corre de lado.
 - La tuerca ⚙ se fue: ahora tocas **tu cuenta** (arriba a la derecha) y sale un menú con Cuenta, Conexiones, Google Drive, Teleprompter, Actualizaciones y Notas. Cada una es **su propia página**, ya no una página larga con índice.

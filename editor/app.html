@@ -673,6 +673,9 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .es-ajustes[hidden] { display: none; }
 .es-ajuste { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 12px; color: var(--muted); }
 .es-ajuste .ds-seg button { padding: 5px 10px; font-size: 12px; min-height: 30px; }
+.es-opcion { min-width: 0; }
+.es-ajuste .ds-seg { flex-wrap: wrap; max-width: 100%; width: auto; }  /* con muchas opciones, los botones bajan de línea */
+.es-ajuste select { max-width: 200px; }
 .es-opcion:hover { border-color: var(--line2); }
 .es-opcion:has(.interruptor:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--bg2)); }
 .es-opcion:has(.interruptor:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -5886,6 +5889,7 @@ function pintarEstiloEdicion() {
   const caja = $("cajaEstiloEd"); if (!caja || !E) return;
   const est = { zoom_alterno: false, zoom_tipo: "punch", zoom_fuerza: .14, zoom_cada: 2, zoom_hook: false, zoom_hook_fuerza: .1, fundido: .12, ...(E.estilo_edicion || {}) };
   const fundidoOn = est.fundido > .15;
+  const vozOn = (est.limpieza_voz || "suave") !== "apagada", efectoOn = (est.efecto || "ninguno") !== "ninguno", transOn = (est.transicion || "flash") !== "ninguna";
   // botones de elegir una opción (se guardan al tocarlos)
   const seg = (campo, actual, opciones) => `<span class="ds-seg" role="group">${opciones.map(([v, t]) =>
     `<button type="button" data-es="${campo}" data-v="${v}" aria-pressed="${String(actual) === String(v)}">${t}</button>`).join("")}</span>`;
@@ -5911,6 +5915,24 @@ function pintarEstiloEdicion() {
       ${opcion("esFundido", fundidoOn, "Fundido suave", "Las imágenes y los clips de Flow entran y salen con un fundido. Apagado, aparecen de golpe.",
         `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2"/></svg>`,
         fila("Largo", fuerza("fundido", fundidoOn ? est.fundido : .3, [[.2, "Rápido"], [.3, "Normal"], [.6, "Lento"]])))}
+      ${opcion("esCara", est.seguir_cara !== false, "Seguir la cara", "El zoom se centra en la cara aunque te muevas o te salgas un poco del centro.",
+        `<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="4.5"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>`)}
+      ${opcion("esVoz", vozOn, "Voz limpia", "Quita el ruido de fondo (aire, calle, eco), suaviza las «s» fuertes y deja la voz pareja.",
+        `<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
+        fila("Nivel", seg("limpieza_voz", vozOn ? est.limpieza_voz : "suave", [["suave", "Suave"], ["media", "Media"], ["fuerte", "Fuerte"]])))}
+      ${opcion("esLut", !!est.lut, "Color (LUT)", "Le da a lo grabado el color de un LUT (.cube), como un filtro de CapCut. Las imágenes de Flow no se tocan.",
+        `<svg viewBox="0 0 24 24"><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>`,
+        fila("LUT", `<span class="fila" style="gap:6px"><select id="esLutSel">${(E.luts || []).map(n => `<option ${n === est.lut ? "selected" : ""}>${esc(n)}</option>`).join("")
+          || `<option value="">Sube un LUT primero</option>`}</select>
+          <label class="btn sec peq" style="cursor:pointer">Subir LUT<input type="file" id="esLutSubir" accept=".cube,.3dl" hidden></label></span>`)
+        + fila("Intensidad", fuerza("lut_fuerza", est.lut_fuerza ?? 1, [[.3, "Suave"], [.6, "Media"], [1, "Completa"]])))}
+      ${opcion("esEfecto", efectoOn, "Efecto de imagen", "Un acabado para todo el video: bordes oscuros (viñeta) o grano de película.",
+        `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15l3-4 3 3 2-2 3 3"/></svg>`,
+        fila("Cuál", seg("efecto", efectoOn ? est.efecto : "vineta", [["vineta", "Viñeta"], ["grano", "Grano"], ["vineta_grano", "Las dos"]])))}
+      ${opcion("esTrans", transOn, "Transiciones", "Un golpe visual en los cortes, para que el video tenga ritmo. Va junto con el sonido del corte.",
+        `<svg viewBox="0 0 24 24"><path d="M4 6h7v12H4zM13 6h7v12h-7z"/><path d="M11 12h2"/></svg>`,
+        fila("Tipo", seg("transicion", transOn ? est.transicion : "flash", [["flash", "Destello"], ["zoom", "Zoom"], ["sacudida", "Sacudida"], ["glitch", "Glitch"], ["desenfoque", "Desenfoque"]]))
+        + fila("Dónde", seg("transicion_donde", est.transicion_donde || "cta", [["cta", "Al entrar el CTA"], ["piezas", "Hook → cuerpo → CTA"], ["frases", "También entre frases"]])))}
     </div>`;
   const guardar = async cambio => {
     try {
@@ -5923,6 +5945,21 @@ function pintarEstiloEdicion() {
   $("esZoom").onchange = e => guardar({ zoom_alterno: e.target.checked });
   $("esHook").onchange = e => guardar({ zoom_hook: e.target.checked });
   $("esFundido").onchange = e => guardar({ fundido: e.target.checked ? .3 : .12 });
+  $("esCara").onchange = e => guardar({ seguir_cara: e.target.checked });
+  $("esVoz").onchange = e => guardar({ limpieza_voz: e.target.checked ? "suave" : "apagada" });
+  $("esEfecto").onchange = e => guardar({ efecto: e.target.checked ? "vineta" : "ninguno" });
+  $("esTrans").onchange = e => guardar({ transicion: e.target.checked ? "flash" : "ninguna" });
+  $("esLut").onchange = e => {
+    if (!e.target.checked) return guardar({ lut: "" });
+    if (!(E.luts || []).length) { e.target.checked = false; return $("esLutSubir").click(); }  // primero hay que subir uno
+    guardar({ lut: $("esLutSel").value });
+  };
+  $("esLutSel").onchange = e => { if (e.target.value) guardar({ lut: e.target.value }); };
+  $("esLutSubir").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const r = await post(`/api/lut?nombre=${encodeURIComponent(f.name)}`, f, true); E.luts = r.luts; await guardar({ lut: r.archivo }); }
+    catch (er) { avisar("Error: " + er.message, "err"); }
+  };
   caja.querySelectorAll("[data-es]").forEach(b => b.onclick = () => guardar({ [b.dataset.es]: isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v }));
 }
 const DEFECTO_PLANT = { salto_auto: "false", frase_completa: "false", "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", altura_desde_abajo: "560",

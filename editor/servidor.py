@@ -175,7 +175,7 @@ def estado():
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
             "propias": list(motor.CONFIG.get("plantillas_propias", {})), "fabrica": list(motor.CONFIG.get("plantillas_sub", {})),
-            "elementos": elementos(),
+            "elementos": elementos(), "luts": motor.luts(),
             "claves": [motor.norm(x) for x in motor.CONFIG["palabras_clave"]],
             "semana": S.semana, "prefijo": S.prefijo, "semanas": motor.semanas_disponibles(),
             "formato": motor.formato(), "lienzo": motor.lienzo(), "ventana_defecto": motor.VENTANA_DEFECTO[motor.formato()],
@@ -1048,6 +1048,9 @@ class H(BaseHTTPRequestHandler):
                 motor.ELEMENTOS.mkdir(parents=True, exist_ok=True)
                 (motor.ELEMENTOS / nombre).write_bytes(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
                 self._json({"ok": True, "archivo": nombre})
+            elif u.path == "/api/lut":  # LUT de color para Estilo de edición
+                nombre = motor.guardar_lut(q["nombre"][0][-80:], self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+                self._json({"ok": True, "archivo": nombre, "luts": motor.luts()})
             elif u.path == "/api/fuente":
                 import fuentes
                 nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])
@@ -1150,7 +1153,14 @@ class H(BaseHTTPRequestHandler):
                       "zoom_tipo": b.get("zoom_tipo", d["zoom_tipo"]) if b.get("zoom_tipo", d["zoom_tipo"]) in ("punch", "in", "out", "mezcla") else "punch",
                       "zoom_fuerza": num("zoom_fuerza", 0.04, 0.35), "zoom_cada": 1 if int(b.get("zoom_cada", d["zoom_cada"])) == 1 else 2,
                       "zoom_hook": bool(b.get("zoom_hook", d["zoom_hook"])), "zoom_hook_fuerza": num("zoom_hook_fuerza", 0.04, 0.3),
-                      "fundido": num("fundido", 0.05, 1.0)}
+                      "fundido": num("fundido", 0.05, 1.0),
+                      "limpieza_voz": b.get("limpieza_voz", d["limpieza_voz"]) if b.get("limpieza_voz", d["limpieza_voz"]) in ("apagada", *motor.LIMPIEZAS_VOZ) else "suave",
+                      "seguir_cara": bool(b.get("seguir_cara", d["seguir_cara"])),
+                      "lut": b.get("lut", d["lut"]) if motor.ruta_lut(b.get("lut", d["lut"])) else "",
+                      "lut_fuerza": num("lut_fuerza", 0.1, 1.0),
+                      "efecto": b.get("efecto", d["efecto"]) if b.get("efecto", d["efecto"]) in ("ninguno", *motor.EFECTOS_VIDEO) else "ninguno",
+                      "transicion": b.get("transicion", d["transicion"]) if b.get("transicion", d["transicion"]) in motor.TRANSICIONES else "flash",
+                      "transicion_donde": b.get("transicion_donde", d["transicion_donde"]) if b.get("transicion_donde", d["transicion_donde"]) in motor.DONDE_TRANSICION else "cta"}
                 motor.guardar_config({"estilo_edicion": aj, "estilo_cambio": time.time()})
                 self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
             elif u.path == "/api/silencios":  # cortar solo el silencio del inicio y del final de cada clip
