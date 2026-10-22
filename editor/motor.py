@@ -411,11 +411,13 @@ class Cancelado(Exception):
     pass
 
 
-HILO_TRABAJO = {"id": None}  # solo el trabajo en segundo plano se cancela; lo demás (ver un video, una portada) no
+HILO_TRABAJO = {"id": None, "ayudantes": set()}  # solo el trabajo en segundo plano se cancela; lo demás (ver un video, una portada) no
+_LOCAL = _hilos.local()  # .slot: carpeta de trabajo propia de cada hilo que arma a la vez
 
 
 def revisar_cancelado():
-    if CANCELAR.is_set() and _hilos.get_ident() == HILO_TRABAJO["id"]:
+    yo = _hilos.get_ident()
+    if CANCELAR.is_set() and (yo == HILO_TRABAJO["id"] or yo in HILO_TRABAJO["ayudantes"]):
         raise Cancelado("Cancelado")
 
 
@@ -1203,6 +1205,19 @@ def agrupar_lineas(palabras):
     return lineas
 
 
+# Un cuadro clave cada medio segundo en las piezas: el editor salta de un corte a otro sin trabarse (con uno cada 3–8 s,
+# cada salto tenía que decodificar segundos de video antes de mostrar algo)
+GOP_EDITOR = ["-g", "15", "-keyint_min", "15"]
+
+
+def _con_gop(firma):
+    try:
+        d = json.loads(firma.read_text(encoding="utf-8"))
+        return isinstance(d, dict) and str(d.get("gop")) == GOP_EDITOR[1]
+    except (FileNotFoundError, ValueError):
+        return False
+
+
 def procesar(forzar_subs=False, avance=print):
     for d in (S.proc, S.subs):
         d.mkdir(parents=True, exist_ok=True)
@@ -1227,7 +1242,7 @@ def procesar(forzar_subs=False, avance=print):
                 run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
                      "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1",
                      "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2", "-dn", "-map_chapters", "-1",
-                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", str(t)])
+                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", *GOP_EDITOR, "-c:a", "aac", "-b:a", "192k", str(t)])
                 trozos.append(t)
             duraciones = [round(duracion(t), 3) for t in trozos]
             if len(trozos) > 1:
@@ -1236,8 +1251,20 @@ def procesar(forzar_subs=False, avance=print):
                 run([FFMPEG, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", lst.name, "-c", "copy", dest.name], cwd=S.proc)
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
-            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "formato": formato()}, ensure_ascii=False), encoding="utf-8")
+            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "formato": formato(), "gop": GOP_EDITOR[1]},
+                                        ensure_ascii=False), encoding="utf-8")
             (S.subs / f"{p['nombre']}.json").unlink(missing_ok=True) if vieja is not None and vieja != lista else None
+        elif not _con_gop(firma):
+            # pieza preparada antes de la 1.37: un cuadro clave cada 3–8 s hacía que el editor se trabara en cada corte;
+            # se recomprime solo la imagen (el audio, los tiempos y los subtítulos no cambian)
+            avance(f"Ajustando {p['nombre']} para que el editor no se trabe ({n}/{len(ps)})")
+            tmp = dest.with_name(f"_{dest.stem}.gop.mp4")
+            run([FFMPEG, "-hide_banner", "-y", "-i", str(dest), "-map", "0", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                 *GOP_EDITOR, "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(tmp)])
+            os.replace(tmp, dest)
+            d = json.loads(firma.read_text(encoding="utf-8")) if firma.exists() else None
+            d = d if isinstance(d, dict) else {"partes": lista, "formato": formato()}  # firma muy vieja (solo la lista)
+            firma.write_text(json.dumps({**d, "gop": GOP_EDITOR[1]}, ensure_ascii=False), encoding="utf-8")
         sub = S.subs / f"{p['nombre']}.json"
         modelo = CONFIG["transcripcion"]["modelo"]
         try:
@@ -2995,6 +3022,7 @@ _RETOMAR = [("perdon",), ("perdona",), ("perdoname",), ("otra", "vez"), ("de", "
 TIPOS_CORTE_VOZ = {"repetido": "Lo repitió: queda la última vez", "tartamudeo": "Tartamudeo",
                    "muletilla": "Muletilla («eh», «mmm»)", "equivoco": "Se equivocó y volvió a empezar",
                    "pausa": "Silencio largo", "ruido": "Se oye algo sin palabras (¿un «eh» o un tropiezo?)",
+                   "toma_sin_texto": "Lo dijo dos veces y la transcripción solo escribió la última: queda la última",
                    "de_mas": "No está en el guion"}
 
 
@@ -3145,7 +3173,14 @@ def analizar_voz(palabras, picos=(), por_seg=50, dur=None, guion=None, pausa=0.5
                 elif not quieto[x] and b - a >= 0.3:
                     tapa = sum(max(0.0, min(b, w["e"]) - max(a, w["s"])) for w in pal)
                     if tapa < 0.05:
-                        poner(a - 0.03, b + 0.03, "ruido", seguro=False)
+                        # Whisper no escribe una frase dicha dos veces seguidas: si es voz larga, después de una pausa,
+                        # y la frase escrita empieza enseguida, es la primera toma de esa frase → se corta y queda la última
+                        prev = max((w["e"] for w in pal if w["e"] <= a + 0.05), default=0.0)
+                        prox = min((w["s"] for w in pal if w["s"] >= b - 0.05), default=None)
+                        if b - a >= 0.35 and a - prev >= 0.12 and prox is not None and prox - b <= 0.45:
+                            poner(a - 0.03, max(b + 0.03, prox - 0.03), "toma_sin_texto")
+                        else:
+                            poner(a - 0.03, b + 0.03, "ruido", seguro=False)
             x = y
 
     # se juntan los que se pisan (gana el más largo; si uno es seguro, el junto también)
@@ -3297,6 +3332,7 @@ def filtros_color(combo, trabajo, entrada, salida):
 # ---------- Seguir la cara (para que el zoom se centre en ella) ----------
 MODELO_CARA = BIBLIO_BASE / "modelos" / "cara-ultraface-320.onnx"  # UltraFace RFB-320 (MIT), corre con onnxruntime
 _SESION_CARA = {}
+_CERROJO_CARA = _hilos.Lock()
 
 
 def _detector_cara():
@@ -3314,6 +3350,11 @@ def _detector_cara():
 def caras(nombre, por_seg=4):
     """Centro de la cara (x, y de 0 a 1) a lo largo de una pieza procesada: [(t, x, y)], suavizado y con pocos puntos.
     Se guarda junto a la pieza y se rehace si la pieza cambia. [] si no hay detector o no se ve ninguna cara."""
+    with _CERROJO_CARA:
+        return _caras(nombre, por_seg)
+
+
+def _caras(nombre, por_seg):
     video = S.proc / f"{nombre}.mp4"
     cache = S.proc / f"{nombre}.caras.json"
     if not video.exists():
@@ -3854,7 +3895,7 @@ ESCALA_ESTILO = {"normal": 1.0, "arriba": 1.0, "centro_grande": 1.35, "sobre_ima
 def carpeta_trabajo():
     """Carpeta temporal de armado, con las fuentes al lado (ffmpeg no acepta bien rutas con espacios y ':').
     Una por proceso: si hay dos salas abiertas a la vez (o la sala y una prueba), no se pisan los archivos."""
-    trabajo = DATOS / "_trabajo" / f"p{os.getpid()}"
+    trabajo = DATOS / "_trabajo" / (f"p{os.getpid()}" + (f"_{_LOCAL.slot}" if getattr(_LOCAL, "slot", None) else ""))
     (trabajo / "fuentes").mkdir(parents=True, exist_ok=True)
     import fuentes
     for f in [*(RAIZ / "fuentes").glob("*.ttf"), *fuentes.PROPIAS.glob("*.[ot]tf")]:
@@ -4938,6 +4979,36 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
 
 # ---------- Armar un video ----------
 
+# ---------- Compresor del armado: la tarjeta de video si hay (3 veces más rápido), si no el procesador ----------
+# El video armado es la copia de trabajo (la que se ve en la sala): al exportar se vuelve a comprimir con calidad final.
+COMPRESOR_CPU = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+COMPRESORES_GPU = [("nvenc", ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "22", "-b:v", "0", "-pix_fmt", "yuv420p"]),
+                   ("qsv", ["-c:v", "h264_qsv", "-global_quality", "21", "-pix_fmt", "nv12"]),
+                   ("amf", ["-c:v", "h264_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "21", "-qp_p", "23", "-pix_fmt", "yuv420p"])]
+_COMPRESOR = {}
+
+
+def compresor_armado():
+    """El compresor más rápido que funciona en esta PC (se prueba una vez con un video chiquito).
+    Config «compresor_armado»: "cpu" para no usar la tarjeta de video, o "nvenc" / "qsv" / "amf" para forzar uno."""
+    if _COMPRESOR.get("roto"):
+        return COMPRESOR_CPU
+    if "elegido" not in _COMPRESOR:
+        pedido = CONFIG.get("compresor_armado") or "auto"
+        elegido = COMPRESOR_CPU
+        if pedido != "cpu":
+            for nombre, args in COMPRESORES_GPU:
+                if pedido not in ("auto", nombre):
+                    continue
+                prueba = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=1080x1920:d=0.3:r=30",
+                                         *args, "-f", "null", "-"], capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                if prueba.returncode == 0:
+                    elegido = args
+                    break
+        _COMPRESOR["elegido"] = elegido
+    return _COMPRESOR["elegido"]
+
+
 def n_musica_de(combo):
     """Qué pista de la rotación le toca a un video: sale de su lugar en la sesión, no del lote que se está armando.
     Antes era el número dentro del lote: el mismo video salía con otra canción si se armaba solo, con todos o al exportar."""
@@ -5086,16 +5157,25 @@ def armar_uno(combo, n_musica=None, extras=None):
         salidas_v = [(f"{vl}_c", f"{al}_c") for vl, al in salidas_v]
     # paso 1: la imagen con la voz, ya cortada (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
     base, limpio = trabajo / "base.mkv", trabajo / "limpio.mkv"
-    venc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "pcm_s16le", "-t", f"{total:.2f}"]
     grafo = ";".join(f)
     if len(grafo) > 20000:  # Windows corta la línea de comandos en ~32 000 letras: ffmpeg lo lee de un archivo
         (trabajo / "grafo.txt").write_text(grafo, encoding="utf-8")
         cmd += ["-/filter_complex", "grafo.txt"]
     else:
         cmd += ["-filter_complex", grafo]
-    for (vl, al), destino in zip(salidas_v, (base, limpio)):
-        cmd += ["-map", f"[{vl}]", "-map", f"[{al}]", "-dn", "-map_chapters", "-1", *venc, str(destino)]
-    run(cmd, cwd=trabajo)
+
+    def con_salidas(comp):
+        venc = [*comp, "-c:a", "pcm_s16le", "-t", f"{total:.2f}"]
+        return cmd + [x for (vl, al), destino in zip(salidas_v, (base, limpio))
+                      for x in ("-map", f"[{vl}]", "-map", f"[{al}]", "-dn", "-map_chapters", "-1", *venc, str(destino))]
+    comp = compresor_armado()
+    try:
+        run(con_salidas(comp), cwd=trabajo)
+    except RuntimeError:
+        if comp == COMPRESOR_CPU:
+            raise
+        run(con_salidas(COMPRESOR_CPU), cwd=trabajo)
+        _COMPRESOR["roto"] = True  # la tarjeta de video falló (driver, demasiados videos a la vez…): sigue con el procesador
     mapa, total_ed = _mapa_tiempo(trozos) if trozos else ((lambda t, pegar=False: t), total)
     # los tiempos de la música y los sonidos pasan al video editado
     tramos_ed = []
@@ -5292,11 +5372,57 @@ def armar(pieza=None, avance=print, codigos=None):
     if piezas_en_otro_formato():  # se cambió el formato: primero las piezas con el tamaño nuevo
         avance("Preparando las piezas en el formato nuevo")
         procesar(avance=avance)
-    for n, combo in enumerate(todos):
-        avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)})")
-        r = armar_uno(combo)
-        hechos.append(r["codigo"])
-    return hechos
+    a_la_vez = min(armados_a_la_vez(), len(todos))
+    if a_la_vez <= 1:
+        for n, combo in enumerate(todos):
+            avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)})")
+            r = armar_uno(combo)
+            hechos.append(r["codigo"])
+        return hechos
+    # varios a la vez: el zoom, los subtítulos y las imágenes usan un solo núcleo del procesador por video,
+    # así que dos o tres videos en paralelo aprovechan la PC sin pelearse
+    cola, listos, errores, cerrojo = list(enumerate(todos)), {}, [], _hilos.Lock()
+    es_trabajo = _hilos.get_ident() == HILO_TRABAJO["id"]  # si lo cancelan, se cancelan también los ayudantes
+
+    def ayudante(slot):
+        _LOCAL.slot = f"h{slot}"
+        if es_trabajo:
+            HILO_TRABAJO["ayudantes"].add(_hilos.get_ident())
+        try:
+            while True:
+                with cerrojo:
+                    if errores or not cola:
+                        return
+                    n, combo = cola.pop(0)
+                    avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)}) · {a_la_vez} a la vez")
+                try:
+                    r = armar_uno(combo)
+                except BaseException as e:  # el primero que falla para a los demás (no empiezan otros)
+                    with cerrojo:
+                        errores.append(e)
+                    return
+                with cerrojo:
+                    listos[n] = r["codigo"]
+        finally:
+            HILO_TRABAJO["ayudantes"].discard(_hilos.get_ident())
+
+    hilos = [_hilos.Thread(target=ayudante, args=(k,), daemon=True) for k in range(a_la_vez)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join()
+    if errores:
+        raise errores[0]
+    return [listos[k] for k in sorted(listos)]
+
+
+def armados_a_la_vez():
+    """Cuántos videos se arman a la vez: config «armar_a_la_vez» o, si no, según los núcleos de la PC (2 con 6 o más, 3 con 12 o más)."""
+    n = CONFIG.get("armar_a_la_vez")
+    if n:
+        return max(1, min(4, int(n)))
+    nucleos = os.cpu_count() or 2
+    return 3 if nucleos >= 12 else 2 if nucleos >= 6 else 1
 
 
 def rehacer_portadas(avance=print):

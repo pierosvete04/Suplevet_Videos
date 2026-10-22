@@ -245,6 +245,9 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-inspector { border: 1px solid var(--line); border-radius: 11px; padding: 10px; display: grid; gap: 8px; background: var(--bg2); min-height: 92px; }
 .ev-inspector .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .ev-controles { margin: 10px 0 6px; }
+/* en la ventana del editor, los botones de edición se quedan siempre arriba al bajar a los cortes por voz y la línea de tiempo */
+#dlgEditor .ev-controles { position: sticky; top: var(--alto-cab-ed, 52px); z-index: 3; margin: 10px -16px 6px; padding: 8px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: 0 6px 12px -10px rgba(0,0,0,.35); }
 .ev-tl { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: 11px; background: var(--bg2); padding: 4px 0 8px; user-select: none; }
 .ev-regla { position: relative; height: 18px; margin-left: 78px; font: 10px var(--mono); color: var(--muted); cursor: pointer; }
 .ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line2); padding-left: 3px; }
@@ -492,6 +495,12 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
   .cab-acciones { flex: 1 1 auto; justify-content: flex-end; gap: 6px; }
   .cab-acciones .btn:not(.icono) { padding: 7px 10px; }
 }
+/* Copias de seguridad */
+.resp-lista { display: grid; gap: 6px; }
+.resp-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--hondo); font-size: 13px; }
+.resp-fila small { color: var(--muted); font-size: 11.5px; }
+.resp-fila.nombrada { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+@media (max-width: 560px) { .resp-fila { grid-template-columns: 1fr auto; } .resp-fila .kb { display: none; } }
 /* Menú de la cuenta: cuelga de tu cuenta (arriba a la derecha); cada opción es su propia página de configuración */
 .cuenta-ancla { position: relative; display: inline-flex; }
 .menu-cuenta { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; width: 290px; max-width: calc(100vw - 24px); display: grid; gap: 2px; padding: 8px;
@@ -839,6 +848,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <button role="menuitem" data-conf="confTablet">📱 Teleprompter en la tablet <span class="punto-estado" id="mcPRed"></span></button>
         <button role="menuitem" data-conf="confAct">⟳ Actualizaciones <span class="punto-estado" id="mcPAct"></span></button>
         <button role="menuitem" data-conf="confNotas">✎ Notas para Claude</button>
+        <button role="menuitem" data-conf="confRespaldos">🛟 Copias de seguridad</button>
         <hr>
         <a role="menuitem" href="/teleprompter" target="_blank">📜 Abrir el teleprompter</a>
         <button role="menuitem" id="tema" title="Cambiar entre modo claro y oscuro"></button>
@@ -1354,6 +1364,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <a href="#confTablet">📱 Teleprompter <span class="punto-estado" id="confPRed"></span></a>
         <a href="#confAct">⟳ Actualizaciones <span class="punto-estado" id="confPAct"></span></a>
         <a href="#confNotas">✎ Notas para Claude</a>
+        <a href="#confRespaldos">🛟 Copias de seguridad</a>
       </aside>
       <div class="conf-cuerpo">
         <section class="caja conf-sec" id="confCuenta">
@@ -1413,6 +1424,16 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <button class="btn sec" id="actBuscar">Buscar actualizaciones</button>
           </div>
           <div id="actResultado" class="estado-grande"></div>
+        </section>
+
+        <section class="caja conf-sec" id="confRespaldos">
+          <div class="conf-cab">
+            <div><h2>Copias de seguridad</h2>
+              <p class="muted">Copias solo de tus cambios (subtítulos, cortes, zooms, versiones, portadas, copies, guion y ajustes), no de los videos: cada una pesa unos KB.
+                La sala guarda una sola cada pocos minutos si algo cambió, y también en Drive. Si algo sale mal, vuelve a una copia y rearma.</p></div>
+            <button class="btn" id="respGuardar">Guardar copia ahora</button>
+          </div>
+          <div id="respLista" class="resp-lista"></div>
         </section>
 
         <section class="caja conf-sec" id="confNotas">
@@ -1652,7 +1673,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <details class="ev-guia" id="evGuia">
         <summary>¿Cómo se usa el editor? <span class="muted">(toca para ver la guía)</span></summary>
         <div class="ev-guia-pasos">
-          <div><b>1 · Video</b><span>Cada bloque es un clip: el hook, cada frase del cuerpo y el CTA. Estira sus bordes para recortar. <b>S</b> corta en el cabezal y <b>Supr</b> quita el pedazo elegido.</span></div>
+          <div><b>1 · Video</b><span>Cada bloque es un clip: el hook, cada frase del cuerpo y el CTA. Estira sus bordes para recortar. <b>S</b> corta en el cabezal y <b>Supr</b> quita el pedazo elegido y <b>Shift + Supr</b>, la frase entera.</span></div>
           <div><b>2 · Imágenes</b><span>Las imágenes o escenas que van encima. Arrástralas para moverlas y estira sus bordes para que duren más o menos.</span></div>
           <div><b>3 · Encuadre</b><span>El zoom. Pon un fotograma clave (<b>K</b>) y con «Mover y escalar» acerca y mueve la imagen. Entre dos fotogramas, la cámara va de uno a otro.</span></div>
           <div><b>4 · Audio</b><span>La voz. En color se ve cuando habla y en gris el silencio. «✂ Quitar silencios» corta los silencios solo.</span></div>
@@ -1673,7 +1694,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="ev-cabezal" id="evCabezal"></div>
       </div>
       <p class="muted ev-ayuda">Teclas: <b>Enter</b> o <b>espacio</b> reproduce · <b>Inicio</b> desde el principio · <b>←</b> <b>→</b> un cuadro (con Shift, un segundo) · <b>S</b> corta en el cabezal ·
-        <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
+        <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>Shift + Supr</b> quita la frase entera · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
         <b>I</b> imagen o escena en el cabezal.</p>
       <div class="ev-sonido-barra">
         <b>➕ Agregar un sonido:</b> <span class="muted">1. elige el tipo → 2. el sonido → 3. ▶ escúchalo → 4. ponlo donde está el cabezal</span>
@@ -2941,6 +2962,7 @@ function irConf(id) {
   document.querySelectorAll(".conf-sec").forEach(x => x.hidden = x.id !== id);
   marcarMenuConf(id); scrollTo({ top: 0 });
   if (id === "confCuenta") Cuenta.pintarEn($("cfgCuenta"));
+  if (id === "confRespaldos") pintarRespaldos();
 }
 function marcarMenuConf(id) {
   document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id));
@@ -2949,6 +2971,34 @@ function marcarMenuConf(id) {
 }
 document.querySelectorAll(".conf-sec").forEach(x => x.hidden = x.id !== confActual);
 document.querySelectorAll(".conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
+// Copias de seguridad de los cambios (no de los videos)
+async function pintarRespaldos() {
+  const caja = $("respLista");
+  try {
+    const r = await (await fetch("/api/respaldos")).json();
+    caja.innerHTML = r.respaldos.length ? r.respaldos.map((x, i) => `<div class="resp-fila ${x.auto ? "" : "nombrada"}">
+        <span><b>${esc(x.nombre || (i === 0 ? "La más reciente" : "Automática"))}</b><br><small>${esc(x.fecha)} · ${x.archivos} archivos${x.version ? " · sala " + esc(x.version) : ""}</small></span>
+        <small class="kb">${x.kb} KB</small>
+        <button class="btn sec peq" type="button" data-resp="${esc(x.archivo)}" data-fecha="${esc(x.fecha)}">Volver a esta</button></div>`).join("")
+      : `<p class="muted" style="margin:0">Todavía no hay copias de «${esc(r.sesion)}». La primera se guarda sola en unos minutos, o toca «Guardar copia ahora».</p>`;
+  } catch (e) { caja.innerHTML = `<p class="err" style="margin:0">No pude leer las copias: ${esc(e.message)}</p>`; }
+}
+$("respGuardar").onclick = async () => {
+  const nombre = prompt("Nombre de la copia (para reconocerla después):", "Antes de cambiar…");
+  if (nombre === null) return;
+  try { const r = await post("/api/respaldos", { nombre: nombre || "Guardada a mano" }); avisar(`Copia guardada (${r.respaldo.kb} KB).`, "ok"); pintarRespaldos(); }
+  catch (e) { avisar("Error: " + e.message, "err"); }
+};
+$("respLista").addEventListener("click", async e => {
+  const b = e.target.closest("[data-resp]"); if (!b) return;
+  if (!confirm(`¿Dejar la sesión como estaba el ${b.dataset.fecha}?
+
+Antes se guarda una copia de cómo está ahora, por si quieres volver. Después hay que rearmar los videos.`)) return;
+  b.disabled = true; b.textContent = "Restaurando…";
+  try { await post("/api/respaldos", { accion: "restaurar", archivo: b.dataset.resp }); await cargar(); pintarRespaldos();
+    avisar(`Listo: la sesión quedó como el ${b.dataset.fecha}. Toca «Armar todos los videos» para verla en los videos.`, "ok"); }
+  catch (er) { avisar("Error: " + er.message, "err"); pintarRespaldos(); }
+});
 // El menú de la cuenta (tu foto arriba a la derecha) lleva a cada página de configuración
 function abrirMenuCuenta() {
   const m = $("menuCuenta"); if (!m.hidden) return cerrarMenuCuenta();
@@ -4157,7 +4207,8 @@ function pintarInspector() {
   const pausasHtml = `<button class="btn sec peq" type="button" id="evPausas" title="Corta los silencios largos de este bloque (más de 0,35 s), dejando un respiro">✂ Quitar pausas</button>`;
   if (b.nsub) {  // un pedazo entre cortes
     $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
-        <label class="fila" style="font-size:13px"><input type="checkbox" id="evPedazo" ${b.pedazoQuitado ? "" : "checked"}> Incluir este pedazo</label></div>
+        <span class="fila"><label class="fila" style="font-size:13px"><input type="checkbox" id="evPedazo" ${b.pedazoQuitado ? "" : "checked"}> Incluir este pedazo</label>
+        ${b.i !== undefined ? `<label class="fila" style="font-size:13px" title="La frase ${b.i + 1} completa, con todos sus pedazos (Shift + Supr)"><input type="checkbox" id="evVisible" ${b.quitada ? "" : "checked"}> Incluir la frase entera</label>` : ""}</span></div>
       <span class="muted" style="font-size:12px">${(b.b - b.a).toFixed(2)} s · del ${b.a.toFixed(2)} al ${b.b.toFixed(2)} s del clip</span>
       <div class="fila">${b.sub > 0 ? `<button class="btn sec peq" type="button" data-unir="${b.a}">Unir con el anterior</button>` : ""}
         ${b.sub < b.nsub - 1 ? `<button class="btn sec peq" type="button" data-unir="${b.b}">Unir con el siguiente</button>` : ""}${pausasHtml}</div>
@@ -4585,10 +4636,10 @@ function alternarPedazo(b) {  // quita o vuelve a poner un pedazo entre cortes
   const medio = (b.a + b.b) / 2, i = lista.findIndex(([ra, rb]) => medio >= ra && medio <= rb);
   if (i >= 0) lista.splice(i, 1); else lista.push([+b.a.toFixed(3), +b.b.toFixed(3)]);
 }
-function quitarPedazoSel() {
+function quitarPedazoSel(fraseEntera) {  // con Shift: la frase entera del cuerpo, aunque esté partida en pedazos
   const b = bloquesEd().find(x => x.key === ed.sel);
   if (!b) return avisar("Elige un pedazo (o una frase del cuerpo) en la pista Video.", "muted");
-  if (b.nsub) alternarPedazo(b);
+  if (b.nsub && !(fraseEntera && b.i !== undefined)) alternarPedazo(b);
   else if (b.i !== undefined) { ed.quitar.has(b.i) ? ed.quitar.delete(b.i) : ed.quitar.add(b.i); }
   else return avisar("Para quitar una parte del hook o del CTA, primero córtalo (S) y elige el pedazo.", "muted");
   const g = Math.min(ed.t, segmentosEd().reduce((a, s) => a + s.b - s.a, 0) - .05);
@@ -4706,7 +4757,7 @@ $("evInspector").addEventListener("click", e => {
 // aplicados en las piezas que nadie revisó. Aquí se ven en el texto: lo tachado se corta; se toca para volver a ponerlo.
 const PIEZAS_ED = () => [["hook", est.hook, "Hook"], ["cuerpo", est.cuerpo, "Cuerpo"], ["cta", est.cta, "CTA"]];
 const CORTO_VOZ = { repetido: "Repetido", tartamudeo: "Tartamudeo", muletilla: "Muletilla", equivoco: "Se equivocó", pausa: "Silencio",
-  ruido: "Ruido sin palabras", de_mas: "No está en el guion" };
+  ruido: "Ruido sin palabras", de_mas: "No está en el guion", toma_sin_texto: "Dicho dos veces" };
 const palabrasEd = p => (p.lineas || []).flatMap(l => (l.palabras || []).map(w => ({ ...w, w: w.w ?? "" })));
 const piezaEd = pz => ({ hook: est.hook, cuerpo: est.cuerpo, cta: est.cta })[pz];
 const pisa = (a, b, c, d) => Math.min(b, d) - Math.max(a, c);
@@ -4933,7 +4984,7 @@ $("dlgEditor").addEventListener("keydown", e => {
   else if (tecla === "m") { e.preventDefault(); modoMover(); }
   else if (tecla === "c") { e.preventDefault(); ponerVista(ed.vista === "sin" ? "con" : "sin"); }
   else if (tecla === "i") { e.preventDefault(); $("evImagen").click(); }
-  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (ed.vozSel) alternarVozSel(); else if (ed.cSel) quitarCapaSel(); else if (ed.kSel) quitarPuntoSel(); else quitarPedazoSel(); }
+  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (ed.vozSel) alternarVozSel(); else if (ed.cSel) quitarCapaSel(); else if (ed.kSel) quitarPuntoSel(); else quitarPedazoSel(e.shiftKey); }
 });
 // Al tocar la línea de tiempo o el video, el foco vuelve al editor: así Enter reproduce y no repite el último botón
 ["evTL", "evVisor"].forEach(id => $(id).addEventListener("pointerdown", () => { if (document.activeElement?.closest?.("button")) document.activeElement.blur(); }));
@@ -5345,6 +5396,8 @@ function abrirEditor() {
   setTimeout(() => { pintarEditor(); vistaEd(); pintarMudos(); }, 50);
 }
 $("irEditor").onclick = abrirEditor;
+new ResizeObserver(() => $("dlgEditor").style.setProperty("--alto-cab-ed", $("dlgEditor").querySelector(".dlg-cab").offsetHeight + "px"))
+  .observe($("dlgEditor").querySelector(".dlg-cab"));
 $("edCerrar").onclick = () => $("dlgEditor").close();
 $("dlgEditor").addEventListener("close", pararEditor);
 $("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checked) evMusica.pause(); });

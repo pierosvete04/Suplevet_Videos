@@ -22,6 +22,7 @@ import cuenta
 import drive
 import motor
 import panel
+import respaldos
 
 PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("SALA_PUERTO") or 8765)  # --puerto para probar sin chocar con la sala abierta
 # Desde otra PC o la tablet (por WiFi) solo se puede abrir el teleprompter, y con PIN.
@@ -742,6 +743,8 @@ class H(BaseHTTPRequestHandler):
             self._json(actualizador.revisar(forzar="forzar" in u.query))
         elif u.path == "/api/claude":
             self._json(asistente.estado(forzar="forzar" in u.query))
+        elif u.path == "/api/respaldos":  # copias de seguridad de los cambios de la sesión abierta
+            self._json({"respaldos": respaldos.listar(), "sesion": motor.S.semana, "max_auto": respaldos.MAX_AUTO})
         elif u.path == "/api/latido":
             if "ping" in u.query:
                 LATIDO["ultimo"] = time.time()
@@ -968,6 +971,10 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("Nombre de semana no válido")
                 nueva = motor.S.base / sem
                 es_grupo = sem in motor.grupos()
+                try:  # lo último de la sesión que se deja queda guardado
+                    respaldos.hacer(auto=True)
+                except Exception as e:
+                    print("No se pudo guardar la copia de seguridad:", e)
                 if not es_grupo and drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
                     drive.crear_sesion(sem)
                 if not es_grupo and not nueva.exists() and not (drive.estado()["activo"] and sem in drive.sesiones_en_drive()):
@@ -978,6 +985,14 @@ class H(BaseHTTPRequestHandler):
                 if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
                     lanzar("bajar")  # se baja sola la primera vez que se abre
                 self._json({"ok": True})
+            elif u.path == "/api/respaldos":  # guardar una copia ahora o restaurar una
+                b = self._cuerpo()
+                if b.get("accion") == "restaurar":
+                    if TRABAJO["activo"]:
+                        raise ValueError("Espera a que termine lo que está haciendo la sala (☰) para restaurar")
+                    self._json({"ok": True, **respaldos.restaurar(str(b.get("archivo", "")))})
+                else:
+                    self._json({"ok": True, "respaldo": respaldos.hacer(nombre=str(b.get("nombre") or "Guardada a mano"))})
             elif u.path == "/api/importar_descarga":
                 # un archivo de Descargas pasa a la sesión con el nombre que pide el guion, se sube a Drive
                 # y se dice qué videos lo usan (para re-armar solo esos)
@@ -1330,6 +1345,7 @@ if __name__ == "__main__":
     vigilar_ventana()
     cuenta.iniciar("Sala de edición", motor.VERSION)
     threading.Thread(target=lambda: _sin_error(drive.asegurar_config), daemon=True).start()
+    respaldos.vigilar()  # copia de los cambios cada pocos minutos, solo si algo cambió
     cuenta.latido(forzar=True)
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")
