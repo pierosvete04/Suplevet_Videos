@@ -147,8 +147,10 @@ section[hidden] { display: none; }
 .sin-nada { padding: 30px; text-align: center; border: 1px dashed var(--line2); border-radius: 14px; color: var(--muted); }
 
 dialog { border: 1px solid var(--line2); border-radius: 16px; padding: 0; width: min(1180px, 96vw); max-height: 94vh; background: var(--surface); color: var(--ink); box-shadow: 0 30px 80px rgba(0,0,0,.7), var(--glow); }
-/* con una ventana abierta, la página de atrás no se mueve */
-html:has(dialog[open]), html:has(dialog[open]) body { overflow: hidden; }
+/* con una ventana abierta, la página de atrás no se mueve. Solo se bloquea <html>: si también se bloquea <body>, la cabecera
+   pierde el «sticky» y se va de la pantalla. El hueco de la barra de scroll queda reservado para que nada salte de lado. */
+html { scrollbar-gutter: stable; }
+html:has(dialog[open]) { overflow: hidden; }
 dialog { overscroll-behavior: contain; overflow: auto; }
 dialog::backdrop { background: rgba(2,4,8,.75); backdrop-filter: blur(4px); }
 .dlg-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--flotante); backdrop-filter: blur(10px); z-index: 2; }
@@ -467,6 +469,16 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .conexion details summary::before { content: "▸ "; } .conexion details[open] summary::before { content: "▾ "; }
 .conexion ol { margin: 8px 0 4px; padding-left: 20px; font-size: 12.5px; display: grid; gap: 4px; }
 .conexion .marca { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+/* Menú de la cuenta: se abre desde tu foto arriba a la derecha; cada opción es su propia página de configuración */
+.menu-cuenta { position: absolute; top: calc(100% + 6px); right: 16px; z-index: 20; width: 290px; display: grid; gap: 2px; padding: 8px;
+  border-radius: 14px; border: 1px solid var(--line2); background: var(--flotante); box-shadow: 0 24px 60px rgba(0,0,0,.35); animation: pn-entra .16s ease-out; }
+.menu-cuenta .mc-yo { display: flex; gap: 10px; align-items: center; padding: 6px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); min-width: 0; }
+.menu-cuenta .mc-yo b, .menu-cuenta .mc-yo small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-cuenta .mc-yo small { color: var(--muted); font-size: 11.5px; }
+.menu-cuenta button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 9px; background: none; color: var(--ink); font: 600 13px var(--f); text-align: left; cursor: pointer; }
+.menu-cuenta button:hover, .menu-cuenta button:focus-visible { background: var(--surface2); }
+.menu-cuenta button .pill, .menu-cuenta button .punto-estado { margin-left: auto; }
+.menu-cuenta button[aria-current="true"] { box-shadow: inset 3px 0 0 var(--accent); background: var(--surface2); }
 @media (max-width: 860px) { .conf { grid-template-columns: 1fr; } .conf-menu { position: static; grid-auto-flow: column; overflow-x: auto; } .conf-tit { display: none; } .conf-menu a { white-space: nowrap; } }
 /* Notificaciones: panel bajo la campana */
 dialog.pop-notifs { position: fixed; inset: calc(var(--alto-header, 56px) + 6px) 16px auto auto; margin: 0; width: min(420px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 90px));
@@ -780,7 +792,15 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
     <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
     <span id="cuentaChip"></span>
-    <button class="btn sec icono" id="abrirAjustes" title="Configuración: Drive, teleprompter en la tablet, notas" aria-label="Configuración">⚙</button>
+  </div>
+  <div id="menuCuenta" class="menu-cuenta" role="menu" aria-label="Tu cuenta y configuración" hidden>
+    <div class="mc-yo" id="mcYo"></div>
+    <button role="menuitem" data-conf="confCuenta">👤 Cuenta y dispositivos</button>
+    <button role="menuitem" data-conf="confConexiones">🔌 Conexiones <span class="pill" id="mcNCon"></span></button>
+    <button role="menuitem" data-conf="confDrive">☁ Google Drive <span class="punto-estado" id="mcPDrive"></span></button>
+    <button role="menuitem" data-conf="confTablet">📱 Teleprompter en la tablet <span class="punto-estado" id="mcPRed"></span></button>
+    <button role="menuitem" data-conf="confAct">⟳ Actualizaciones <span class="punto-estado" id="mcPAct"></span></button>
+    <button role="menuitem" data-conf="confNotas">✎ Notas para Claude</button>
   </div>
   <div id="avisoVersion" hidden>
     <span><b>Hay una versión nueva de la sala: <span id="vNueva"></span></b> <span class="muted" id="vActual"></span></span>
@@ -2075,7 +2095,8 @@ function abrirVideo(cod, editar) {
   pintarTelefono(); contar();
   $("dlg").showModal();
   abrirPortada(); abrirSubsVideo();
-  cargarEstructura(actual.codigo).then(() => { abrirPortada(); if (editar) abrirEditor(); });
+  // con la estructura ya se sabe cuánto dura el hook (el límite del momento de la portada); no se borra lo que ya se esté cambiando
+  cargarEstructura(cod).then(() => { if (actual?.codigo !== cod) return; if (!porSucia) abrirPortada(); if (editar) abrirEditor(); });
 }
 
 const LIM = { instagram: 125, tiktok: 100, youtube: 0 };
@@ -2618,7 +2639,7 @@ $("todo").onclick = () => trabajo("todo");
 // ---------- Producir todo ----------
 $("producir").onclick = async () => {
   $("prodPanel").disabled = !E.panel; $("prodPanel").checked = !!E.panel && $("prodPanel").checked;
-  $("prodPanel").closest("label").title = E.panel ? "" : "El panel no está configurado en esta PC (⚙ → Conexiones)";
+  $("prodPanel").closest("label").title = E.panel ? "" : "El panel no está configurado en esta PC (tu cuenta arriba a la derecha → Conexiones)";
   // estimado con lo que tardó antes cada video en armarse y exportarse
   try {
     const h = await (await fetch("/api/historial")).json(), n = E.salidas.length;
@@ -2860,14 +2881,44 @@ $("procActual").addEventListener("click", async e => {
   e.target.disabled = true; e.target.textContent = "Cancelando…";
   try { await post("/api/cancelar"); } catch (err) { avisar("Error: " + err.message, "err"); }
 });
-$("abrirAjustes").onclick = () => { irTab("notas"); Cuenta.pintarEn($("cfgCuenta")); };
-function irConf(id) { irTab("notas"); $(id).scrollIntoView({ behavior: "smooth", block: "start" }); marcarMenuConf(id); }
-function marcarMenuConf(id) { document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id)); }
+// Configuración: cada opción es su propia página (se ve solo esa sección), no un índice que baja por una página larga
+let confActual = "confCuenta";
+function irConf(id) {
+  confActual = id; irTab("notas");
+  document.querySelectorAll(".conf-sec").forEach(x => x.hidden = x.id !== id);
+  marcarMenuConf(id); scrollTo({ top: 0 });
+  if (id === "confCuenta") Cuenta.pintarEn($("cfgCuenta"));
+}
+function marcarMenuConf(id) {
+  document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id));
+  const enConf = !document.querySelector('[data-panel="notas"]').hidden;
+  document.querySelectorAll("#menuCuenta [data-conf]").forEach(b => b.setAttribute("aria-current", enConf && b.dataset.conf === id));
+}
+document.querySelectorAll(".conf-sec").forEach(x => x.hidden = x.id !== confActual);
 document.querySelectorAll(".conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
-// el menú sigue a la sección que se está viendo
-const obsConf = new IntersectionObserver(es => { const v = es.filter(x => x.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (v) marcarMenuConf(v.target.id); },
-  { rootMargin: "-30% 0px -60% 0px" });
-document.querySelectorAll(".conf-sec").forEach(x => obsConf.observe(x));
+// El menú de la cuenta (tu foto arriba a la derecha) lleva a cada página de configuración
+function abrirMenuCuenta() {
+  const m = $("menuCuenta"); if (!m.hidden) return cerrarMenuCuenta();
+  const c = Cuenta.estado() || {};
+  $("mcYo").innerHTML = `<span class="cta-av">${esc((c.nombre || c.email || "?").trim()[0] || "?").toUpperCase()}</span><div style="min-width:0"><b>${esc(c.nombre || "Tu cuenta")}</b><small>${esc(c.email || "")}</small></div>`;
+  if (c.foto) $("mcYo").querySelector(".cta-av").outerHTML = `<img class="cta-av" src="${esc(c.foto)}" alt="" referrerpolicy="no-referrer">`;
+  // los puntitos de estado son los mismos que los del menú de la página de configuración
+  [["mcNCon", "confNCon"], ["mcPDrive", "confPDrive"], ["mcPRed", "confPRed"], ["mcPAct", "confPAct"]].forEach(([a, b]) => { $(a).className = $(b).className; $(a).textContent = $(b).textContent; });
+  marcarMenuConf(confActual);
+  m.hidden = false; $("cuentaChip").querySelector("button")?.setAttribute("aria-expanded", "true");
+  m.querySelector("[data-conf]").focus({ preventScroll: true });
+}
+function cerrarMenuCuenta() { $("menuCuenta").hidden = true; $("cuentaChip").querySelector("button")?.setAttribute("aria-expanded", "false"); }
+$("menuCuenta").addEventListener("click", e => { const b = e.target.closest("[data-conf]"); if (b) { cerrarMenuCuenta(); irConf(b.dataset.conf); } });
+document.addEventListener("click", e => { if (!$("menuCuenta").hidden && !e.target.closest("#menuCuenta, #cuentaChip")) cerrarMenuCuenta(); });
+document.addEventListener("keydown", e => {
+  if ($("menuCuenta").hidden) return;
+  if (e.key === "Escape") { cerrarMenuCuenta(); $("cuentaChip").querySelector("button")?.focus(); }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    const bs = [...$("menuCuenta").querySelectorAll("[data-conf]")], i = bs.indexOf(document.activeElement);
+    bs[(i + (e.key === "ArrowDown" ? 1 : -1) + bs.length) % bs.length].focus(); e.preventDefault();
+  }
+});
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
   let cuerpo = cuerpos.length === 1 ? cuerpos[0] : prompt(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
@@ -2884,7 +2935,8 @@ $("subirPanel").onclick = () => trabajo("panel");
 $("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
 
 $("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; $("dlg").close(); trabajo("uno", cod); } };
-$("cerrar").onclick = () => $("dlg").close();
+$("cerrar").onclick = cerrarVideo;
+$("dlg").addEventListener("cancel", e => { e.preventDefault(); if (!$("dlgEditor").open) cerrarVideo(); });
 $("dlgReceta").addEventListener("click", e => {  // ir al segundo de una imagen o un sonido en el video
   const a = e.target.closest("[data-ir-seg]"); if (!a) return;
   e.preventDefault(); const v = $("dlgVideo"); v.currentTime = Number(a.dataset.irSeg); v.play().catch(() => {});
@@ -2893,14 +2945,15 @@ $("dlg").addEventListener("close", () => { if ($("dlgEditor").open) $("dlgEditor
 $("dlg").addEventListener("close", () => $("dlgVideo").pause());
 $("guardarCopy").onclick = async () => {
   try {
-    await post(`/api/copy?codigo=${encodeURIComponent(actual.codigo)}`, {
-      instagram: $("cInstagram").value, tiktok: $("cTiktok").value, youtube_titulo: $("cYtTitulo").value, youtube: $("cYoutube").value });
+    const copy = { instagram: $("cInstagram").value, tiktok: $("cTiktok").value, youtube_titulo: $("cYtTitulo").value, youtube: $("cYoutube").value };
+    await post(`/api/copy?codigo=${encodeURIComponent(actual.codigo)}`, copy);
+    actual.copy = { ...(actual.copy || {}), ...copy };
     avisar("Copy guardado.", "ok"); await cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("copiarCopy").onclick = () => {
   const t = red === "youtube" ? $("cYtTitulo").value + "\n\n" + $("cYoutube").value : red === "tiktok" ? $("cTiktok").value : $("cInstagram").value;
-  navigator.clipboard.writeText(t); avisar("Copy copiado.", "ok");
+  navigator.clipboard.writeText(t).then(() => avisar("Copy copiado.", "ok"), () => avisar("No se pudo copiar: selecciona el texto y usa Ctrl+C.", "err"));
 };
 // Formato de la sesión: vertical 9:16 o horizontal 16:9. Al cambiarlo, las piezas se preparan otra vez con el tamaño
 // nuevo y los videos quedan por re-armar (los subtítulos corregidos se conservan).
@@ -3013,6 +3066,7 @@ $("guardarNotas").onclick = async () => { try { await post("/api/notas", { texto
 let porTimer = null;
 let porDiseno = {};
 function abrirPortada() {
+  clearTimeout(porTimer);  // una vista en vivo pendiente no debe pisar el formulario recién abierto
   const a = actual.ajustes_portada || {};
   porDiseno = JSON.parse(JSON.stringify(a)); porDiseno.elementos = porDiseno.elementos || [];
   const durHook = (est && est.hook && est.hook.dur) || 5;
@@ -3035,8 +3089,9 @@ function abrirPortada() {
   $("porSolo").checked = !!a.solo_imagen;
   $("porElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("");
   pintarFondoPortada(); pintarElemsPortada();
-  $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual";
+  $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; porSucia = false;
 }
+let porSucia = false;  // hay cambios de portada que se ven en vivo pero no se guardaron
 function leerPortada() {
   return { ...porDiseno, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
     tamano: Number($("porTam").value), color_texto: $("porColor").value, color_acento: $("porAcento").value, borde: Number($("porBorde").value),
@@ -3059,7 +3114,7 @@ function verPortadaEnVivo(espera = 250) {
   clearTimeout(porTimer);
   porTimer = setTimeout(() => {
     const q = new URLSearchParams({ codigo: actual.codigo, d: JSON.stringify(leerPortada()), _: Date.now() });
-    $("porVista").src = `/api/portada_vista?${q}`;
+    $("porVista").src = `/api/portada_vista?${q}`; porSucia = true;
     $("porEstado").innerHTML = `<span class="pill warn">Sin guardar</span> Así quedará: toca «Guardar portada»`;
   }, espera);
 }
@@ -3092,13 +3147,14 @@ $("porSubir").onchange = async e => {
   e.target.value = "";
 };
 $("porFondoQuitar").onclick = () => { delete porDiseno.fondo; porDiseno.fondo = ""; pintarFondoPortada(); verPortadaEnVivo(0); };
-$("porVolver").onclick = () => { $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; };
+// «Ver portada actual» deja el formulario como está guardado (antes solo cambiaba la imagen y los cambios seguían en el formulario)
+$("porVolver").onclick = abrirPortada;
 $("porGuardar").onclick = async () => {
   $("porGuardar").disabled = true; $("porEstado").textContent = "Haciendo la portada…";
   try {
     const d = leerPortada();
     const r = await post("/api/portada", { codigo: actual.codigo, ...d });
-    $("porVista").src = r.portada; actual.portada = r.portada; actual.ajustes_portada = d;
+    $("porVista").src = r.portada; actual.portada = r.portada; actual.ajustes_portada = d; porSucia = false;
     $("porEstado").innerHTML = `<span class="pill ok">✓ Guardada</span>`;
     cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
@@ -3844,7 +3900,11 @@ $("evCarrilA").addEventListener("click", e => {  // tocar el audio lleva el cabe
 });
 async function cargarEstructura(codigo, combo) {
   $("evInspector").innerHTML = `<span class="muted">Cargando…</span>`;
-  est = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo, ...(combo || {}) })}`)).json();
+  // si se abre otro video antes de que llegue esta respuesta, se descarta (si no, el editor quedaba con las piezas del video anterior)
+  const pedido = cargarEstructura.n = (cargarEstructura.n || 0) + 1;
+  const nuevo = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo, ...(combo || {}) })}`)).json();
+  if (pedido !== cargarEstructura.n) return;
+  est = nuevo;
   if (est.error) { $("evInspector").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
   const opt = (lista, v) => lista.map(n => `<option value="${esc(n)}" ${n === v ? "selected" : ""}>${esc(verPieza(n))}</option>`).join("");
   $("evHook").innerHTML = opt(est.opciones.hook, est.hook.nombre);
@@ -3872,6 +3932,29 @@ async function cargarEstructura(codigo, combo) {
   ed.zoom.tramos = {};
   ed.kSel = null; ed.mover = false; modoMover(false);
   pararEditor(); pintarEditor(); irA(0); pintarAlcance(); cargarOndas();
+  if (!combo) firmaGuardada = firmaEd();
+}
+// ¿Quedó algo sin guardar en el video abierto? Se compara con cómo estaba al abrirlo (sin contar listas vacías que se crean solas)
+let firmaGuardada = null;
+const sinVacios = v => Array.isArray(v) ? v.map(sinVacios)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sinVacios(x)])
+      .filter(([, x]) => x !== undefined && x !== null && !(typeof x === "object" && !Object.keys(x).length)).sort(([a], [b]) => a < b ? -1 : 1))
+  : v;
+function firmaEd() { return est && !est.error && ed ? JSON.stringify(sinVacios(datosEd())) : null; }
+function sinGuardar() {
+  if (!actual) return [];
+  const c = actual.copy || {}, que = [];
+  if (firmaGuardada && firmaEd() !== firmaGuardada) que.push("los cambios del editor");
+  if ($("cInstagram").value !== (c.instagram || "") || $("cTiktok").value !== (c.tiktok || "")
+    || $("cYtTitulo").value !== (c.youtube_titulo || "") || $("cYoutube").value !== (c.youtube || "")) que.push("el copy");
+  if (porSucia) que.push("la portada");
+  if (sonPend.length) que.push("los sonidos sin rearmar");
+  return que;
+}
+function cerrarVideo() {  // al cerrar con ✕ o Esc, avisa si se pierde algo
+  const que = sinGuardar();
+  if (que.length && !confirm(`Tienes ${que.join(", ").replace(/, ([^,]*)$/, " y $1")} sin guardar. ¿Cerrar igual y perderlo?`)) return false;
+  firmaGuardada = null; $("dlg").close(); return true;
 }
 function pintarAlcance() {
   if (!est || est.error) return;
@@ -6116,7 +6199,7 @@ document.addEventListener("play", e => {
 (async () => {
   await Cuenta.iniciar({ app: "Sala de edición", letra: "E", fondo: "linear-gradient(135deg,#1d4ed8,#3d8bff 60%,#5ee1ff)",
                          lugar: $("cuentaChip"), alVolver: () => location.reload(),
-                         alAbrirCuenta: () => { irConf("confCuenta"); Cuenta.pintarEn($("cfgCuenta")); } });
+                         alAbrirCuenta: abrirMenuCuenta });
   revisarClaude();
   cargar();
 })();

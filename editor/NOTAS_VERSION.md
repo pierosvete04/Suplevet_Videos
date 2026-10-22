@@ -1,3 +1,11 @@
+Versión 1.35.2 (se actualiza desde la app con «Actualizar ahora»):
+- Al abrir Notificaciones, Procesos o cualquier ventana, la sala ya no salta: la barra de arriba se queda en su sitio y nada se corre de lado.
+- La tuerca ⚙ se fue: ahora tocas **tu cuenta** (arriba a la derecha) y sale un menú con Cuenta, Conexiones, Google Drive, Teleprompter, Actualizaciones y Notas. Cada una es **su propia página**, ya no una página larga con índice.
+- En el detalle de un video, si cierras con ✕ o Esc y hay algo sin guardar (cortes del editor, copy, portada o sonidos sin rearmar), la sala te pregunta antes de perderlo.
+- Si abrías un video y enseguida otro, el editor podía quedarse con las piezas del primero. Ya no.
+- «Ver portada actual» ahora sí deja el formulario como está guardado (antes cambiaba la imagen pero los cambios seguían ahí y se podían guardar sin querer).
+- «Copiar copy de esta red» avisa si no pudo copiar.
+
 Versión 1.35.1 (se actualiza desde la app con «Actualizar ahora»):
 - En 16:9, la imagen «En ventana» ahora entra a la derecha y no al centro: quien habla se para en el tercio izquierdo (como en YouTube) y la ventana va del lado libre, sin taparle la cara. Se puede seguir arrastrando a donde quieras.
 
