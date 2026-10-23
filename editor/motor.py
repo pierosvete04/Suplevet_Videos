@@ -702,7 +702,40 @@ def guardar_asignacion(rel, pieza):
     return sesion
 
 
+# Memoria corta: mientras se arma una respuesta para la pantalla (por ejemplo el estado de la sesión), los clips,
+# las piezas y los videos posibles se calculan una sola vez. Antes el estado los recalculaba unas 30 veces seguidas
+# (una por cada video y su copy) mirando la carpeta de clips cada vez: con 27 clips tardaba casi 2 segundos.
+_memo_hilo = threading.local()
+
+
+class memoria:
+    """with motor.memoria(): ... — dentro, clips(), piezas() y combinaciones() se calculan una vez (por hilo)."""
+    def __enter__(self):
+        self.prev = getattr(_memo_hilo, "d", None)
+        if self.prev is None:
+            _memo_hilo.d = {}
+        return self
+
+    def __exit__(self, *a):
+        if self.prev is None:
+            _memo_hilo.d = None
+
+
+def _con_memoria(clave, calcular):
+    import copy
+    d = getattr(_memo_hilo, "d", None)
+    if d is None:
+        return calcular()
+    if clave not in d:
+        d[clave] = calcular()
+    return copy.deepcopy(d[clave])  # copia: quien la use puede cambiarla sin tocar la guardada
+
+
 def clips():
+    return _con_memoria(("clips", S.semana), _clips_sin_memoria)
+
+
+def _clips_sin_memoria():
     """Todos los videos de la sesión: [{rel, ruta, tipo_carpeta}]. tipo_carpeta = None si están sueltos en Clips/."""
     vistos, out = set(), []
     for sesion in S.carpetas_sesiones():
@@ -908,6 +941,10 @@ def escuchar_tomas_largas(avance=print):
 
 
 def piezas():
+    return _con_memoria(("piezas", S.semana), _piezas_sin_memoria)
+
+
+def _piezas_sin_memoria():
     """Piezas listas para editar: [{nombre, tipo, partes: [rutas], original, rel}].
     Un cuerpo grabado en partes (C1_P1, C1_P2…) es una sola pieza C1 con sus partes en orden.
     Si dos clips dicen ser la misma pieza, gana el asignado a mano."""
@@ -2722,6 +2759,10 @@ def guardar_plan(plan):
 
 
 def combinaciones():
+    return iter(_con_memoria(("combinaciones", S.semana), lambda: list(_combinaciones_sin_memoria())))
+
+
+def _combinaciones_sin_memoria():
     ps = piezas()
     cuerpos = [p["nombre"] for p in ps if p["tipo"] == "cuerpo"]
     hooks = [p["nombre"] for p in ps if p["tipo"] == "hook"]

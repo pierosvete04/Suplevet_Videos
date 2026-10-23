@@ -213,21 +213,23 @@ def traer_guion(local):
     # aunque la sala ya tenga «Guion»
     base = Path(local).parent
     rel = base.relative_to(CACHE).as_posix()
-    cambio = False
-    for x in motor.CARPETAS_GUION:
-        d = base / x
-        habia = d.is_dir()
-        huella = lambda: {f.name: (f.stat().st_size, int(f.stat().st_mtime)) for f in d.glob("*") if f.is_file()}
-        antes = huella() if habia else {}
-        try:
-            _rc("copy", f"{REMOTO}:{rel}/{x}", d, "--update", "--max-depth", "1", "--exclude", "desktop.ini", timeout=60)
-        except Exception:
-            continue  # en Drive no hay carpeta con ese nombre (o no hay internet: se reintenta en la próxima revisión)
-        if not habia and d.is_dir() and not any(d.iterdir()):
+    # Una sola llamada a Drive para las tres carpetas posibles (antes eran tres seguidas y cada una volvía a buscar toda
+    # la ruta de carpetas: tardaba unos 14 s y corría al abrir, cada 90 s y al volver a la ventana)
+    carpetas = [base / x for x in motor.CARPETAS_GUION]
+    habian = {d: d.is_dir() for d in carpetas}
+
+    def huella():
+        return {(d.name, f.name): (f.stat().st_size, int(f.stat().st_mtime)) for d in carpetas if d.is_dir() for f in d.glob("*") if f.is_file()}
+    antes = huella()
+    filtro = [a for x in motor.CARPETAS_GUION for a in ("--include", f"/{x}/*")]
+    try:
+        _rc("copy", f"{REMOTO}:{rel}", base, "--update", "--max-depth", "2", *filtro, "--exclude", "desktop.ini", timeout=60)
+    except Exception:
+        return False  # sin internet: se reintenta en la próxima revisión
+    for d in carpetas:
+        if not habian[d] and d.is_dir() and not any(d.iterdir()):
             d.rmdir()  # vacía: no se deja, para que no tape a la que sí tiene el guion
-            continue
-        cambio |= huella() != antes
-    return cambio
+    return huella() != antes
 
 
 def bajada(nombre):

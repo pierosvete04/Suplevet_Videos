@@ -194,6 +194,16 @@ def estado():
             "notas": notas.read_text(encoding="utf-8") if notas.exists() else "", "trabajo": TRABAJO}
 
 
+INICIO = time.time()
+
+
+def _sin_falla(f):
+    try:
+        f()
+    except Exception as e:  # noqa: BLE001 — sin internet: se revisa la próxima vez
+        print("No se pudo revisar la conexión con Drive:", e, flush=True)
+
+
 def _sin_error(f):
     try:
         f(avance=lambda m: None)
@@ -776,6 +786,15 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
 NOMBRE_OK = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
 
 
+class Servidor(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+            return  # la ventana se cerró o se recargó a mitad de una respuesta: no es un error
+        super().handle_error(request, client_address)
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -813,6 +832,10 @@ class H(BaseHTTPRequestHandler):
         return True
 
     def do_GET(self):
+        with motor.memoria():  # los clips y las piezas se miran una sola vez por pedido
+            return self._do_GET()
+
+    def _do_GET(self):
         u = urlparse(self.path)
         if not self._permitido(u.path):
             return
@@ -1592,9 +1615,11 @@ if __name__ == "__main__":
     print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})", flush=True)
     vigilar_ventana()
     cuenta.iniciar("Sala de edición", motor.VERSION)
-    threading.Thread(target=lambda: _sin_error(drive.asegurar_config), daemon=True).start()
+    # (asegurar_config no recibe «avance»: con _sin_error fallaba siempre y no se revisaba la conexión al abrir)
+    threading.Thread(target=lambda: _sin_falla(drive.asegurar_config), daemon=True).start()
     respaldos.vigilar()  # copia de los cambios cada pocos minutos, solo si algo cambió
     cuenta.latido(forzar=True)
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")
-    ThreadingHTTPServer((host, PUERTO), H).serve_forever()
+    print(f"Lista para usar en {time.time() - INICIO:.1f} s", flush=True)
+    Servidor((host, PUERTO), H).serve_forever()
