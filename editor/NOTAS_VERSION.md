@@ -1,3 +1,7 @@
+Versión 1.42.1 (se actualiza desde la app con «Actualizar ahora»):
+- Al tocar **«Actualizar ahora»** el botón dice **«Actualizando…»** y una pantalla encima de la sala muestra cómo va (bajando la versión nueva, reiniciando) hasta que se abre sola. Si algo falla, el botón vuelve y dice por qué.
+- En el aviso del proyecto, **«⟳ Actualizar»** también dice **«Actualizando…»** hasta que termina, y los otros botones se bloquean mientras tanto.
+
 Versión 1.42.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Actualizar proyecto**: lo que se edita en una sesión (subtítulos, marcas, cortes, zoom, imágenes, versiones, portadas y copies) se sube solo a Drive cada minuto, con quién lo hizo, cuándo y qué cambió. En las otras PCs el botón **☁** de arriba avisa y sale una ventana con:
   - **Actualizar**: trae lo del otro y conserva lo tuyo (si los dos cambiaron cosas distintas, quedan las dos). Antes se guarda una copia de seguridad de lo tuyo.
