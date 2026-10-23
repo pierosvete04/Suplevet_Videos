@@ -244,10 +244,46 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-campo { display: grid; gap: 3px; font-size: 12px; }
 .ev-inspector { border: 1px solid var(--line); border-radius: 11px; padding: 10px; display: grid; gap: 8px; background: var(--bg2); min-height: 92px; }
 .ev-inspector .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
-.ev-controles { margin: 10px 0 6px; }
-/* en la ventana del editor, los botones de edición se quedan siempre arriba al bajar a los cortes por voz y la línea de tiempo */
-#dlgEditor .ev-controles { position: sticky; top: var(--alto-cab-ed, 52px); z-index: 3; margin: 10px -16px 6px; padding: 8px 16px;
+/* Barra de herramientas del editor: grupos con ícono, nombre y su tecla (como CapCut). En la ventana del editor se queda
+   siempre arriba al bajar a los cortes por voz y la línea de tiempo */
+.ev-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin: 10px 0 6px; }
+#dlgEditor .ev-barra { position: sticky; top: var(--alto-cab-ed, 52px); z-index: 3; margin: 10px -16px 6px; padding: 8px 16px;
   background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: 0 6px 12px -10px rgba(0,0,0,.35); }
+.ev-grupo { display: flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--bg2); flex-wrap: wrap; }
+.ev-btn { display: inline-grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 6px; align-items: center;
+  padding: 5px 9px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--ink); font: 600 12px var(--f); cursor: pointer; line-height: 1.1; }
+.ev-btn > span { grid-row: span 2; font-size: 15px; }
+.ev-btn > b { font-weight: 600; }
+.ev-btn > kbd { grid-column: 2; font-size: 9.5px; color: var(--muted); padding: 0; border: 0; background: none; justify-self: start; }
+.ev-btn:hover:not(:disabled) { background: var(--raise); border-color: var(--line2); }
+.ev-btn:focus-visible, .ev-check:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ev-btn:active:not(:disabled) { transform: translateY(1px); }
+.ev-btn:disabled { opacity: .38; cursor: not-allowed; }
+.ev-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); }
+.ev-btn.prim { background: var(--accent); color: #fff; }
+.ev-btn.prim > kbd { color: rgba(255,255,255,.75); }
+.ev-btn.prim:hover:not(:disabled) { background: var(--accent); filter: brightness(1.12); }
+.ev-btn.prim[aria-pressed="true"] { background: var(--warn); color: #04101f; border-color: var(--warn); }
+.ev-btn.mini { grid-template-columns: auto; padding: 4px 9px; font-size: 15px; }
+.ev-tiempo { font: 600 12px var(--mono); color: var(--muted); padding: 0 8px; font-variant-numeric: tabular-nums; min-width: 128px; }
+.ev-check { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; color: var(--muted); padding: 0 6px; cursor: pointer; }
+.ev-zoom-tl input[type=range] { width: 110px; }
+.segmento kbd, .atajos kbd, .ed-kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line2); background: var(--bg); color: var(--muted); }
+.atajos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 16px; font-size: 13px; }
+.atajos > div { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.atajos span { color: var(--muted); }
+.ed-estado { font: 600 12px var(--f); padding: 3px 10px; border-radius: 999px; }
+.ed-estado.sucio { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.ed-estado.limpio { color: var(--muted); }
+.ev-afecta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
+.ev-afecta .chip { font: 600 11px var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--bg2); border: 1px solid var(--line2); }
+.ev-afecta .chip.este { border-color: var(--accent); color: var(--accent); }
+.vc-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.vc-op { display: grid; gap: 8px; align-content: start; }
+.toma { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: 12px; border: 1px solid var(--line); border-radius: 11px; padding: 10px; }
+.toma video { width: 100%; max-height: 240px; background: #000; border-radius: 8px; }
+.toma > div { display: grid; gap: 6px; align-content: start; }
+@media (max-width: 640px) { .toma { grid-template-columns: 1fr; } }
 .ev-tl { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: 11px; background: var(--bg2); padding: 4px 0 8px; user-select: none; }
 .ev-regla { position: relative; height: 18px; margin-left: 78px; font: 10px var(--mono); color: var(--muted); cursor: pointer; }
 .ev-regla span { position: absolute; top: 2px; border-left: 1px solid var(--line2); padding-left: 3px; }
@@ -276,7 +312,9 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .ev-b .zm.vel { right: auto; left: 12px; top: auto; bottom: 3px; background: var(--warn); color: #04101f; }
 .ev-b .zm { position: absolute; right: 12px; top: 3px; font-size: 10px; background: rgba(0,0,0,.35); color: #fff; border-radius: 4px; padding: 0 4px; }
 .ev-asa { position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; background: rgba(255,255,255,.3); }
+.ev-asa::before { content: ""; position: absolute; top: 0; bottom: 0; left: -5px; right: -5px; }  /* más fácil de agarrar */
 .ev-asa:hover { background: rgba(255,255,255,.75); }
+.ev-b:hover:not(.sel) { box-shadow: 0 0 0 1px rgba(255,255,255,.55) inset; filter: brightness(1.08); }
 .ev-asa.izq { left: 0; border-radius: 6px 0 0 6px; } .ev-asa.der { right: 0; border-radius: 0 6px 6px 0; }
 /* Vista «Sin cortes»: lo que se corta sigue en su lugar, rayado en rojo, con sus bordes para moverlos */
 .ev-b.cortado { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--err) 55%, transparent), color-mix(in srgb, var(--err) 55%, transparent) 5px, color-mix(in srgb, var(--err) 25%, transparent) 5px, color-mix(in srgb, var(--err) 25%, transparent) 10px);
@@ -426,6 +464,16 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .tabla-renombre div:nth-child(odd) { background: var(--hondo); }
 .tabla-renombre code { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .tabla-renombre div { grid-template-columns: 1fr; gap: 0; } .tabla-renombre span { display: none; } }
+.dx-queda { font: 12.5px/1.5 ui-monospace, Consolas, monospace; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; word-break: break-all; color: var(--muted); }
+.dx-queda b { color: var(--ink); }
+.segmento [role="radio"][aria-checked="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.esperando-form { opacity: .55; transition: opacity .2s; }
+.soltar.subiendo { border-color: var(--accent); color: var(--ink); }
+.soltar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drive-pend { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--warn); box-shadow: 0 10px 28px rgba(0,0,0,.35); font-size: 12.5px; }
+.esperando { opacity: .6; cursor: progress !important; pointer-events: auto; }
+.esperando::after { content: " …"; }
 .g-editar textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); }
 /* Configuración */
 .conf { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -1073,7 +1121,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="piezas-layout">
       <div class="caja" id="piezas"></div>
       <div class="caja">
-        <h2 id="tituloPieza">Pieza</h2>
+        <div class="fila" style="justify-content:space-between"><h2 id="tituloPieza" style="margin:0">Pieza</h2>
+          <span class="pill warn" id="piezaSucia" hidden title="Tienes cambios en esta pieza que todavía no guardaste">● Sin guardar</span></div>
         <div class="visor" id="visor">
           <video class="base" id="vPieza" playsinline preload="metadata"></video>
           <img class="broll" id="brollImg" alt="">
@@ -1532,20 +1581,31 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
   </form>
 </dialog>
-<dialog id="dlgExportar" aria-labelledby="dxTit" style="width:min(520px,94vw)">
+<dialog id="dlgExportar" aria-labelledby="dxTit" style="width:min(560px,94vw)">
   <form method="dialog" style="padding:18px;display:grid;gap:14px" id="formExportar">
     <h2 id="dxTit" style="margin:0">Exportar videos</h2>
     <div style="display:grid;gap:6px">
-      <b style="font-size:14px">1. ¿Quieres llevar estos videos al Drive?</b>
-      <div class="fila"><button type="button" class="btn sec" id="dxDriveSi">Sí, al Drive</button><button type="button" class="btn sec" id="dxDriveNo">No</button></div>
+      <b style="font-size:14px" id="dxP1">1. ¿Quieres llevar estos videos al Drive?</b>
+      <div class="segmento" role="radiogroup" aria-labelledby="dxP1">
+        <button type="button" role="radio" aria-checked="false" id="dxDriveSi">Sí, al Drive</button>
+        <button type="button" role="radio" aria-checked="false" id="dxDriveNo">No, solo en la PC</button></div>
       <span class="muted" style="font-size:12px" id="dxDriveNota"></span>
     </div>
     <div style="display:grid;gap:6px">
       <b style="font-size:14px">2. ¿A qué carpeta de tu PC los exportas?</b>
-      <div class="fila"><button type="button" class="btn sec" id="dxElegir">Elegir carpeta…</button><span id="dxRuta" class="muted" style="font-size:12.5px;word-break:break-all">Sin elegir</span></div>
-      <span class="muted" style="font-size:12px" id="dxQueda"></span>
+      <div class="fila"><button type="button" class="btn sec" id="dxElegir">📁 Elegir carpeta…</button>
+        <input id="dxRutaIn" placeholder="o pega aquí la ruta (ej. D:\Videos Suplevet)" aria-label="Ruta de la carpeta" style="flex:1;min-width:200px"></div>
+      <span id="dxRutaEstado" style="font-size:12.5px" aria-live="polite"></span>
     </div>
-    <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="dxOk" value="ok" disabled>Exportar</button></div>
+    <div style="display:grid;gap:6px" id="dxYaHoy" hidden>
+      <b style="font-size:14px">3. Ya exportaste hoy en esa carpeta. ¿Qué hago?</b>
+      <div class="segmento" role="radiogroup" aria-label="Exporte de hoy que ya existe">
+        <button type="button" role="radio" aria-checked="true" id="dxNueva">Crear otra carpeta</button>
+        <button type="button" role="radio" aria-checked="false" id="dxReemplazar">Reemplazar lo de hoy</button></div>
+    </div>
+    <div class="dx-queda" id="dxQueda"></div>
+    <span class="pill warn" id="dxSinArmar" hidden style="white-space:normal;line-height:1.4"></span>
+    <div class="fila" style="justify-content:flex-end"><button type="button" class="btn sec" id="dxCancelar">Cancelar</button><button class="btn" id="dxOk" value="ok" disabled>Exportar</button></div>
   </form>
 </dialog>
 <dialog id="dlgAnalizar" aria-labelledby="daTit" style="width:min(560px,94vw)">
@@ -1572,10 +1632,63 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div id="planCuerpo" style="padding:16px"></div>
 </dialog>
 <dialog id="dlgEditor" aria-labelledby="edTitulo">
-  <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="muted" style="font-size:12px">Lo que cambies en el cuerpo se aplica a todos sus videos.</span></div>
-    <button class="btn sec peq" id="edCerrar">← Volver al video</button></div>
+  <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="ed-estado" id="edEstado" aria-live="polite"></span></div>
+    <div class="fila"><button class="btn peq" id="edGuardarTop" type="button">💾 Guardar</button><button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
   <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
+</dialog>
+<dialog id="dlgAtajos" aria-labelledby="atTit" style="width:min(620px,94vw)">
+  <div style="padding:18px;display:grid;gap:12px">
+    <div class="fila" style="justify-content:space-between"><h2 id="atTit" style="margin:0">Teclas del editor</h2><button class="btn sec peq" type="button" id="atCerrar">Cerrar</button></div>
+    <div class="atajos">
+      <div><kbd>Espacio</kbd> <kbd>Enter</kbd><span>Reproducir o pausar</span></div>
+      <div><kbd>Inicio</kbd><span>Desde el principio</span></div>
+      <div><kbd>←</kbd> <kbd>→</kbd><span>Un cuadro atrás o adelante (con <kbd>Shift</kbd>, un segundo)</span></div>
+      <div><kbd>S</kbd><span>Cortar donde está el cabezal</span></div>
+      <div><kbd>Supr</kbd><span>Quitar el pedazo, el fotograma, la imagen o las palabras elegidas</span></div>
+      <div><kbd>Shift</kbd>+<kbd>Supr</kbd><span>Quitar la frase entera del cuerpo</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>Z</kbd><span>Deshacer</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>Y</kbd><span>Rehacer</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>G</kbd><span>Agrupar o desagrupar el audio del pedazo</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>D</kbd><span>Duplicar el pedazo</span></div>
+      <div><kbd>Alt</kbd>+<kbd>←</kbd> <kbd>→</kbd><span>Mover la frase antes o después</span></div>
+      <div><kbd>C</kbd><span>Ver sin cortes / con cortes</span></div>
+      <div><kbd>K</kbd><span>Fotograma clave de zoom</span></div>
+      <div><kbd>M</kbd><span>Mover y escalar el video con el mouse</span></div>
+      <div><kbd>I</kbd><span>Imagen o escena en el cabezal</span></div>
+      <div><kbd>Ctrl</kbd>+rueda<span>Acercar o alejar la línea de tiempo</span></div>
+      <div>Clic derecho<span>Más opciones del bloque (dividir, duplicar, cambiar la toma…)</span></div>
+      <div><kbd>?</kbd><span>Esta ventana</span></div>
+    </div>
+    <p class="muted" style="margin:0;font-size:12px">Las teclas no hacen nada mientras escribes en un campo. Lo que cambies en el <b>cuerpo</b> vale para todos sus videos; en el <b>hook</b> o el <b>CTA</b>, para los videos que los usan.</p>
+  </div>
+</dialog>
+<dialog id="dlgToma" aria-labelledby="tmTit" style="width:min(760px,96vw)">
+  <div style="padding:18px;display:grid;gap:12px">
+    <div class="fila" style="justify-content:space-between"><h2 id="tmTit" style="margin:0">Cambiar la toma</h2><button class="btn sec peq" type="button" id="tmCerrar">Cerrar</button></div>
+    <p class="muted" style="margin:0;font-size:12.5px" id="tmAyuda"></p>
+    <div id="tmCuerpo" style="display:grid;gap:12px"></div>
+  </div>
+</dialog>
+<dialog id="dlgVersionCuerpo" aria-labelledby="vcTit" style="width:min(760px,96vw)">
+  <div style="padding:18px;display:grid;gap:12px">
+    <div class="fila" style="justify-content:space-between"><h2 id="vcTit" style="margin:0">Nueva versión del cuerpo</h2><button class="btn sec peq" type="button" id="vcCerrar">Cerrar</button></div>
+    <p class="muted" style="margin:0;font-size:12.5px" id="vcAyuda"></p>
+    <div class="vc-opciones">
+      <div class="caja vc-op">
+        <h3 style="margin:0">⑂ El mismo material, editado aparte</h3>
+        <p class="muted" style="margin:0;font-size:12.5px" id="vcEdTxt"></p>
+        <button class="btn" type="button" id="vcEdicion">Crear esta versión</button>
+      </div>
+      <div class="caja vc-op">
+        <h3 style="margin:0">🎬 Con otra toma del cuerpo</h3>
+        <p class="muted" style="margin:0;font-size:12.5px" id="vcTomaTxt"></p>
+        <select id="vcClip" aria-label="Toma nueva del cuerpo"></select>
+        <video id="vcVista" controls preload="metadata" playsinline hidden style="width:100%;max-height:220px;background:#000;border-radius:8px"></video>
+        <button class="btn" type="button" id="vcToma" disabled>Usar esta toma</button>
+      </div>
+    </div>
+  </div>
 </dialog>
 <dialog id="dlg" aria-labelledby="dlgTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="dlgTitulo" style="margin:0"></h2><span id="dlgAviso"></span></div>
@@ -1685,26 +1798,43 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <label class="muted ev-campo">Nombre de la versión<input id="evNombre" placeholder="Ej.: corta 25 s con zoom"></label>
         </div>
       </div>
-      <div class="ev-controles fila">
-        <button class="btn sec peq" id="evInicio" type="button" title="Vuelve al inicio del video y reproduce desde ahí (tecla Inicio)">⏮ Desde el inicio</button>
-        <button class="btn sec peq" id="evPlay" title="Reproducir o pausar (Enter o barra espaciadora)">▶ Reproducir</button>
-        <span id="evTiempo" class="muted" style="font-variant-numeric:tabular-nums">0.0 s</span>
-        <button class="btn sec peq" id="evCortar" type="button" title="Corta video y audio en el cabezal (tecla S)">✂ Cortar</button>
-        <button class="btn sec peq" id="evQuitarPedazo" type="button" title="Quita el pedazo elegido; lo demás se junta solo (tecla Supr)">🗑 Quitar pedazo</button>
-        <button class="btn sec peq" id="evPunto" type="button" title="Fotograma clave de encuadre en el cabezal (tecla K)">◆ Fotograma clave</button>
-        <button class="btn sec peq" id="evMover" type="button" aria-pressed="false" title="Arrastra el video para moverlo y usa la rueda para acercar o alejar (tecla M)">✥ Mover y escalar</button>
-        <button class="btn sec peq" id="evImagen" type="button" title="Pone una imagen o un clip en el cabezal (tecla I)">🖼 Imagen o escena</button>
-        <div class="segmento" id="evVista" role="group" aria-label="Ver el video con o sin los cortes" title="Compara: «Sin cortes» muestra y hace sonar todo lo grabado, con lo que se corta rayado en rojo (tecla C)">
-          <button type="button" data-cortes="sin" aria-pressed="false">Sin cortes</button>
-          <button type="button" data-cortes="con" aria-pressed="true">Con cortes</button>
+      <div class="ev-barra" role="toolbar" aria-label="Herramientas del editor">
+        <div class="ev-grupo" role="group" aria-label="Reproducir">
+          <button class="ev-btn" id="evInicio" type="button" title="Vuelve al inicio del video y reproduce desde ahí"><span aria-hidden="true">⏮</span><b>Inicio</b><kbd>Inicio</kbd></button>
+          <button class="ev-btn prim" id="evPlay" type="button" aria-pressed="false" title="Reproducir o pausar"><span aria-hidden="true">▶</span><b>Reproducir</b><kbd>Espacio</kbd></button>
+          <span id="evTiempo" class="ev-tiempo" title="Segundo y cuadro del cabezal">0.00 s</span>
         </div>
-        <button class="btn sec peq" id="evVozBtn" type="button" aria-pressed="true" title="El texto de lo que se dijo, con los cortes que propone la sala: repeticiones, tartamudeos, muletillas y silencios largos">🎙 Cortes por voz</button>
-        <button class="btn sec peq" id="evSilencios" type="button" title="Corta el silencio del inicio y del final de cada clip y de cada frase, justo antes de que se hable">✂ Quitar silencios</button>
-        <label class="btn sec peq" title="Sube una imagen o un clip nuevo y lo pone en el cabezal">⬆ Subir<input type="file" id="evImagenSubir" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" hidden></label>
-        <label class="muted fila" style="font-size:12px" title="La vista previa suena con la música y los sonidos del último armado"><input type="checkbox" id="evConMusica" checked> Música y sonidos</label>
-        <button type="button" class="ev-mudo" data-mudo="musica" aria-pressed="false" style="margin:0" title="Silenciar la música en este video">🎵 Música</button>
-        <label class="muted fila" style="margin-left:auto;font-size:12px">Zoom de la línea de tiempo <input type="range" id="evEscala" min="6" max="400" value="34"></label>
-        <span class="muted" style="font-size:11px">Touchpad: pellizca (o Ctrl + rueda) para acercar · desliza con dos dedos para moverte</span>
+        <div class="ev-grupo" role="group" aria-label="Deshacer y rehacer">
+          <button class="ev-btn" id="evDeshacer" type="button" disabled title="Deshace el último cambio"><span aria-hidden="true">↶</span><b>Deshacer</b><kbd>Ctrl+Z</kbd></button>
+          <button class="ev-btn" id="evRehacer" type="button" disabled title="Vuelve a hacer lo deshecho"><span aria-hidden="true">↷</span><b>Rehacer</b><kbd>Ctrl+Y</kbd></button>
+        </div>
+        <div class="ev-grupo" role="group" aria-label="Cortar">
+          <button class="ev-btn" id="evCortar" type="button" title="Corta video y audio donde está el cabezal"><span aria-hidden="true">✂</span><b>Cortar</b><kbd>S</kbd></button>
+          <button class="ev-btn" id="evQuitarPedazo" type="button" title="Quita el pedazo elegido; lo de antes y lo de después se juntan solos"><span aria-hidden="true">🗑</span><b>Quitar</b><kbd>Supr</kbd></button>
+          <button class="ev-btn" id="evSilencios" type="button" title="Corta el silencio del inicio y del final de cada clip y de cada frase"><span aria-hidden="true">🔇</span><b>Quitar silencios</b></button>
+        </div>
+        <div class="ev-grupo" role="group" aria-label="Imagen y encuadre">
+          <button class="ev-btn" id="evPunto" type="button" title="Fotograma clave de encuadre (zoom) en el cabezal"><span aria-hidden="true">◆</span><b>Zoom</b><kbd>K</kbd></button>
+          <button class="ev-btn" id="evMover" type="button" aria-pressed="false" title="Arrastra el video para moverlo y usa la rueda para acercar o alejar"><span aria-hidden="true">✥</span><b>Mover</b><kbd>M</kbd></button>
+          <button class="ev-btn" id="evImagen" type="button" title="Pone una imagen o un clip de Flow donde está el cabezal"><span aria-hidden="true">🖼</span><b>Imagen</b><kbd>I</kbd></button>
+          <label class="ev-btn" title="Sube una imagen o un clip nuevo y lo pone en el cabezal" tabindex="0"><span aria-hidden="true">⬆</span><b>Subir</b><input type="file" id="evImagenSubir" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" hidden></label>
+        </div>
+        <div class="ev-grupo" role="group" aria-label="Ver y escuchar">
+          <div class="segmento" id="evVista" role="group" aria-label="Ver el video con o sin los cortes" title="«Sin cortes» muestra y hace sonar todo lo grabado, con lo que se corta rayado en rojo">
+            <button type="button" data-cortes="sin" aria-pressed="false">Sin cortes</button>
+            <button type="button" data-cortes="con" aria-pressed="true">Con cortes <kbd>C</kbd></button>
+          </div>
+          <button class="ev-btn" id="evVozBtn" type="button" aria-pressed="true" title="El texto de lo que se dijo, con los cortes que propone la sala"><span aria-hidden="true">🎙</span><b>Texto</b></button>
+          <label class="ev-check" title="La vista previa suena con la música y los sonidos del último armado"><input type="checkbox" id="evConMusica" checked> Música y sonidos</label>
+          <button type="button" class="ev-mudo" data-mudo="musica" aria-pressed="false" style="margin:0" title="Silenciar la música en este video">🎵 Música</button>
+        </div>
+        <div class="ev-grupo ev-zoom-tl" role="group" aria-label="Zoom de la línea de tiempo">
+          <button class="ev-btn mini" id="evZoomMenos" type="button" title="Alejar la línea de tiempo (o Ctrl + rueda)" aria-label="Alejar la línea de tiempo">−</button>
+          <input type="range" id="evEscala" min="6" max="400" value="34" aria-label="Zoom de la línea de tiempo">
+          <button class="ev-btn mini" id="evZoomMas" type="button" title="Acercar la línea de tiempo (o Ctrl + rueda)" aria-label="Acercar la línea de tiempo">+</button>
+          <button class="ev-btn" id="evAjustar" type="button" title="Que todo el video entre en el ancho de la pantalla"><b>Ajustar</b></button>
+        </div>
+        <button class="ev-btn" id="evAtajos" type="button" aria-haspopup="dialog" title="Todas las teclas del editor"><span aria-hidden="true">⌨</span><b>Teclas</b><kbd>?</kbd></button>
       </div>
       <div class="ev-voz" id="evVoz"></div>
       <details class="ev-guia" id="evGuia">
@@ -1730,9 +1860,6 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="ev-pista"><span class="ev-etq" title="Toca uno para corregirlo, cortarlo, unirlo o borrarlo; arrástralo para moverlo">Subtítulos</span><div class="ev-carril" id="evCarrilS"></div></div>
         <div class="ev-cabezal" id="evCabezal"></div>
       </div>
-      <p class="muted ev-ayuda">Teclas: <b>Enter</b> o <b>espacio</b> reproduce · <b>Inicio</b> desde el principio · <b>←</b> <b>→</b> un cuadro (con Shift, un segundo) · <b>S</b> corta en el cabezal ·
-        <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>Shift + Supr</b> quita la frase entera · <b>Ctrl+G</b> agrupa o desagrupa el audio · <b>Ctrl+D</b> duplica · <b>Ctrl+Z</b> deshace (<b>Ctrl+Y</b> rehace) · <b>clic derecho</b> en un bloque: más opciones · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
-        <b>I</b> imagen o escena en el cabezal.</p>
       <div class="ev-sonido-barra">
         <b>➕ Agregar un sonido:</b> <span class="muted">1. elige el tipo → 2. el sonido → 3. ▶ escúchalo → 4. ponlo donde está el cabezal</span>
         <select id="evSonCat" style="padding:5px 8px;font-size:12px"></select>
@@ -1792,10 +1919,27 @@ const avisar = (txt, cls = "muted") => {
   clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("ver"), cls === "err" ? 8000 : 4500);
 };
 const norm = w => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ]/g, "");
+// El botón que se tocó queda «esperando» mientras el pedido va y vuelve: un segundo clic no hace nada
+// (antes un doble clic en Guardar creaba dos versiones, abría dos ventanas de inicio de sesión…)
+let ultimoClic = null;  // el botón que se acaba de tocar (el pedido que sigue es suyo)
 const post = async (url, body, raw) => {
-  const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ? body : JSON.stringify(body || {}) });
-  const j = await r.json(); if (!j.ok) throw new Error(j.error || "Error"); return j;
+  const b = ultimoClic && Date.now() - ultimoClic.t < 10000 ? ultimoClic.b : null;
+  ultimoClic = null;
+  if (b) { b.setAttribute("aria-busy", "true"); b.classList.add("esperando"); }
+  try {
+    const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ? body : JSON.stringify(body || {}) });
+    let j;
+    try { j = await r.json(); } catch (e) { throw new Error(r.status === 403 ? "La sala no aceptó el pedido" : "La sala no respondió bien: vuelve a intentar"); }
+    if (!j.ok) { const err = new Error(j.error || "Error"); Object.assign(err, j); throw err; }
+    return j;
+  } finally { if (b) { b.removeAttribute("aria-busy"); b.classList.remove("esperando"); } }
 };
+document.addEventListener("click", e => {
+  const b = e.target.closest?.('[aria-busy="true"]');
+  if (b) { e.stopImmediatePropagation(); e.preventDefault(); return; }
+  const t = e.target.closest?.("button, .btn");
+  if (t) ultimoClic = { b: t, t: Date.now() };
+}, true);
 
 async function cargar() {
   E = await (await fetch("/api/estado")).json();
@@ -1812,6 +1956,7 @@ async function cargar() {
   $("actVersion").textContent = "v" + E.version;
   pintarRed();
   pintarDrive();
+  pintarDrivePend(E.drive_pendientes || []);
   // ruta corta y legible; la completa al pasar el mouse
   const partes = String(E.listos || "").split(/[\\/]/).filter(Boolean), iDrive = partes.findIndex(p => p.toLowerCase() === "drive");
   $("rutaListos").textContent = (iDrive >= 0 ? ["Drive", ...partes.slice(iDrive + 1)] : partes.slice(-3)).join(" › ");
@@ -1826,6 +1971,21 @@ async function cargar() {
   vigilar(E.trabajo);
 }
 
+function pintarDrivePend(lista) {
+  let el = $("drivePend");
+  if (!lista.length) { if (el) el.hidden = true; return; }
+  if (!el) {
+    el = document.createElement("div"); el.id = "drivePend"; el.className = "drive-pend"; el.setAttribute("role", "status");
+    document.body.appendChild(el);
+    el.addEventListener("click", async e => {
+      if (!e.target.closest("button")) return;
+      try { await post("/api/drive_reintentar"); avisar("Reintentando subir a Drive…", "muted"); setTimeout(cargar, 8000); }
+      catch (err) { avisar("Error: " + err.message, "err"); }
+    });
+  }
+  el.hidden = false;
+  el.innerHTML = `☁ <b>${plural(lista.length, "subida", "subidas")} a Drive sin terminar</b> <span class="muted" title="${esc(lista.map(x => `${x.sesion}: ${x.partes.join(", ") || "todo"} — ${x.error}`).join("\n"))}">(sin internet o Drive no dejó)</span> <button class="btn peq" type="button">Reintentar</button>`;
+}
 // ---------- Inicio ----------
 function pintarInicio() {
   $("inSesion").textContent = E.semana;
@@ -1845,7 +2005,7 @@ function pintarInicio() {
     [E.piezas.length > 0 && !sinId, "Identificar los clips", sinId ? `<button class="btn sec peq" data-ir="faltan">${sinId} por identificar</button>` : ""],
     [E.hay_produccion && !faltan, "Imágenes de Flow y música", faltan ? `<button class="btn sec peq" data-ir="faltan">Faltan ${faltan}</button>` : ""],
     [vids.length > 0 && armados === vids.length && !viejos, "Armar los videos", vids.length ? `<button class="btn sec peq" data-ir="videos">${armados}/${vids.length}</button>` : ""],
-    [vids.length > 0 && listos === vids.length, "Revisar y aprobar cada video, y exportar", vids.length ? `<button class="btn sec peq" data-ir="publicar">Publicar</button>` : ""],
+    [vids.length > 0 && listos === vids.length, "Revisar y aprobar cada video, y exportar", vids.length ? `<button class="btn sec peq" data-ir="publicar">Exportar</button>` : ""],
   ];
   const ahora = pasos.findIndex(p => !p[0]);
   $("inPasos").innerHTML = pasos.map(([ok, txt, accion], i) => `<li class="${ok ? "hecho" : i === ahora ? "ahora" : ""}"><span>${txt}</span>${accion}</li>`).join("");
@@ -1858,6 +2018,7 @@ function pintarInicio() {
   pintarBajada(E.trabajo);
   if (infoClaude) pintarClaudeForm();
   pintarConexiones();
+  pintarNuevaVista();  // el selector de CTAs se apaga si la sesión ya dice ADS u ORG
 }
 // Sesiones: las archivadas (ya terminadas) no salen en las listas; se encuentran buscando o con «Ver archivadas».
 // Las sesiones que forman un grupo (los días de grabación) no salen sueltas: se trabajan desde el grupo.
@@ -1869,12 +2030,12 @@ function sesionesActivas() {
 }
 function pintarListaSesiones() {
   const grs = E.grupos || {}, arch = new Set(E.archivadas || []);
-  const q = $("inBuscar").value.trim().toLowerCase(), verArch = $("inVerArch").checked;
+  const q = norm($("inBuscar").value.trim()), verArch = $("inVerArch").checked;  // «sesion» encuentra «SESIÓN»
   const nArch = E.semanas.filter(s => arch.has(s)).length;
   $("inNArch").textContent = nArch ? `(${nArch})` : "";
   const tipo = $("inTipo").value;
   const dentro = dentroDeGrupo();
-  const lista = [...E.semanas].reverse().filter(s => (q ? s.toLowerCase().includes(q) : (verArch || !arch.has(s)) && !dentro.has(s)) && (!tipo || tipoDe(s) === tipo));
+  const lista = [...E.semanas].reverse().filter(s => (q ? norm(s).includes(q) : (verArch || !arch.has(s)) && !dentro.has(s)) && (!tipo || tipoDe(s) === tipo));
   $("inSesiones").innerHTML = lista.map(s => {
     const a = arch.has(s) ? ` <span class="muted">· Archivada</span>` : "";
     return grs[s]
@@ -1922,7 +2083,11 @@ function pintarClaudeForm() {
   }
 }
 async function revisarClaude(forzar) {
-  try { infoClaude = await (await fetch("/api/claude" + (forzar ? "?forzar" : ""))).json(); } catch (e) { return; }
+  try { infoClaude = await (await fetch("/api/claude" + (forzar ? "?forzar" : ""))).json(); }
+  catch (e) {
+    $("clEstado").innerHTML = `<span class="pill warn">No pude revisar Claude</span> <button class="btn sec peq" id="clRevisarEstado">Revisar de nuevo</button>`;
+    return;
+  }
   pintarConexiones();
   const c = infoClaude;
   pintarClaudeForm();
@@ -1940,7 +2105,14 @@ document.addEventListener("click", async e => {
   const t = e.target.closest("button, a"); if (!t) return;
   if (t.id === "clRevisarEstado") return revisarClaude(true);
   if (t.id === "clLogin") { try { await post("/api/claude", { accion: "login" }); avisar("Se abrió una ventana: entra con tu cuenta de Claude y vuelve aquí.", "ok"); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
-  if (t.dataset.ir) { if (t.dataset.ir === "claude") { $("clPedido").focus(); return; } irTab(t.dataset.ir); return; }
+  if (t.dataset.ir) {
+    if (t.dataset.ir === "claude") {  // si Claude no está conectado, el formulario está escondido: se lleva a conectarlo
+      if ($("clListo").hidden) { $("cajaClaude").scrollIntoView({ behavior: "smooth", block: "center" }); avisar("Primero conecta Claude aquí abajo y después escribe el guion.", "muted"); }
+      else $("clPedido").focus();
+      return;
+    }
+    irTab(t.dataset.ir); return;
+  }
   if (t.dataset.abrirSesion) { cambiarSesion(t.dataset.abrirSesion); return; }
 });
 // Estructura del guion: cuántos cuerpos y hooks; un tema por cuerpo (propuesto por Claude o escrito a mano)
@@ -2025,8 +2197,8 @@ $("clGuion").onclick = async () => {
   catch (err) { $("clSalida").textContent = "Error: " + err.message; }
 };
 const revisarConClaude = async () => {
-  if (!confirm(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y rearmar los videos. ¿Seguir?`)) return;
   if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
+  if (!confirm(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y rearmar los videos. ¿Seguir?`)) return;
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
   try { await post("/api/claude", { accion: "revisar" }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -2053,14 +2225,24 @@ $("formGrupo").addEventListener("submit", async e => {
   catch (err) { avisar("Error: " + err.message, "err"); alert(err.message); }
 });
 $("inNueva").onclick = async () => { const s = await nuevaSesion(); if (s) avisar(`Sesión «${s}» creada.`, "ok"); };
+const claveNombre = t => String(t || "").toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g, "");
 async function nuevaSesion() {
   const s = prompt("Nombre de la nueva producción: número + ADS u ORG + tema (el día de grabación no hace falta).\nEj.: " + nombreSesionSugerido() + "ADS ARTICULACIONES  ·  " + nombreSesionSugerido() + "ORG PELAJE", nombreSesionSugerido() + "ADS ");
-  if (!s || /^\s*P\d+(\s+(ADS|ORG))?\s*$/i.test(s)) return null;  // falta el tema
+  if (s === null) return null;
+  if (!s.trim() || /^\s*P\d+(\s+(ADS|ORG))?\s*$/i.test(s)) { avisar("Falta el tema de la producción (por ejemplo ARTICULACIONES).", "err"); return null; }
+  if (/[\\/:*?"<>|]/.test(s)) { avisar('El nombre no puede llevar / \\ : * ? " < > |', "err"); return null; }
+  const ya = E.semanas.find(x => claveNombre(x) === claveNombre(s));
+  if (ya) { avisar(`Ya existe «${ya}»: la abrí en vez de crear otra.`, "muted"); await cambiarSesion(ya); return null; }
   try { await post("/api/semana", { semana: s.trim().toUpperCase() }); sel = null; await cargar(); return E.semana; }
   catch (err) { avisar("Error: " + err.message, "err"); return null; }
 }
 async function cambiarSesion(s) {
+  // con un trabajo corriendo, cambiar de sesión mezclaba los videos de una sesión con las carpetas de la otra
+  if (E?.trabajo?.activo && s !== E.semana) return avisar("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.", "err");
+  if ($("dlg").open && !cerrarVideo()) return;
   clMostrarForm = false;
+  elegidos.clear(); pintarSeleccion();  // lo elegido era de la otra sesión
+  $("clSalida").hidden = true; $("clSalida").textContent = "";
   try { await post("/api/semana", { semana: s }); sel = null; await cargar(); revisarGuionDrive(true); } catch (err) { avisar("Error: " + err.message, "err"); cargar(); }
 }
 function irTab(nombre) {
@@ -2073,7 +2255,7 @@ let vistaVideos = "cuerpo", filtroEstado = "", filtroEdicion = "", filtroAngulo 
 const ESTADOS = { pendiente: "Por revisar", editando: "Editando", listo: "Aprobado" };
 function tarjetaVideo(s) {
   const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
-  return `<button class="tarjeta ${elegidos.has(s.codigo) ? "elegida" : ""}" data-cod="${esc(s.codigo)}" style="position:relative">
+  return `<div class="tarjeta ${elegidos.has(s.codigo) ? "elegida" : ""}" role="button" tabindex="0" aria-label="Abrir ${esc(s.archivo)}" data-cod="${esc(s.codigo)}" style="position:relative">
     <input type="checkbox" class="sel" data-sel="${esc(s.codigo)}" ${elegidos.has(s.codigo) ? "checked" : ""} aria-label="Seleccionar ${esc(s.archivo)}" onclick="event.stopPropagation()">
     <span class="estado-dot ${s.estado}" title="${ESTADOS[s.estado] || ""}"></span>
     ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>`
@@ -2082,8 +2264,12 @@ function tarjetaVideo(s) {
     <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "Armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">Sin armar</span>`}
       ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ Rearmar</span>` : ""}
       ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}
-      <span class="pill" title="Plantilla de subtítulos">Aa ${esc(plantillaDe(s).nombre)}</span></div></button>`;
+      <span class="pill" title="Plantilla de subtítulos">Aa ${esc(plantillaDe(s).nombre)}</span></div></div>`;
 }
+document.addEventListener("keydown", e => {  // Enter o espacio en una tarjeta la abre (como un botón)
+  const t = e.target.closest?.(".tarjeta[role=button]");
+  if (t && e.target === t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); abrirVideo(t.dataset.cod); }
+});
 function verPieza(n) {  // «C1~IZQ» → «C1 · Izquierda», «C1_H2~IZQ» → «C1_H2 · Izquierda»
   const [b, a] = String(n || "").split("~");
   return a ? `${b} · ${(E.angulos || {})[a] || a}` : b;
@@ -2152,7 +2338,7 @@ document.addEventListener("click", async e => {
   const de = e.target.closest("[data-est]");
   if (de && actual) { try { await post("/api/estado_video", { codigo: actual.codigo, estado: de.dataset.est }); actual.estado = de.dataset.est; pintarEstadoDlg(); cargar(); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
   const tp = e.target.closest("[data-tipo]");
-  if (tp) { tipoPieza = tp.dataset.tipo; sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || sel; pintarPiezas(); pintarPieza(); return; }
+  if (tp) { if (tp.dataset.tipo !== tipoPieza && !dejarPieza()) return; tipoPieza = tp.dataset.tipo; sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || sel; pintarPiezas(); pintarPieza(true); return; }
 });
 // Qué usa cada video: plantilla de subtítulos, música, imágenes y sonidos (del último armado)
 function plantillaDe(s) {
@@ -2235,17 +2421,34 @@ function pintarPiezas() {
   const grupos = new Map();
   ps.forEach(p => { const g = tipoPieza === "hook" ? p.nombre.split("_")[0] : nombres[tipoPieza]; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(p); });
   $("piezas").innerHTML = [...grupos].map(([g, lista]) => `<div class="grupo"><h3>${esc(tipoPieza === "hook" ? "Hooks de " + g : g)} (${lista.length})</h3>${lista.map(p =>
-      `<button class="pieza t-${tipoPieza}" data-p="${esc(p.nombre)}" aria-pressed="${p.nombre === sel}">${esc(p.nombre)}
+      `<button class="pieza t-${tipoPieza}" data-p="${esc(p.nombre)}" aria-pressed="${p.nombre === sel}">${esc(verPieza(p.nombre))}
         <span>${p.editada ? '<span class="pill azul" title="Tiene recortes o zoom">✂</span>' : ""}${p.marcas.length ? `<span class="pill">${p.marcas.length}</span>` : ""}</span></button>`).join("")}</div>`).join("")
     || `<p class="muted">No hay ${nombres[tipoPieza].toLowerCase()} en esta sesión.</p>`;
 }
 
 function piezaSel() { return E.piezas.find(x => x.nombre === sel); }
 
-function pintarPieza() {
+let piezaPintada = null;  // la pieza que está en pantalla (con sus cambios sin guardar)
+function piezaSucia() {
+  if (!piezaPintada) return false;
+  const p = E.piezas.find(x => x.nombre === piezaPintada); if (!p) return false;
+  const lineas = [...document.querySelectorAll("#lineas input[data-orig]")].some(i => i.value !== i.dataset.orig);
+  return lineas || JSON.stringify(marcasTmp) !== JSON.stringify(p.marcas);
+}
+function pintarSucia() { $("piezaSucia").hidden = !piezaSucia(); }
+// ¿Se puede dejar la pieza que está en pantalla? (pregunta si tiene cambios sin guardar)
+function dejarPieza() {
+  if (!piezaSucia()) return true;
+  if (confirm(`${piezaPintada} tiene cambios sin guardar (subtítulos o marcas). ¿Dejarla igual y perderlos?`)) { piezaPintada = null; return true; }
+  return false;
+}
+function pintarPieza(forzar) {
   const p = piezaSel();
-  if (!p) { $("tituloPieza").textContent = "Pieza"; $("lineas").innerHTML = ""; $("marcas").innerHTML = ""; return; }
-  $("tituloPieza").textContent = `${p.nombre} · ${p.tipo}${p.info.tipo && p.tipo === "hook" ? " · " + p.info.tipo : ""}`;
+  // la misma pieza con cambios sin guardar no se repinta sola: se quedan los cambios
+  if (!forzar && p && p.nombre === piezaPintada && piezaSucia()) { pintarSucia(); return; }
+  piezaPintada = p ? p.nombre : null;
+  if (!p) { $("tituloPieza").textContent = "Pieza"; $("lineas").innerHTML = ""; $("marcas").innerHTML = ""; pintarSucia(); return; }
+  $("tituloPieza").textContent = `${verPieza(p.nombre)} · ${p.tipo}${p.info.tipo && p.tipo === "hook" ? " · " + p.info.tipo : ""}`;
   const v = $("vPieza");
   const [ruta, ver] = p.video.split("?");  // también si se volvió a preparar (otra versión: p. ej. al cambiar el formato)
   if (!v.src.includes(ruta) || (ver && !v.src.includes(ver))) v.src = p.video;
@@ -2254,8 +2457,9 @@ function pintarPieza() {
      <input id="ln-${i}" value="${esc(l.texto)}" data-orig="${esc(l.texto)}" aria-label="Subtítulo de ${fmt(l.s)} a ${fmt(l.e)}"></div>`).join("")
     || `<p class="muted">${p.procesada ? "Sin subtítulos." : "Esta pieza aún no se procesa. Usa «Armar todos los videos» (arriba)."}</p>`;
   marcasTmp = JSON.parse(JSON.stringify(p.marcas)); marcaSel = null;
-  pintarMarcas();
+  pintarMarcas(); pintarSucia();
 }
+document.addEventListener("input", e => { if (e.target.closest?.("#lineas")) pintarSucia(); });
 
 function palabrasDe(p) {
   // [{clave, palabra, n, t}] para el selector de palabra de una marca
@@ -2308,6 +2512,23 @@ function sugerencias(p, palabra) {  // las palabras dichas más parecidas a la d
   }
   return res.sort((a, b) => b.r - a.r).slice(0, 3).filter(x => x.r >= .35);
 }
+const PARECIDO_MINIMO = .72;  // el mismo que usa el motor al armar (ubicar_parecida)
+// la marca va donde la pone el video armado: en su palabra, o en la más parecida si se dijo un poco distinto
+function ubicarComoVideo(p, palabra, n) {
+  const pos = ubicar(p, palabra || "", n); if (pos) return pos;
+  const sg = sugerencias(p, palabra || "")[0];
+  return sg && sg.r >= PARECIDO_MINIMO ? { li: sg.w.li, wi: sg.w.wi, t: sg.w.t, aprox: sg.texto } : null;
+}
+// cuál vez se dice una frase que empieza en esa palabra (para marcas de varias palabras)
+function nDeFrase(p, li, wi, texto) {
+  const obj = texto.split(/\s+/).map(norm).filter(Boolean), plano = [];
+  p.lineas.forEach((l, a) => l.palabras.forEach((w, b) => plano.push({ a, b, k: norm(w.w) })));
+  let n = 0;
+  for (let k = 0; k + obj.length <= plano.length; k++) {
+    if (obj.every((o, j) => plano[k + j].k === o)) { n++; if (plano[k].a === li && plano[k].b === wi) return n; }
+  }
+  return 1;
+}
 function marcaDe(w) { const p = piezaSel(); return marcasTmp.find(m => { const pos = ubicar(p, m.palabra || "", m.n); return pos && pos.li === w.li && pos.wi === w.wi; }); }
 function pintarMarcas() {
   const p = piezaSel(); if (!p) return;
@@ -2322,7 +2543,9 @@ function pintarMarcas() {
     marcasTmp.splice(marcasTmp.indexOf(m), 1);
   }
   const conPos = marcasTmp.map(m => ({ m, pos: ubicar(p, m.palabra || "", m.n) }));
-  const perdidas = conPos.filter(x => !x.pos && x.m.palabra);
+  // las que el video sí ubica en una palabra muy parecida no son «perdidas»: se avisa cuál se usa
+  const aprox = conPos.filter(x => !x.pos && x.m.palabra).map(x => ({ ...x, cerca: ubicarComoVideo(p, x.m.palabra, x.m.n) })).filter(x => x.cerca);
+  const perdidas = conPos.filter(x => !x.pos && x.m.palabra && !aprox.some(y => y.m === x.m));
   const deWord = new Map(conPos.filter(x => x.pos).map(x => [`${x.pos.li}-${x.pos.wi}`, x.m]));
   const pasa = m => !filtroMarcas || m[filtroMarcas];
   const cuenta = k => marcasTmp.filter(m => m[k]).length;
@@ -2330,12 +2553,13 @@ function pintarMarcas() {
                    ["sub", `Aa Estilo · ${cuenta("sub")}`], ["musica", `🎵 Música · ${cuenta("musica")}`]];
   const iconos = m => Object.entries(ICONO_MARCA).filter(([k]) => m[k]).map(([, i]) => i).join("");
   let html = `<div class="son-chips" style="margin:0 0 10px">${filtros.map(([k, t]) => `<button type="button" data-fmarca="${k}" aria-pressed="${filtroMarcas === k}">${t}</button>`).join("")}</div>`;
+  if (aprox.length) html += `<p class="muted" style="font-size:12px;margin:0 0 8px">≈ ${aprox.map(x => `«${esc(x.m.palabra)}» se usa en «${esc(x.cerca.aprox)}»`).join(" · ")} (se dijo un poco distinto: el video la ubica sola).</p>`;
   if (perdidas.length) {
     html += `<div class="marcas-perdidas"><div class="fila" style="justify-content:space-between"><b>⚠ ${perdidas.length} marca${perdidas.length === 1 ? "" : "s"} del guion no encuentran su palabra</b>
       <button class="btn sec peq" type="button" id="arreglarMarcas" title="Pone cada una en la palabra más parecida que se dijo">✨ Arreglar solas</button></div>
       ${perdidas.map(x => { const i = marcasTmp.indexOf(x.m), sug = sugerencias(p, x.m.palabra);
         return `<div class="fila" style="font-size:12.5px;margin-top:6px"><span>${iconos(x.m)} «${esc(x.m.palabra)}» no se dijo.</span>
-          ${sug.length ? sug.map(sg => `<button class="btn sec peq" type="button" data-mover-marca="${i}" data-a="${sg.w.li}-${sg.w.wi}">Usar «${esc(sg.texto)}» (${sg.w.t.toFixed(1)} s)</button>`).join("") : `<span class="muted">Sin palabras parecidas: elígela tocando el texto.</span>`}
+          ${sug.length ? sug.map(sg => `<button class="btn sec peq" type="button" data-mover-marca="${i}" data-a="${sg.w.li}-${sg.w.wi}" data-texto="${esc(sg.texto)}">Usar «${esc(sg.texto)}» (${sg.w.t.toFixed(1)} s)</button>`).join("") : `<span class="muted">Sin palabras parecidas: elígela tocando el texto.</span>`}
           <button class="btn sec peq" type="button" data-borrar="${i}" style="color:var(--err)">Quitar</button></div>`; }).join("")}</div>`;
   }
   // el texto dicho, línea por línea
@@ -2348,7 +2572,7 @@ function pintarMarcas() {
   if (marcaSel) {
     const w = ws.find(x => x.li === marcaSel.li && x.wi === marcaSel.wi);
     if (w) {
-      const pre = `_${p.nombre.split("_")[0]}_`.toUpperCase();  // las imágenes de este cuerpo, primero
+      const pre = `_${p.nombre.split("~")[0].split("_")[0]}_`.toUpperCase();  // las imágenes de este cuerpo, primero (también en otro ángulo)
       const m = marcaDe(w) || {}, assets = [...new Set([...E.assets.map(a => a.id), ...E.checklist.assets.map(a => a.id)])]
         .sort((x, y) => (y.toUpperCase().includes(pre) - x.toUpperCase().includes(pre)) || x.localeCompare(y));
       const opt = (vals, v) => vals.map(([val, txt]) => `<option value="${esc(val)}" ${String(v ?? "") === String(val) ? "selected" : ""}>${esc(txt)}</option>`).join("");
@@ -2359,7 +2583,7 @@ function pintarMarcas() {
           ${m.palabra ? `<button class="btn sec peq" type="button" data-borrar="${marcasTmp.indexOf(m)}" style="color:var(--err)">Quitar todo</button>` : ""}</span></div>
         <div class="marca-campos">
           <fieldset><legend>🖼 Imagen o clip</legend>
-            <div class="fila">${a ? (a.es_video ? "🎬" : `<img src="${a.url}" alt="" class="mini">`) : ""}<select data-mk="asset" style="flex:1">${opt([["", "Ninguna"], ...assets.map(x => [x, x])], m.asset)}</select></div>
+            <div class="fila">${a ? (a.es_video ? "🎬" : `<img src="${esc(a.url)}" alt="" class="mini">`) : ""}<select data-mk="asset" style="flex:1">${opt([["", "Ninguna"], ...assets.map(x => [x, x])], m.asset)}</select></div>
             ${m.asset ? `<div class="dos"><label>Dura (s)<input data-mk="dur" type="number" min="0.5" max="6" step="0.1" value="${m.dur ?? 1.5}"></label>
               <label>Cómo<select data-mk="modo">${opt([["completa", "Pantalla completa"], ["ventana", "En ventana"]], m.modo || "completa")}</select></label>
               <label>Movimiento<select data-mk="mov">${opt([["zoom_in", "Acercar despacio"], ["zoom_out", "Alejar despacio"], ["fijo", "Fijo"]], m.mov || "zoom_in")}</select></label></div>` : ""}</fieldset>
@@ -2373,8 +2597,8 @@ function pintarMarcas() {
   const orden = conPos.filter(x => x.pos && pasa(x.m)).sort((a, b) => a.pos.t - b.pos.t);
   if (orden.length) html += `<details class="lista-marcas" open><summary>Marcas en orden (${orden.length})</summary>${orden.map(x =>
     `<div data-w="${x.pos.li}-${x.pos.wi}"><span class="muted">${x.pos.t.toFixed(1)} s</span><b>${esc(x.m.palabra)}</b><span>${[
-      x.m.asset && `🖼 ${esc(x.m.asset)} · ${x.m.dur ?? 1.5} s`, x.m.sfx && `♪ ${esc(x.m.sfx.replace("_", " "))}`,
-      x.m.sub && `Aa ${esc(x.m.sub.replace("_", " "))}`, x.m.musica && `🎵 ${esc(x.m.musica)}`].filter(Boolean).join(" · ")}</span></div>`).join("")}</details>`;
+      x.m.asset && `🖼 ${esc(x.m.asset)} · ${x.m.dur ?? 1.5} s`, x.m.sfx && `♪ ${esc(x.m.sfx.replace(/_/g, " "))}`,
+      x.m.sub && `Aa ${esc(x.m.sub.replace(/_/g, " "))}`, x.m.musica && `🎵 ${esc(x.m.musica)}`].filter(Boolean).join(" · ")}</span></div>`).join("")}</details>`;
   $("marcas").innerHTML = html;
 }
 function leerMarcas() {}  // las marcas se editan directo en marcasTmp (se deja por compatibilidad con guardar)
@@ -2385,7 +2609,7 @@ function cambiarMarca(campo, valor) {
   if (valor === "" || valor == null) delete m[campo]; else m[campo] = campo === "dur" ? Number(valor) : valor;
   if (!m.asset) ["dur", "modo", "mov"].forEach(k => delete m[k]);
   if (!m.asset && !m.sfx && !m.sub && !m.musica) marcasTmp.splice(marcasTmp.indexOf(m), 1);
-  pintarMarcas(); vivo();
+  pintarMarcas(); vivo(); pintarSucia();
 }
 $("marcas").addEventListener("click", e => {
   const f = e.target.closest("[data-fmarca]"); if (f) { filtroMarcas = f.dataset.fmarca; pintarMarcas(); return; }
@@ -2393,13 +2617,15 @@ $("marcas").addEventListener("click", e => {
   const mv = e.target.closest("[data-mover-marca]");
   if (mv) {
     const p = piezaSel(), [li, wi] = mv.dataset.a.split("-").map(Number), w = palabrasPieza(p).find(x => x.li === li && x.wi === wi), m = marcasTmp[+mv.dataset.moverMarca];
-    if (w && m) { m.palabra = w.palabra; m.n = w.n; marcaSel = { li, wi }; pintarMarcas(); vivo(); avisar(`Marca puesta en «${w.palabra}». Guarda para aplicarla.`, "ok"); }
+    // con varias palabras («dermatitis atópica») la marca queda en la frase entera, no solo en su primera palabra
+    const texto = mv.dataset.texto || w?.palabra;
+    if (w && m) { m.palabra = texto; m.n = nDeFrase(p, li, wi, texto); marcaSel = { li, wi }; pintarMarcas(); vivo(); pintarSucia(); avisar(`Marca puesta en «${texto}». Guarda para aplicarla.`, "ok"); }
     return;
   }
   if (e.target.id === "arreglarMarcas") {
     const p = piezaSel(); let n = 0;
-    marcasTmp.forEach(m => { if (!m.palabra || ubicar(p, m.palabra, m.n)) return; const sg = sugerencias(p, m.palabra)[0]; if (sg && sg.r >= .5) { m.palabra = sg.texto; m.n = sg.w.n; n++; } });
-    pintarMarcas(); vivo();
+    marcasTmp.forEach(m => { if (!m.palabra || ubicar(p, m.palabra, m.n)) return; const sg = sugerencias(p, m.palabra)[0]; if (sg && sg.r >= .5) { m.palabra = sg.texto; m.n = nDeFrase(p, sg.w.li, sg.w.wi, sg.texto); n++; } });
+    pintarMarcas(); vivo(); pintarSucia();
     return avisar(n ? `${n} marca${n === 1 ? "" : "s"} puesta${n === 1 ? "" : "s"} en la palabra más parecida. Revisa y guarda.` : "No encontré palabras bastante parecidas: elígelas tocando el texto.", n ? "ok" : "muted");
   }
   const w = e.target.closest("[data-w]");
@@ -2419,8 +2645,8 @@ function vivo() {
     const [li, wi] = d.dataset.w.split("-").map(Number), w = p.lineas[li]?.palabras[wi];
     d.classList.toggle("ahora", !!w && t >= w.s && t < w.e + .03);
   });
-  const marcas = subTab === "marcas" ? marcasTmp : p.marcas;
-  const res = marcas.map(m => ({ m, pos: ubicar(p, m.palabra || "", m.n) })).filter(x => x.pos);
+  // las marcas que se están editando (sin guardar) también en la pestaña Subtítulos
+  const res = marcasTmp.map(m => ({ m, pos: ubicarComoVideo(p, m.palabra || "", m.n) })).filter(x => x.pos);
   // imagen activa
   let broll = null;
   for (const { m, pos } of res) if (m.asset && t >= pos.t - .05 && t < pos.t - .05 + (m.dur || 1.5)) broll = { m, a: urlAsset(m.asset) };
@@ -2452,6 +2678,9 @@ function vivo() {
   const claves = new Set(l.palabras.map((w, i) => (res2.has(i) || (E.claves || []).includes(norm(w.w))) ? i : -1).filter(i => i >= 0));
   if (solas.has(wi)) { sub.className = "sub palabra_sola sublinea"; pintarLinea(sub, [l.palabras[wi].w], 0, new Set(), { ...pl, tamano: pl.tamano * 2 }, ancho); return; }
   sub.className = "sub sublinea " + estilo;
+  // a la altura de la plantilla (la del hook o la del CTA si la tienen), como en el video armado
+  const alto = p.tipo === "hook" ? pl.altura_hook : p.tipo === "cta" ? pl.altura_cta : null;
+  sub.style.bottom = estilo === "normal" ? (Number(alto || pl.altura_desde_abajo || 560) * factorAltura() / 1920 * 100) + "%" : "";
   const escala = { centro_grande: 1.35, sobre_imagen: 1.2 }[estilo] || 1;
   pintarLinea(sub, l.palabras.map(w => w.w), wi, claves, { ...pl, tamano: pl.tamano * escala }, ancho);
 }
@@ -2466,18 +2695,22 @@ async function guardar(armar) {
   const p = piezaSel(); if (!p) return;
   try {
     avisar("Guardando…");
-    if (p.lineas.length) await post(`/api/subtitulos?pieza=${encodeURIComponent(sel)}`, { lineas: lineasEditadas() });
-    leerMarcas();
-    await post(`/api/marcas?pieza=${encodeURIComponent(sel)}`, { marcas: marcasTmp });
-    if (armar) { await post("/api/trabajo", { accion: "armar", pieza: sel }); avisar("Rearmando los videos que usan " + sel + "…"); }
+    const cambiaron = [...document.querySelectorAll("#lineas input[data-orig]")].some(i => i.value !== i.dataset.orig);
+    if (p.lineas.length && cambiaron) await post(`/api/subtitulos?pieza=${encodeURIComponent(sel)}`, { lineas: lineasEditadas() });
+    if (JSON.stringify(marcasTmp) !== JSON.stringify(p.marcas)) await post(`/api/marcas?pieza=${encodeURIComponent(sel)}`, { marcas: marcasTmp });
+    if (armar) {
+      if (E.trabajo?.activo) avisar(`Guardado. La sala está ocupada: rearma los videos de ${sel} cuando termine (☰).`, "ok");
+      else { await post("/api/trabajo", { accion: "armar", pieza: sel }); avisar("Rearmando los videos que usan " + sel + "…"); }
+    }
     else avisar("Guardado.", "ok");
+    piezaPintada = null;  // ya no hay nada sin guardar: se repinta con lo nuevo
     await cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 
 // ---------- Faltantes ----------
 function zona(destino, nombre, actualUrl, esVideo, acepta) {
-  return `<label class="soltar" data-destino="${destino}" data-nombre="${esc(nombre)}">
+  return `<label class="soltar" tabindex="0" role="button" aria-label="Subir archivo para ${esc(nombre)}" data-destino="${destino}" data-nombre="${esc(nombre)}">
     ${actualUrl ? (esVideo ? `<video src="${actualUrl}" muted></video>` : `<img src="${actualUrl}" alt="${esc(nombre)}">`) : ""}
     <span>${actualUrl ? "Listo · arrastra otro para reemplazar" : "Arrastra aquí o toca para elegir"}</span>
     <input type="file" accept="${acepta}"></label>`;
@@ -2555,8 +2788,11 @@ function pintarFaltan() {
   $("generarFlow").textContent = !(ch.musica || []).length ? "✦ Crear la música y generar lo que falta"
     : nImg + nMus ? `✦ Generar ${[nImg && `${nImg} imagen${nImg === 1 ? "" : "es"}`, nMus && `${nMus} pista${nMus === 1 ? "" : "s"}`].filter(Boolean).join(" y ")}` : "✓ No falta nada";
   const faltaAssets = ch.assets.filter(a => !a.listo).length + (ch.musica || []).filter(m => !m.listo).length;
-  const total = ch.piezas_faltan.length + faltaAssets;
+  const sinId = (ch.sin_asignar || []).length;  // los clips sin identificar también son algo por hacer aquí
+  const total = ch.piezas_faltan.length + faltaAssets + sinId;
   $("nFaltan").textContent = total || "✓"; $("nFaltan").className = "pill " + (total ? "warn" : "ok");
+  $("nFaltan").title = total ? [ch.piezas_faltan.length && plural(ch.piezas_faltan.length, "pieza por grabar", "piezas por grabar"),
+    faltaAssets && plural(faltaAssets, "imagen o pista por generar", "imágenes o pistas por generar"), sinId && plural(sinId, "clip sin identificar", "clips sin identificar")].filter(Boolean).join(" · ") : "No falta nada";
   const carpeta = n => /_H\d/.test(n) ? "hooks" : /CTA/i.test(n) ? "ctas" : "cuerpos";
   $("faltanPiezas").innerHTML = ch.piezas_faltan.map(n => `<div class="caja asset"><h3><code>${esc(n)}</code> · ${carpeta(n)}</h3>
       <p class="muted" style="margin:0;font-size:12px">${esc(E.piezas.find(p => p.nombre === n)?.info?.texto || "")}</p>
@@ -2581,15 +2817,36 @@ function pintarFaltan() {
   }).join("") || `<p class="muted">El guion de esta semana no pide imágenes ni clips.</p>`;
 }
 
-async function subir(lbl, file) {
+// Sube un archivo mostrando cuánto va (un .MOV de 500 MB solo decía «Subiendo…»). Devuelve la respuesta de la sala.
+function subirConAvance(url, file, enAvance) {
+  return new Promise((ok, mal) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", url);
+    x.upload.onprogress = e => { if (e.lengthComputable) enAvance(e.loaded / e.total, e.loaded, e.total); };
+    x.onload = () => { let j = null; try { j = JSON.parse(x.responseText); } catch (e) {} j?.ok ? ok(j) : mal(new Error(j?.error || "La subida falló")); };
+    x.onerror = () => mal(new Error("Se cortó la conexión con la sala: no se cambió nada"));
+    x.send(file);
+  });
+}
+async function subir(lbl, file, varios) {
   if (!file) return;
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
-  lbl.querySelector("span").textContent = `Subiendo ${file.name}…`;
+  if (lbl.dataset.subiendo) return avisar("Espera a que termine la subida de este archivo.", "muted");
+  const ext = (file.name.split(".").pop() || "").toLowerCase(), acepta = lbl.querySelector("input")?.accept || "";
+  const esVid = file.type.startsWith("video/") || ["mov", "mp4", "m4v", "webm"].includes(ext);
+  if (["hooks", "cuerpos", "ctas"].includes(lbl.dataset.destino) && !esVid) return avisar(`${lbl.dataset.nombre} es una toma grabada: arrastra un video, no ${file.type.startsWith("image/") ? "una imagen" : "ese archivo"}.`, "err");
+  if (acepta === "video/*" && !esVid) return avisar(`${lbl.dataset.nombre} es un clip: arrastra un video.`, "err");
+  if (lbl.querySelector("img, video") && !confirm(`${lbl.dataset.nombre} ya tiene un archivo. ¿Reemplazarlo por «${file.name}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
+  if (varios > 1) avisar(`Soltaste ${varios} archivos: se usa solo el primero («${file.name}») para ${lbl.dataset.nombre}.`, "muted");
+  const span = lbl.querySelector("span");
+  lbl.dataset.subiendo = "1"; lbl.classList.add("subiendo");
+  span.textContent = `Subiendo ${file.name}…`;
   try {
-    await post(`/api/subir?destino=${lbl.dataset.destino}&nombre=${encodeURIComponent(lbl.dataset.nombre)}&ext=${ext}`, file, true);
-    avisar(`${lbl.dataset.nombre} guardado.`, "ok");
+    await subirConAvance(`/api/subir?destino=${lbl.dataset.destino}&nombre=${encodeURIComponent(lbl.dataset.nombre)}&ext=${ext}`, file,
+      (p, va, total) => { span.textContent = `Subiendo ${file.name}… ${Math.round(p * 100)} % (${(va / 1048576).toFixed(0)} de ${(total / 1048576).toFixed(0)} MB)`; });
+    avisar(`${lbl.dataset.nombre} guardado.` + ((E.drive || {}).activo ? " Se está subiendo a Drive." : ""), "ok");
     await cargar();
-  } catch (e) { avisar("Error al subir: " + e.message, "err"); lbl.querySelector("span").textContent = "Error, intenta de nuevo"; }
+  } catch (e) { avisar("Error al subir: " + e.message, "err"); span.textContent = "Error, intenta de nuevo"; }
+  finally { delete lbl.dataset.subiendo; lbl.classList.remove("subiendo"); }
 }
 
 // ---------- Publicar ----------
@@ -2620,6 +2877,7 @@ function vigilar(t) {
       pintarBajada(j); pintarClaudeTrabajo(j);
       // al bajar de Drive: apenas llega el guion se muestra, sin esperar a los clips
       if (j.activo && j.accion === "bajar" && !guionYaLlego && /^Clips|Bajando los clips/.test(j.mensaje || "")) { guionYaLlego = true; cargar(); }
+      if (!j.activo && (j.cola || []).length) { await cargar(); return; }  // sigue lo que esperaba en la cola
       if (!j.activo) {
         clearInterval(vigilando); vigilando = null;
         await cargar();
@@ -2628,7 +2886,13 @@ function vigilar(t) {
         if (j.accion === "producir" && j.resultado && !j.error) setTimeout(() => mostrarResumenProduccion(j.resultado), 300);
         const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${h0.cantidad} videos` : ""})` : "";
         avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || "") + cuanto, j.error ? "err" : "ok");
-        if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) { const cod = reabrir; reabrir = null; abrirVideo(cod); avisar(`Listo: ${cod} rearmado. Lo estás viendo actualizado.`, "ok"); }
+        if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) {
+          const cod = reabrir; reabrir = null;
+          // si mientras tanto se abrió otro video (o este tiene cambios), no se le abre otro encima: se perdían los cortes
+          if ($("dlg").open && actual?.codigo !== cod) avisar(`Listo: ${cod} rearmado. Ábrelo desde Videos cuando termines con ${actual.codigo}.`, "ok");
+          else if ($("dlg").open && sinGuardar().length) avisar(`Listo: ${cod} rearmado. Tienes cambios sin guardar: guárdalos o ciérralo y vuelve a abrirlo para verlo.`, "ok");
+          else { abrirVideo(cod); avisar(`Listo: ${cod} rearmado. Lo estás viendo actualizado.`, "ok"); }
+        }
         reabrir = null;
       }
     }, 1000);
@@ -2658,6 +2922,11 @@ async function trabajo(accion, pieza) {
 document.addEventListener("click", e => {
   const tab = e.target.closest("nav button");
   if (tab) {
+    const antes = document.querySelector("nav button[aria-selected='true']")?.dataset.tab;
+    if (antes === "piezas" && tab.dataset.tab !== "piezas" && !dejarPieza()) return;
+    if (antes === "guion" && tab.dataset.tab !== "guion" && [...document.querySelectorAll("#guionLista .g-editar textarea")].length
+        && !confirm("Estás editando el texto de una pieza del guion. ¿Salir sin guardar?")) return;
+    pararAudios();
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
     if (tab.dataset.tab === "plantillas") verPlantillas(vistaPlant);
@@ -2670,7 +2939,7 @@ document.addEventListener("click", e => {
   const card = e.target.closest("[data-cod]");
   if (card) return abrirVideo(card.dataset.cod);
   const pz = e.target.closest(".pieza");
-  if (pz) { sel = pz.dataset.p; pintarPiezas(); pintarPieza(); return; }
+  if (pz) { if (pz.dataset.p !== sel && !dejarPieza()) return; sel = pz.dataset.p; pintarPiezas(); pintarPieza(true); return; }
   const t = e.target.closest(".linea button");
   if (t) { const v = $("vPieza"); v.currentTime = Number(t.dataset.t); v.play(); bucle(); return; }
   const rb = e.target.closest("#redes button");
@@ -2718,14 +2987,18 @@ document.addEventListener("input", e => {
   if (e.target.id === "buscar") pintarVideos();
 });
 document.addEventListener("change", e => {
-  if (e.target.matches(".soltar input")) subir(e.target.closest(".soltar"), e.target.files[0]);
+  if (e.target.matches(".soltar input")) { subir(e.target.closest(".soltar"), e.target.files[0]); e.target.value = ""; }
+});
+document.addEventListener("keydown", e => {
+  const z = e.target.closest?.(".soltar");
+  if (z && e.target === z && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); z.querySelector("input")?.click(); }
 });
 ["dragover", "dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => {
   const z = e.target.closest?.(".soltar");
   if (!z) { if (ev !== "dragleave") e.preventDefault(); return; }
   e.preventDefault();
   z.classList.toggle("encima", ev === "dragover");
-  if (ev === "drop") subir(z, e.dataTransfer.files[0]);
+  if (ev === "drop") subir(z, e.dataTransfer.files[0], e.dataTransfer.files.length);
 }));
 $("vPieza").addEventListener("timeupdate", vivo);
 $("vPieza").addEventListener("play", bucle);
@@ -2844,39 +3117,67 @@ document.addEventListener("change", e => {
 $("exMarcarTodos").onclick = () => { E.salidas.filter(s => s.existe).forEach(s => exElegidos.add(s.codigo)); pintarExport(); };
 $("exNinguno").onclick = () => { exElegidos.clear(); pintarExport(); };
 // Antes de cada exporte: «¿Al Drive?» y «¿A qué carpeta?». Siempre se exporta dentro de una carpeta con la fecha
-// de hoy y el nombre de la sesión. Devuelve { drive, carpeta } o null si se canceló.
-function preguntarDestino(n) {
+// de hoy y el nombre de la sesión. La carpeta se revisa al elegirla (que exista y deje guardar) y, si ya hay un
+// exporte de hoy ahí, se pregunta si se crea otra carpeta o se reemplaza. Devuelve { drive, carpeta, nueva } o null.
+function preguntarDestino(n, codigos = [], partes = false) {
   const dlg = $("dlgExportar"), activo = (E.drive || {}).activo;
-  let alDrive = null, carpeta = "";
-  try { carpeta = localStorage.getItem("sala_carpeta_exporte") || ""; } catch (e) {}
-  const hoy = new Date(), fecha = [hoy.getDate(), hoy.getMonth() + 1].map(x => String(x).padStart(2, "0")).join("-") + "-" + hoy.getFullYear();
-  const sub = `${fecha} ${String(E.semana || "Sesión").replace(/[<>:"/\\|?*]+/g, " ").trim()}`;
+  let alDrive = null, carpeta = "", revision = null, nueva = true, pedido = 0;
+  try { carpeta = localStorage.getItem("sala_carpeta_exporte") || ""; const d = localStorage.getItem("sala_exporte_drive"); if (d) alDrive = d === "si"; } catch (e) {}
+  const porDia = !partes && $("exPorDia")?.checked;
   const pintar = () => {
-    $("dxDriveSi").className = "btn" + (alDrive === true ? "" : " sec");
-    $("dxDriveNo").className = "btn" + (alDrive === false ? "" : " sec");
-    $("dxRuta").textContent = carpeta || "Sin elegir";
-    $("dxQueda").textContent = carpeta ? `Quedan en: ${carpeta}\\${sub}` : `Se crea una carpeta «${sub}» con los videos dentro.`;
-    $("dxOk").disabled = alDrive === null || !carpeta;
+    $("dxDriveSi").setAttribute("aria-checked", String(alDrive === true));
+    $("dxDriveNo").setAttribute("aria-checked", String(alDrive === false));
+    if ($("dxRutaIn").value !== carpeta && document.activeElement !== $("dxRutaIn")) $("dxRutaIn").value = carpeta;
+    const ok = revision && revision.destino_ok;
+    $("dxRutaEstado").innerHTML = !carpeta ? `<span class="muted">Elige una carpeta o pega su ruta.</span>`
+      : !revision ? `<span class="muted">Revisando la carpeta…</span>`
+      : ok ? `<span style="color:var(--ok)">✓ Se puede guardar ahí</span>` : `<span style="color:var(--err)">⚠ ${esc(revision.motivo)}</span>`;
+    $("dxYaHoy").hidden = !(ok && revision.existe_hoy);
+    $("dxNueva").setAttribute("aria-checked", String(nueva)); $("dxReemplazar").setAttribute("aria-checked", String(!nueva));
+    const nombre = revision?.nombre || "fecha y sesión";
+    const sub = ok && revision.existe_hoy && nueva ? `${nombre} (2)` : nombre;
+    $("dxQueda").innerHTML = ok ? `Quedan en:\n<b>${esc(carpeta)}\\${esc(sub)}\\</b>\n${partes ? "   POR_PARTES\\<video>\\ (hook, cuerpo, CTA, audios, subtítulos)"
+      : porDia ? "   DIA_1\\, DIA_2\\ … (cada video con su portada .jpg y su copy .txt)" : `   ${plural(n, "video")} con su portada .jpg y su copy .txt`}${alDrive ? `\n   y una copia en V.FINALES\\${esc(sub)}\\ ${activo ? "que se sube al Drive" : "(la sala no está conectada a Drive)"}` : ""}`
+      : `Siempre se crea una carpeta con la fecha de hoy y el nombre de la sesión, con los videos dentro.`;
+    $("dxOk").disabled = alDrive === null || !ok;
   };
-  $("dxTit").textContent = `Exportar ${n} video${n === 1 ? "" : "s"}`;
-  $("dxDriveNota").textContent = activo ? "Si dices que sí, se copian también a V.FINALES de la sesión y se suben al Drive."
+  const revisar = async () => {
+    revision = null; pintar();
+    if (!carpeta) return;
+    const yo = ++pedido;
+    try { const r = await post("/api/destino_exporte", { carpeta }); if (yo === pedido) revision = r; }
+    catch (e) { if (yo === pedido) revision = { destino_ok: false, motivo: e.message }; }
+    if (yo === pedido) pintar();
+  };
+  const usar = c => { carpeta = String(c || "").trim().replace(/^"(.*)"$/, "$1"); try { localStorage.setItem("sala_carpeta_exporte", carpeta); } catch (e) {} revisar(); };
+  $("dxTit").textContent = `Exportar ${plural(n, "video")}${partes ? " por partes" : ""}`;
+  $("dxDriveNota").textContent = activo ? "Si dices que sí, quedan en tu carpeta y además se copian a V.FINALES de la sesión y se suben al Drive."
     : "La sala no está conectada a Drive: si dices que sí, se copian a V.FINALES de la carpeta de trabajo.";
-  $("dxDriveSi").onclick = () => { alDrive = true; pintar(); };
-  $("dxDriveNo").onclick = () => { alDrive = false; pintar(); };
+  // videos con cambios guardados que todavía no se rearmaron: se exportarían como estaban
+  const sinArmar = (E.salidas || []).filter(s => codigos.includes(s.codigo) && s.desactualizado).length;
+  $("dxSinArmar").hidden = !sinArmar;
+  $("dxSinArmar").textContent = sinArmar ? `⟳ ${plural(sinArmar, "video tiene", "videos tienen")} cambios sin rearmar: se ${sinArmar === 1 ? "exporta" : "exportan"} como ${sinArmar === 1 ? "estaba" : "estaban"}. Si quieres los cambios, rearma primero.` : "";
+  $("dxDriveSi").onclick = () => { alDrive = true; try { localStorage.setItem("sala_exporte_drive", "si"); } catch (e) {} pintar(); };
+  $("dxDriveNo").onclick = () => { alDrive = false; try { localStorage.setItem("sala_exporte_drive", "no"); } catch (e) {} pintar(); };
+  $("dxNueva").onclick = () => { nueva = true; pintar(); };
+  $("dxReemplazar").onclick = () => { nueva = false; pintar(); };
+  $("dxCancelar").onclick = () => dlg.close("");
+  $("dxRutaIn").onchange = () => usar($("dxRutaIn").value);
+  $("dxRutaIn").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); usar($("dxRutaIn").value); } };
   $("dxElegir").onclick = async () => {
     $("dxElegir").disabled = true; $("dxElegir").textContent = "Elige en la ventana de Windows…";
-    try { const r = await post("/api/elegir_carpeta", { inicial: carpeta }); if (r.carpeta) { carpeta = r.carpeta; try { localStorage.setItem("sala_carpeta_exporte", carpeta); } catch (e) {} } }
-    catch (e) { avisar("No se pudo abrir el cuadro de carpetas: " + e.message, "err"); }
-    $("dxElegir").disabled = false; $("dxElegir").textContent = "Elegir carpeta…"; pintar();
+    try { const r = await post("/api/elegir_carpeta", { inicial: carpeta }); if (r.carpeta) usar(r.carpeta); }
+    catch (e) { avisar(e.message, "err"); $("dxRutaIn").focus(); }
+    $("dxElegir").disabled = false; $("dxElegir").textContent = "📁 Elegir carpeta…"; pintar();
   };
-  pintar();
+  revisar();
   return new Promise(ok => {
-    dlg.onclose = () => ok(dlg.returnValue === "ok" ? { drive: alDrive, carpeta } : null);
+    dlg.onclose = () => ok(dlg.returnValue === "ok" ? { drive: alDrive, carpeta, nueva: !!(revision?.existe_hoy && nueva) } : null);
     dlg.returnValue = ""; dlg.showModal();
   });
 }
 async function exportarVideos(codigos) {
-  const destino = await preguntarDestino(codigos.length); if (!destino) return;
+  const destino = await preguntarDestino(codigos.length, codigos); if (!destino) return;
   try { await post("/api/trabajo_sel", { accion: "exportar_sel", codigos, ajustes: ajustesExport(), ...destino }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar(`Exportando ${codigos.length} videos… lo ves en Procesos (☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -2885,7 +3186,7 @@ $("abrirListos").onclick = async () => { try { await post("/api/abrir_listos"); 
 $("exTodo").onclick = () => { const cods = E.salidas.filter(s => s.existe).map(s => s.codigo); if (!cods.length) return avisar("No hay videos armados todavía.", "err"); exportarVideos(cods); };
 $("exSel").onclick = () => exportarVideos([...exElegidos]);
 async function exportarPartes(codigos) {
-  const destino = await preguntarDestino(codigos.length); if (!destino) return;
+  const destino = await preguntarDestino(codigos.length, codigos, true); if (!destino) return;
   try { await post("/api/trabajo_sel", { accion: "partes_sel", codigos, ...destino }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar(`Exportando por partes ${codigos.length} video${codigos.length === 1 ? "" : "s"}… quedan en la carpeta POR_PARTES (lo ves en Procesos ☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -2899,17 +3200,34 @@ $("plantDuplicar").onclick = async () => {
   leerFormPlantilla();
   const nombre = prompt("Nombre de la nueva plantilla:", (plantEdit.nombre || plantSel) + " (mía)");
   if (!nombre) return;
+  if (Object.values(E.plantillas).some(p => claveNombre(p.nombre) === claveNombre(nombre)) && !confirm(`Ya hay una plantilla «${nombre}». ¿Crear otra con el mismo nombre?`)) return;
   const base = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
   let id = base;
   for (let n = 2; E.plantillas[id]; n++) id = `${base}_${n}`;  // antes, con un nombre repetido se pisaba la otra plantilla
   try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(plantEdit)), nombre, descripcion: "Plantilla propia" }); avisar(`Plantilla «${nombre}» creada: es la que estás editando ahora.`, "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("plantGuardar").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit), "Plantilla guardada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
-$("plantBorrar").onclick = async () => { if (!confirm(E.fabrica.includes(plantSel) ? "¿Volver esta plantilla a como venía de fábrica?" : "¿Borrar esta plantilla?")) return; try { await post("/api/plantilla", { id: plantSel, borrar: true }); if (!E.fabrica.includes(plantSel)) plantSel = null; plantEdit = null; await cargar(); pintarPlantillas(); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantBorrar").onclick = async () => {
+  const fabrica = E.fabrica.includes(plantSel), nombre = E.plantillas[plantSel]?.nombre || plantSel;
+  const enUso = plantSel === E.plantilla_predeterminada ? " Es la que usan los videos por defecto: pasan a usar la de la sala." : "";
+  if (!confirm((fabrica ? `¿Volver «${nombre}» a como venía de fábrica?` : `¿Borrar la plantilla «${nombre}»?`) + enUso + " Los videos que la usan quedan por rearmar.")) return;
+  try {
+    const r = await post("/api/plantilla", { id: plantSel, borrar: true });
+    if (!fabrica) plantSel = null;
+    plantEdit = null; await cargar(); pintarPlantillas();
+    ofrecerRearmar(r, fabrica ? `«${nombre}» volvió a la original.` : `Plantilla «${nombre}» borrada.`);
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+};
 $("subirFuente").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}`, f, true); avisar(`Fuente ${f.name} agregada.`, "ok"); await cargar(); pintarPlantillas(); }
-  catch (err) { avisar("Error: " + err.message, "err"); }
+  catch (err) {
+    if (err.existe && confirm(`Ya hay una fuente «${f.name}». ¿Reemplazarla? Las plantillas que la usan cambian de letra.`)) {
+      try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}&reemplazar=1`, f, true); avisar(`Fuente ${f.name} reemplazada.`, "ok"); await cargar(); pintarPlantillas(); }
+      catch (e2) { avisar("Error: " + e2.message, "err"); }
+    } else if (!err.existe) avisar("Error: " + err.message, "err");
+  }
+  e.target.value = "";
 };
 $("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("analizar"); };
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
@@ -3108,7 +3426,7 @@ $("aceptarSug").onclick = async () => {
 $("subirPanel").onclick = () => trabajo("panel");
 $("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
 
-$("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; $("dlg").close(); trabajo("uno", cod); } };
+$("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; if (!cerrarVideo()) return; trabajo("uno", cod); } };
 $("cerrar").onclick = cerrarVideo;
 $("dlg").addEventListener("cancel", e => { e.preventDefault(); if (!$("dlgEditor").open) cerrarVideo(); });
 $("dlgReceta").addEventListener("click", e => {  // ir al segundo de una imagen o un sonido en el video
@@ -3351,6 +3669,7 @@ function abrirSubsVideo() {
   pintarAlturas();
   $("vidCuerpoNom").textContent = actual.cuerpo;
   $("vidTodoCuerpo").checked = false;
+  firmaSubs = firmaSubsVideo();
 }
 // El hook y el CTA pueden llevar el subtítulo a otra altura que el cuerpo (solo en este video)
 const ALTURA_PARTE = { hook: ["vidAlturaHook", "vidHookIgual"], cta: ["vidAlturaCta", "vidCtaIgual"] };
@@ -3403,7 +3722,7 @@ document.addEventListener("change", e => {
 });
 async function trabajoSel(accion) {
   let destino = {};
-  if (accion === "exportar_sel" || accion === "partes_sel") { destino = await preguntarDestino(elegidos.size); if (!destino) return; }
+  if (accion === "exportar_sel" || accion === "partes_sel") { destino = await preguntarDestino(elegidos.size, [...elegidos], accion === "partes_sel"); if (!destino) return; }
   try { await post("/api/trabajo_sel", { accion, codigos: [...elegidos], ...destino }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 }
@@ -3536,10 +3855,31 @@ function dibujarOndasSon() {
 // ---------- Sonidos: biblioteca, escuchar, agregar/cambiar/quitar en el editor ----------
 let biblioteca = null, sonElegido = null, sonPend = [];
 const reproductor = new Audio();
-function tocar(id) { dsModo = null; if (dsAmp) dsAmp.gain.value = 1; reproductor.volume = 1; reproductor.pause(); reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {}); }
+// Al cambiar de pestaña no queda nada sonando (el sonido de prueba de Sonidos seguía, y la pieza de Piezas)
+function pararAudios() {
+  reproductor.pause(); clearTimeout(tocarRecorte.t);
+  $("vPieza").pause(); $("brollVid")?.pause();
+  document.querySelectorAll("[data-panel] video").forEach(v => { if (!v.closest("dialog")) v.pause(); });
+}
+function tocar(id) {
+  clearTimeout(tocarRecorte.t); dsModo = null; if (dsAmp) dsAmp.gain.value = 1; reproductor.volume = 1; reproductor.pause();
+  reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {});
+  ganancia(id).then(g => { if (reproductor.src.endsWith(encodeURIComponent(id))) { if (dsAmp) dsAmp.gain.value = g; else reproductor.volume = Math.min(1, g); } });
+}
 async function cargarBiblioteca() {
-  if (!biblioteca) { try { biblioteca = await (await fetch("/api/sonidos")).json(); } catch (e) { biblioteca = []; } }
+  // si falla no se guarda la lista vacía (antes quedaba «Sin archivos» hasta reiniciar la sala)
+  if (!biblioteca) {
+    try { biblioteca = await (await fetch("/api/sonidos")).json(); }
+    catch (e) { avisar("No se pudo leer la biblioteca de sonidos. Vuelve a abrir la pestaña para reintentar.", "err"); return []; }
+  }
   return biblioteca;
+}
+// En el video cada sonido se lleva a un mismo volumen (y puede subir hasta +12 dB): para que lo que se escucha aquí
+// suene igual de fuerte que en el video, se pide ese factor una vez por sonido
+const gananciaSon = {};
+async function ganancia(id) {
+  if (gananciaSon[id] == null) { try { gananciaSon[id] = (await (await fetch("/api/ganancia?id=" + encodeURIComponent(id))).json()).g || 1; } catch (e) { gananciaSon[id] = 1; } }
+  return gananciaSon[id];
 }
 let sonCat = "";
 const DESC_SONIDO = { whoosh: "Barrido de aire: cambios de escena y textos que entran", pop: "Golpecito corto: palabras clave y números",
@@ -4080,9 +4420,15 @@ async function cargarEstructura(codigo, combo) {
   $("evInspector").innerHTML = `<span class="muted">Cargando…</span>`;
   // si se abre otro video antes de que llegue esta respuesta, se descarta (si no, el editor quedaba con las piezas del video anterior)
   const pedido = cargarEstructura.n = (cargarEstructura.n || 0) + 1;
-  const nuevo = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo, ...(combo || {}) })}`)).json();
+  if (!combo) { est = null; ed = null; firmaGuardada = null; $("irEditor").disabled = true; }  // hasta que llegue, no se edita nada viejo
+  pararEditor();
+  Object.keys(vocesAparte).forEach(k => { vocesAparte[k].pause(); delete vocesAparte[k]; });  // las voces del video anterior
+  let nuevo;
+  try { nuevo = await (await fetch(`/api/estructura?${new URLSearchParams({ codigo, ...(combo || {}) })}`)).json(); }
+  catch (e) { nuevo = { error: "No se pudo cargar el editor de este video (¿la sala se reinició?). Ciérralo y vuelve a abrirlo." }; }
   if (pedido !== cargarEstructura.n) return;
   est = nuevo;
+  $("irEditor").disabled = !!est.error;
   if (est.error) { $("evInspector").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
   const opt = (lista, v) => lista.map(n => `<option value="${esc(n)}" ${n === v ? "selected" : ""}>${esc(verPieza(n))}</option>`).join("");
   $("evHook").innerHTML = opt(est.opciones.hook, est.hook.nombre);
@@ -4114,6 +4460,7 @@ async function cargarEstructura(codigo, combo) {
   ed.kSel = null; ed.mover = false; modoMover(false);
   pararEditor(); pintarEditor(); irA(0); pintarAlcance(); cargarOndas();
   if (!combo) firmaGuardada = firmaEd();
+  pintarEstadoEd();
 }
 // ¿Quedó algo sin guardar en el video abierto? Se compara con cómo estaba al abrirlo (sin contar listas vacías que se crean solas)
 let firmaGuardada = null;
@@ -4130,12 +4477,17 @@ function sinGuardar() {
     || $("cYtTitulo").value !== (c.youtube_titulo || "") || $("cYoutube").value !== (c.youtube || "")) que.push("el copy");
   if (porSucia) que.push("la portada");
   if (sonPend.length) que.push("los sonidos sin rearmar");
+  if (firmaSubs && firmaSubsVideo() !== firmaSubs) que.push("la altura o la plantilla del subtítulo");
   return que;
 }
-function cerrarVideo() {  // al cerrar con ✕ o Esc, avisa si se pierde algo
+let firmaSubs = null;  // cómo estaban la plantilla y las alturas del subtítulo al abrir el video
+const firmaSubsVideo = () => JSON.stringify(["vidPlantilla", "vidAltura", "vidAlturaHook", "vidAlturaCta"].map(id => $(id).value)
+  .concat([$("vidHookIgual").checked, $("vidCtaIgual").checked]));
+function cerrarVideo() {  // al cerrar con ✕, Esc, exportar o rearmar, avisa si se pierde algo
+  if (!$("dlg").open) return true;
   const que = sinGuardar();
   if (que.length && !confirm(`Tienes ${que.join(", ").replace(/, ([^,]*)$/, " y $1")} sin guardar. ¿Cerrar igual y perderlo?`)) return false;
-  firmaGuardada = null; $("dlg").close(); return true;
+  firmaGuardada = null; firmaSubs = null; $("dlg").close(); return true;
 }
 function pintarAlcance() {
   if (!est || est.error) return;
@@ -4159,7 +4511,20 @@ function pintarAlcance() {
     : !misma ? `<span>⑂</span><span>Elegiste otra combinación de piezas: se guarda como <b>versión aparte</b>.</span>`
     : `<span>⟳</span><span>Lo que cambies en el cuerpo <b>${esc(est.cuerpo.nombre)}</b> se aplica a sus <b>${cuantos("cuerpo", est.cuerpo.nombre)} videos</b>; en el hook <b>${esc(est.hook.nombre)}</b>, a ${cuantos("hook", est.hook.nombre)}; en el CTA <b>${esc(est.cta.nombre)}</b>, a ${cuantos("cta", est.cta.nombre)}. Se rearman solos. Para que el cambio quede solo en este video: «Solo a este video».</span>`);
   // en otra edición, primero el aviso de la edición y debajo lo de siempre
-  $("evAlcance").innerHTML = enEd ? `<div style="display:grid;gap:6px;width:100%">${enEd}<div style="display:flex;gap:8px">${resto}</div></div>` : resto;
+  // los videos que reciben lo que se cambie en el cuerpo (C1 con H1, H2, H3…) y el motor de cuerpo
+  let afecta = "";
+  if (est.base && misma && !est.propio) {
+    const vids = E.salidas.filter(s => !s.es_version && !s.propio && s.cuerpo === est.cuerpo.nombre && (s.edicion || "A") === (est.edicion || "A"));
+    const nom = esc(verPieza(est.cuerpo.nombre));
+    const propios = E.salidas.filter(s => s.propio && s.cuerpo === est.cuerpo.nombre && (s.edicion || "A") === (est.edicion || "A")).length;
+    afecta = `<div class="ev-afecta"><b>${nom} va en ${plural(vids.length, "video")}:</b>
+      ${vids.slice(0, 14).map(s => `<span class="chip ${s.codigo === est.codigo ? "este" : ""}" title="${esc(s.archivo)}${s.codigo === est.codigo ? " (este)" : ""}">${esc(s.codigo)}</span>`).join("")}${vids.length > 14 ? `<span class="muted">y ${vids.length - 14} más</span>` : ""}
+      ${propios ? `<span class="muted" title="Esos videos tienen ajustes solo suyos: lo que cambies en el cuerpo no les llega">· ${plural(propios, "video", "videos")} con «Solo este video» no ${propios === 1 ? "cambia" : "cambian"}</span>` : ""}
+      <span style="flex:1"></span>
+      <button class="btn sec peq" type="button" data-cuerpo-acc="toma" title="Cambia la grabación del cuerpo por otra toma: se rearman todos sus videos con los mismos hooks y CTA">↻ Cambiar la toma de ${nom}</button>
+      <button class="btn sec peq" type="button" data-cuerpo-acc="version" title="Otra versión de este cuerpo con los mismos hooks y CTA: los videos de siempre no cambian">⑂ Nueva versión de ${nom}</button></div>`;
+  }
+  $("evAlcance").innerHTML = `<div style="display:grid;gap:6px;width:100%">${enEd}<div style="display:flex;gap:8px">${resto}</div>${afecta}</div>`;
 }
 function partesEnOrden() {  // las frases del cuerpo en el orden elegido
   const o = ed.orden || [];
@@ -4291,7 +4656,7 @@ function pintarEditor() {
   let marcas = "";
   for (let t = 0; t <= total + .01; t += px > 60 ? 1 : px > 25 ? 2 : 5) marcas += `<span style="left:${xDeTiempo(t)}px">${t}s</span>`;
   $("evRegla").innerHTML = marcas;
-  pintarInspector(); moverCabezal(); pintarVoz();
+  pintarInspector(); moverCabezal(); pintarVoz(); pintarEstadoEd();
 }
 function pintarInspector() {
   if (ed.cSel && capaSel()) return pintarInspectorCapa();
@@ -4345,7 +4710,8 @@ function pintarInspector() {
       <button class="btn sec peq" type="button" data-acc="duplicar" title="Repite este pedazo justo después (Ctrl+D)">⧉ Duplicar</button>
       ${b.aparte ? `<button class="btn sec peq" type="button" data-acc="congelar">${b.aparte.sin_imagen ? "🖼 Volver a mostrar la imagen" : "❄ Quitar la imagen (Supr)"}</button>
         <button class="btn sec peq" type="button" data-acc="silenciar">${b.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz"}</button>` : ""}
-      <span class="muted" style="font-size:11px">Clic derecho en el bloque para más opciones</span></div>`;
+      <button class="btn sec peq" type="button" data-acc="toma" title="Cambia la grabación de ${esc(verPieza(b.pieza.nombre))} por otra toma: se rearman los videos que la usan">↻ Cambiar la toma</button>
+      <span class="muted" style="font-size:11px">Clic derecho: más opciones</span></div>`;
   if (b.nsub) {  // un pedazo entre cortes
     $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
         <span class="fila"><label class="fila" style="font-size:13px"><input type="checkbox" id="evPedazo" ${b.pedazoQuitado ? "" : "checked"}> Incluir este pedazo</label>
@@ -4523,7 +4889,7 @@ function aplicarPunto(cambio) {
   k.s = +Math.min(3, Math.max(1, k.s)).toFixed(3); k.x = +Math.min(1, Math.max(0, k.x)).toFixed(4); k.y = +Math.min(1, Math.max(0, k.y)).toFixed(4);
   if ($("kSt")) { $("kSt").textContent = Math.round(k.s * 100) + "%"; $("kS").value = Math.round(k.s * 100); }
   if ($("kXt")) { $("kXt").textContent = Math.round(k.x * 100); $("kX").value = k.x * 100; $("kYt").textContent = Math.round(k.y * 100); $("kY").value = k.y * 100; }
-  pintarZoom(); vistaEd();
+  pintarZoom(); vistaEd(); anotarLuego();
 }
 $("evInspector").addEventListener("input", e => {
   if (!puntoSel() || !e.target.id.startsWith("k")) return;
@@ -4566,7 +4932,7 @@ $("evVisor").addEventListener("pointermove", e => {
   const { k, x0, y0, kx, ky, w, h } = arrVisor;  // arrastrar el video a la derecha muestra lo que está a la izquierda
   aplicarPunto({ x: kx - (e.clientX - x0) / (w * k.s), y: ky - (e.clientY - y0) / (h * k.s) });
 });
-$("evVisor").addEventListener("pointerup", () => { arrVisor = null; });
+$("evVisor").addEventListener("pointerup", () => { if (arrVisor) { arrVisor = null; anotarHistorial(); pintarEstadoEd(); } });
 $("evVisor").addEventListener("wheel", e => {
   if (!ed?.mover) return;
   e.preventDefault(); pararEditor();
@@ -4698,7 +5064,7 @@ function cambiarCapa(cambio) {
   cp.t = +Math.max(0, Math.min(cp.t, fin - .3)).toFixed(3); cp.dur = +Math.max(.3, Math.min(cp.dur, fin - cp.t)).toFixed(3);
   if (cp.modo === "ventana") { const d = ventanaDefecto(); cp.ancho = cp.ancho || d.ancho; cp.x = cp.x ?? d.x; cp.y = cp.y ?? d.y; }
   else { delete cp.ancho; delete cp.x; delete cp.y; }
-  pintarCapas(); vistaEd();
+  pintarCapas(); vistaEd(); anotarLuego();
 }
 $("evInspector").addEventListener("input", e => {
   if (!capaSel() || !e.target.id.startsWith("c")) return;
@@ -4761,7 +5127,7 @@ $("evCapa").addEventListener("pointermove", e => {
   cp.x = Math.round(cx + (e.clientX - x0) * k); cp.y = Math.round(cy + (e.clientY - y0) * k);
   vistaEd();
 });
-$("evCapa").addEventListener("pointerup", () => { arrVent = null; });
+$("evCapa").addEventListener("pointerup", () => { if (arrVent) { arrVent = null; anotarHistorial(); pintarEstadoEd(); } });
 // Cortar: video y audio a la vez, en el cabezal
 function cortarEnCabezal() {
   const c = cabezalEnPieza(); if (!c) return;
@@ -4846,22 +5212,32 @@ function quitarDuplicado(b) {
 // Deshacer y rehacer: cada repintado anota lo de antes si algo cambió (un arrastre entero cuenta como un solo paso)
 function estadoEd() {
   return JSON.stringify({ q: [...ed.quitar], hook: ed.hook, cta: ed.cta, partes: ed.partes, zoom: ed.zoom, cortes: ed.cortes, quitarR: ed.quitarR,
-                          capas: ed.capas, vel: ed.vel, orden: ed.orden, aparte: ed.aparte, dups: ed.dups });
+                          capas: ed.capas, vel: ed.vel, orden: ed.orden, aparte: ed.aparte, dups: ed.dups,
+                          subs: [est.hook, est.cuerpo, est.cta].map(p => p.lineas) });
 }
 function ponerEstadoEd(j) {
   const o = JSON.parse(j);
   Object.assign(ed, { quitar: new Set(o.q), hook: o.hook, cta: o.cta, partes: o.partes, zoom: o.zoom, cortes: o.cortes, quitarR: o.quitarR,
                       capas: o.capas, vel: o.vel, orden: o.orden, aparte: o.aparte, dups: o.dups });
+  // los subtítulos se guardan al momento: deshacer uno lo vuelve a guardar como estaba (vale para todos sus videos)
+  if (o.subs) [est.hook, est.cuerpo, est.cta].forEach((p, i) => {
+    if (o.subs[i] && JSON.stringify(p.lineas) !== JSON.stringify(o.subs[i])) { p.lineas = o.subs[i]; guardarSubs(p, "Subtítulo vuelto a como estaba"); }
+  });
 }
+// Cada repintado anota cómo estaba antes si algo cambió. Mientras se arrastra no se anota nada: al soltar queda un solo
+// paso con lo de antes de empezar (antes se perdía: Ctrl+Z no deshacía un borde estirado ni un fotograma movido)
 function anotarHistorial() {
-  if (!ed.historial) return;
-  const f = estadoEd(), arr = !!(arrastre || arrCorte || arrS || arrVoz || arrK || arrC);
-  if (ed._ult != null && f !== ed._ult && !(arr && ed._enArr)) {
+  if (!ed?.historial) return;
+  if (arrastre || arrCorte || arrS || arrVoz || arrK || arrC || arrVent || arrVisor) { ed._enArr = true; return; }
+  const f = estadoEd();
+  if (ed._ult != null && f !== ed._ult) {
     ed.historial.push(ed._ult); if (ed.historial.length > 150) ed.historial.shift();
     ed.rehacer = [];
   }
-  ed._ult = f; ed._enArr = arr;
+  ed._ult = f; ed._enArr = false;
 }
+// cambios con deslizadores (escala, posición, duración de una imagen): un solo paso cuando se deja de mover
+function anotarLuego() { clearTimeout(anotarLuego.t); anotarLuego.t = setTimeout(() => { anotarHistorial(); pintarEstadoEd(); }, 450); }
 function deshacerEd() {
   if (!ed?.historial?.length) return avisar("No hay nada que deshacer.", "muted");
   ed.rehacer.push(estadoEd()); const j = ed.historial.pop(); ponerEstadoEd(j); ed._ult = j;
@@ -4908,6 +5284,7 @@ function abrirMenuEd(x, y, items) {
 function cerrarMenuEd() { $("evMenu").hidden = true; }
 function accionMenuEd(acc) {
   const b = bloqueSel(ed.aSel || ed.sel); if (!b) return;
+  if (acc === "toma") return abrirToma(b.pieza.nombre);
   if (acc === "dividir") cortarEnCabezal();
   else if (acc === "duplicar") duplicarSel(b.key);
   else if (acc === "grupo") alternarGrupo(b.key);
@@ -4943,6 +5320,7 @@ $("evCarrilV").addEventListener("contextmenu", e => {
                ["grupo", b.aparte ? "⛓ Agrupar audio y video" : "⛓‍💥 Desagrupar audio", "Ctrl+G"]);
     if (b.aparte) items.push(["congelar", b.aparte.sin_imagen ? "🖼 Volver a mostrar la imagen" : "❄ Quitar la imagen (queda congelada)", "Supr"],
                              ["silenciar", b.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz", ""]);
+    items.push(["toma", `↻ Cambiar la toma de ${esc(verPieza(b.pieza.nombre))}…`, ""]);
     items.push("-", ["borrar", b.aparte ? "🗑 Borrar el pedazo (imagen y voz)" : "🗑 Borrar", b.aparte ? "" : "Supr", "peligro"]);
   }
   if (b.i !== undefined && !b.dup) items.push(["frase", b.quitada ? "↩ Volver a poner la frase entera" : "🗑 Borrar la frase entera", "Shift+Supr", "peligro"]);
@@ -5285,6 +5663,9 @@ $("dlgEditor").addEventListener("keydown", e => {
   }
   if (e.target.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
   const tecla = e.key.toLowerCase();
+  // con el foco en un botón o en el menú, Enter y espacio aprietan ese botón (antes reproducían el video)
+  if ((e.key === "Enter" || e.key === " ") && e.target.closest("button, a, [role=menuitem], [role=button], label.ev-btn")) return;
+  if (e.key === "?") { e.preventDefault(); $("dlgAtajos").showModal(); return; }
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("evPlay").click(); }
   else if (e.key === "Home") { e.preventDefault(); $("evInicio").click(); }
   else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -5380,13 +5761,13 @@ $("evCarrilS").addEventListener("pointermove", e => {
   // las palabras se reparten en la nueva duración, manteniendo su ritmo
   const k = (en - s) / Math.max(.01, arrS.e0 - arrS.s0);
   l.s = +s.toFixed(3); l.e = +en.toFixed(3);
-  l.palabras = arrS.pal0.map(p => ({ s: +(s + (p.s - arrS.s0) * k).toFixed(3), e: +(s + (p.e - arrS.s0) * k).toFixed(3) }));
+  l.palabras = arrS.pal0.map(p => ({ ...p, s: +(s + (p.s - arrS.s0) * k).toFixed(3), e: +(s + (p.e - arrS.s0) * k).toFixed(3) }));
   pintarEditor(); vistaEd();
 });
 $("evCarrilS").addEventListener("pointerup", () => {
   if (!arrS) return;
   const { pz, movido } = arrS; arrS = null;
-  if (movido) guardarSubs(pz, "Subtítulo movido");
+  if (movido) { anotarHistorial(); pintarEstadoEd(); guardarSubs(pz, "Subtítulo movido"); }
 });
 async function guardarSubs(pz, que) {  // vale para todos los videos que usan esta pieza
   try {
@@ -5469,10 +5850,21 @@ function irA(t) {
   const s = segs[evSeg], v = $("evVideo");
   const destino = s.a + (ed.t - s.g0);
   // mientras carga el video de otra pieza, el cabezal se queda donde se tocó (no vuelve al inicio de la pieza)
-  if (!v.src.includes(s.pieza.url.split("?")[0])) { ed.cargando = true; v.src = s.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = destino; ed.cargando = false; vistaEd(); }, { once: true }); }
-  else v.currentTime = destino;
+  if (irA.pend) { v.removeEventListener("loadedmetadata", irA.pend); irA.pend = null; }
+  if (!v.src.includes(s.pieza.url.split("?")[0])) {
+    ed.cargando = true; v.src = s.pieza.url;
+    irA.pend = () => { irA.pend = null; v.currentTime = destino; ed.cargando = false; vistaEd(); };
+    v.addEventListener("loadedmetadata", irA.pend, { once: true });
+  }
+  else { ed.cargando = false; v.currentTime = destino; }
   vistaEd();
 }
+$("evVideo").addEventListener("error", () => {  // un clip que no carga: se dice (antes quedaba «cargando» para siempre)
+  if (!ed || !$("dlgEditor").open && !$("dlg").open) return;
+  ed.cargando = false;
+  const s = segmentosEd()[evSeg];
+  avisar(`No se pudo cargar el clip de ${s ? s.t : "esta parte"}. Revisa que la pieza esté preparada (Inicio → Armar todos los videos).`, "err");
+});
 function vistaEd() {
   const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
   if (!s) return;
@@ -5489,7 +5881,7 @@ function vistaEd() {
   const ct = ed.cargando ? s.a + (ed.t - s.g0) : v.currentTime;
   if (Math.abs(v.playbackRate - (s.vel || 1)) > .001) v.playbackRate = s.vel || 1;  // el navegador mantiene el tono de la voz
   ed.t = s.g0 + Math.max(0, ct - s.a);
-  $("evTiempo").textContent = ed.t.toFixed(1) + " s";
+  $("evTiempo").textContent = `${ed.t.toFixed(2)} s · cuadro ${Math.floor(ed.t * 30 + 1e-6) + 1}`;
   moverCabezal();
   // encuadre: fotogramas clave; si la pieza no tiene, el zoom automático de antes (hacia la cara)
   let en = encuadreEn(s.pz, ct) || encuadreTramosViejos(s.pz, ct);
@@ -5559,8 +5951,10 @@ function bucleEd() {
   requestAnimationFrame(bucleEd);
 }
 function pararEditor() {
-  evReproduciendo = false; $("evVideo").pause(); evMusica.pause(); evFxPrev = null; $("evPlay").textContent = "▶ Reproducir";
+  evReproduciendo = false; $("evVideo").pause(); evMusica.pause(); evFxPrev = null; pintarPlay();
   Object.values(vocesAparte).forEach(a => a.pause());
+  sonidosPrevia.splice(0).forEach(a => a.pause());
+  $("evCapa").querySelector("video")?.pause();
 }
 // La voz corrida de un pedazo desagrupado suena aparte en la vista previa, encima de lo que se esté viendo
 const vocesAparte = {};
@@ -5570,8 +5964,9 @@ function sonarVozAparte() {
     const ap = s.aparte; if (!ap || ap.sin_voz || Math.abs(ap.desfase || 0) < .005) continue;
     const ini = s.g0 + ap.desfase;
     if (ed.t < ini || ed.t >= ini + (s.b - s.a)) continue;
-    activos.add(s.key);
-    const a = vocesAparte[s.key] = vocesAparte[s.key] || Object.assign(new Audio(s.pieza.url), { preload: "auto" });
+    const clave = `${s.key}|${s.pieza.url}`;
+    activos.add(clave);
+    const a = vocesAparte[clave] = vocesAparte[clave] || Object.assign(new Audio(s.pieza.url), { preload: "auto" });
     a.muted = mudoEd("voz"); a.playbackRate = s.vel || 1;
     const pos = s.a + (ed.t - ini);
     if (a.paused) { try { a.currentTime = pos; } catch (e) {} a.play().catch(() => {}); }
@@ -5582,6 +5977,7 @@ function sonarVozAparte() {
 // Música y sonidos en la vista previa: la pista del último armado suena debajo de la voz siguiendo el cabezal, de corrido
 // aunque haya cortes (igual que en el video armado), y baja cuando se habla. Los sonidos suenan en su segundo.
 const evMusica = new Audio(); evMusica.preload = "auto";
+const sonidosPrevia = [];  // los efectos que suenan en la vista previa (antes seguían sonando al pausar)
 let evFxPrev = null;
 function inicioPieza(pz) {  // dónde empieza la pieza en el video armado sin recortes
   const hd = est.hook.dur || 0, cd = est.cuerpo.partes.reduce((a, p) => Math.max(a, p.fin), 0);
@@ -5626,7 +6022,8 @@ function sonarPrevia() {
     for (const e of r.efectos || []) {
       const te = realDe(e.t, false);
       if (te != null && te > evFxPrev && te <= tr && e.id && !e.quitado) {
-        const a = new Audio("/sfx?id=" + encodeURIComponent(e.id)); a.volume = Math.min(1, .6 * (e.vol ?? 1));
+        const a = new Audio("/sfx?id=" + encodeURIComponent(e.id)); a.volume = Math.min(1, .6 * (e.vol ?? 1) * (gananciaSon[e.id] ?? 1));
+        ganancia(e.id); sonidosPrevia.push(a);  // se paran todos al pausar
         a.preservesPitch = true; a.playbackRate = e.vel || 1;  // como atempo en el armado: más rápido sin cambiar el tono
         a.addEventListener("loadedmetadata", () => { a.currentTime = e.desde || 0; }, { once: true });
         a.play().catch(() => {}); setTimeout(() => a.pause(), (e.largo || 2) / (e.vel || 1) * 1000 + 80);
@@ -5635,9 +6032,50 @@ function sonarPrevia() {
   }
   evFxPrev = tr;
 }
+function pintarPlay() {
+  const b = $("evPlay"); if (!b) return;
+  b.querySelector("span").textContent = evReproduciendo ? "❚❚" : "▶";
+  b.querySelector("b").textContent = evReproduciendo ? "Pausa" : "Reproducir";
+  b.setAttribute("aria-pressed", String(evReproduciendo));
+}
 $("evPlay").onclick = () => {
   if (evReproduciendo) return pararEditor();
-  evReproduciendo = true; $("evVideo").muted = mudoEd("voz"); $("evVideo").play(); $("evPlay").textContent = "❚❚ Pausa"; bucleEd();
+  evReproduciendo = true; $("evVideo").muted = mudoEd("voz"); $("evVideo").play().catch(() => {}); pintarPlay(); bucleEd();
+};
+// Arriba del editor siempre se ve si hay algo sin guardar, y el botón de guardar (antes había que bajar hasta el final)
+let estadoPendiente = false;
+function pintarEstadoEd() {
+  if (estadoPendiente) return;
+  estadoPendiente = true;
+  requestAnimationFrame(() => {
+    estadoPendiente = false;
+    if (!est || est.error || !ed) { $("edEstado").textContent = ""; return; }
+    const sucio = (firmaGuardada && firmaEd() !== firmaGuardada) || sonPend.length > 0;
+    $("edEstado").className = "ed-estado " + (sucio ? "sucio" : "limpio");
+    $("edEstado").textContent = sucio ? "● Cambios sin guardar" : "✓ Nada por guardar";
+    $("evDeshacer").disabled = !ed.historial?.length; $("evRehacer").disabled = !ed.rehacer?.length;
+    $("evDeshacer").title = ed.historial?.length ? `Deshace el último cambio (quedan ${ed.historial.length})` : "No hay nada que deshacer";
+    $("edGuardarTop").disabled = !sucio;
+    $("edGuardarTop").title = $("evArmar").textContent;
+    $("edGuardarTop").textContent = sucio ? "💾 Guardar cambios" : "💾 Guardado";
+  });
+}
+$("edGuardarTop").onclick = () => $("evArmar").click();
+$("evDeshacer").onclick = () => { deshacerEd(); pintarEstadoEd(); };
+$("evRehacer").onclick = () => { rehacerEd(); pintarEstadoEd(); };
+$("evAtajos").onclick = () => $("dlgAtajos").showModal();
+$("atCerrar").onclick = () => $("dlgAtajos").close();
+function escalaA(v, centro) {  // cambia el zoom de la línea de tiempo dejando el mismo segundo en el centro
+  const tl = $("evTL"), t = gDeX(tl.scrollLeft + (centro ?? tl.clientWidth / 2) - 78);
+  $("evEscala").value = Math.max(6, Math.min(400, v)); pintarEditor();
+  tl.scrollLeft = Math.max(0, xDeTiempo(t) - (centro ?? tl.clientWidth / 2) + 78);
+}
+$("evZoomMenos").onclick = () => escalaA(escalaEd() / 1.35);
+$("evZoomMas").onclick = () => escalaA(escalaEd() * 1.35);
+$("evAjustar").onclick = () => {  // todo el video entra en el ancho de la línea de tiempo
+  const total = segmentosEd().reduce((a, s) => a + s.b - s.a, 0), n = bloquesEd().length;
+  if (!total) return;
+  $("evEscala").value = Math.max(6, Math.min(400, ($("evTL").clientWidth - 100 - n * 3) / total)); pintarEditor(); $("evTL").scrollLeft = 0;
 };
 // Desde el inicio: el cabezal vuelve al segundo 0 (y la línea de tiempo también) y reproduce
 $("evInicio").onclick = () => { pararEditor(); $("evTL").scrollLeft = 0; irA(0); $("evPlay").click(); };
@@ -5695,11 +6133,12 @@ async function guardarEdicion() {
     const sonidos = [...new Set(sonPend.flatMap(p => p.codigos || []))];  // los sonidos ya quedaron guardados: falta rearmar
     const r = await post("/api/edicion", { ...d, armar: true, extra_codigos: sonidos });
     sonPend = []; pintarPendientes();
-    $("dlg").close(); await cargar();
+    firmaGuardada = null; $("dlg").close(); await cargar();
     if (!r.codigos.length) return avisar("No había cambios que guardar.", "muted");
     if (r.codigos.includes(actual.codigo)) reabrir = actual.codigo;
     vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Guardado. Rearmando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que usan estas piezas…`, "ok");
+    avisar(r.en_cola ? `Guardado. Los ${plural(r.codigos.length, "video")} se rearman cuando la sala termine lo que está haciendo (☰).`
+      : `Guardado. Rearmando ${plural(r.codigos.length, "video")} que usan estas piezas…`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 async function guardarVersion(armar, nueva) {
@@ -5707,8 +6146,9 @@ async function guardarVersion(armar, nueva) {
   try {
     pararEditor();
     const r = await post("/api/version", datos);
-    $("dlg").close(); await cargar();
-    if (armar) { reabrir = r.codigo; vigilar(await (await fetch("/api/trabajo")).json()); avisar(`Armando la versión ${r.codigo}… cuando termine se abre sola.`, "ok"); }
+    firmaGuardada = null; $("dlg").close(); await cargar();
+    if (armar) { reabrir = r.codigo; vigilar(await (await fetch("/api/trabajo")).json());
+      avisar(r.en_cola ? `Versión ${r.codigo} guardada. Se arma cuando la sala termine lo que está haciendo (☰) y se abre sola.` : `Armando la versión ${r.codigo}… cuando termine se abre sola.`, "ok"); }
     else avisar(`Versión ${r.codigo} guardada.`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
@@ -5717,13 +6157,102 @@ $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (n
   try {
     pararEditor();
     const r = await post("/api/version", { ...datosEd(), propio: true, codigo: est.codigo, id: est.codigo, armar: true });
-    $("dlg").close(); await cargar();
+    const cuerpo = est.cuerpo.nombre;
+    firmaGuardada = null; $("dlg").close(); await cargar();
     reabrir = r.codigo; vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Guardado solo en ${r.codigo}. Rearmándolo… los demás videos de ${est.cuerpo.nombre} no cambian.`, "ok");
+    avisar(`Guardado solo en ${r.codigo}${r.en_cola ? ": se rearma cuando la sala termine lo que está haciendo (☰)" : ". Rearmándolo…"} Los demás videos de ${cuerpo} no cambian.`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
-$("evPartes").onclick = async () => { if (!actual) return; pararEditor(); $("dlg").close(); await exportarPartes([actual.codigo]); };
+$("evPartes").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!cerrarVideo()) return; await exportarPartes([cod]); };
 $("evGuardar").onclick = () => guardarVersion(true, true);
+// ---------- Motor de cuerpo ----------
+// · Cambiar la toma: la grabación de una pieza (una frase del cuerpo, el hook o el CTA) se cambia por otra; todos sus
+//   videos se rearman solos con los mismos hooks y CTA. Las imágenes y sonidos puestos en palabras se quedan.
+// · Nueva versión del cuerpo: otra versión que usa los mismos hooks y CTA (editada aparte, o con otra toma completa);
+//   los videos de siempre no cambian.
+const tomasLibres = () => (E.checklist.sin_asignar || []);
+const opcionTomas = (lista, elegido) => `<option value="">Elige la toma nueva…</option>` + lista.map(c =>
+  `<option value="${esc(c.rel)}" ${c.rel === elegido ? "selected" : ""}>${esc(c.nombre)}${c.pieza ? ` · parece ${esc(c.pieza)}${c.parecido ? ` ${Math.round(c.parecido * 100)}%` : ""}` : ""}${c.texto ? ` — «${esc(c.texto.split(/\s+/).slice(0, 8).join(" "))}…»` : ""}</option>`).join("");
+function videosQueUsan(nombre) { return E.salidas.filter(s => [s.hook, s.cuerpo, s.cta].includes(nombre)).length; }
+function abrirToma(nombre) {
+  const p = E.piezas.find(x => x.nombre === nombre); if (!p) return avisar("No encontré esa pieza.", "err");
+  const libres = tomasLibres(), nom = verPieza(nombre), n = videosQueUsan(nombre);
+  $("tmTit").textContent = `Cambiar la toma de ${nom}`;
+  $("tmAyuda").innerHTML = libres.length
+    ? `Elige la grabación nueva. Se rearman los <b>${plural(n, "video")}</b> que usan ${esc(nom)}, con los mismos hooks y CTA. Las imágenes y sonidos puestos en palabras se quedan; el subtítulo se rehace con lo que se dice en la toma nueva. La toma de antes vuelve a «Clips por identificar».`
+    : `No hay tomas libres. Sube la toma nueva a la carpeta Clips de la sesión en Drive (o arrástrala en Faltantes → Clips por identificar) y vuelve aquí.`;
+  const primero = t => libres.slice().sort((a, b) => (b.pieza === t.nombre) - (a.pieza === t.nombre))[0];
+  $("tmCuerpo").innerHTML = (p.tomas || []).map(t => {
+    const sug = primero(t)?.pieza === t.nombre ? primero(t).rel : "";
+    return `<div class="toma"><div><b>${esc(t.nombre)}</b><video src="${esc(t.video)}" controls preload="metadata" playsinline></video>
+        <span class="muted" style="font-size:11.5px">Ahora: ${esc(t.rel.split("/").pop())}</span></div>
+      <div><label class="muted ev-campo">Cambiar por<select data-toma="${esc(t.nombre)}">${opcionTomas(libres, sug)}</select></label>
+        <video data-vista-toma="${esc(t.nombre)}" controls preload="metadata" playsinline ${sug ? `src="${esc(libres.find(c => c.rel === sug)?.video || "")}"` : "hidden"}></video>
+        <button class="btn peq" type="button" data-usar-toma="${esc(t.nombre)}" ${sug ? "" : "disabled"}>Usar esta toma</button></div></div>`;
+  }).join("") || `<p class="muted">Esta pieza no tiene tomas asignadas.</p>`;
+  $("dlgToma").showModal();
+}
+$("tmCerrar").onclick = () => $("dlgToma").close();
+$("tmCuerpo").addEventListener("change", e => {
+  const s = e.target.closest("[data-toma]"); if (!s) return;
+  const v = $("tmCuerpo").querySelector(`[data-vista-toma="${CSS.escape(s.dataset.toma)}"]`), c = tomasLibres().find(x => x.rel === s.value);
+  v.hidden = !c; if (c) v.src = c.video || "";
+  $("tmCuerpo").querySelector(`[data-usar-toma="${CSS.escape(s.dataset.toma)}"]`).disabled = !c;
+});
+$("tmCuerpo").addEventListener("click", async e => {
+  const b = e.target.closest("[data-usar-toma]"); if (!b) return;
+  const nombre = b.dataset.usarToma, rel = $("tmCuerpo").querySelector(`[data-toma="${CSS.escape(nombre)}"]`).value;
+  if (!rel) return;
+  const pieza = E.piezas.find(x => (x.tomas || []).some(t => t.nombre === nombre))?.nombre || nombre, n = videosQueUsan(pieza);
+  const aviso = $("dlg").open && sinGuardar().length ? "\n\nTienes cambios sin guardar en el video abierto: se pierden (los cortes hechos a mano en esa parte pueden quedar corridos con la toma nueva)." : "";
+  if (!confirm(`¿Cambiar la toma de ${nombre}? Se rearman ${plural(n, "video")} con los mismos hooks y CTA.${aviso}`)) return;
+  try {
+    const r = await post("/api/asignar", { rel, pieza: nombre, armar: true });
+    $("dlgToma").close(); firmaGuardada = null; firmaSubs = null; if ($("dlg").open) $("dlg").close();
+    await cargar(); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Toma de ${nombre} cambiada. ${r.en_cola ? "Se prepara y se rearman sus videos cuando la sala termine lo que está haciendo (☰)." : "Preparando la toma nueva y rearmando sus videos… lo ves en Procesos (☰)."}`, "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+});
+function abrirVersionCuerpo() {
+  if (!est || est.error) return;
+  if (sinGuardar().length && !confirm("Tienes cambios sin guardar en este video. La versión nueva arranca con lo último que guardaste. ¿Seguir sin guardarlos? (para guardarlos primero, toca «Cancelar» y luego 💾)")) return;
+  const cuerpo = est.cuerpo.nombre, nom = verPieza(cuerpo), letra = est.edicion || "A";
+  const n = E.salidas.filter(s => !s.es_version && !s.propio && s.cuerpo === cuerpo && (s.edicion || "A") === letra).length;
+  $("vcTit").textContent = `Nueva versión de ${nom}`;
+  $("vcAyuda").innerHTML = `Una versión más de <b>${esc(nom)}</b> que usa <b>los mismos hooks y CTA</b>. Los ${plural(n, "video")} de siempre no cambian.`;
+  const sig = [..."BCDEFGHIJKLMNOPQRSTUVWXYZ"].find(x => !(E.ediciones || {})[x]) || "B";  // la letra que le toca
+  $("vcEdTxt").innerHTML = `Se crean ${plural(n, "video nuevo", "videos nuevos")} (${esc(cuerpo)}-H1-…-${sig}) con la misma grabación. Arrancan igual que ahora (mismos cortes, música y estilo) y lo que cambies ahí no toca los de siempre. Sirve para probar otro ritmo, otros cortes o otras imágenes.`;
+  const libres = tomasLibres();
+  $("vcTomaTxt").innerHTML = libres.length ? `Otra grabación completa del cuerpo (por ejemplo, la segunda pasada o desde otro lado). Se arman sus videos con los hooks y el CTA de ${esc(nom)}.`
+    : `No hay tomas libres: sube la otra toma a la carpeta Clips de la sesión en Drive y vuelve aquí.`;
+  $("vcClip").innerHTML = opcionTomas(libres, ""); $("vcClip").disabled = !libres.length;
+  $("vcVista").hidden = true; $("vcToma").disabled = true;
+  $("dlgVersionCuerpo").showModal();
+}
+$("vcCerrar").onclick = () => $("dlgVersionCuerpo").close();
+$("vcClip").onchange = () => {
+  const c = tomasLibres().find(x => x.rel === $("vcClip").value);
+  $("vcVista").hidden = !c; if (c) $("vcVista").src = c.video || ""; $("vcToma").disabled = !c;
+};
+async function crearVersionCuerpo(datos, mensaje) {
+  try {
+    const r = await post("/api/version_cuerpo", { cuerpo: est.cuerpo.nombre, ...datos });
+    $("dlgVersionCuerpo").close(); firmaGuardada = null; firmaSubs = null; if ($("dlg").open) $("dlg").close();
+    await cargar();
+    if (r.codigos?.length) reabrir = r.codigos[0];
+    vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(mensaje(r), "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("vcEdicion").onclick = () => crearVersionCuerpo({ modo: "edicion", edicion: est.edicion || "A" }, r =>
+  `Versión ${r.edicion} lista: se arman ${plural(r.codigos.length, "video")} (…-${r.edicion}) con los mismos hooks y CTA. El primero se abre solo cuando esté; los demás, en Videos (filtro «Ed. ${r.edicion}»).`);
+$("vcToma").onclick = () => { if ($("vcClip").value) crearVersionCuerpo({ modo: "toma", rel: $("vcClip").value }, r =>
+  `La toma quedó como ${verPieza(r.pieza)}: se prepara y se arman ${plural(r.codigos.length, "video")} con los mismos hooks y CTA.`); };
+$("evAlcance").addEventListener("click", e => {
+  const b = e.target.closest("[data-cuerpo-acc]"); if (!b || !est) return;
+  if (b.dataset.cuerpoAcc === "toma") abrirToma(est.cuerpo.nombre); else abrirVersionCuerpo();
+});
+
 // «Editar» abre el editor en su propia ventana grande (línea de tiempo + subtítulos de este video)
 $("edCuerpo").append($("editorVideo"), $("editorSubs"));
 function abrirEditor() {
@@ -5739,7 +6268,7 @@ new ResizeObserver(() => $("dlgEditor").style.setProperty("--alto-cab-ed", $("dl
 $("edCerrar").onclick = () => $("dlgEditor").close();
 $("dlgEditor").addEventListener("close", pararEditor);
 $("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checked) evMusica.pause(); });
-$("evExportar").onclick = async () => { if (!actual) return; pararEditor(); elegidos.clear(); elegidos.add(actual.codigo); $("dlg").close(); await trabajoSel("exportar_sel"); elegidos.clear(); pintarSeleccion(); };
+$("evExportar").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!cerrarVideo()) return; await exportarVideos([cod]); };
 $("evBorrar").onclick = async () => {
   if (!est || est.base || !confirm(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se rearma.` : `¿Borrar la versión ${est.codigo}?`)) return;
   try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar();
@@ -5804,6 +6333,9 @@ function pintarPlan() {
 $("abrirPlan").onclick = () => { planBorrador = null; pintarPlan(); $("dlgPlan").showModal(); };
 $("planCerrar").onclick = () => $("dlgPlan").close();
 async function guardarCampoEdicion(letra, campo, valor) {
+  const clave = `${letra}|${campo}|${JSON.stringify(valor)}`;
+  if (guardarCampoEdicion.ultimo === clave && Date.now() - guardarCampoEdicion.t < 2000) return;  // change y focusout seguidos
+  guardarCampoEdicion.ultimo = clave; guardarCampoEdicion.t = Date.now();
   const ed = (E.ediciones || {})[letra] || {};
   const cambio = campo === "nombre" ? { nombre: valor }
     : campo === "musica" ? { musica: String(valor).startsWith("pista:") ? { modo: "pista", pista: String(valor).slice(6) } : { modo: valor } }
@@ -5915,8 +6447,17 @@ function estadoGuion(p) {
     : !p.procesada ? `<span class="pill">Sin analizar</span>`
     : `<span class="pill ${p.parecido >= .9 ? "ok" : p.parecido >= .7 ? "" : "warn"}">${Math.round((p.parecido || 0) * 100)}% igual al guion</span>`;
 }
+// Mientras se edita el texto de una pieza, la lista no se vuelve a pintar (la revisión de Drive cada 90 s o volver
+// a la ventana la repintaba y se perdía lo escrito): se repinta al guardar o cancelar.
+let guionPendiente = false;
+const editandoGuion = () => !!document.querySelector("#guionLista .g-editar");
 function pintarGuionLista() {
   const g = ultimoGuion; if (!g || !g.hay_guion) return;
+  if (editandoGuion()) {
+    if (!guionPendiente) avisar("Llegó una versión nueva del guion: se muestra cuando termines de editar (Guardar o Cancelar).", "muted");
+    guionPendiente = true; return;
+  }
+  guionPendiente = false;
   document.querySelectorAll("[data-gvista]").forEach(b => b.setAttribute("aria-pressed", b.dataset.gvista === vistaGuion));
   const sinAsignar = E.checklist.sin_asignar || [];
   const etq = { cuerpo: "Cuerpo", hook: "Hook", cta: "CTA" };
@@ -5978,23 +6519,41 @@ document.addEventListener("click", async e => {
     caja.innerHTML = `<div class="g-editar" style="display:grid;gap:6px">${frases.map((f, k) => `<label class="muted" style="font-size:12px">${frases.length > 1 ? `Frase ${k + 1}` : "Texto"}<textarea data-gfrase="${k}">${esc(f)}</textarea></label>`).join("")}
       <div class="fila"><button class="btn peq" type="button" data-gguardar="${esc(p.nombre)}">Guardar</button>
         <button class="btn sec peq" type="button" data-gcancelar>Cancelar</button>
-        <span class="muted" style="font-size:12px">Se ve en el teleprompter y en el panel. Si ya se grabó, vuelve a grabarla o deja lo que se dijo.</span></div></div>`;
+        <span class="muted" style="font-size:12px"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda · <kbd>Esc</kbd> cancela. Se ve en el teleprompter y en el panel.</span></div></div>`;
     ed_.hidden = true;
     caja.querySelector("textarea").focus();
     return;
   }
-  if (e.target.closest("[data-gcancelar]")) return pintarGuionLista();
+  const ca = e.target.closest("[data-gcancelar]");
+  if (ca) return cerrarEdicionGuion(ca.closest("[data-gtexto]")?.dataset.gtexto);
   const gu = e.target.closest("[data-gguardar]");
-  if (gu) {
-    const caja = gu.closest(".g-editar"), frases = [...caja.querySelectorAll("textarea")].map(t => t.value.trim()).filter(Boolean);
-    if (!frases.length) return avisar("El texto no puede quedar vacío.", "err");
-    gu.disabled = true;
-    try {
-      await post("/api/guion_texto", { pieza: gu.dataset.gguardar, texto: frases.join(" "), partes: frases.length > 1 ? frases : null });
-      avisar(`Guion de ${gu.dataset.gguardar} guardado: ya se ve en el teleprompter. Se sube a Drive y al panel.`, "ok");
-      await pintarGuion();
-    } catch (err) { avisar("Error: " + err.message, "err"); gu.disabled = false; }
-  }
+  if (gu) guardarTextoGuion(gu);
+});
+// Guardar o cancelar cierra solo esa pieza: las otras que estén abiertas siguen con lo que tenían escrito
+function cerrarEdicionGuion(nombre) {
+  const p = ultimoGuion?.piezas.find(x => x.nombre === nombre), caja = nombre && document.querySelector(`[data-gtexto="${CSS.escape(nombre)}"]`);
+  if (p && caja) { caja.innerHTML = textoGuion(p); const b = document.querySelector(`[data-geditar="${CSS.escape(nombre)}"]`); if (b) b.hidden = false; }
+  if (!editandoGuion() && guionPendiente) { pintarGuion(); avisar(""); }
+}
+async function guardarTextoGuion(gu) {
+  const caja = gu.closest(".g-editar"), frases = [...caja.querySelectorAll("textarea")].map(t => t.value.trim()).filter(Boolean);
+  if (!frases.length) return avisar("El texto no puede quedar vacío.", "err");
+  const nombre = gu.dataset.gguardar;
+  gu.disabled = true;
+  try {
+    await post("/api/guion_texto", { pieza: nombre, texto: frases.join(" "), partes: frases.length > 1 ? frases : null });
+    const p = ultimoGuion?.piezas.find(x => x.nombre === nombre);
+    if (p) { p.texto = frases.join(" "); p.partes = frases; p.diff = []; }
+    avisar(`Guion de ${nombre} guardado: ya se ve en el teleprompter. Se sube a Drive y al panel.`, "ok");
+    cerrarEdicionGuion(nombre);
+  } catch (err) { avisar("Error: " + err.message, "err"); gu.disabled = false; }
+}
+// En el cuadro de texto: Ctrl+Enter guarda y Esc cancela
+document.addEventListener("keydown", e => {
+  const t = e.target.closest?.(".g-editar textarea"); if (!t) return;
+  const caja = t.closest(".g-editar");
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); guardarTextoGuion(caja.querySelector("[data-gguardar]")); }
+  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cerrarEdicionGuion(t.closest("[data-gtexto]")?.dataset.gtexto); }
 });
 const normTxt = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 function resaltarGuion(palabras) {  // marca las palabras buscadas dentro del texto ya pintado (sin tocar el diff)
@@ -6175,8 +6734,8 @@ function pintarDescargas() {
   $("listaDescargas").innerHTML = r.archivos.map(f => {
     const esMus = f.tipo === "musica", lista = esMus ? musica : assets;
     const base = f.nombre.replace(/\.[^.]+$/, "").toLowerCase(), faltan = lista.filter(x => !x.listo);
-    // sugerencia: el que se llama igual; si no, el único que falta de ese tipo
-    const sug = (lista.find(x => x.id.toLowerCase() === base) || (faltan.length === 1 ? faltan[0] : null))?.id || "";
+    // sugerencia: solo el que se llama igual (antes, si faltaba uno solo, cualquier imagen de Descargas quedaba elegida)
+    const sug = lista.find(x => x.id.toLowerCase() === base)?.id || "";
     const vista = esMus ? `<audio controls preload="none" src="${f.url}" style="width:100%"></audio>`
       : f.tipo === "video" ? `<video src="${f.url}" controls preload="metadata" style="width:100%;max-height:200px;background:#000;border-radius:8px"></video>`
       : `<img src="${f.url}" alt="" style="width:100%;max-height:200px;object-fit:contain;background:var(--hondo);border-radius:8px">`;
@@ -6196,6 +6755,8 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("[data-importar]"); if (!b) return;
   const sel = document.querySelector(`select[data-desc-id="${CSS.escape(b.dataset.importar)}"]`), id = sel?.value;
   if (!id) return avisar("Elige primero a qué pista, imagen o clip corresponde.", "err");
+  const ya = [...(E.checklist.musica || []), ...(E.checklist.assets || [])].find(x => x.id === id)?.listo;
+  if (ya && !confirm(`${id} ya tiene un archivo. ¿Reemplazarlo por «${b.dataset.importar}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
   b.disabled = true; b.textContent = "Guardando…";
   try {
     const r = await post("/api/importar_descarga", { nombre: b.dataset.importar, id, destino: b.dataset.destino });
@@ -6247,7 +6808,7 @@ $("ordenarVer").onclick = async () => {
         <span class="muted" style="font-size:12px">Los clips sin pieza y las tomas que no se usan se quedan como están (descártalos abajo si sobran).</span></div>` : ""}`;
     if (r.cambios.length) $("ordenarAplicar").onclick = async () => {
       if (!confirm(`¿Renombrar ${r.cambios.length} clips en la carpeta de Drive del equipo? Los links directos a esos archivos dejan de servir; los de las carpetas siguen igual.`)) return;
-      try { await post("/api/trabajo", { accion: "renombrar" }); vigilar(await (await fetch("/api/trabajo")).json());
+      try { await post("/api/trabajo", { accion: "renombrar", plan: r.cambios.map(c => ({ viejo: c.viejo, nuevo: c.nuevo })) }); vigilar(await (await fetch("/api/trabajo")).json());
         $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Renombrando… lo ves en Procesos (☰).</p>`; }
       catch (err) { avisar("Error: " + err.message, "err"); }
     };
@@ -6293,7 +6854,7 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
     const sombra = caja || !pl.sombra ? "none" : `${pl.sombra * k}px ${pl.sombra * k}px ${(pl.desenfoque || 0) * k}px ${rgba(pl.color_sombra || "#000000", (pl.opacidad_sombra ?? 50) / 100)}`;
     const extra = `letter-spacing:${(Number(pl.espaciado) || 0) / 100}em;${pl.desenfoque && !caja ? `filter:blur(${Math.min(3, pl.desenfoque * k * .5)}px);` : ""}`;
     const fuente = segunda && l2.fuente ? `font-family:'F_${l2.fuente}','Arial Black',sans-serif;` : "";
-    return `<span class="${caja ? "caja" : ""}" style="${fuente}${extra}color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio || .22)}em` : ""}">${esc(pl.mayusculas === false ? w : w.toUpperCase())}</span>`;
+    return `<span class="${caja ? "caja" : ""}" style="${fuente}${extra}color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio ?? .22)}em` : ""}">${esc(pl.mayusculas === false ? w : w.toUpperCase())}</span>`;
   };
   el.innerHTML = partirRenglones(palabras, pl).map((idx, r) => `<div class="renglon">${idx.map(j => span(palabras[j], j, r === 1)).join("")}</div>`).join("");
   // igual que en el video: si la línea no entra, se achica entera
@@ -6409,7 +6970,8 @@ function pintarEstiloEdicion() {
   caja.querySelectorAll("[data-es]").forEach(b => b.onclick = () => guardar({ [b.dataset.es]: isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v }));
 }
 const DEFECTO_PLANT = { salto_auto: "false", frase_completa: "false", "linea2.activa": "false", "linea2.escala": "130", "linea2.fuente": "Anton-Regular.ttf", altura_desde_abajo: "560",
-  x_centro: "540", ancho_max: "960", espaciado: "0", desenfoque: "0", opacidad_sombra: "50", color_sombra: "#000000" };
+  x_centro: "540", ancho_max: "960", espaciado: "0", desenfoque: "0", opacidad_sombra: "50", color_sombra: "#000000",
+  "resaltador.color": "#3d8bff", "resaltador.texto": "#ffffff" };
 function elegirPlantilla(id, conservar) {
   const seguir = conservar && plantEdit && plantSel === id;  // repintar sin perder lo que se está editando
   plantSel = id;
@@ -6421,7 +6983,8 @@ function elegirPlantilla(id, conservar) {
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
     const [a, b] = el.dataset.p.split(".");
     const v = b ? (plantEdit[a] || {})[b] : plantEdit[a];
-    const defecto = el.dataset.p === "linea2.color" ? (plantEdit.color_texto || "#ffffff") : DEFECTO_PLANT[el.dataset.p];
+    const defecto = el.dataset.p === "linea2.color" ? (plantEdit.color_texto || "#ffffff")
+      : el.dataset.p === "resaltador.color" ? (plantEdit.color_activo || DEFECTO_PLANT["resaltador.color"]) : DEFECTO_PLANT[el.dataset.p];
     el.value = v === undefined || v === null || v === "" ? (defecto ?? (el.type === "color" ? "#000000" : "")) : String(v);
     el.disabled = false;
   });
@@ -6535,9 +7098,12 @@ $("plantListaElems").addEventListener("click", e => { const i = e.target.dataset
 new ResizeObserver(() => { if (plantEdit && !$("plantLienzo").closest("[hidden]")) { colocarCaja(); pintarElementos(); } }).observe($("plantLienzo"));
 async function guardarPlantilla(id, datos, predeterminada) {
   const r = await post("/api/plantilla", { id, datos, predeterminada });
-  // la sala se recarga por detrás (tarda unos segundos): la pregunta de rearmar sale al instante
+  // la sala se recarga por detrás (tarda unos segundos): la pregunta de rearmar sale al instante; mientras tanto
+  // el formulario no se puede tocar (lo que se cambiaba en esos segundos se perdía al terminar de recargar)
   plantSel = id;
-  cargar().then(() => { plantSel = id; plantEdit = null; pintarPlantillas(); }).catch(e => avisar("Error: " + e.message, "err"));
+  const form = $("plantForm"); form.inert = true; form.classList.add("esperando-form");
+  cargar().then(() => { plantSel = id; plantEdit = null; pintarPlantillas(); }).catch(e => avisar("Error: " + e.message, "err"))
+    .finally(() => { form.inert = false; form.classList.remove("esperando-form"); });
   return r;
 }
 // después de guardar: los videos que usan la plantilla se rearman para verla en el video (no cambian solos)
@@ -6662,7 +7228,12 @@ $("vActualizar").onclick = async () => {
   try {
     const r = await post("/api/actualizar");
     avisar(`Actualizado a v${r.version}. Reiniciando…`, "ok");
-    const esperar = async () => { try { const v = await (await fetch("/api/version?forzar")).json(); if (v.actual === r.version) return location.reload(); } catch (e) {} setTimeout(esperar, 1500); };
+    const desde = Date.now();
+    const esperar = async () => {
+      try { const v = await (await fetch("/api/version?forzar")).json(); if (v.actual === r.version) return location.reload(); } catch (e) {}
+      if (Date.now() - desde > 90000) return avisar("La versión nueva no arrancó en 90 segundos. Cierra el Estudio y vuelve a abrirlo; si no abre, baja el instalador completo desde Configuración → Actualizaciones.", "err");
+      setTimeout(esperar, 1500);
+    };
     setTimeout(esperar, 2500);
   } catch (e) { avisar("No se pudo actualizar: " + e.message, "err"); $("vActualizar").disabled = false; }
 };

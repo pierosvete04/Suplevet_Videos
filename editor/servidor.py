@@ -118,7 +118,9 @@ def estado():
         ps.append({"nombre": p["nombre"], "tipo": p["tipo"], "angulo": p.get("angulo") or "", "procesada": proc.exists(),
                    "video": url_media(proc if proc.exists() else p["original"]),
                    "lineas": d["lineas"], "marcas": motor.marcas_de(p["nombre"]),
-                   "marcas_editadas": "marcas" in d, "info": motor.info_pieza(p["nombre"])})
+                   "marcas_editadas": "marcas" in d, "info": motor.info_pieza(p["nombre"]),
+                   # sus tomas (para «Cambiar la toma» en el editor): el clip y con qué nombre entra cada una
+                   "tomas": [{"rel": r, "nombre": n, "video": url_media(ruta)} for r, n, ruta in zip(p["rels"], p.get("nombres_partes") or [p["nombre"]] * len(p["rels"]), p["partes"])]})
     salidas = []
     for c in motor.combinaciones():
         f = S.salida / f"{c['archivo']}.mp4"
@@ -519,6 +521,10 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
 
     def renombrar_todo():
         plan = motor.plan_renombrar()["cambios"]
+        visto = (extra or {}).get("plan")
+        if visto:  # se renombra solo lo que la persona vio en la lista (y que sigue siendo válido ahora)
+            ok = {(c.get("viejo"), c.get("nuevo")) for c in visto if isinstance(c, dict)}
+            plan = [c for c in plan if (c["viejo"], c["nuevo"]) in ok]
         hechos = 0
         for n, cb in enumerate(plan, 1):
             motor.revisar_cancelado()
@@ -917,6 +923,9 @@ class H(BaseHTTPRequestHandler):
             self._json({"dispositivos": cuenta.dispositivos(), "dias_nuevo": cuenta.DIAS_NUEVO})
         elif u.path == "/api/sonidos":
             self._json(motor.biblioteca_sonidos())
+        elif u.path == "/api/ganancia":  # cuánto se sube o se baja un sonido en el video (para escucharlo igual de fuerte)
+            f = motor.ruta_sonido(parse_qs(u.query).get("id", [""])[0])
+            self._json({"g": round(motor.ganancia_normalizada(f), 3) if f else 1.0})
         elif u.path == "/sfx":  # el sonido con su edición de la página Sonidos (&original=1: tal cual el archivo)
             q = parse_qs(u.query)
             f = motor.ruta_sonido(q.get("id", [""])[0])
@@ -1405,6 +1414,26 @@ class H(BaseHTTPRequestHandler):
                     letra = b["letra"]
                     codigos = motor.guardar_edicion(letra, {k: b[k] for k in ("nombre", "estilo", "musica", "plantilla", "ritmo") if k in b})
                 self._json({"ok": True, "letra": letra, "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "codigos": codigos})
+            elif u.path == "/api/version_cuerpo":
+                # el motor de cuerpo: otra versión de un cuerpo con los mismos hooks y CTA
+                #  · modo «edicion»: el mismo material, editado aparte (C1-H1-CTA1-B…)
+                #  · modo «toma»: otra toma completa del cuerpo (C1~A2), con los hooks y el CTA de siempre
+                b = self._cuerpo()
+                cuerpo = str(b.get("cuerpo") or "")
+                if b.get("modo") == "toma":
+                    pieza = motor.siguiente_toma_de_cuerpo(cuerpo)
+                    motor.guardar_asignacion(str(b.get("rel") or ""), pieza)
+                    subir_asignaciones()
+                    lanzar("procesar", en_cola=True)
+                    cods = [c["codigo"] for c in motor.combinaciones() if c["cuerpo"] == pieza]
+                    if cods:
+                        lanzar("armar_sel", extra={"codigos": cods}, en_cola=True)
+                    self._json({"ok": True, "pieza": pieza, "codigos": cods})
+                else:
+                    letra, cods = motor.version_de_cuerpo(cuerpo, b.get("edicion") or "A")
+                    if cods:
+                        lanzar("armar_sel", extra={"codigos": cods}, en_cola=True)
+                    self._json({"ok": True, "edicion": letra, "codigos": cods})
             elif u.path == "/api/plan":  # «Plan de la sesión»: qué ediciones se arman de cada cuerpo
                 b = self._cuerpo()
                 plan = motor.guardar_plan(b.get("plan") or {})
@@ -1492,7 +1521,7 @@ class H(BaseHTTPRequestHandler):
                     b["ajustes"] = aj
                 extra = {"codigos": b["codigos"], "ajustes": b.get("ajustes")}
                 if "drive" in b or b.get("carpeta"):  # lo que se respondió en «¿Al Drive? ¿A qué carpeta?»
-                    extra.update(drive=bool(b.get("drive")), carpeta=str(b.get("carpeta") or ""))
+                    extra.update(drive=bool(b.get("drive")), carpeta=str(b.get("carpeta") or ""), nueva=bool(b.get("nueva")))
                 lanzar(b["accion"], extra=extra)
                 self._json({"ok": True})
             elif u.path == "/api/asignar":
@@ -1503,10 +1532,10 @@ class H(BaseHTTPRequestHandler):
                 # con otro trabajo corriendo, queda en la cola
                 procesando = bool(b.get("pieza"))
                 cola = procesando and lanzar("procesar", en_cola=True)
-                # con armar: después de preparar la toma nueva se rearman los videos que usan esa pieza
+                # con armar: después de preparar la toma nueva se rearman los videos que usan esa pieza (con sus mismos hooks)
                 if procesando and b.get("armar"):
-                    cods = [c["codigo"] for c in motor.combinaciones()
-                            if b["pieza"] in (c["hook"], c["cuerpo"], c["cta"]) or str(b["pieza"]).split("_P")[0] == c["cuerpo"]]
+                    pz = motor.pieza_de_toma(str(b["pieza"]).upper())
+                    cods = [c["codigo"] for c in motor.combinaciones() if pz in (c["hook"], c["cuerpo"], c["cta"])]
                     if cods:
                         lanzar("armar_sel", extra={"codigos": cods}, en_cola=True)
                 self._json({"ok": True, "procesando": procesando, "en_cola": bool(cola)})
@@ -1538,7 +1567,7 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/trabajo":
                 b = self._cuerpo()
-                lanzar(b["accion"], b.get("pieza"))
+                lanzar(b["accion"], b.get("pieza"), extra={"plan": b["plan"]} if isinstance(b.get("plan"), list) else None)
                 self._json({"ok": True})
             elif u.path == "/api/actualizar":
                 if not actualizador.LANZADOR:

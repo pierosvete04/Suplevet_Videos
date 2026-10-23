@@ -948,6 +948,7 @@ def piezas():
         if manual:
             origen_manual.add(nombre)
     agrupadas = {}
+    nombre_de_rel = {c["rel"]: nombre for nombre, c in por_nombre.items()}  # con qué nombre entra cada toma (C1_P3…)
     for nombre, c in por_nombre.items():
         m = PARTE.match(nombre)
         base, orden = (m.group(1).upper(), int(m.group(2))) if m else (nombre, 0)
@@ -962,6 +963,8 @@ def piezas():
         numeros = sorted({k for ks in cubre_rel.values() for k in ks})
         out.append({"nombre": nombre, "tipo": tipo_de(nombre), "partes": partes, "original": partes[0],
                     "rel": lista[0][1]["rel"], "rels": [c["rel"] for _, c in lista],
+                    # el nombre de pieza de cada toma: para cambiar una toma por otra, la nueva se asigna con ese nombre
+                    "nombres_partes": [nombre_de_rel[c["rel"]] for _, c in lista],
                     "frases": cubre_rel,  # {rel: [frases que dice]} en una pieza grabada en partes
                     "faltan_partes": [k for k in range(1, max(numeros) + 1) if k not in numeros] if numeros else []})
     # Un CTA en partes donde cada parte ya es un llamado completo («escríbenos por WhatsApp…» y «comenta Suplevet…»)
@@ -976,6 +979,7 @@ def piezas():
                 nb, na = sin_angulo(p["nombre"])  # CTA1~IZQ → CTA1B~IZQ: la letra va antes del ángulo
                 separados.append({**p, "nombre": con_angulo(nb + ("" if k == 0 else chr(ord("A") + k)), na), "partes": [ruta],
                                   "original": ruta, "rel": rel, "rels": [rel], "frases": {}, "faltan_partes": [],
+                                  "nombres_partes": [p["nombres_partes"][k]],
                                   "alterna": p["nombre"]})
             p["separado"] = True
     out = [p for p in out if not p.get("separado")] + separados
@@ -2670,6 +2674,42 @@ def plan_sesion():
     d, eds = _leer_ediciones(), ediciones()
     cuerpos = [p["nombre"] for p in piezas() if p["tipo"] == "cuerpo"]
     return {c: ["A"] + [e for e in d["plan"].get(c, []) if e in eds and e != "A"] for c in cuerpos}
+
+
+def pieza_de_toma(nombre):
+    """La pieza (C1, C1_H2, CTA1…) a la que pertenece una toma por su nombre (C1_P3 → C1)."""
+    return next((p["nombre"] for p in piezas() if nombre in (p.get("nombres_partes") or [p["nombre"]]) or p["nombre"] == nombre), None)
+
+
+def version_de_cuerpo(cuerpo, desde="A"):
+    """«Nueva versión de C1 con los mismos hooks»: una edición nueva solo para ese cuerpo (C1-H1-CTA1-B, C1-H2-CTA1-B…)
+    que arranca igual que la de ahora (los mismos cortes, la misma música y el mismo estilo) y se edita aparte; los
+    videos de siempre no cambian. Los hooks y el CTA son los mismos (mientras no se toquen en esa versión)."""
+    if not any(p["nombre"] == cuerpo and p["tipo"] == "cuerpo" for p in piezas()):
+        raise ValueError(f"{cuerpo} no es un cuerpo de esta sesión")
+    desde = desde if desde in ediciones() else "A"
+    vistas = [e for e, d in ediciones().items() if str(d.get("nombre", "")).startswith(f"{cuerpo} · versión")]
+    letra = crear_edicion(f"{cuerpo} · versión {len(vistas) + 2}", copiar_de=desde)
+    guardar_edicion(letra, {"musica": {"modo": "igual"}})
+    d = _leer_ediciones()
+    d["plan"][cuerpo] = sorted(set(d["plan"].get(cuerpo, [])) | {letra})
+    _guardar_ediciones(d)
+    todo = ajustes_piezas()
+    base = dict(ajustes_de_pieza(cuerpo, desde, todo))
+    if base:  # arranca con los mismos cortes, encuadre e imágenes del cuerpo
+        todo[clave_pieza(cuerpo, letra)] = {**base, "editado": time.time()}
+        _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
+    return letra, [c["codigo"] for c in combinaciones() if c["cuerpo"] == cuerpo and letra_edicion(c) == letra]
+
+
+def siguiente_toma_de_cuerpo(cuerpo):
+    """El nombre para otra toma completa de un cuerpo que usa los mismos hooks: C1~A2, C1~A3… (como un ángulo nuevo)."""
+    base = sin_angulo(cuerpo)[0]
+    usados = {sin_angulo(p["nombre"])[1] for p in piezas() if sin_angulo(p["nombre"])[0] == base}
+    n = 2
+    while f"A{n}" in usados:
+        n += 1
+    return con_angulo(base, f"A{n}")
 
 
 def guardar_plan(plan):
