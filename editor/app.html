@@ -619,6 +619,25 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .ev-a { position: absolute; top: 3px; bottom: 3px; border-radius: 6px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
 .ev-a canvas { display: block; width: 100%; height: 100%; }
 .ev-a.fuera { opacity: .35; }
+/* audio desagrupado (Ctrl+G): la voz se elige y se arrastra aparte; copias de un pedazo (Duplicar) */
+.ev-a.suelto { border: 1.5px dashed var(--accent2); cursor: grab; z-index: 1; }
+.ev-a.suelto.sel { box-shadow: 0 0 0 2px var(--accent2); }
+.ev-a.mudo canvas { opacity: .22; }
+.ev-a.mudo::before { content: "🔇"; position: absolute; left: 4px; top: 2px; font-size: 11px; z-index: 1; }
+.ev-b.suelto { border-style: dashed; border-color: rgba(255,255,255,.7); }
+.ev-b.sel.suelto { border-style: solid; }
+.ev-b.dup { background-image: repeating-linear-gradient(-45deg, rgba(255,255,255,.14) 0 6px, transparent 6px 12px); }
+.ev-b .ev-tag { margin-left: 6px; font-size: 10px; background: rgba(0,0,0,.35); color: #fff; border-radius: 4px; padding: 0 4px; }
+.ev-visor .ev-congelado { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* menú del clic derecho en la línea de tiempo */
+.ev-menu { position: fixed; z-index: 50; min-width: 250px; padding: 6px; border-radius: 12px; border: 1px solid var(--line2); background: var(--surface);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35); display: grid; gap: 1px; }
+.ev-menu button { display: flex; justify-content: space-between; align-items: center; gap: 18px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--ink); font: 600 12.5px var(--f); text-align: left; cursor: pointer; }
+.ev-menu button:hover, .ev-menu button:focus-visible { background: var(--surface2); outline: none; }
+.ev-menu button kbd { font: 600 11px var(--mono); color: var(--muted); }
+.ev-menu button.peligro { color: var(--err); }
+.ev-menu hr { border: 0; border-top: 1px solid var(--line); margin: 3px 2px; }
 .ev-s { position: absolute; top: 8px; bottom: 8px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--line2); font-size: 10.5px; padding: 3px 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
 .ev-s:hover, .ev-s.sel { border-color: var(--accent2); }
 .ev-zoom { height: 34px; }
@@ -1540,6 +1559,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="muted" style="font-size:12px">Lo que cambies en el cuerpo se aplica a todos sus videos.</span></div>
     <button class="btn sec peq" id="edCerrar">← Volver al video</button></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
+  <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
 </dialog>
 <dialog id="dlg" aria-labelledby="dlgTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="dlgTitulo" style="margin:0"></h2><span id="dlgAviso"></span></div>
@@ -1633,6 +1653,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div class="ev-arriba">
         <div class="ev-visor" id="evVisor">
           <video id="evVideo" playsinline preload="auto" muted></video>
+          <canvas id="evCongelado" class="ev-congelado" hidden></canvas>
           <div class="sub sublinea" id="evSub" title="Arrastra para subir o bajar el subtítulo"></div>
           <span class="pista-pos" id="evPos" hidden></span>
           <span class="ev-corte-aviso" id="evCorteAviso" hidden>✂ Esto se corta</span>
@@ -1694,7 +1715,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="ev-cabezal" id="evCabezal"></div>
       </div>
       <p class="muted ev-ayuda">Teclas: <b>Enter</b> o <b>espacio</b> reproduce · <b>Inicio</b> desde el principio · <b>←</b> <b>→</b> un cuadro (con Shift, un segundo) · <b>S</b> corta en el cabezal ·
-        <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>Shift + Supr</b> quita la frase entera · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
+        <b>Supr</b> quita el pedazo, el fotograma, la imagen o las palabras elegidas · <b>Shift + Supr</b> quita la frase entera · <b>Ctrl+G</b> agrupa o desagrupa el audio · <b>Ctrl+D</b> duplica · <b>Ctrl+Z</b> deshace (<b>Ctrl+Y</b> rehace) · <b>clic derecho</b> en un bloque: más opciones · <b>C</b> sin cortes / con cortes · <b>K</b> fotograma clave · <b>M</b> mover y escalar el video con el mouse ·
         <b>I</b> imagen o escena en el cabezal.</p>
       <div class="ev-sonido-barra">
         <b>➕ Agregar un sonido:</b> <span class="muted">1. elige el tipo → 2. el sonido → 3. ▶ escúchalo → 4. ponlo donde está el cabezal</span>
@@ -3371,7 +3392,8 @@ function pintarAudio() {
   const dibujos = [];
   for (const b of bloquesEd()) {
     const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
-    html += `<div class="ev-a ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""}" style="left:${x}px;width:${w}px" data-audio="${b.key}" title="Audio de ${esc(b.t)}"><canvas></canvas></div>`;
+    const ap = b.fuera ? null : b.aparte, corre = ap ? (ap.desfase || 0) * px : 0;
+    html += `<div class="ev-a ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""} ${ap ? "suelto" : ""} ${ap?.sin_voz ? "mudo" : ""} ${ap && ed.aSel === b.key ? "sel" : ""}" style="left:${x}px;width:${w}px${corre ? `;transform:translateX(${corre.toFixed(1)}px)` : ""}" data-audio="${b.key}" title="${ap ? `Voz de ${esc(b.t)}, desagrupada: arrástrala para correrla, Supr para quitarla` : `Audio de ${esc(b.t)}`}"><canvas></canvas></div>`;
     dibujos.push({ b, w });
     x += w + 3;
   }
@@ -3997,6 +4019,7 @@ $("evSonAplicar").onclick = async () => {
 };
 $("evCarrilA").addEventListener("click", e => {  // tocar el audio lleva el cabezal a ese punto
   const blo = e.target.closest("[data-audio]"); if (!blo) return;
+  if (Date.now() - finArrVoz < 300) return;  // fue un arrastre de la voz suelta, no un toque
   const s = segmentosEd().find(x => x.key === blo.dataset.audio); if (!s) return;
   const r = blo.getBoundingClientRect();
   irA(s.g0 + Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (s.b - s.a));
@@ -4022,6 +4045,9 @@ async function cargarEstructura(codigo, combo) {
   ed.cortes = JSON.parse(JSON.stringify(est.cortes || {})); ed.quitarR = JSON.parse(JSON.stringify(est.quitar_rangos || {}));
   ed.capas = JSON.parse(JSON.stringify(est.capas || {})); ed.cSel = null;
   ed.vel = JSON.parse(JSON.stringify(est.velocidad || {})); ed.vel.partes = ed.vel.partes || {};
+  // audio desagrupado (Ctrl+G) y copias (Duplicar), y lo que se puede deshacer (Ctrl+Z)
+  ed.aparte = JSON.parse(JSON.stringify(est.audio_aparte || {})); ed.dups = JSON.parse(JSON.stringify(est.duplicados || {}));
+  ed.aSel = null; ed.historial = []; ed.rehacer = []; ed._ult = null;
   // orden de las frases del cuerpo (se puede cambiar con «Mover antes / después»); las que falten van al final
   const todas = est.cuerpo.partes.map(p => p.i);
   ed.orden = [...(est.orden || []).filter(i => todas.includes(i)), ...todas.filter(i => !(est.orden || []).includes(i))];
@@ -4118,6 +4144,32 @@ function bloquesEd() {
                  cortado: bb.cortado || (quitado && ed.vista === "sin"), pedazoQuitado: quitado });
     }
   }
+  // pedazos con el audio desagrupado (Ctrl+G) y copias (Duplicar): la copia va justo después de su pedazo
+  const final = [];
+  for (const b of out) {
+    b.aparte = aparteDe(b);
+    final.push(b);
+    if (!b.fuera && !b.cortado) (ed.dups?.[b.pz] || []).filter(d => dentroDe(d, b)).forEach((d, n) =>
+      final.push({ ...b, key: `${b.key}~d${n}`, dup: d, aparte: null, t: `${b.t} · copia` }));
+  }
+  return final;
+}
+const medioDe = x => Array.isArray(x) ? (x[0] + x[1]) / 2 : (x.a + x.b) / 2;
+const dentroDe = (x, b) => medioDe(x) >= b.a - 1e-3 && medioDe(x) <= b.b + 1e-3;
+function aparteDe(b) { return (ed.aparte?.[b.pz] || []).find(x => dentroDe(x, b)) || null; }
+// al guardar, cada desagrupado y cada copia toman los bordes actuales de su pedazo (por si se movió un corte o un borde)
+function aparteParaGuardar() {
+  const out = {}, bs = bloquesEd().filter(b => !b.dup);
+  for (const [pz, lista] of Object.entries(ed.aparte || {})) {
+    out[pz] = lista.map(x => { const b = bs.find(bb => bb.pz === pz && dentroDe(x, bb)); return b ? { ...x, a: +b.a.toFixed(3), b: +b.b.toFixed(3) } : x; });
+  }
+  return out;
+}
+function dupsParaGuardar() {
+  const out = {}, bs = bloquesEd().filter(b => !b.dup);
+  for (const [pz, lista] of Object.entries(ed.dups || {})) {
+    out[pz] = lista.map(x => { const b = bs.find(bb => bb.pz === pz && dentroDe(x, bb)); return b ? [+b.a.toFixed(3), +b.b.toFixed(3)] : x; });
+  }
   return out;
 }
 function segmentosEd() {  // los que se ven, con su inicio en el video final (g0)
@@ -4138,6 +4190,7 @@ function xDeTiempo(t) {  // posición en la línea de tiempo (las frases ocultas
 }
 function pintarEditor() {
   if (!est || est.error) return;
+  anotarHistorial();
   const px = escalaEd(), segs = segmentosEd(), total = segs.reduce((a, s) => a + s.b - s.a, 0);
   const final = segs.reduce((a, s) => a + (s.b - s.a) / (s.vel || 1), 0);  // lo que dura de verdad, con las velocidades
   const original = (est.hook.dur || 0) + est.cuerpo.partes.reduce((a, p) => a + p.fin - p.ini, 0) + (est.cta.dur || 0);
@@ -4148,12 +4201,14 @@ function pintarEditor() {
   for (const b of bloquesEd()) {
     const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
     const z = (b.zoom ? `<span class="zm">${{ in: "zoom +", out: "zoom −", punch: "punch" }[b.zoom.tipo]}</span>` : "")
-      + (b.vel && b.vel !== 1 && !b.fuera ? `<span class="zm vel">${b.vel}×</span>` : "");
+      + (b.vel && b.vel !== 1 && !b.fuera ? `<span class="zm vel">${b.vel}×</span>` : "")
+      + (b.aparte ? `<span class="ev-tag" title="Audio desagrupado: Ctrl+G para volver a agrupar">⛓ suelto</span>` : "")
+      + (b.aparte?.sin_imagen ? `<span class="ev-tag" title="Imagen congelada mientras suena la voz">❄</span>` : "");
     const izq = !b.fuera && !(b.sub > 0), der = !b.fuera && !(b.sub < b.nsub - 1);  // los cortes no tienen asa: se unen o se quitan
     // sin cortes: el pedazo cortado lleva asas en sus cortes, para correr dónde empieza o termina el corte
     const cIzq = b.cortado && b.pedazoQuitado && b.sub > 0, cDer = b.cortado && b.pedazoQuitado && b.sub < b.nsub - 1;
     const motivo = b.cortado ? motivoCorte(b) : "";
-    html += `<div class="ev-b ${b.k} ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""} ${ed.sel === b.key ? "sel" : ""} ${b.sub > 0 ? "corte-izq" : ""} ${b.sub < b.nsub - 1 ? "corte-der" : ""}" data-b="${b.key}" style="left:${x}px;width:${w}px" title="${esc(b.cortado ? `Se corta: ${motivo}` : b.t)} · ${(b.b - b.a).toFixed(2)} s${b.cortado ? " · arrastra los bordes rojos para mover el corte" : ""}">
+    html += `<div class="ev-b ${b.k} ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""} ${ed.sel === b.key ? "sel" : ""} ${b.aparte ? "suelto" : ""} ${b.dup ? "dup" : ""} ${b.sub > 0 ? "corte-izq" : ""} ${b.sub < b.nsub - 1 ? "corte-der" : ""}" data-b="${b.key}" style="left:${x}px;width:${w}px" title="${esc(b.cortado ? `Se corta: ${motivo}` : b.t)} · ${(b.b - b.a).toFixed(2)} s${b.cortado ? " · arrastra los bordes rojos para mover el corte" : ""}">
       ${cIzq ? `<span class="ev-asa izq" data-casa="izq" data-t="${b.a}" data-b="${b.key}"></span>` : izq ? `<span class="ev-asa izq" data-asa="izq" data-b="${b.key}"></span>` : ""}${b.fuera ? "⊘" : b.cortado ? "✂ " + esc(motivo) : esc(b.t)}${z}
       ${cDer ? `<span class="ev-asa der" data-casa="der" data-t="${b.b}" data-b="${b.key}"></span>` : der ? `<span class="ev-asa der" data-asa="der" data-b="${b.key}"></span>` : ""}</div>`;
     if (!b.fuera) {
@@ -4182,7 +4237,28 @@ function pintarEditor() {
 function pintarInspector() {
   if (ed.cSel && capaSel()) return pintarInspectorCapa();
   if (ed.kSel && puntoSel()) return pintarInspectorPunto();
+  if (ed.aSel) {  // la voz desagrupada de un pedazo
+    const ba = bloquesEd().find(x => x.key === ed.aSel);
+    if (ba?.aparte) {
+      const d = ba.aparte.desfase || 0;
+      $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>Voz de ${esc(ba.t)}</b><span class="pill azul">⛓ desagrupada</span></div>
+        <span class="muted" style="font-size:12px">${d ? `Suena ${Math.abs(d).toFixed(2)} s ${d < 0 ? "antes" : "después"} de su imagen, encima de lo de al lado (corte en ${d < 0 ? "J" : "L"}).` : "Suena en su lugar."} Arrástrala en la pista Voz para correrla.</span>
+        <div class="fila"><button class="btn sec peq" type="button" data-acc="antes">⇤ 0,25 s antes</button>
+          <button class="btn sec peq" type="button" data-acc="despues">0,25 s después ⇥</button>
+          ${d ? `<button class="btn sec peq" type="button" data-acc="lugar">↺ A su lugar</button>` : ""}
+          <button class="btn sec peq" type="button" data-acc="silenciar">${ba.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz (Supr)"}</button>
+          <button class="btn sec peq" type="button" data-acc="grupo">⛓ Agrupar (Ctrl+G)</button></div>`;
+      return;
+    }
+    ed.aSel = null;
+  }
   const b = bloquesEd().find(x => x.key === ed.sel);
+  if (b?.dup) {
+    $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b><span class="pill">⧉ copia</span></div>
+      <span class="muted" style="font-size:12px">Se repite justo después del pedazo original (${(b.b - b.a).toFixed(2)} s). Lo que cambies en el original cambia también aquí.</span>
+      <div class="fila"><button class="btn sec peq" type="button" data-acc="borrar" style="color:var(--err)">🗑 Borrar la copia (Supr)</button></div>`;
+    return;
+  }
   if (ed.subSel) {
     const [pieza, li] = ed.subSel.split("|"), pz = [est.hook, est.cuerpo, est.cta].find(p => p.nombre === pieza), l = pz?.lineas[li];
     if (l) {
@@ -4205,11 +4281,18 @@ function pintarInspector() {
       <button class="btn sec peq" type="button" data-mover="1" ${ed.orden.indexOf(bb.i) >= ed.orden.length - 1 ? "disabled" : ""} title="La frase ${bb.i + 1} va después (Alt + →)">Mover frase después ▶</button>
       <span class="muted" style="font-size:11px">Cambia el orden de las frases del cuerpo</span></div>` : "";
   const pausasHtml = `<button class="btn sec peq" type="button" id="evPausas" title="Corta los silencios largos de este bloque (más de 0,35 s), dejando un respiro">✂ Quitar pausas</button>`;
+  const grupoHtml = b.fuera || b.cortado ? "" : `<div class="fila" style="gap:6px">
+      <button class="btn sec peq" type="button" data-acc="grupo" title="Audio y video juntos o por separado (Ctrl+G)">${b.aparte ? "⛓ Agrupar audio" : "⛓‍💥 Desagrupar audio"}</button>
+      <button class="btn sec peq" type="button" data-acc="duplicar" title="Repite este pedazo justo después (Ctrl+D)">⧉ Duplicar</button>
+      ${b.aparte ? `<button class="btn sec peq" type="button" data-acc="congelar">${b.aparte.sin_imagen ? "🖼 Volver a mostrar la imagen" : "❄ Quitar la imagen (Supr)"}</button>
+        <button class="btn sec peq" type="button" data-acc="silenciar">${b.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz"}</button>` : ""}
+      <span class="muted" style="font-size:11px">Clic derecho en el bloque para más opciones</span></div>`;
   if (b.nsub) {  // un pedazo entre cortes
     $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
         <span class="fila"><label class="fila" style="font-size:13px"><input type="checkbox" id="evPedazo" ${b.pedazoQuitado ? "" : "checked"}> Incluir este pedazo</label>
         ${b.i !== undefined ? `<label class="fila" style="font-size:13px" title="La frase ${b.i + 1} completa, con todos sus pedazos (Shift + Supr)"><input type="checkbox" id="evVisible" ${b.quitada ? "" : "checked"}> Incluir la frase entera</label>` : ""}</span></div>
       <span class="muted" style="font-size:12px">${(b.b - b.a).toFixed(2)} s · del ${b.a.toFixed(2)} al ${b.b.toFixed(2)} s del clip</span>
+      ${grupoHtml}
       <div class="fila">${b.sub > 0 ? `<button class="btn sec peq" type="button" data-unir="${b.a}">Unir con el anterior</button>` : ""}
         ${b.sub < b.nsub - 1 ? `<button class="btn sec peq" type="button" data-unir="${b.b}">Unir con el siguiente</button>` : ""}${pausasHtml}</div>
       ${moverHtml(b)}
@@ -4221,6 +4304,7 @@ function pintarInspector() {
   $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>${esc(b.t)}</b>
       ${b.i !== undefined ? `<label class="fila" style="font-size:13px"><input type="checkbox" id="evVisible" ${b.quitada ? "" : "checked"}> Incluir esta frase</label>` : ""}</div>
     ${b.texto ? `<span class="muted" style="font-size:12px">«${esc(b.texto)}»</span>` : ""}
+    ${grupoHtml}
     ${moverHtml(b)}
     <div class="dos">
       <label class="muted ev-campo">Entrada (s)<input type="number" id="evA" step="0.05" min="0" value="${(b.a - b.lo).toFixed(2)}"></label>
@@ -4657,7 +4741,163 @@ function unirCorte(t) {
   pintarEditor(); vistaEd();
 }
 $("evCortar").onclick = cortarEnCabezal;
-$("evQuitarPedazo").onclick = quitarPedazoSel;
+// ---------- Agrupar y desagrupar el audio (Ctrl+G), duplicar (Ctrl+D), deshacer (Ctrl+Z) y el menú del clic derecho ----------
+function bloqueSel(key = ed.sel) { return bloquesEd().find(x => x.key === key); }
+function borrarSel(fraseEntera) {  // Supr en la pista Video
+  const b = bloqueSel();
+  if (b?.dup) return quitarDuplicado(b);
+  if (b?.aparte && !fraseEntera) return alternarAparte(b.key, "sin_imagen");  // desagrupado: Supr quita solo la imagen (queda congelada)
+  quitarPedazoSel(fraseEntera);
+}
+function alternarGrupo(key = ed.aSel || ed.sel) {
+  const b = bloqueSel(key);
+  if (!b || b.fuera || b.cortado) return avisar("Elige un pedazo que se vea en la pista Video para desagrupar su audio (Ctrl+G).", "muted");
+  if (b.dup) return avisar("La copia va siempre agrupada: desagrupa el pedazo original.", "muted");
+  const lista = ed.aparte[b.pz] = ed.aparte[b.pz] || [];
+  if (b.aparte) {
+    lista.splice(lista.indexOf(b.aparte), 1); ed.aSel = null; ed.sel = b.key;
+    avisar("Audio y video agrupados otra vez: la voz vuelve a su lugar.", "ok");
+  } else {
+    lista.push({ a: +b.a.toFixed(3), b: +b.b.toFixed(3), sin_voz: false, sin_imagen: false, desfase: 0 }); ed.aSel = b.key; ed.sel = null;
+    avisar("Audio desagrupado: arrastra la voz en la pista Voz para correrla. Supr en la voz la quita; en el video, congela la imagen. Ctrl+G para agrupar.", "ok");
+  }
+  pintarEditor(); vistaEd();
+}
+function alternarAparte(key, campo) {
+  const b = bloqueSel(key); if (!b?.aparte) return;
+  b.aparte[campo] = !b.aparte[campo];
+  pintarEditor(); vistaEd();
+}
+function duplicarSel(key = ed.sel) {
+  const b = bloqueSel(key);
+  if (!b || b.fuera || b.cortado) return avisar("Elige un pedazo que se vea en la pista Video para duplicarlo (Ctrl+D).", "muted");
+  if (b.dup) return avisar("Duplica el pedazo original.", "muted");
+  (ed.dups[b.pz] = ed.dups[b.pz] || []).push([+b.a.toFixed(3), +b.b.toFixed(3)]);
+  pintarEditor();
+  const copias = segmentosEd().filter(x => x.key.startsWith(b.key + "~d")), s = copias[copias.length - 1];
+  if (s) { ed.sel = s.key; irA(s.g0); pintarEditor(); }
+}
+function quitarDuplicado(b) {
+  const lista = ed.dups[b.pz] || [], i = lista.indexOf(b.dup);
+  if (i >= 0) lista.splice(i, 1);
+  ed.sel = null; pintarEditor();
+  irA(Math.max(0, Math.min(ed.t, segmentosEd().reduce((a, x) => a + x.b - x.a, 0) - .05)));
+}
+// Deshacer y rehacer: cada repintado anota lo de antes si algo cambió (un arrastre entero cuenta como un solo paso)
+function estadoEd() {
+  return JSON.stringify({ q: [...ed.quitar], hook: ed.hook, cta: ed.cta, partes: ed.partes, zoom: ed.zoom, cortes: ed.cortes, quitarR: ed.quitarR,
+                          capas: ed.capas, vel: ed.vel, orden: ed.orden, aparte: ed.aparte, dups: ed.dups });
+}
+function ponerEstadoEd(j) {
+  const o = JSON.parse(j);
+  Object.assign(ed, { quitar: new Set(o.q), hook: o.hook, cta: o.cta, partes: o.partes, zoom: o.zoom, cortes: o.cortes, quitarR: o.quitarR,
+                      capas: o.capas, vel: o.vel, orden: o.orden, aparte: o.aparte, dups: o.dups });
+}
+function anotarHistorial() {
+  if (!ed.historial) return;
+  const f = estadoEd(), arr = !!(arrastre || arrCorte || arrS || arrVoz || arrK || arrC);
+  if (ed._ult != null && f !== ed._ult && !(arr && ed._enArr)) {
+    ed.historial.push(ed._ult); if (ed.historial.length > 150) ed.historial.shift();
+    ed.rehacer = [];
+  }
+  ed._ult = f; ed._enArr = arr;
+}
+function deshacerEd() {
+  if (!ed?.historial?.length) return avisar("No hay nada que deshacer.", "muted");
+  ed.rehacer.push(estadoEd()); const j = ed.historial.pop(); ponerEstadoEd(j); ed._ult = j;
+  ed.sel = ed.aSel = null; pararEditor(); pintarEditor(); irA(Math.min(ed.t, segmentosEd().reduce((a, x) => a + x.b - x.a, 0) - .05));
+}
+function rehacerEd() {
+  if (!ed?.rehacer?.length) return avisar("No hay nada que rehacer.", "muted");
+  ed.historial.push(estadoEd()); const j = ed.rehacer.pop(); ponerEstadoEd(j); ed._ult = j;
+  ed.sel = ed.aSel = null; pararEditor(); pintarEditor(); irA(Math.min(ed.t, segmentosEd().reduce((a, x) => a + x.b - x.a, 0) - .05));
+}
+// Arrastrar la voz desagrupada: se corre respecto de su imagen (−3 a +3 s, de a 0,05 s)
+let arrVoz = null, finArrVoz = 0;
+$("evCarrilA").addEventListener("pointerdown", e => {
+  const el = e.target.closest("[data-audio]"); if (!el || e.button !== 0) return;
+  const b = bloquesEd().find(x => x.key === el.dataset.audio); if (!b?.aparte || b.fuera) return;
+  ed.aSel = b.key; ed.sel = null; ed.subSel = ed.kSel = ed.cSel = null; ed.vozSel = null; pararEditor();
+  arrVoz = { ap: b.aparte, x0: e.clientX, d0: b.aparte.desfase || 0, movido: false };
+  $("evCarrilA").setPointerCapture(e.pointerId); e.preventDefault(); pintarEditor();
+});
+$("evCarrilA").addEventListener("pointermove", e => {
+  if (!arrVoz) return;
+  const dx = e.clientX - arrVoz.x0; if (!arrVoz.movido && Math.abs(dx) < 3) return;
+  arrVoz.movido = true;
+  arrVoz.ap.desfase = Math.max(-3, Math.min(3, Math.round((arrVoz.d0 + dx / escalaEd()) * 20) / 20));
+  anotarHistorial(); pintarAudio(); pintarInspector();
+});
+["pointerup", "pointercancel"].forEach(ev => $("evCarrilA").addEventListener(ev, () => {
+  if (!arrVoz) return;
+  if (arrVoz.movido) finArrVoz = Date.now();
+  arrVoz = null; pintarEditor();
+}));
+// Menú del clic derecho (como CapCut)
+function abrirMenuEd(x, y, items) {
+  const m = $("evMenu");
+  m.innerHTML = items.map(it => it === "-" ? "<hr>" : `<button type="button" role="menuitem" data-acc="${it[0]}" class="${it[3] || ""}">${it[1]}${it[2] ? `<kbd>${it[2]}</kbd>` : ""}</button>`).join("");
+  m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + "px"; m.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + "px";
+  m.querySelector("button")?.focus();
+}
+function cerrarMenuEd() { $("evMenu").hidden = true; }
+function accionMenuEd(acc) {
+  const b = bloqueSel(ed.aSel || ed.sel); if (!b) return;
+  if (acc === "dividir") cortarEnCabezal();
+  else if (acc === "duplicar") duplicarSel(b.key);
+  else if (acc === "grupo") alternarGrupo(b.key);
+  else if (acc === "congelar") alternarAparte(b.key, "sin_imagen");
+  else if (acc === "silenciar") alternarAparte(b.key, "sin_voz");
+  else if (acc === "antes" || acc === "despues" || acc === "lugar") {
+    b.aparte.desfase = acc === "lugar" ? 0 : Math.max(-3, Math.min(3, +((b.aparte.desfase || 0) + (acc === "antes" ? -.25 : .25)).toFixed(2)));
+    pintarEditor();
+  }
+  else if (acc === "borrar") { if (b.dup) quitarDuplicado(b); else { ed.sel = b.key; ed.aSel = null; quitarPedazoSel(); } }
+  else if (acc === "frase") { ed.sel = b.key; ed.aSel = null; quitarPedazoSel(true); }
+  else if (acc === "poner") { ed.sel = b.key; quitarPedazoSel(b.quitada); }
+}
+$("evMenu").addEventListener("click", e => { const it = e.target.closest("[data-acc]"); if (!it) return; cerrarMenuEd(); accionMenuEd(it.dataset.acc); });
+$("evMenu").addEventListener("keydown", e => {
+  const bs = [...$("evMenu").querySelectorAll("button")], i = bs.indexOf(document.activeElement);
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); bs[(i + (e.key === "ArrowDown" ? 1 : -1) + bs.length) % bs.length]?.focus(); }
+  if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cerrarMenuEd(); }
+});
+document.addEventListener("pointerdown", e => { if (!$("evMenu").hidden && !e.target.closest("#evMenu")) cerrarMenuEd(); }, true);
+$("dlgEditor").addEventListener("close", cerrarMenuEd);
+$("evInspector").addEventListener("click", e => { const it = e.target.closest("[data-acc]"); if (it) accionMenuEd(it.dataset.acc); });
+$("evCarrilV").addEventListener("contextmenu", e => {
+  const el = e.target.closest("[data-b]"); if (!el) return;
+  e.preventDefault(); pararEditor();
+  ed.sel = el.dataset.b; ed.aSel = ed.subSel = ed.kSel = ed.cSel = null; pintarEditor();
+  const b = bloqueSel(); if (!b) return;
+  const items = [];
+  if (b.cortado || b.fuera) items.push(["poner", "↩ Volver a poner", "Supr"]);
+  else if (b.dup) items.push(["dividir", "✂ Dividir en el cabezal", "S"], "-", ["borrar", "🗑 Borrar la copia", "Supr", "peligro"]);
+  else {
+    items.push(["dividir", "✂ Dividir en el cabezal", "S"], ["duplicar", "⧉ Duplicar", "Ctrl+D"],
+               ["grupo", b.aparte ? "⛓ Agrupar audio y video" : "⛓‍💥 Desagrupar audio", "Ctrl+G"]);
+    if (b.aparte) items.push(["congelar", b.aparte.sin_imagen ? "🖼 Volver a mostrar la imagen" : "❄ Quitar la imagen (queda congelada)", "Supr"],
+                             ["silenciar", b.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz", ""]);
+    items.push("-", ["borrar", b.aparte ? "🗑 Borrar el pedazo (imagen y voz)" : "🗑 Borrar", b.aparte ? "" : "Supr", "peligro"]);
+  }
+  if (b.i !== undefined && !b.dup) items.push(["frase", b.quitada ? "↩ Volver a poner la frase entera" : "🗑 Borrar la frase entera", "Shift+Supr", "peligro"]);
+  abrirMenuEd(e.clientX, e.clientY, items);
+});
+$("evCarrilA").addEventListener("contextmenu", e => {
+  const el = e.target.closest("[data-audio]"); if (!el) return;
+  e.preventDefault(); pararEditor();
+  const b = bloquesEd().find(x => x.key === el.dataset.audio); if (!b || b.fuera) return;
+  if (b.aparte) { ed.aSel = b.key; ed.sel = null; } else { ed.sel = b.key; ed.aSel = null; }
+  ed.subSel = ed.kSel = ed.cSel = null; pintarEditor();
+  abrirMenuEd(e.clientX, e.clientY, b.aparte
+    ? [["silenciar", b.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz", "Supr"],
+       ["antes", "⇤ Correr la voz 0,25 s antes", ""], ["despues", "⇥ Correr la voz 0,25 s después", ""],
+       ...(b.aparte.desfase ? [["lugar", "↺ Voz a su lugar", ""]] : []), "-", ["grupo", "⛓ Agrupar audio y video", "Ctrl+G"]]
+    : [["grupo", "⛓‍💥 Desagrupar audio", "Ctrl+G"], ["duplicar", "⧉ Duplicar el pedazo", "Ctrl+D"]]);
+});
+$("evQuitarPedazo").onclick = () => borrarSel(false);
 $("evPunto").onclick = () => { pararEditor(); if (puntoEnCabezal(true)) { pintarEditor(); vistaEd(); } };
 $("evInspector").addEventListener("change", e => {
   if (e.target.id !== "evPedazo") return;
@@ -4971,6 +5211,14 @@ $("dlgEditor").addEventListener("keydown", e => {
   if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.target.closest("input, textarea, select, [contenteditable]")) {
     e.preventDefault(); moverFrase(e.key === "ArrowLeft" ? -1 : 1); return;
   }
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.target.closest("input, textarea, select, [contenteditable]")) {
+    const t = e.key.toLowerCase();  // Ctrl+G agrupa o desagrupa el audio · Ctrl+D duplica · Ctrl+Z deshace · Ctrl+Y (o Ctrl+Shift+Z) rehace
+    if (t === "g") { e.preventDefault(); alternarGrupo(); }
+    else if (t === "d") { e.preventDefault(); duplicarSel(); }
+    else if (t === "z") { e.preventDefault(); e.shiftKey ? rehacerEd() : deshacerEd(); }
+    else if (t === "y") { e.preventDefault(); rehacerEd(); }
+    return;
+  }
   if (e.target.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
   const tecla = e.key.toLowerCase();
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("evPlay").click(); }
@@ -4984,7 +5232,7 @@ $("dlgEditor").addEventListener("keydown", e => {
   else if (tecla === "m") { e.preventDefault(); modoMover(); }
   else if (tecla === "c") { e.preventDefault(); ponerVista(ed.vista === "sin" ? "con" : "sin"); }
   else if (tecla === "i") { e.preventDefault(); $("evImagen").click(); }
-  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (ed.vozSel) alternarVozSel(); else if (ed.cSel) quitarCapaSel(); else if (ed.kSel) quitarPuntoSel(); else quitarPedazoSel(e.shiftKey); }
+  else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (ed.vozSel) alternarVozSel(); else if (ed.aSel) alternarAparte(ed.aSel, "sin_voz"); else if (ed.cSel) quitarCapaSel(); else if (ed.kSel) quitarPuntoSel(); else borrarSel(e.shiftKey); }
 });
 // Al tocar la línea de tiempo o el video, el foco vuelve al editor: así Enter reproduce y no repite el último botón
 ["evTL", "evVisor"].forEach(id => $(id).addEventListener("pointerdown", () => { if (document.activeElement?.closest?.("button")) document.activeElement.blur(); }));
@@ -5012,7 +5260,7 @@ $("evCarrilV").addEventListener("pointerdown", e => {
   const asa = e.target.closest("[data-asa]");
   const blo = e.target.closest("[data-b]");
   if (!blo) return;
-  ed.sel = blo.dataset.b; ed.subSel = null; ed.kSel = null; ed.cSel = null;
+  ed.sel = blo.dataset.b; ed.subSel = null; ed.kSel = null; ed.cSel = null; ed.aSel = null;
   if (asa) {
     const b0 = bloquesEd().find(x => x.key === asa.dataset.b), b = b0.baseBloque || b0;  // recorta el bloque entero, no el pedazo
     arrastre = { b, lado: asa.dataset.asa, x0: e.clientX, a0: b.a, b0: b.b };
@@ -5170,6 +5418,16 @@ function irA(t) {
 function vistaEd() {
   const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
   if (!s) return;
+  // desagrupado: sin voz o con la voz corrida, el video va mudo (la corrida suena aparte); sin imagen, su primer cuadro quieto
+  const ap = s.aparte, cg = $("evCongelado");
+  v.muted = mudoEd("voz") || !!(ap && (ap.sin_voz || Math.abs(ap.desfase || 0) > .005));
+  if (ap?.sin_imagen) {
+    if (cg.dataset.k !== s.key && !v.seeking && v.readyState >= 2 && v.videoWidth) {
+      cg.width = Math.round(v.videoWidth / 3); cg.height = Math.round(v.videoHeight / 3);
+      cg.getContext("2d").drawImage(v, 0, 0, cg.width, cg.height); cg.dataset.k = s.key;
+    }
+    cg.hidden = cg.dataset.k !== s.key;
+  } else { cg.hidden = true; cg.dataset.k = ""; }
   const ct = ed.cargando ? s.a + (ed.t - s.g0) : v.currentTime;
   if (Math.abs(v.playbackRate - (s.vel || 1)) > .001) v.playbackRate = s.vel || 1;  // el navegador mantiene el tono de la voz
   ed.t = s.g0 + Math.max(0, ct - s.a);
@@ -5186,6 +5444,7 @@ function vistaEd() {
   const izq = Math.min(Math.max((en ? en.x : .5) - .5 / esc_, 0), 1 - 1 / esc_), arr = Math.min(Math.max((en ? en.y : .5) - .5 / esc_, 0), 1 - 1 / esc_);
   v.style.transformOrigin = "0 0";  // igual que el video armado: se ve el recorte que empieza en (izq, arr)
   v.style.transform = `translate(${(-izq * esc_ * 100).toFixed(3)}%, ${(-arr * esc_ * 100).toFixed(3)}%) scale(${esc_.toFixed(4)})`;
+  cg.style.transformOrigin = "0 0"; cg.style.transform = v.style.transform;
   vistaCapa(s.pz, ct);
   $("evCorteAviso").hidden = !s.cortado; marcarPalabraAhora(s.pz, ct);
   // mientras se arrastra el subtítulo, se muestra la frase más cercana aunque en ese segundo no se hable
@@ -5235,13 +5494,33 @@ function bucleEd() {
   if (s && v.currentTime >= s.b - .02) {
     if (evSeg + 1 >= segs.length) { pararEditor(); irA(0); return; }
     evSeg++; const n = segs[evSeg];
-    if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; v.play(); }, { once: true }); }
-    else v.currentTime = n.a;
+    if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; if (evReproduciendo) v.play(); }, { once: true }); }
+    else if (Math.abs(v.currentTime - n.a) > .06) v.currentTime = n.a;  // si sigue de corrido (sin nada quitado en medio) no salta: no se traba
   }
-  vistaEd(); sonarPrevia();
+  vistaEd(); sonarPrevia(); sonarVozAparte();
   requestAnimationFrame(bucleEd);
 }
-function pararEditor() { evReproduciendo = false; $("evVideo").pause(); evMusica.pause(); evFxPrev = null; $("evPlay").textContent = "▶ Reproducir"; }
+function pararEditor() {
+  evReproduciendo = false; $("evVideo").pause(); evMusica.pause(); evFxPrev = null; $("evPlay").textContent = "▶ Reproducir";
+  Object.values(vocesAparte).forEach(a => a.pause());
+}
+// La voz corrida de un pedazo desagrupado suena aparte en la vista previa, encima de lo que se esté viendo
+const vocesAparte = {};
+function sonarVozAparte() {
+  const activos = new Set();
+  if (evReproduciendo) for (const s of segmentosEd()) {
+    const ap = s.aparte; if (!ap || ap.sin_voz || Math.abs(ap.desfase || 0) < .005) continue;
+    const ini = s.g0 + ap.desfase;
+    if (ed.t < ini || ed.t >= ini + (s.b - s.a)) continue;
+    activos.add(s.key);
+    const a = vocesAparte[s.key] = vocesAparte[s.key] || Object.assign(new Audio(s.pieza.url), { preload: "auto" });
+    a.muted = mudoEd("voz"); a.playbackRate = s.vel || 1;
+    const pos = s.a + (ed.t - ini);
+    if (a.paused) { try { a.currentTime = pos; } catch (e) {} a.play().catch(() => {}); }
+    else if (Math.abs(a.currentTime - pos) > .3) a.currentTime = pos;
+  }
+  for (const [k, a] of Object.entries(vocesAparte)) if (!activos.has(k) && !a.paused) a.pause();
+}
 // Música y sonidos en la vista previa: la pista del último armado suena debajo de la voz siguiendo el cabezal, de corrido
 // aunque haya cortes (igual que en el video armado), y baja cuando se habla. Los sonidos suenan en su segundo.
 const evMusica = new Audio(); evMusica.preload = "auto";
@@ -5343,6 +5622,7 @@ function datosEd() {
   return { hook: $("evHook").value, cuerpo: $("evCuerpo").value, cta: $("evCta").value, quitar: [...ed.quitar], orden: ed.orden, edicion: est.edicion || "A",
     cortes: ed.cortes, quitar_rangos: ed.quitarR, capas: ed.capas, velocidad: ed.vel,
     recortes: { hook: ed.hook || undefined, cta: ed.cta || undefined, partes: ed.partes }, zoom, nombre: $("evNombre").value,
+    audio_aparte: aparteParaGuardar(), duplicados: dupsParaGuardar(),
     voz_revisada: true };  // lo que quedó cortado (o vuelto a poner) lo decidió una persona: la sala ya no corta sola esas piezas
 }
 // Guardar: si es el video base con sus piezas de siempre, los cambios van a las piezas (todos sus videos se rearman);

@@ -1,3 +1,11 @@
+Versión 1.38.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Clic derecho en la línea de tiempo** (como CapCut): en un bloque de video, Dividir en el cabezal, Duplicar, Desagrupar o agrupar el audio, Borrar y Borrar la frase entera; en la voz, quitarla o correrla.
+- **Audio y video agrupados o por separado con Ctrl+G**: desagrupado, la voz del pedazo se elige aparte en la pista Voz y se **arrastra para correrla** antes o después de su imagen (cortes en J y en L, hasta 3 s); Supr en la voz la quita (el pedazo se ve mudo) y Supr en el video quita la imagen (queda su primer cuadro congelado mientras suena la voz). Ctrl+G otra vez los vuelve a juntar.
+- **Duplicar (Ctrl+D)**: el pedazo se repite justo después; la copia se borra con Supr.
+- **Deshacer y rehacer (Ctrl+Z / Ctrl+Y)** en el editor; un arrastre entero cuenta como un solo paso.
+- La vista previa ya muestra todo eso: la voz quitada, la imagen congelada y la voz corrida sonando encima de lo de al lado.
+- Arreglos: el botón «🗑 Quitar pedazo» quitaba la frase entera (desde la 1.37); al pasar de un pedazo al siguiente sin nada quitado en medio ya no salta (menos trabas); si pausas mientras carga la pieza siguiente, ya no arranca sola.
+
 Versión 1.37.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Armar es unas 3 veces más rápido**: la sala comprime con la tarjeta de video si la PC tiene una (NVIDIA, Intel o AMD; si falla, sigue sola con el procesador) y arma 2 videos a la vez en PCs con 6 núcleos o más. En la prueba, 4 videos pasaron de 115 s a 33 s. El video armado pesa un poco más, pero al exportar se vuelve a comprimir con la calidad final.
 - **El editor ya no se traba en cada corte**: las piezas tenían un cuadro clave cada 3–8 s y cada salto tenía que leer segundos de video; ahora tienen uno cada medio segundo (los saltos pasan de ~190 ms a ~15 ms). Las piezas ya preparadas se ajustan solas una vez la próxima vez que toques «Armar todos los videos» (un par de minutos; los subtítulos y los cortes no cambian).

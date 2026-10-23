@@ -2554,6 +2554,7 @@ def guardar_version(datos, vid=None):
                "zoom": _limpiar_zoom(datos.get("zoom") or {}),
                "cortes": _limpiar_cortes(datos.get("cortes")), "quitar_rangos": _limpiar_rangos(datos.get("quitar_rangos")),
                "capas": _limpiar_capas(datos.get("capas")), "velocidad": _limpiar_velocidad(datos.get("velocidad")),
+               "audio_aparte": _limpiar_aparte(datos.get("audio_aparte")), "duplicados": _limpiar_duplicados(datos.get("duplicados")),
                # guardada desde el editor: los cortes por voz ya los vio una persona (no se agregan solos otra vez)
                "voz_revisada": {k: True for k in ("hook", "cuerpo", "cta")} if datos.get("voz_revisada") else {}}
     if propio:
@@ -2692,6 +2693,34 @@ def _limpiar_rangos(r):
     return out
 
 
+def _limpiar_aparte(r):
+    """Pedazos con el audio desagrupado del video (Ctrl+G en el editor): {pieza: [{a, b, sin_voz, sin_imagen, desfase}]}
+    a/b en segundos del clip · sin_voz: el pedazo se ve mudo · sin_imagen: la voz suena sobre su primer cuadro congelado ·
+    desfase: segundos que se corre su voz respecto de su imagen (− antes, + después), como un corte en J o en L."""
+    out = {}
+    for k, v in (r or {}).items():
+        if k not in ("hook", "cuerpo", "cta"):
+            continue
+        lista = []
+        for x in (v or [])[:80]:
+            try:
+                a, b = float(x["a"]), float(x["b"])
+                d = max(-3.0, min(3.0, float(x.get("desfase") or 0)))
+            except (TypeError, ValueError, KeyError):
+                continue
+            if b - a >= 0.03:
+                lista.append({"a": round(max(0.0, a), 3), "b": round(b, 3), "sin_voz": bool(x.get("sin_voz")),
+                              "sin_imagen": bool(x.get("sin_imagen")), "desfase": round(d, 3)})
+        if lista:
+            out[k] = sorted(lista, key=lambda x: x["a"])
+    return out
+
+
+def _limpiar_duplicados(r):
+    """Pedazos repetidos («Duplicar» en el editor): {pieza: [[desde, hasta], …]} en segundos del clip; la copia va justo después."""
+    return _limpiar_rangos(r)
+
+
 # Tramos de zoom (como los fotogramas clave de CapCut): en un tramo de la pieza, el zoom y el punto de foco
 # van de su valor inicial al final con una curva. a/b en segundos del archivo de la pieza; z = 1.0 es sin zoom;
 # fx/fy = punto que queda fijo en pantalla (0–1 del ancho y del alto). Después del tramo: vuelve, queda o vuelve suave.
@@ -2743,8 +2772,10 @@ def guardar_edicion_piezas(datos):
     cortes, rangos = _limpiar_cortes(datos.get("cortes")), _limpiar_rangos(datos.get("quitar_rangos"))
     capas = _limpiar_capas(datos.get("capas"))
     vel = _limpiar_velocidad(datos.get("velocidad"))
+    aparte, dups = _limpiar_aparte(datos.get("audio_aparte")), _limpiar_duplicados(datos.get("duplicados"))
     propio = lambda pz: {"zoom_tramos": (z.get("tramos") or {}).get(pz), "zoom_puntos": (z.get("puntos") or {}).get(pz),
-                         "cortes": cortes.get(pz), "quitar_rangos": rangos.get(pz), "capas": capas.get(pz)}
+                         "cortes": cortes.get(pz), "quitar_rangos": rangos.get(pz), "capas": capas.get(pz),
+                         "audio_aparte": aparte.get(pz), "duplicados": dups.get(pz)}
     e = datos.get("edicion") if datos.get("edicion") in ediciones() else "A"
     nuevos = {
         datos["hook"]: {"recorte": r.get("hook"), "zoom": z.get("hook"), "velocidad": vel.get("hook"), **propio("hook")},
@@ -3518,7 +3549,7 @@ def _edicion_guardada(combo):
     h, c, t = (ajustes_de_pieza(combo[k], e, a) for k in ("hook", "cuerpo", "cta"))
     por_pieza = lambda campo: {k: v for k, v in (("hook", h.get(campo)), ("cuerpo", c.get(campo)), ("cta", t.get(campo))) if v}
     return {"quitar": c.get("quitar", []), "orden": c.get("orden") or [], "cortes": por_pieza("cortes"), "quitar_rangos": por_pieza("quitar_rangos"), "capas": por_pieza("capas"),
-            "voz_revisada": por_pieza("voz_revisada"),
+            "voz_revisada": por_pieza("voz_revisada"), "audio_aparte": por_pieza("audio_aparte"), "duplicados": por_pieza("duplicados"),
             "velocidad": {k: v for k, v in (("hook", h.get("velocidad")), ("cta", t.get("velocidad")), ("partes", c.get("velocidad_partes"))) if v},
             "recortes": {k: v for k, v in (("hook", h.get("recorte")), ("cta", t.get("recorte")), ("partes", c.get("partes"))) if v},
             "zoom": {k: v for k, v in (("hook", h.get("zoom")), ("cta", t.get("zoom")), ("partes", c.get("zoom_partes")),
@@ -3716,6 +3747,7 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
             "recorte_fin": v.get("recorte_fin", 0), "nombre": v.get("nombre", ""), "recortes": v.get("recortes", {}),
             "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
             "velocidad": v.get("velocidad", {}), "voz_revisada": v.get("voz_revisada") or {},
+            "audio_aparte": v.get("audio_aparte") or {}, "duplicados": v.get("duplicados") or {},
             "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
 
 
@@ -3772,8 +3804,9 @@ def _rangos_velocidad(combo, offs, total):
     return out
 
 
-def _trozos(total, rangos, velocidades=()):
-    """Lo que queda del video armado sin recortes: [(desde, hasta, factor)], partido donde cambia la velocidad."""
+def _trozos(total, rangos, velocidades=(), bordes=()):
+    """Lo que queda del video armado sin recortes: [(desde, hasta, factor)], partido donde cambia la velocidad
+    y en los bordes pedidos (pedazos con el audio desagrupado o duplicados)."""
     juntos = []
     for a, b in sorted((max(0.0, a), min(total, b)) for a, b in rangos):
         if juntos and a <= juntos[-1][1] + 0.01:
@@ -3789,7 +3822,7 @@ def _trozos(total, rangos, velocidades=()):
         quedan.append((t, total))
     trozos = []
     for a, b in quedan:
-        cortes = sorted({a, b, *(x for va, vb, _ in velocidades for x in (va, vb) if a < x < b)})
+        cortes = sorted({a, b, *(x for va, vb, _ in velocidades for x in (va, vb) if a < x < b), *(x for x in bordes if a < x < b)})
         for x, y in zip(cortes, cortes[1:]):
             if y - x < 0.02:
                 continue
@@ -3826,6 +3859,32 @@ def _en_su_orden(combo, offs, trozos):
     return nuevos, nuevos != sorted(partidos)
 
 
+def _global(combo, offs, campo):
+    """{pieza: [...]} de la edición, con a/b pasados a segundos del video sin recortes."""
+    o = {"hook": offs[0], "cuerpo": offs[1], "cta": offs[2]}
+    out = []
+    for pz, lista in (edicion_de(combo).get(campo) or {}).items():
+        for x in lista:
+            a, b = (x["a"], x["b"]) if isinstance(x, dict) else (x[0], x[1])
+            out.append({**(x if isinstance(x, dict) else {}), "a": o.get(pz, 0) + a, "b": o.get(pz, 0) + b})
+    return out
+
+
+def _con_duplicados(trozos, dups):
+    """La copia de cada pedazo duplicado va justo después de él (con lo que quedó de ese pedazo, en su orden)."""
+    if not dups:
+        return trozos, False
+    out = list(trozos)
+    for d in sorted(dups, key=lambda x: x["a"]):
+        dentro = [k for k, (a, b, _) in enumerate(out) if d["a"] - 1e-3 <= (a + b) / 2 <= d["b"] + 1e-3]
+        if not dentro:
+            continue
+        copia = [out[k] for k in dentro]
+        k = max(dentro) + 1
+        out[k:k] = copia
+    return out, True
+
+
 def _mapa_tiempo(trozos):
     """(f, duración): f(t) pasa un segundo del video sin recortes al video editado (con las velocidades).
     Si ese segundo se quitó, devuelve None; con pegar=True, el inicio de lo que sigue (en el video sin recortes).
@@ -3846,20 +3905,52 @@ def _mapa_tiempo(trozos):
     return f, g
 
 
-def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t"):
+def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t", aparte=()):
     """Filtros que dejan solo los tramos [(desde, hasta, factor)] de [v_in][a_in] y los unen en [v_out][a_out].
     Va dentro del filtro del armado: corta en la misma pasada en que pone los subtítulos (un solo codificado).
-    La música y los sonidos se ponen después, sobre el video ya cortado, para que no salten en cada corte."""
+    La música y los sonidos se ponen después, sobre el video ya cortado, para que no salten en cada corte.
+    aparte: pedazos con el audio desagrupado [{a, b, sin_voz, sin_imagen, desfase}] (segundos del video sin recortes):
+    sin imagen, se ve su primer cuadro congelado mientras habla; sin voz, se ve mudo; con desfase, su voz suena corrida
+    (encima de lo de al lado, como un corte en J o en L)."""
     n = len(quedan)
-    f = [f"[{v_in}]split={n}" + "".join(f"[{pref}sv{k}]" for k in range(n)),
-         f"[{a_in}]asplit={n}" + "".join(f"[{pref}sa{k}]" for k in range(n))] if n > 1 else []
+    de = lambda a, b: next((x for x in aparte if x["a"] - 1e-3 <= (a + b) / 2 <= x["b"] + 1e-3), None)
+    corridos, g = [], 0.0  # (k, segundo del video editado donde empieza a sonar su voz)
+    for k, (a, b, fac) in enumerate(quedan):
+        x = de(a, b)
+        if x and abs(x.get("desfase") or 0) > 0.005 and not x.get("sin_voz"):
+            corridos.append((k, g + x["desfase"]))
+        g += (b - a) / fac
+    na = n + len(corridos)
+    f = []
+    if n > 1:
+        f.append(f"[{v_in}]split={n}" + "".join(f"[{pref}sv{k}]" for k in range(n)))
+    if na > 1:
+        f.append(f"[{a_in}]asplit={na}" + "".join(f"[{pref}sa{k}]" for k in range(na)))
     for k, (a, b, fac) in enumerate(quedan):
         vel_v = f"/{fac:.4f}" if abs(fac - 1) > 0.001 else ""
         vel_a = f",atempo={fac:.4f}" if abs(fac - 1) > 0.001 else ""
-        vi, ai = (f"{pref}sv{k}", f"{pref}sa{k}") if n > 1 else (v_in, a_in)
-        f.append(f"[{vi}]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[{pref}v{k}]")
-        f.append(f"[{ai}]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}[{pref}a{k}]")
-    f.append("".join(f"[{pref}v{k}][{pref}a{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=1[{v_out}][{a_out}]")
+        vi = f"{pref}sv{k}" if n > 1 else v_in
+        ai = f"{pref}sa{k}" if na > 1 else a_in
+        x = de(a, b) or {}
+        if x.get("sin_imagen"):  # su primer cuadro, quieto, todo lo que dura el pedazo
+            d = (b - a) / fac
+            f.append(f"[{vi}]trim=start={a:.3f}:end={min(b, a + 0.05):.3f},setpts=PTS-STARTPTS,"
+                     f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=duration={d:.3f},setpts=PTS-STARTPTS[{pref}v{k}]")
+        else:
+            f.append(f"[{vi}]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[{pref}v{k}]")
+        mudo = ",volume=0" if x.get("sin_voz") or any(c == k for c, _ in corridos) else ""  # la corrida suena aparte
+        f.append(f"[{ai}]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}{mudo}[{pref}a{k}]")
+    a_concat = f"{pref}acat" if corridos else a_out
+    f.append("".join(f"[{pref}v{k}][{pref}a{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=1[{v_out}][{a_concat}]")
+    if corridos:
+        for j, (k, t) in enumerate(corridos):
+            a, b, fac = quedan[k]
+            vel_a = f",atempo={fac:.4f}" if abs(fac - 1) > 0.001 else ""
+            inicio = a + max(0.0, -t) * fac  # si se corre antes del segundo 0, se pierde lo que no entra
+            ms = int(max(0.0, t) * 1000)
+            f.append(f"[{pref}sa{n + j}]atrim=start={inicio:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a},adelay={ms}:all=1[{pref}x{j}]")
+        f.append(f"[{a_concat}]" + "".join(f"[{pref}x{j}]" for j in range(len(corridos)))
+                 + f"amix=inputs={len(corridos) + 1}:normalize=0:duration=first[{a_out}]")
     return f
 
 
@@ -5149,11 +5240,14 @@ def armar_uno(combo, n_musica=None, extras=None):
     # cortes, frases quitadas y velocidades: en la misma pasada (antes era otra pasada que volvía a codificar todo
     # el video y tardaba lo mismo que el armado)
     rangos, velocidades = _rangos_a_quitar(combo, offs, total), _rangos_velocidad(combo, offs, total)
-    trozos, reordenado = _en_su_orden(combo, offs, _trozos(total, rangos, velocidades))
+    aparte, dups = _global(combo, offs, "audio_aparte"), _global(combo, offs, "duplicados")
+    bordes = [x[k] for x in aparte + dups for k in ("a", "b")]
+    trozos, reordenado = _en_su_orden(combo, offs, _trozos(total, rangos, velocidades, bordes))
+    trozos, duplicado = _con_duplicados(trozos, dups)
     salidas_v = [("v", "ac1" if extras else "ac")] + ([("vlimpio", "ac2")] if extras else [])
-    if (rangos or velocidades or reordenado) and trozos:
+    if (rangos or velocidades or reordenado or aparte or duplicado) and trozos:
         for k, (vl, al) in enumerate(salidas_v):
-            f += _filtro_tramos(vl, al, trozos, f"{vl}_c", f"{al}_c", pref=f"q{k}")
+            f += _filtro_tramos(vl, al, trozos, f"{vl}_c", f"{al}_c", pref=f"q{k}", aparte=aparte)
         salidas_v = [(f"{vl}_c", f"{al}_c") for vl, al in salidas_v]
     # paso 1: la imagen con la voz, ya cortada (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
     base, limpio = trabajo / "base.mkv", trabajo / "limpio.mkv"
@@ -5165,7 +5259,7 @@ def armar_uno(combo, n_musica=None, extras=None):
         cmd += ["-filter_complex", grafo]
 
     def con_salidas(comp):
-        venc = [*comp, "-c:a", "pcm_s16le", "-t", f"{total:.2f}"]
+        venc = [*comp, "-c:a", "pcm_s16le", "-t", f"{max(total, sum((b - a) / fac for a, b, fac in trozos)) + 0.05:.2f}"]  # con duplicados puede durar más que sin cortes
         return cmd + [x for (vl, al), destino in zip(salidas_v, (base, limpio))
                       for x in ("-map", f"[{vl}]", "-map", f"[{al}]", "-dn", "-map_chapters", "-1", *venc, str(destino))]
     comp = compresor_armado()
