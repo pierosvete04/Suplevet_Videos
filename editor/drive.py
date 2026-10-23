@@ -288,19 +288,78 @@ def subir(nombre, partes=None, avance=print):
                 _rc("copyto", local, f"{REMOTO}:{nombre}/{parte}")
 
 
+# Lo que no se pudo subir a Drive (sin internet, Drive no deja…): la sala lo muestra con «Reintentar».
+# Antes solo quedaba en el log y la otra PC nunca recibía el archivo.
+PENDIENTES = []
+_cand_pend = threading.Lock()
+
+
+def _anotar_pendiente(nombre, partes, error):
+    with _cand_pend:
+        for x in PENDIENTES:
+            if x["sesion"] == nombre and x["partes"] == list(partes or []):
+                x.update(error=str(error)[:200], cuando=time.time())
+                return
+        PENDIENTES.append({"sesion": nombre, "partes": list(partes or []), "error": str(error)[:200], "cuando": time.time()})
+
+
+def pendientes():
+    with _cand_pend:
+        return [dict(x) for x in PENDIENTES]
+
+
+def reintentar_pendientes(avance=print):
+    """Vuelve a subir lo que quedó pendiente. Devuelve cuántas subidas siguen fallando."""
+    with _cand_pend:
+        lista = list(PENDIENTES)
+        PENDIENTES.clear()
+    for x in lista:
+        try:
+            subir(x["sesion"], x["partes"] or None, avance=avance)
+        except Exception as e:  # noqa: BLE001
+            _anotar_pendiente(x["sesion"], x["partes"], e)
+    return len(PENDIENTES)
+
+
 def subir_en_segundo_plano(nombre, partes):
     if not estado()["activo"]:
         return
     def tarea():
         try:
             subir(nombre, partes, avance=lambda m: None)
-        except Exception as e:  # sin internet: se reintenta en la próxima subida
+        except Exception as e:  # sin internet: queda pendiente y la sala avisa con «Reintentar»
             print("No se pudo subir a Drive:", e)
+            _anotar_pendiente(nombre, partes, e)
     threading.Thread(target=tarea, daemon=True).start()
 
 
+def quitar(sesion, rel):
+    """Un archivo reemplazado en la sala se aparta también en Drive (a _REEMPLAZADOS/), para que la bajada siguiente
+    no lo traiga de vuelta (rclone copy no borra nada). Si en Drive no estaba, no pasa nada."""
+    if not estado()["activo"]:
+        return
+    def tarea():
+        try:
+            _rc("moveto", f"{REMOTO}:{sesion}/{rel}", f"{REMOTO}:{sesion}/_REEMPLAZADOS/{time.strftime('%Y%m%d-%H%M%S')}_{Path(rel).name}", timeout=300)
+        except Exception as e:  # noqa: BLE001
+            if "not found" not in str(e).lower() and "directory not found" not in str(e).lower():
+                print("No se pudo apartar en Drive:", rel, e)
+    threading.Thread(target=tarea, daemon=True).start()
+
+
+def existe(sesion, rel):
+    """¿Ese archivo ya está en Drive? (para no pisar al renombrar). None si no se pudo preguntar."""
+    try:
+        return bool((_rc("lsf", f"{REMOTO}:{sesion}/{rel}", timeout=60) or "").strip())
+    except Exception as e:  # noqa: BLE001
+        return False if "not found" in str(e).lower() else None
+
+
 def mover(sesion, viejo, nuevo):
-    """Mueve un archivo dentro de la sesión en Drive (para descartar o recuperar clips)."""
+    """Mueve un archivo dentro de la sesión en Drive (para descartar o recuperar clips). Si el destino ya existe
+    en Drive (otra PC subió una toma con ese nombre), no lo pisa."""
+    if existe(sesion, nuevo):
+        raise RuntimeError(f"En Drive ya hay un archivo «{nuevo}»: no se renombró para no pisarlo")
     _rc("moveto", f"{REMOTO}:{sesion}/{viejo}", f"{REMOTO}:{sesion}/{nuevo}", timeout=300)
 
 

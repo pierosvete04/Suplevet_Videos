@@ -170,7 +170,7 @@ def estado():
     ajustes_p = motor.ajustes_piezas()
     for p in ps:
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
-    return {"version": motor.VERSION, "red": red(), "drive": dr, "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
+    return {"version": motor.VERSION, "red": red(), "drive": dr, "drive_pendientes": drive.pendientes(), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
@@ -233,10 +233,35 @@ def importar_descarga(nombre, aid, destino):
         raise ValueError("Ese archivo no es " + ("de audio" if destino == "musica" else "una imagen ni un clip"))
     carpeta = motor.S.musica if destino == "musica" else motor.S.assets
     carpeta.mkdir(parents=True, exist_ok=True)
-    for viejo in carpeta.glob(f"{aid}.*"):  # reemplaza la versión anterior aunque tenga otra extensión
-        viejo.unlink()
-    shutil.copy2(f, carpeta / f"{aid}{ext}")
+    tmp = carpeta / f".{aid}{ext}.part"
+    shutil.copy2(f, tmp)
+    apartar_viejos(carpeta, aid)
+    os.replace(tmp, carpeta / f"{aid}{ext}")
     return f"{aid}{ext}", carpeta
+
+
+def apartar_viejos(carpeta, nombre):
+    """La versión anterior de un archivo (aunque tenga otra extensión) pasa a _REEMPLAZADOS/ en vez de borrarse,
+    en esta PC y en Drive: si no, la bajada siguiente traía de vuelta la vieja y a veces salía esa en el video."""
+    viejos = [v for v in carpeta.glob(f"{nombre}.*") if v.is_file()]
+    if not viejos:
+        return []
+    guardar = carpeta / "_REEMPLAZADOS"
+    guardar.mkdir(exist_ok=True)
+    sello = time.strftime("%Y%m%d-%H%M%S")
+    for v in viejos:
+        rel = None
+        try:
+            rel = v.relative_to(motor.S.principal).as_posix()
+        except ValueError:
+            pass
+        try:
+            os.replace(v, guardar / f"{sello}_{v.name}")
+        except OSError:
+            v.unlink(missing_ok=True)
+        if rel:
+            drive.quitar(motor.S.drive, rel)
+    return [v.name for v in viejos]
 
 
 FLOW_MUSIC_AUDIO = re.compile(r"https://storage\.googleapis\.com/producer-app-public/clips/[\w-]+\.(m4a|mp3|wav)")
@@ -249,6 +274,10 @@ def bajar_pista(aid, url):
         raise ValueError("no es una URL de audio de Flow Music")
     import urllib.request
     destino = carpeta_descargas() / f"{aid}.{m.group(1)}"
+    n = 2
+    while destino.exists():  # no pisa un archivo que ya estaba en Descargas con ese nombre
+        destino = carpeta_descargas() / f"{aid} ({n}).{m.group(1)}"
+        n += 1
     with urllib.request.urlopen(url, timeout=120) as r, open(destino, "wb") as f:
         shutil.copyfileobj(r, f)
     if destino.stat().st_size < 20_000:
@@ -371,11 +400,14 @@ def leer_guion_de_carpeta():
 def exportar_a(extra, hacer, avance):
     """Exporta en una carpeta «<fecha> <sesión>» dentro de la carpeta que eligió el usuario (o de V.FINALES si no eligió)
     y, si dijo que sí al Drive, la copia también a V.FINALES y la sube. hacer(raiz) exporta y devuelve los hechos."""
-    nombre = motor.carpeta_de_exporte()
     elegida = (extra.get("carpeta") or "").strip()
-    if elegida and not Path(elegida).is_dir():
-        raise RuntimeError(f"No existe la carpeta {elegida}")
-    raiz = Path(elegida) / nombre if elegida else motor.S.listos / nombre
+    ok = revisar_destino(elegida)
+    if not ok["ok"]:
+        raise RuntimeError(ok["motivo"])
+    base = Path(elegida) if elegida else motor.S.listos
+    # «Crear otra carpeta»: un segundo exporte del mismo día no se mezcla con el primero
+    nombre = nombre_libre(base, ok["nombre"]) if extra.get("nueva") else ok["nombre"]
+    raiz = base / nombre
     hechos = hacer(raiz)
     if extra.get("drive", not elegida):
         en_drive = motor.S.listos / nombre
@@ -383,7 +415,13 @@ def exportar_a(extra, hacer, avance):
             avance("Copiando el exporte a V.FINALES para el Drive")
             shutil.copytree(raiz, en_drive, dirs_exist_ok=True)
         if drive.estado()["activo"]:
-            drive.subir(motor.S.drive, [f"{motor.S.listos.name}/{nombre}"], avance=avance)
+            try:
+                drive.subir(motor.S.drive, [f"{motor.S.listos.name}/{nombre}"], avance=avance)
+            except Exception as e:  # noqa: BLE001 — los videos ya están: que se vea qué faltó y se pueda reintentar
+                drive._anotar_pendiente(motor.S.drive, [f"{motor.S.listos.name}/{nombre}"], e)
+                avance(f"Los videos quedaron en {raiz}, pero no se pudieron subir al Drive. Toca «Reintentar» en el aviso de Drive.")
+        else:
+            avance("La sala no está conectada a Drive: los videos quedaron en V.FINALES de la carpeta de trabajo.")
     if elegida and hechos and sys.platform == "win32":
         os.startfile(str(raiz))  # abre la carpeta del exporte en el explorador
     return hechos, raiz
@@ -400,20 +438,78 @@ def elegir_carpeta(inicial=""):
         r = filedialog.askdirectory(initialdir=inicial or None, title="¿Dónde exportas los videos?")
         tk.destroy()
         return r or ""
+    # El servidor corre aparte de la ventana de la sala: un cuadro sin dueño visible se abría detrás de ella.
+    # Se le da un dueño visible (una ventanita invisible en el centro, siempre encima) y se la trae adelante.
     ps = ("Add-Type -AssemblyName System.Windows.Forms;"
-          "$f = New-Object System.Windows.Forms.Form; $f.TopMost = $true; $f.ShowInTaskbar = $false;"
+          "$f = New-Object System.Windows.Forms.Form; $f.TopMost = $true; $f.ShowInTaskbar = $true; $f.Text = 'Estudio Suplevet';"
+          "$f.StartPosition = 'CenterScreen'; $f.Width = 1; $f.Height = 1; $f.Opacity = 0; $f.FormBorderStyle = 'None';"
+          "$f.Show(); $f.Activate(); $f.BringToFront();"
           "$d = New-Object System.Windows.Forms.FolderBrowserDialog;"
-          "$d.Description = 'Elige la carpeta donde se exportan los videos (se crea dentro una carpeta con la fecha y la sesión)';"
-          "$d.ShowNewFolderButton = $true; $d.SelectedPath = $env:SALA_CARPETA;"
-          "if ($d.ShowDialog($f) -eq 'OK') { [Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $d.SelectedPath }")
-    r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, timeout=600,
-                       env={**os.environ, "SALA_CARPETA": inicial or ""}, creationflags=0x08000000)
+          "$d.Description = 'Elige la carpeta donde se exportan los videos (dentro se crea una carpeta con la fecha y la sesión)';"
+          "$d.ShowNewFolderButton = $true; if ($env:SALA_CARPETA -and (Test-Path $env:SALA_CARPETA)) { $d.SelectedPath = $env:SALA_CARPETA };"
+          "$r = $d.ShowDialog($f); $f.Close();"
+          "if ($r -eq 'OK') { [Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $d.SelectedPath }")
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, timeout=300,
+                           env={**os.environ, "SALA_CARPETA": inicial or ""}, creationflags=0x08000000)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("El cuadro para elegir la carpeta no respondió en 5 minutos. Pega la ruta de la carpeta en el campo de abajo.")
     return r.stdout.decode("utf-8", "replace").strip()
 
 
-def lanzar(accion, pieza=None, extra=None):
-    """Corre procesar/armar/exportar en segundo plano para que la app no se congele."""
+def revisar_destino(carpeta):
+    """¿Se puede exportar en esa carpeta? Devuelve {ok, motivo, existe_hoy, nombre}: existe_hoy dice si ya hay un
+    exporte de hoy de esta sesión ahí (para preguntar si se reemplaza o se crea otra carpeta)."""
+    nombre = motor.carpeta_de_exporte()
+    if not carpeta:
+        base = motor.S.listos
+    else:
+        base = Path(carpeta)
+        if not base.is_dir():
+            return {"ok": False, "motivo": "Esa carpeta ya no está (¿un USB que se desconectó?). Elige otra.", "nombre": nombre}
+        try:  # se prueba escribir de verdad: una carpeta del sistema existe pero no deja guardar
+            prueba = base / f".sala_prueba_{os.getpid()}"
+            prueba.write_bytes(b"")
+            prueba.unlink()
+        except OSError:
+            return {"ok": False, "motivo": "En esa carpeta no se puede guardar (no hay permiso). Elige otra, por ejemplo una en Documentos o en el Escritorio.", "nombre": nombre}
+    return {"ok": True, "existe_hoy": (base / nombre).exists(), "nombre": nombre}
+
+
+def nombre_libre(base, nombre):
+    """«23-10-2026 P05 …», o «… (2)», «… (3)» si ya existe."""
+    if not (base / nombre).exists():
+        return nombre
+    n = 2
+    while (base / f"{nombre} ({n})").exists():
+        n += 1
+    return f"{nombre} ({n})"
+
+
+# Lo que se guardó mientras la sala trabajaba y hay que rearmar después: se corre solo cuando termina el trabajo
+# actual (antes daba «Ya hay un trabajo en curso» aunque los cambios sí se habían guardado, y al reintentar se
+# duplicaban las versiones).
+COLA = []
+
+
+def poner_en_cola(accion, pieza=None, extra=None):
+    for x in COLA:  # dos rearmados seguidos se juntan en uno
+        if x[0] == accion == "armar_sel":
+            x[2]["codigos"] = sorted(set(x[2]["codigos"]) | set((extra or {}).get("codigos") or []))
+            return
+        if x[0] == accion and x[1] == pieza and accion in ("uno", "procesar"):
+            return
+    COLA.append((accion, pieza, dict(extra or {})))
+
+
+def lanzar(accion, pieza=None, extra=None, en_cola=False):
+    """Corre procesar/armar/exportar en segundo plano para que la app no se congele. Con en_cola, si ya hay un
+    trabajo corriendo, queda en la cola y se corre solo al terminar. Devuelve True si quedó en la cola."""
     if TRABAJO["activo"]:
+        if en_cola:
+            poner_en_cola(accion, pieza, extra)
+            TRABAJO["cola"] = [x[0] for x in COLA]
+            return True
         raise RuntimeError("Ya hay un trabajo en curso. Espera a que termine.")
 
     def avance(msg):
@@ -428,7 +524,11 @@ def lanzar(accion, pieza=None, extra=None):
             motor.revisar_cancelado()
             avance(f"Renombrando {Path(cb['viejo']).name} → {cb['nuevo']} ({n}/{len(plan)})")
             if drive.estado()["activo"]:
-                drive.mover(motor.S.en_drive(cb["sesion"]), cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
+                try:
+                    drive.mover(motor.S.en_drive(cb["sesion"]), cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
+                except RuntimeError as e:
+                    avance(f"Se saltó {Path(cb['viejo']).name}: {e}")
+                    continue
             motor.aplicar_renombre(cb)
             hechos += 1
         if drive.estado()["activo"]:
@@ -519,6 +619,9 @@ def lanzar(accion, pieza=None, extra=None):
                     hechos, raiz = exportar_a(extra, lambda r: motor.exportar_partes(extra["codigos"], avance=avance, raiz=r), avance)
                     avance(f"Exportados por partes {len(hechos)} videos a {raiz}{os.sep}POR_PARTES")
                 if accion == "exportar_sel":
+                    ok = revisar_destino((extra.get("carpeta") or "").strip())  # antes de armar: no esperar minutos para el error
+                    if not ok["ok"]:
+                        raise RuntimeError(ok["motivo"])
                     faltan = [c for c in motor.combinaciones() if c["codigo"] in extra["codigos"]
                               and not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
                     if faltan:
@@ -646,6 +749,17 @@ def lanzar(accion, pieza=None, extra=None):
             except OSError:
                 pass
             TRABAJO["historial"] = todo[:15]
+            if TRABAJO.get("cancelado") and COLA:  # cancelar también cancela lo que esperaba en la cola
+                COLA.clear()
+            if COLA:
+                siguiente = COLA.pop(0)
+                TRABAJO["cola"] = [x[0] for x in COLA]
+                try:
+                    lanzar(*siguiente)
+                except Exception as e:  # noqa: BLE001
+                    print("No se pudo correr lo que estaba en la cola:", e)
+            else:
+                TRABAJO["cola"] = []
 
     motor.CANCELAR.clear()
     TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "resultado": None,
@@ -914,34 +1028,56 @@ class H(BaseHTTPRequestHandler):
                 pass
 
     def _subir(self, q):
-        """Guarda el archivo arrastrado con el nombre correcto (assets de Flow o piezas grabadas)."""
+        """Guarda el archivo arrastrado con el nombre correcto (assets de Flow o piezas grabadas). Se escribe en un
+        temporal y solo si llegó entero reemplaza al anterior (que pasa a _REEMPLAZADOS/): antes se borraba primero
+        y una subida cortada dejaba un archivo a medias con el nombre bueno, que además se subía a Drive."""
         destino = q["destino"][0]
         nombre = q["nombre"][0]
         ext = "." + q["ext"][0].lower().lstrip(".")
         carpetas = {"assets": motor.S.assets, "musica": motor.S.musica, "hooks": motor.S.carpeta("hook"),
                     "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}
-        permitidas = motor.EXT_AUDIO if destino == "musica" else motor.EXT_IMG | motor.EXT_VID
+        # un hook, un cuerpo o un CTA es siempre un video (antes entraba una foto como Clips/Hooks/C1_H2.jpg)
+        permitidas = motor.EXT_AUDIO if destino == "musica" else motor.EXT_VID if destino in ("hooks", "cuerpos", "ctas") \
+            else motor.EXT_IMG | motor.EXT_VID
         if destino not in carpetas or not NOMBRE_OK.match(nombre) or ext not in permitidas:
-            raise ValueError("Archivo o nombre no válido")
+            raise ValueError("Ese archivo no va aquí: " + ("sube un audio" if destino == "musica" else "sube un video"
+                             if destino in ("hooks", "cuerpos", "ctas") else "sube una imagen o un clip"))
+        if destino in ("hooks", "cuerpos", "ctas") and TRABAJO["activo"]:
+            raise RuntimeError("La sala está trabajando con los clips (☰). Espera a que termine para cambiar una toma.")
         carpeta = carpetas[destino]
         carpeta.mkdir(parents=True, exist_ok=True)
-        for viejo in carpeta.glob(f"{nombre}.*"):  # reemplaza la versión anterior aunque tenga otra extensión
-            viejo.unlink()
-        ruta = carpeta / f"{nombre}{ext}"
-        restante = int(self.headers.get("Content-Length") or 0)
-        with open(ruta, "wb") as f:
-            while restante > 0:
-                trozo = self.rfile.read(min(1 << 20, restante))
-                if not trozo:
-                    break
-                f.write(trozo)
-                restante -= len(trozo)
+        largo = int(self.headers.get("Content-Length") or 0)
+        if largo <= 0:
+            raise ValueError("El archivo llegó vacío")
+        tmp = carpeta / f".{nombre}{ext}.{os.getpid()}.part"
+        restante = largo
+        try:
+            with open(tmp, "wb") as f:
+                while restante > 0:
+                    trozo = self.rfile.read(min(1 << 20, restante))
+                    if not trozo:
+                        break
+                    f.write(trozo)
+                    restante -= len(trozo)
+            if restante > 0:
+                raise RuntimeError("La subida se cortó antes de terminar: no se cambió nada. Vuelve a intentarlo.")
+            apartar_viejos(carpeta, nombre)
+            ruta = carpeta / f"{nombre}{ext}"
+            os.replace(tmp, ruta)
+        finally:
+            tmp.unlink(missing_ok=True)
         return ruta.name
 
     def do_POST(self):
         u = urlparse(self.path)
         q = parse_qs(u.query)
         if not self._permitido(u.path):
+            return
+        # Una página de internet abierta en el navegador podía mandar órdenes a la sala (abrirla a la red, exportar…):
+        # el navegador siempre dice de qué página viene el pedido (Origin) y tiene que ser la sala misma.
+        origen = self.headers.get("Origin")
+        if origen and origen != "null" and urlparse(origen).netloc.lower() != (self.headers.get("Host") or "").lower():
+            self.send_error(403)
             return
         try:
             if u.path == "/entrar":
@@ -1007,19 +1143,27 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/semana":
                 sem = " ".join(self._cuerpo()["semana"].split())
                 sem = sem.replace("/", "／")  # Drive permite "11/10 SESIÓN"; en disco se guarda con la barra ancha
-                if not re.fullmatch(r"[\w .／-]{1,60}", sem) or sem.startswith("."):
-                    raise ValueError("Nombre de semana no válido")
+                if TRABAJO["activo"] and sem != motor.S.semana:
+                    # el trabajo seguiría con las carpetas de la otra sesión: los videos quedaban en la sesión equivocada
+                    raise RuntimeError("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.")
+                if not motor.nombre_sesion_valido(sem):
+                    raise ValueError('Nombre de sesión no válido (sin / \\ : * ? " < > |)')
                 nueva = motor.S.base / sem
                 es_grupo = sem in motor.grupos()
                 try:  # lo último de la sesión que se deja queda guardado
                     respaldos.hacer(auto=True)
                 except Exception as e:
                     print("No se pudo guardar la copia de seguridad:", e)
+                recien = False
                 if not es_grupo and drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
                     drive.crear_sesion(sem)
-                if not es_grupo and not nueva.exists() and not (drive.estado()["activo"] and sem in drive.sesiones_en_drive()):
+                    recien = True
+                if not es_grupo and not nueva.exists() and (recien or not (drive.estado()["activo"] and sem in drive.sesiones_en_drive())):
                     for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "V.FINALES"):
                         (nueva / sub).mkdir(parents=True, exist_ok=True)
+                if recien:  # recién creada está vacía: no hace falta bajarla (eso trababa «Escribir guion con Claude»)
+                    (drive.CACHE / sem).mkdir(parents=True, exist_ok=True)
+                    (drive.CACHE / sem / ".bajada").write_text(str(time.time()), encoding="utf-8")
                 motor.usar_semana(sem)
                 motor.guardar_config({"semana": sem})
                 if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
@@ -1030,7 +1174,13 @@ class H(BaseHTTPRequestHandler):
                 if b.get("accion") == "restaurar":
                     if TRABAJO["activo"]:
                         raise ValueError("Espera a que termine lo que está haciendo la sala (☰) para restaurar")
-                    self._json({"ok": True, **respaldos.restaurar(str(b.get("archivo", "")))})
+                    r = respaldos.restaurar(str(b.get("archivo", "")))
+                    if drive.estado()["activo"]:
+                        for m in motor.S.miembros:
+                            drive.subir_en_segundo_plano(motor.S.en_drive(m), ["asignaciones.json"])
+                        drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                        threading.Thread(target=drive.subir_grupos, daemon=True).start()
+                    self._json({"ok": True, **r})
                 else:
                     self._json({"ok": True, "respaldo": respaldos.hacer(nombre=str(b.get("nombre") or "Guardada a mano"))})
             elif u.path == "/api/importar_descarga":
@@ -1060,7 +1210,7 @@ class H(BaseHTTPRequestHandler):
                     gs.pop(nombre, None)
                 else:
                     sesiones = [x for x in b.get("sesiones", []) if x in motor.semanas_disponibles() and x not in gs]
-                    if not re.fullmatch(r"[\w .／+-]{2,60}", nombre) or len(sesiones) < 2:
+                    if not motor.nombre_sesion_valido(nombre) or len(nombre) < 2 or len(sesiones) < 2:
                         raise ValueError("Ponle un nombre al grupo y elige al menos dos sesiones")
                     if nombre in sesiones:
                         raise ValueError("El grupo no puede llamarse igual que una sesión")
@@ -1084,11 +1234,18 @@ class H(BaseHTTPRequestHandler):
                 pid = b["id"]
                 if not re.fullmatch(r"[a-z0-9_]{1,40}", pid):
                     raise ValueError("Id de plantilla no válido")
+                # los videos que la usan se cuentan antes de borrarla (después ya usaban otra y la lista salía vacía)
+                usaban = [c["codigo"] for c in motor.combinaciones() if motor.id_plantilla_de(c) == pid]
                 if b.get("borrar"):
                     propias = {k: v for k, v in motor.CONFIG.get("plantillas_propias", {}).items() if k != pid}
-                    motor.guardar_config({"plantillas_propias": propias})
+                    cambio = {"plantillas_propias": propias}
+                    if motor.CONFIG.get("plantilla_activa") == pid:  # era la predeterminada: sus videos quedan por rearmar
+                        cambio["plantilla_activa_cambio"] = time.time()
+                    motor.guardar_config(cambio)
+                    motor.guardar_config({"plantillas_borradas_cambio": {**(motor.CONFIG.get("plantillas_borradas_cambio") or {}), pid: time.time()}})
+                    return self._json({"ok": True, "codigos": usaban})
                 if b.get("datos"):  # una de fábrica editada se guarda encima (con «Restaurar» vuelve a la original)
-                    datos = {**b["datos"], "editado": time.time()}  # así los videos que la usan quedan «por re-armar»
+                    datos = {**motor.limpiar_plantilla(b["datos"]), "editado": time.time()}  # así los videos que la usan quedan «por re-armar»
                     motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: datos}})
                 if b.get("predeterminada"):
                     motor.guardar_config({"plantilla_activa": pid, "plantilla_activa_cambio": time.time()})
@@ -1113,12 +1270,16 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("Sube un archivo .ttf u .otf")
                 fuentes.PROPIAS.mkdir(parents=True, exist_ok=True)
                 destino = fuentes.PROPIAS / nombre
-                destino.write_bytes(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+                if destino.exists() and not q.get("reemplazar"):
+                    return self._json({"ok": False, "existe": True, "error": f"Ya hay una fuente «{nombre}»"})
+                tmp = fuentes.PROPIAS / f".{nombre}.part"
+                tmp.write_bytes(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
                 try:
-                    fuentes.Fuente(destino)
+                    fuentes.Fuente(tmp)
                 except Exception:
-                    destino.unlink()
-                    raise ValueError("Ese archivo no es una fuente que la sala pueda leer")
+                    tmp.unlink(missing_ok=True)
+                    raise ValueError("Ese archivo no es una fuente que la sala pueda leer (la que tenías no se tocó)")
+                os.replace(tmp, destino)
                 fuentes.cargar.cache_clear()
                 self._json({"ok": True, "archivo": nombre})
             elif u.path == "/api/portada":
@@ -1133,13 +1294,14 @@ class H(BaseHTTPRequestHandler):
                     mudo = {k: True for k in ("voz", "sonidos", "musica") if (b.get("silenciar") or {}).get(k)}
                     motor.guardar_ajustes_video(b["codigo"], {"silenciar": mudo or None})
                     if b.get("armar"):
-                        lanzar("armar_sel", extra={"codigos": [b["codigo"]]})
+                        lanzar("armar_sel", extra={"codigos": [b["codigo"]]}, en_cola=True)
                     return self._json({"ok": True, "silenciar": mudo})
                 if b.get("codigos"):  # varios videos elegidos: solo cambia su plantilla (la altura de cada uno se queda)
                     for cod in b["codigos"]:
                         motor.guardar_ajustes_video(cod, {"plantilla": b.get("plantilla") or None})
                     if b.get("armar"):
-                        lanzar("armar_sel", extra={"codigos": b["codigos"]})
+                        cola = lanzar("armar_sel", extra={"codigos": b["codigos"]}, en_cola=True)
+                        return self._json({"ok": True, "codigos": b["codigos"], "en_cola": bool(cola)})
                     return self._json({"ok": True, "codigos": b["codigos"]})
                 codigos = [b["codigo"]]
                 if b.get("todo_el_cuerpo"):  # la misma plantilla y altura para todos los videos de ese cuerpo
@@ -1148,9 +1310,8 @@ class H(BaseHTTPRequestHandler):
                 for cod in codigos:
                     motor.guardar_ajustes_video(cod, {"plantilla": b.get("plantilla") or None,
                                                       "ajustes_sub": b.get("ajustes_sub") or None})
-                if b.get("armar"):
-                    lanzar("armar_sel", extra={"codigos": codigos})
-                self._json({"ok": True, "codigos": codigos})
+                cola = bool(b.get("armar") and lanzar("armar_sel", extra={"codigos": codigos}, en_cola=True))
+                self._json({"ok": True, "codigos": codigos, "en_cola": cola})
             elif u.path == "/api/estado_video":
                 b = self._cuerpo()
                 if b.get("estado") not in ("pendiente", "editando", "listo"):
@@ -1261,7 +1422,15 @@ class H(BaseHTTPRequestHandler):
                                               b.get("desde"), b.get("largo"), b.get("vol"), b.get("vel"))
                 self._json({"ok": True, "codigos": codigos})
             elif u.path == "/api/elegir_carpeta":  # cuadro de Windows para elegir dónde exportar
-                self._json({"carpeta": elegir_carpeta(str(self._cuerpo().get("inicial") or ""))})
+                carpeta = elegir_carpeta(str(self._cuerpo().get("inicial") or ""))
+                self._json({"ok": True, "carpeta": carpeta, **(revisar_destino(carpeta) if carpeta else {})})
+            elif u.path == "/api/destino_exporte":  # ¿existe, se puede guardar, ya hay un exporte de hoy?
+                self._json({"ok": True, **{("destino_ok" if k == "ok" else k): v for k, v in revisar_destino(str(self._cuerpo().get("carpeta") or "").strip()).items()}})
+            elif u.path == "/api/drive_reintentar":
+                if not drive.estado()["activo"]:
+                    raise RuntimeError("La sala no está conectada a Drive")
+                threading.Thread(target=lambda: _sin_error(drive.reintentar_pendientes), daemon=True).start()
+                self._json({"ok": True})
             elif u.path == "/api/abrir_listos":  # abre en el explorador la carpeta de los videos exportados (V.FINALES)
                 d = motor.S.listos
                 d.mkdir(parents=True, exist_ok=True)
@@ -1280,9 +1449,8 @@ class H(BaseHTTPRequestHandler):
                 codigos = motor.guardar_edicion_piezas(b)
                 # más los videos con sonidos cambiados en el editor (ya guardados, falta re-armarlos)
                 codigos = sorted(set(codigos) | set(b.get("extra_codigos") or []))
-                if b.get("armar") and codigos:
-                    lanzar("armar_sel", extra={"codigos": codigos})
-                self._json({"ok": True, "codigos": codigos})
+                cola = bool(b.get("armar") and codigos and lanzar("armar_sel", extra={"codigos": codigos}, en_cola=True))
+                self._json({"ok": True, "codigos": codigos, "en_cola": cola})
             elif u.path == "/api/claude":
                 b = self._cuerpo()
                 if b.get("accion") == "login":
@@ -1309,13 +1477,13 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/version":
                 b = self._cuerpo()
                 if b.get("borrar"):
+                    cola = False
                     if motor.borrar_version(b["borrar"]):  # eran ajustes propios: vuelve a lo de sus piezas
-                        lanzar("uno", b["borrar"])
-                    return self._json({"ok": True})
+                        cola = lanzar("uno", b["borrar"], en_cola=True)
+                    return self._json({"ok": True, "en_cola": bool(cola)})
                 vid = motor.guardar_version(b, b.get("id") or None)
-                if b.get("armar"):
-                    lanzar("uno", vid)
-                self._json({"ok": True, "codigo": vid})
+                cola = bool(b.get("armar") and lanzar("uno", vid, en_cola=True))
+                self._json({"ok": True, "codigo": vid, "en_cola": cola})
             elif u.path == "/api/trabajo_sel":
                 b = self._cuerpo()
                 if b.get("ajustes"):  # los ajustes de exportación quedan guardados para la próxima vez
@@ -1331,11 +1499,17 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
                 subir_asignaciones()
-                # la pieza con su clip nuevo se prepara y se vuelve a escuchar (lo que se dijo se actualiza)
-                procesando = bool(b.get("pieza")) and not TRABAJO["activo"]
-                if procesando:
-                    lanzar("procesar")
-                self._json({"ok": True, "procesando": procesando})
+                # la pieza con su clip nuevo se prepara y se vuelve a escuchar (lo que se dijo se actualiza);
+                # con otro trabajo corriendo, queda en la cola
+                procesando = bool(b.get("pieza"))
+                cola = procesando and lanzar("procesar", en_cola=True)
+                # con armar: después de preparar la toma nueva se rearman los videos que usan esa pieza
+                if procesando and b.get("armar"):
+                    cods = [c["codigo"] for c in motor.combinaciones()
+                            if b["pieza"] in (c["hook"], c["cuerpo"], c["cta"]) or str(b["pieza"]).split("_P")[0] == c["cuerpo"]]
+                    if cods:
+                        lanzar("armar_sel", extra={"codigos": cods}, en_cola=True)
+                self._json({"ok": True, "procesando": procesando, "en_cola": bool(cola)})
             elif u.path == "/api/drive":
                 b = self._cuerpo()
                 if b.get("accion") == "conectar":

@@ -34,6 +34,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import unicodedata
 from pathlib import Path
@@ -222,6 +223,14 @@ def mudar_a_produccion(prod, dia, cache):
     return True
 
 
+def nombre_sesion_valido(nombre):
+    """El mismo criterio para crear, abrir y renombrar sesiones y grupos: cualquier letra, número, espacio y signos
+    comunes, sin los que Windows no deja en un nombre de carpeta. Antes un grupo «P03 PIEL + PELAJE» se creaba pero
+    después no se podía abrir."""
+    nombre = str(nombre or "")
+    return 1 <= len(nombre) <= 60 and not nombre.startswith(".") and not re.search(r'[\\/:*?"<>|\x00-\x1f]', nombre)
+
+
 def renombrar_grupo(viejo, nuevo):
     """Cambia el nombre de un grupo (la producción). Las carpetas de Drive de sus días no cambian; en esta PC se
     mueven sus ediciones, procesados y videos armados a carpetas con el nombre nuevo. Los archivos de video
@@ -232,7 +241,7 @@ def renombrar_grupo(viejo, nuevo):
         raise ValueError("Ese grupo no existe")
     if g[viejo].get("carpeta"):
         raise ValueError("Esta producción es una carpeta de Drive: cámbiale el nombre allá")
-    if not nuevo or len(nuevo) > 60 or re.search(r'[\\/:*?"<>|]', nuevo):
+    if not nombre_sesion_valido(nuevo):
         raise ValueError('Nombre no válido (sin / \\ : * ? " < > |)')
     if nuevo in g or nuevo in semanas_disponibles():
         raise ValueError("Ya hay una sesión o un grupo con ese nombre")
@@ -1069,26 +1078,36 @@ def aplicar_renombre(cambio):
         t_viejo.replace(_archivo_transcripcion({"rel": rel_nuevo}))
 
 
+GUION_CANDADO = threading.RLock()  # leer, cambiar y escribir el guion de a uno (sala, importar, armar con lo grabado)
+
+
 def editar_texto_pieza(nombre, texto, partes=None):
     """Cambia lo que dice una pieza en el guion (produccion.json): se ve en Guion, en el teleprompter y en el panel."""
-    f = next((x for x in (S.guion / "produccion.json", S.grab / "produccion.json") if x.exists()), None)
-    if not f:
-        raise ValueError("Esta sesión no tiene guion (produccion.json)")
-    prod = json.loads(f.read_text(encoding="utf-8"))
-    pz = prod.get("piezas", {}).get(nombre)
-    if pz is None:
-        raise ValueError(f"{nombre} no está en el guion")
-    partes = [" ".join(str(p).split()) for p in (partes or []) if str(p).strip()]
-    if partes:
-        pz["partes"] = partes
-        pz["texto"] = " ".join(partes)
-    else:
-        pz["texto"] = " ".join(str(texto).split())
-    pz["editado_en_sala"] = time.strftime("%Y-%m-%d %H:%M")
-    f.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
-    global _prod_cache
-    _prod_cache = None
-    return pz
+    with GUION_CANDADO:
+        f = next((x for x in (S.guion / "produccion.json", S.grab / "produccion.json") if x.exists()), None)
+        if not f:
+            raise ValueError("Esta sesión no tiene guion (produccion.json)")
+        prod = json.loads(f.read_text(encoding="utf-8"))
+        pz = prod.get("piezas", {}).get(nombre)
+        if pz is None:
+            raise ValueError(f"{nombre} no está en el guion")
+        partes = [" ".join(str(p).split()) for p in (partes or []) if str(p).strip()]
+        if len(partes) > 1:
+            pz["partes"] = partes
+            pz["texto"] = " ".join(partes)
+        else:
+            # una sola frase (o ninguna en la lista): sin «partes», si no el teleprompter seguía con las frases viejas
+            pz.pop("partes", None)
+            pz["texto"] = partes[0] if partes else " ".join(str(texto).split())
+        pz["editado_en_sala"] = time.strftime("%Y-%m-%d %H:%M")
+        pz["editado_en_sala_t"] = time.time()
+        if f == S.guion / "produccion.json":
+            _guardar_produccion(prod)
+        else:
+            f.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
+            global _prod_cache
+            _prod_cache = None
+        return pz
 
 
 def descartar_clips(rels, recuperar=False):
@@ -1127,12 +1146,12 @@ def clips_sin_asignar():
 
 
 def buscar_asset(aid):
+    """El archivo de Flow con ese id. Si hay dos (C1_IMG1.jpg y C1_IMG1.png, uno traído de vuelta por Drive),
+    el más nuevo: antes salía el primero en orden alfabético, que solía ser el viejo."""
     if not S.assets.exists():
         return None
-    for f in S.assets.iterdir():
-        if f.stem.lower() == aid.lower() and f.suffix.lower() in EXT_IMG | EXT_VID:
-            return f
-    return None
+    cands = [f for f in S.assets.iterdir() if f.is_file() and f.stem.lower() == aid.lower() and f.suffix.lower() in EXT_IMG | EXT_VID]
+    return max(cands, key=lambda f: f.stat().st_mtime, default=None)
 
 
 # ---------- 1. Procesar ----------
@@ -1253,7 +1272,10 @@ def procesar(forzar_subs=False, avance=print):
                     t.unlink(missing_ok=True)
             firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "formato": formato(), "gop": GOP_EDITOR[1]},
                                         ensure_ascii=False), encoding="utf-8")
-            (S.subs / f"{p['nombre']}.json").unlink(missing_ok=True) if vieja is not None and vieja != lista else None
+            if vieja is not None and vieja != lista:
+                # otra toma: el subtítulo se rehace con lo que se dice ahora, pero las marcas (imágenes, sonidos,
+                # resaltados) se quedan porque van por palabra; el subtítulo viejo se guarda por si se quiere volver
+                _apartar_subs_viejos(p["nombre"])
         elif not _con_gop(firma):
             # pieza preparada antes de la 1.37: un cuadro clave cada 3–8 s hacía que el editor se trabara en cada corte;
             # se recomprime solo la imagen (el audio, los tiempos y los subtítulos no cambian)
@@ -1277,9 +1299,37 @@ def procesar(forzar_subs=False, avance=print):
         if forzar_subs or not sub.exists() or mejorar:
             avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})" + (" con el modelo más fino" if mejorar else ""))
             pal = transcribir(dest)
-            marcas = {"marcas": viejo["marcas"]} if mejorar and "marcas" in viejo else {}  # van por palabra: se quedan
+            heredadas = _marcas_apartadas(p["nombre"])
+            marcas = ({"marcas": viejo["marcas"]} if (mejorar or forzar_subs) and viejo and "marcas" in viejo
+                      else {"marcas": heredadas} if heredadas is not None else {})  # van por palabra: se quedan
             sub.write_text(json.dumps({"pieza": p["nombre"], "modelo": modelo, "automatico": True,
                                        "lineas": agrupar_lineas(pal), **marcas}, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _apartar_subs_viejos(nombre):
+    """Guarda el subtítulo de una pieza en subtitulos/<sesión>/_reemplazados/ (con fecha) antes de rehacerlo."""
+    sub = S.subs / f"{nombre}.json"
+    if not sub.exists():
+        return
+    guardar = S.subs / "_reemplazados"
+    guardar.mkdir(parents=True, exist_ok=True)
+    os.replace(sub, guardar / f"{nombre}.{time.strftime('%Y%m%d-%H%M%S')}.json")
+
+
+def _marcas_apartadas(nombre):
+    """Las marcas del último subtítulo apartado de esa pieza (o None)."""
+    guardar = S.subs / "_reemplazados"
+    if not guardar.is_dir():
+        return None
+    for f in sorted(guardar.glob(f"{nombre}.*.json"), reverse=True):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        if d.get("pieza", nombre) == nombre and "marcas" in d:
+            return d["marcas"]
+        return None
+    return None
 
 
 # ---------- Sugerir a qué pieza corresponde cada clip ----------
@@ -1956,6 +2006,11 @@ def _guardar_produccion(prod):
     f = S.guion / "produccion.json"
     if f.exists():
         shutil.copy2(f, S.guion / "produccion.anterior.json")
+        copias = S.guion / "_copias"
+        copias.mkdir(exist_ok=True)
+        shutil.copy2(f, copias / f"produccion_{time.strftime('%Y%m%d-%H%M%S')}.json")
+        for vieja in sorted(copias.glob("produccion_*.json"))[:-30]:  # quedan las 30 últimas
+            vieja.unlink(missing_ok=True)
     f.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
     _prod_cache = None
     guardar_documentos_guion()
@@ -2033,6 +2088,8 @@ def _texto_docx(datos):
     import io
     import zipfile
     xml = zipfile.ZipFile(io.BytesIO(datos)).read("word/document.xml").decode("utf-8", "replace")
+    # en una tabla cada celda es un párrafo: se juntan las celdas de cada fila (si no, «H1» y su texto quedaban sueltos)
+    xml = re.sub(r"<w:tr[ >].*?</w:tr>", lambda m: re.sub(r"</w:p>", " ", m.group(0)) + "</w:p>", xml, flags=re.S)
     out = []
     for p in re.split(r"</w:p>", xml):
         p = re.sub(r"<w:tab\s*/>", " ", p)
@@ -2057,7 +2114,9 @@ def leer_guion_texto(texto):
             continue
         titulo = s.startswith("#")
         s = re.sub(r"^#+\s*", "", s)
-        s = re.sub(r"^(?:[-*•]\s*)?(?:\[[ xX]\]\s*)?", "", s).replace("**", "").replace("__", "").replace("`", "").strip()
+        # primero la negrita y después la viñeta: «**H3.** …» quedaba «*H3.» y no se leía como el hook 3
+        s = s.replace("**", "").replace("__", "").replace("`", "").strip()
+        s = re.sub(r"^(?:[-*•]\s*)?(?:\[[ xX]\]\s*)?", "", s).strip()
         if not s:
             continue
         corto = titulo or len(s) <= 70
@@ -2081,6 +2140,8 @@ def leer_guion_texto(texto):
 
         def con_codigo():
             """Líneas con su código delante: «H1. …», «C1-H2: …», «C1.3 …», «CTA1. …»."""
+            if re.match(r"^CTAS\b", s, re.I):  # «CTAs: elige 2» es el título de la sección, no un CTA «S»
+                return False
             if m := re.match(rf"^(?:([CP])\s*(\d+)[\s_-]*)?H(?:OOK)?\s*(\d+)(?:{sep}|\s+)(.+)$", s, re.I):
                 c = f"{m[1].upper()}{int(m[2])}" if m[1] else cuerpo
                 if c:
@@ -2096,8 +2157,18 @@ def leer_guion_texto(texto):
                 return True
             return False
 
+        # «C3.1 HASTA C3.4», «C1.1 al C1.3»: es una indicación de grabación, no la frase 1
+        if re.match(r"^[CP]\d+[.\s_-]+\d+\s+(?:HASTA|AL?|Y|-|–|—)\s+[CP]?\d+(?:[.\s_-]+\d+)?\s*$", s, re.I):
+            continue
         # un título (#) es título aunque traiga texto; una línea normal primero se lee como pieza con código
         if (titulo_de_seccion() or con_codigo()) if titulo else (con_codigo() or titulo_de_seccion()):
+            # «C1: Mi perro se rasca todo el día»: si después del código viene una oración (no un tema corto),
+            # además de abrir el cuerpo es su frase
+            if seccion == "cuerpo" and cuerpo and (m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*\d+\s*[—:\-–]\s*(.+)", s, re.I)):
+                resto = m[1].strip()
+                if len(resto.split()) >= 6 or re.search(r"[.!?…]$|[¿¡]", resto):
+                    d = frases.setdefault(cuerpo, {})
+                    d[max(d, default=0) + 1] = resto
             continue
         num = re.match(r"^(\d+)[.)]\s+(.+)$", s)
         resto = num[2].strip() if num else s
@@ -2108,6 +2179,10 @@ def leer_guion_texto(texto):
             d[int(num[1]) if num and int(num[1]) not in d else max(d, default=0) + 1] = resto
         elif seccion == "hooks" and cuerpo and num:
             hooks[f"{cuerpo}_H{int(num[1])}"] = resto
+        elif seccion == "hooks" and cuerpo and len(resto.split()) >= 3:
+            # lista numerada automática de Word: el «1.» no viene en el texto; se numeran en orden
+            n = 1 + sum(1 for k in hooks if k.startswith(f"{cuerpo}_H"))
+            hooks[f"{cuerpo}_H{n}"] = resto
         elif seccion == "cta" and (cta_actual or num):  # sin número ni «CTA 1» arriba suele ser una indicación
             d = frases.setdefault(cta_actual or f"CTA{int(num[1])}", {})
             d[max(d, default=0) + 1] = resto
@@ -2119,6 +2194,15 @@ def leer_guion_texto(texto):
     for nombre, t in hooks.items():
         out[nombre] = {"tipo": "hook", "texto": t}
     return dict(sorted(out.items(), key=lambda x: ({"cuerpo": 0, "hook": 1, "cta": 2}[tipo_de(x[0])], x[0])))
+
+
+def _texto_plano(datos):
+    """Un .txt o .md: en UTF-8, o en el formato viejo de Windows (el Bloc de notas «ANSI»): si no, «picazón»
+    salía «picaz�n»."""
+    try:
+        return datos.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return datos.decode("cp1252", "replace")
 
 
 def _leer_guion_archivo(nombre_archivo, datos):
@@ -2134,7 +2218,7 @@ def _leer_guion_archivo(nombre_archivo, datos):
         prod.pop("origen", None)
     elif ext in (".docx", ".md", ".txt"):
         try:
-            texto = _texto_docx(datos) if ext == ".docx" else datos.decode("utf-8-sig", "replace")
+            texto = _texto_docx(datos) if ext == ".docx" else _texto_plano(datos)
         except Exception:
             raise ValueError("No pude abrir ese Word. Guárdalo de nuevo como .docx o pásalo a .txt")
         piezas_g = leer_guion_texto(texto)
@@ -2170,9 +2254,47 @@ def subir_guion(nombre_archivo, datos):
         limpio = "guion_subido" + ext
     destino = S.guion / limpio
     destino.write_bytes(datos)
-    prod = {**prod, **({} if ext == ".json" else {"origen": "subido"}), "archivo": destino.name, "firma": _firma(destino)}
-    _guardar_produccion(prod)
+    with GUION_CANDADO:
+        prod = {**prod, **({} if ext == ".json" else {"origen": "subido"}), "archivo": destino.name, "firma": _firma(destino)}
+        if ext != ".json":  # un Word o un .txt solo trae el texto: se mezcla con lo que ya tenía el guion
+            prod = _mezclar_guion(_guion_propio(), prod, time.time())
+        _guardar_produccion(prod)
     return _resumen_guion(prod, ext)
+
+
+def _mezclar_guion(base, nuevo, cuando):
+    """Un guion de texto (Word, .md, .txt) sobre el que ya había: cambia lo que dice cada pieza pero conserva lo que
+    el texto no trae (marcas, imágenes, prompts, copies, música). Lo corregido en la sala después de que se escribió
+    ese archivo (cuando = fecha del archivo) gana. Con el guion de Claude no se pierde ninguna pieza; con uno de texto,
+    las que ya no están en el archivo se quitan."""
+    viejas = (base or {}).get("piezas") or {}
+    if not viejas:
+        return nuevo
+    de_claude = not base.get("origen")
+    out = {}
+    for nombre, pz in nuevo["piezas"].items():
+        v = viejas.get(nombre)
+        if not v:
+            out[nombre] = pz
+        elif float(v.get("editado_en_sala_t") or 0) > cuando:
+            out[nombre] = v  # se corrigió en la sala después de escribirse el archivo
+        else:
+            m = {**v, **{k: pz[k] for k in ("tipo", "texto") if k in pz}}
+            if pz.get("partes"):
+                m["partes"] = pz["partes"]
+            else:
+                m.pop("partes", None)
+            m.pop("editado_en_sala", None)
+            m.pop("editado_en_sala_t", None)
+            out[nombre] = m
+    if de_claude:
+        out.update({k: v for k, v in viejas.items() if k not in out})
+    resto = {k: v for k, v in base.items() if k != "piezas"}
+    mezcla = {**resto, **{k: v for k, v in nuevo.items() if k != "piezas"},
+              "piezas": dict(sorted(out.items(), key=lambda x: ({"cuerpo": 0, "hook": 1, "cta": 2}.get(tipo_de(x[0]), 3), x[0])))}
+    if de_claude:  # sigue siendo el guion de Claude (con sus marcas): no pasa a «subido»
+        mezcla.pop("origen", None)
+    return mezcla
 
 
 # lo que la sala misma escribe en la carpeta del guion (no es un guion que haya puesto el equipo)
@@ -2186,7 +2308,8 @@ def guion_en_carpeta():
     archivos = [f for d in CARPETAS_GUION if (S.principal / d).is_dir() for f in (S.principal / d).iterdir()
                 if f.is_file() and f.suffix.lower() in (".docx", ".md", ".txt", ".json")
                 and f.name.lower() not in _NO_SON_GUION and not f.name.startswith(("~$", "."))]
-    return max(archivos, key=lambda f: f.stat().st_mtime, default=None)
+    con_nombre = [f for f in archivos if "guion" in norm(f.stem) or "script" in norm(f.stem)]
+    return max(con_nombre or archivos, key=lambda f: f.stat().st_mtime, default=None)
 
 
 def importar_guion_de_carpeta():
@@ -2201,7 +2324,7 @@ def importar_guion_de_carpeta():
         return None
     firma, base = _firma(f), _guion_propio()
     if base.get("piezas"):
-        if base.get("origen") == "subido" and base.get("firma") == firma:
+        if base.get("firma") == firma:  # ese mismo archivo ya se leyó (también si se mezcló con el de Claude)
             return None
         if not base.get("origen"):  # el de Claude: los .md que vienen con él no lo reemplazan
             actual = next((x for x in (S.guion / "produccion.json", S.grab / "produccion.json") if x.exists()), None)
@@ -2214,9 +2337,14 @@ def importar_guion_de_carpeta():
     except (ValueError, OSError) as e:
         _GUION_CON_ERROR[firma] = str(e)
         return {"archivo": f.name, "error": str(e)}
-    # un .json de Claude es un guion completo (no lleva «subido»: ese solo trae el texto)
-    prod = {**prod, **({} if f.suffix.lower() == ".json" else {"origen": "subido"}), "archivo": f.name, "firma": firma}
-    _guardar_produccion(prod)
+    # un .json de Claude es un guion completo (no lleva «subido»: ese solo trae el texto). Uno de texto se mezcla con
+    # el que había: no se pierden las marcas del guion de Claude ni lo corregido en la sala después del archivo
+    with GUION_CANDADO:
+        prod = {**prod, **({} if f.suffix.lower() == ".json" else {"origen": "subido"}), "archivo": f.name, "firma": firma}
+        if f.suffix.lower() != ".json":
+            prod = _mezclar_guion(_guion_propio(), prod, f.stat().st_mtime)
+        prod = {k: v for k, v in prod.items() if v is not None}
+        _guardar_produccion(prod)
     return {"archivo": f.name, "resumen": _resumen_guion(prod, f.suffix.lower())}
 
 
@@ -2250,11 +2378,92 @@ def leer_subs(pieza):
     return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {"pieza": pieza, "lineas": []}
 
 
+def _repartir_palabras(palabras, viejas, s, e):
+    """Tiempos de las palabras de una línea corregida: las que siguen igual conservan los suyos (así el resaltado
+    sigue a la voz); las nuevas o cambiadas se reparten en el hueco que dejaron. viejas = [{w, s, e}]."""
+    import difflib
+    sm = difflib.SequenceMatcher(None, [norm(w) for w in palabras], [norm(v["w"]) for v in viejas], autojunk=False)
+    t = [None] * len(palabras)
+    for a, b, n in sm.get_matching_blocks():
+        for k in range(n):
+            t[a + k] = (viejas[b + k]["s"], viejas[b + k]["e"])
+    i = 0
+    while i < len(palabras):
+        if t[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(palabras) and not t[j]:
+            j += 1
+        desde = t[i - 1][1] if i > 0 else s
+        hasta = t[j][0] if j < len(palabras) else e
+        if hasta - desde < 0.05 * (j - i):
+            # sin hueco (se dijo de corrido): la palabra nueva comparte el tiempo de la de al lado, sin pisar a nadie
+            if i > 0:
+                a0, b0 = t[i - 1]
+                medio = round((a0 + b0) / 2, 3)
+                t[i - 1] = (a0, medio)
+                desde, hasta = medio, b0
+            elif j < len(palabras):
+                a0, b0 = t[j]
+                medio = round((a0 + b0) / 2, 3)
+                t[j] = (medio, b0)
+                desde, hasta = a0, medio
+            else:
+                desde, hasta = s, max(e, s + 0.05 * (j - i))
+        paso = (hasta - desde) / (j - i)
+        for k in range(i, j):
+            t[k] = (round(desde + (k - i) * paso, 3), round(desde + (k - i + 1) * paso, 3))
+        i = j
+    return [{"w": w, "s": round(a, 3), "e": round(b, 3)} for w, (a, b) in zip(palabras, t)]
+
+
+def _mover_marcas(marcas, antes, despues):
+    """Las marcas van por palabra + cuál vez se dice (n). Si se corrige el texto, cada marca pasa a la misma
+    palabra en el texto nuevo (aunque se haya agregado otra igual antes, o se haya cambiado esa palabra)."""
+    import difflib
+    if not marcas or antes == despues:
+        return marcas
+    na, nd = [norm(w) for w in antes], [norm(w) for w in despues]
+    mapa = {}
+    sm = difflib.SequenceMatcher(None, na, nd, autojunk=False)
+    for op, a0, a1, d0, d1 in sm.get_opcodes():
+        for k in range(a1 - a0):
+            if op == "equal":
+                mapa[a0 + k] = d0 + k
+            elif op == "replace" and d1 > d0:
+                mapa[a0 + k] = min(d1 - 1, d0 + k)  # la palabra cambiada: la marca pasa a la que la reemplazó
+    out = []
+    for m in marcas:
+        obj = [norm(x) for x in str(m.get("palabra", "")).split() if norm(x)]
+        if not obj:
+            out.append(m)
+            continue
+        vistos, pos = 0, None
+        for k in range(len(na) - len(obj) + 1):
+            if na[k:k + len(obj)] == obj:
+                vistos += 1
+                if vistos == max(1, int(m.get("n") or 1)):
+                    pos = k
+                    break
+        if pos is None or pos not in mapa:
+            out.append(m)  # ya no se encontraba antes: queda igual (la sala avisa que no encuentra su palabra)
+            continue
+        nuevo = mapa[pos]
+        largo = len(obj)
+        palabra = " ".join(despues[nuevo:nuevo + largo])
+        n = sum(1 for k in range(nuevo + 1) if nd[k:k + largo] == [norm(x) for x in palabra.split()])
+        out.append({**m, "palabra": palabra, "n": max(1, n)})
+    return out
+
+
 def guardar_lineas_editadas(pieza, lineas_nuevas):
     """Recibe las líneas corregidas a mano y recalcula los tiempos de cada palabra."""
     sub = S.subs / f"{pieza}.json"
     datos = leer_subs(pieza)
     viejas = {(round(l["s"], 2), round(l["e"], 2)): l for l in datos["lineas"]}
+    antes = [p["w"] for ln in datos["lineas"] for p in ln.get("palabras", [])]
+    marcas_antes = marcas_de(pieza)
     out = []
     for ln in lineas_nuevas:
         texto = " ".join(ln["texto"].split())
@@ -2268,11 +2477,20 @@ def guardar_lineas_editadas(pieza, lineas_nuevas):
             pal = [{"w": w, "s": round(float(p["s"]), 3), "e": round(float(p["e"]), 3)} for w, p in zip(palabras, dadas)]
         elif vieja and len(vieja["palabras"]) == len(palabras):
             pal = [{"w": w, "s": v["s"], "e": v["e"]} for w, v in zip(palabras, vieja["palabras"])]
-        else:  # cambió el número de palabras: reparte el tiempo de la línea en partes iguales
+        elif vieja and vieja.get("palabras"):  # cambió el número de palabras: lo que no cambió conserva sus tiempos
+            pal = _repartir_palabras(palabras, vieja["palabras"], s, e)
+        else:
             paso = (e - s) / len(palabras)
             pal = [{"w": w, "s": round(s + i * paso, 2), "e": round(s + (i + 1) * paso, 2)} for i, w in enumerate(palabras)]
         out.append({"texto": texto, "s": s, "e": e, "palabras": pal})
+    if [ln["texto"] for ln in out] == [ln["texto"] for ln in datos["lineas"]] and \
+            [(ln["s"], ln["e"]) for ln in out] == [(float(ln["s"]), float(ln["e"])) for ln in datos["lineas"]]:
+        return  # nada cambió: no se marca como corregido a mano (así sigue mejorándose solo con el modelo nuevo)
     datos["lineas"] = out
+    despues = [p["w"] for ln in out for p in ln["palabras"]]
+    movidas = _mover_marcas(marcas_antes, antes, despues)
+    if movidas != marcas_antes:
+        datos["marcas"] = movidas
     datos.pop("automatico", None)  # ya lo tocó una persona: no se vuelve a transcribir solo
     sub.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -3574,6 +3792,16 @@ def editado_en(combo):
             float(CONFIG.get("cortes_voz_cambio") or 0), float(produccion().get("formato_cambio") or 0))
     if id_plantilla_de(combo) == id_plantilla():  # usa la predeterminada: cuenta si se cambió cuál es
         t = max(t, float(CONFIG.get("plantilla_activa_cambio") or 0))
+    pedida = ajustes_video(combo["codigo"]).get("plantilla")  # la plantilla que eligió para este video se borró
+    if pedida:
+        t = max(t, float((CONFIG.get("plantillas_borradas_cambio") or {}).get(pedida) or 0))
+    cambios_son = CONFIG.get("ajustes_sonidos_cambio") or {}
+    if cambios_son:  # un sonido que usa este video se editó en la página Sonidos
+        try:
+            rec = json.loads((S.recetas / f"{combo['codigo']}.json").read_text(encoding="utf-8"))
+            t = max([t] + [float(cambios_son.get(e.get("id"), 0)) for e in rec.get("efectos", [])])
+        except (FileNotFoundError, ValueError):
+            pass
     return max(t, ajustes_video(combo["codigo"]).get("editado", 0))
 
 
@@ -4041,6 +4269,34 @@ def id_plantilla_de(combo=None):
     return id_plantilla()
 
 
+# Límites de los números de una plantilla: un valor escrito a mano fuera de rango (tamaño 900, centro 5000) rompía
+# el armado. Lo que no está aquí pasa tal cual.
+LIMITES_PLANTILLA = {"tamano": (20, 260), "borde": (0, 40), "sombra": (0, 40), "desenfoque": (0, 40), "x_centro": (0, 1920),
+                     "ancho_max": (200, 1900), "altura_desde_abajo": (0, 1900), "altura_hook": (0, 1900), "altura_cta": (0, 1900),
+                     "escala_activa": (0.5, 3), "palabras_max": (1, 20), "interlineado": (0.5, 3)}
+
+
+def limpiar_plantilla(d):
+    """Una plantilla guardada desde la sala, con los números dentro de lo que el armado aguanta y una fuente que
+    exista (si no, la de la sala)."""
+    out = dict(d or {})
+    for k, (lo, hi) in LIMITES_PLANTILLA.items():
+        if out.get(k) in (None, ""):
+            continue
+        try:
+            out[k] = max(lo, min(hi, float(out[k])))
+        except (TypeError, ValueError):
+            out.pop(k)
+    try:
+        import fuentes
+        for k in ("fuente", "fuente_linea2"):
+            if out.get(k) and not fuentes.ruta(out[k]).exists():
+                out.pop(k)
+    except (ImportError, AttributeError):
+        pass
+    return out
+
+
 def plantilla_sub(combo=None):
     """Plantilla de subtítulos (fuente, colores, resaltador, posición). Si el video tiene una propia, esa."""
     base = plantillas()[id_plantilla_de(combo)]
@@ -4383,11 +4639,15 @@ def guardar_ajustes_sonido(sid, aj):
         if aj.get(k):
             limpio[k] = True
     todos = dict(CONFIG.get("ajustes_sonidos") or {})
+    cambio = (todos.get(sid) or {}) != limpio
     if limpio:
         todos[sid] = limpio
     else:
         todos.pop(sid, None)
-    guardar_config({"ajustes_sonidos": todos})
+    extra = {}
+    if cambio:  # así los videos que lo usan salen «⟳ rearmar» (antes el aviso lo decía, pero no quedaban marcados)
+        extra["ajustes_sonidos_cambio"] = {**(CONFIG.get("ajustes_sonidos_cambio") or {}), sid: time.time()}
+    guardar_config({"ajustes_sonidos": todos, **extra})
     return limpio
 
 
@@ -4739,6 +4999,8 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             continue
         maxd = so.get("duracion_maxima", {}).get(c["cat"], so.get("duracion_maxima", {}).get("default", 2.5))
         fuente, aj = f, ajustes_sonido(id_sonido(f))
+        if aj:  # editado en la página Sonidos (más lento, con eco…): suena entero, como se ve allá
+            maxd = max(maxd, 30.0)
         try:
             f = sonido_editado(f)  # con lo editado en la página Sonidos (velocidad, tono, eco…)
         except Exception:  # noqa: BLE001 — si no se pudo editar, va el original
@@ -5603,15 +5865,24 @@ def ajustes_exportar():
     return {**AJUSTES_EXPORTAR, **CONFIG.get("exportar", {})}
 
 
-def render_final(video, portada, destino, aj):
+def render_final(video, portada, destino, aj, avance=print):
     """Exporta con la calidad elegida. Con «peso_max» (MB), si el video sale más pesado se vuelve a exportar
-    en dos pasadas con el bitrate justo para que quede por debajo de ese peso."""
-    _render_final(video, portada, destino, aj)
-    limite = float(aj.get("peso_max") or 0)
-    if limite > 0 and destino.stat().st_size > limite * 1048576:
-        dur = max(1.0, duracion(destino))
-        kbps = int((limite * 0.94 * 8 * 1024) / dur - 192)  # deja margen para el contenedor y el audio de 192 kbps
-        _render_final(video, portada, destino, {**aj, "bitrate": max(400, kbps)})
+    con el bitrate justo para que quede por debajo de ese peso (y si ni así entra, se avisa). Se exporta a un
+    archivo temporal y recién al final toma su nombre: si se cancela o se apaga la PC no queda un video cortado."""
+    tmp = destino.with_name(f".{destino.stem}.exportando{destino.suffix}")
+    try:
+        _render_final(video, portada, tmp, aj)
+        limite = float(aj.get("peso_max") or 0)
+        if limite > 0 and tmp.stat().st_size > limite * 1048576:
+            dur = max(1.0, duracion(tmp))
+            kbps = int((limite * 0.94 * 8 * 1024) / dur - 192)  # deja margen para el contenedor y el audio de 192 kbps
+            _render_final(video, portada, tmp, {**aj, "bitrate": max(400, kbps)})
+            mb = tmp.stat().st_size / 1048576
+            if mb > limite:
+                avance(f"Ojo: {destino.name} quedó en {mb:.1f} MB y el límite era {limite:g} MB (es muy largo para ese peso)")
+        os.replace(tmp, destino)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def _render_final(video, portada, destino, aj):
@@ -5669,7 +5940,7 @@ def exportar(avance=print, codigos=None, ajustes=None, raiz=None):
             if not v.exists():
                 continue
             avance(f"Exportando {len(hechos) + 1} · {(dia + ' · ') if dia else ''}{c['archivo']}")
-            render_final(v, p, destino / v.name, aj)
+            render_final(v, p, destino / v.name, aj, avance)
             if p.exists():
                 shutil.copy2(p, destino / p.name)
             cp = copy_de(cod)
