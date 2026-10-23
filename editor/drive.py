@@ -34,7 +34,7 @@ LISTA = motor.DATOS / "drive_sesiones.json"
 # Bloopers: tomas que el equipo apartó (la sala no las usa; bajarlas solo gasta tiempo y disco)
 # (los .docx sí se bajan: el guion en Word que el equipo deja en Guion/ se lee solo; y los .png también:
 #  una imagen de Flow puede venir en .png)
-EXCLUIR_AL_BAJAR = ["V.FINALES/**", "VIDEOS FINALES/**", "listos/**", "desktop.ini",
+EXCLUIR_AL_BAJAR = ["V.FINALES/**", "VIDEOS FINALES/**", "listos/**", "desktop.ini", "_SALA_PROYECTO/**", "_REEMPLAZADOS/**",
                     "{Bloopers,BLOOPERS,bloopers,Blooper,BLOOPER}/**"]
 SUBIBLES = ["V.FINALES", "Flow", "Musica", "Guion", "asignaciones.json", "Clips"]
 _candado = threading.Lock()

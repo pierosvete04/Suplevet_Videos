@@ -22,6 +22,7 @@ import cuenta
 import drive
 import motor
 import panel
+import proyecto
 import respaldos
 
 PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("SALA_PUERTO") or 8765)  # --puerto para probar sin chocar con la sala abierta
@@ -949,6 +950,14 @@ class H(BaseHTTPRequestHandler):
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
+        elif u.path == "/api/proyecto":  # ¿hay una versión nueva del proyecto hecha en otra PC?
+            e = proyecto.ESTADO.get(motor.S.semana)
+            if e is None or "forzar" in u.query:
+                try:
+                    e = proyecto.revisar()
+                except Exception as ex:  # noqa: BLE001 — sin internet
+                    e = {"activo": False, "error": str(ex)[:200]}
+            self._json({**e, "yo": proyecto.quien()})
         elif u.path == "/api/cuadro":
             q2 = parse_qs(u.query)
             c = next((x for x in motor.combinaciones() if x["codigo"] == q2["codigo"][0]), None)
@@ -1259,6 +1268,26 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/semana":
                 abrir_sesion(self._cuerpo()["semana"])
                 self._json({"ok": True})
+            elif u.path == "/api/proyecto":
+                b = self._cuerpo()
+                acc = b.get("accion")
+                if acc in ("actualizar", "volver") and TRABAJO["activo"]:
+                    raise RuntimeError("La sala está trabajando (☰). Espera a que termine para actualizar el proyecto.")
+                if acc == "actualizar":
+                    r = proyecto.traer()
+                elif acc == "volver":
+                    v = int(b.get("version") or 0)
+                    r = proyecto.traer(v)
+                    r["nueva"] = proyecto.publicar(f"volvió a la versión {v}")
+                elif acc in ("quedarme", "publicar"):
+                    r = {"version": proyecto.quedarme() if acc == "quedarme" else proyecto.publicar()}
+                else:
+                    raise ValueError("Acción no válida")
+                try:
+                    proyecto.revisar()
+                except Exception:  # noqa: BLE001
+                    pass
+                self._json({"ok": True, **r})
             elif u.path == "/api/abrir_link":  # trabajar en una carpeta pegando su link de Drive (o su ruta en esta PC)
                 sem = sesion_de_link(str(self._cuerpo().get("link") or ""))
                 abrir_sesion(sem)
@@ -1680,6 +1709,8 @@ if __name__ == "__main__":
     # (asegurar_config no recibe «avance»: con _sin_error fallaba siempre y no se revisaba la conexión al abrir)
     threading.Thread(target=lambda: _sin_falla(drive.asegurar_config), daemon=True).start()
     respaldos.vigilar()  # copia de los cambios cada pocos minutos, solo si algo cambió
+    if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba en otro puerto no sube nada al proyecto del equipo
+        proyecto.vigilar(lambda: TRABAJO["activo"])  # la edición se comparte con las otras PCs por Drive (Actualizar proyecto)
     cuenta.latido(forzar=True)
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")

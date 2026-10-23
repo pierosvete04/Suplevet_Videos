@@ -492,6 +492,16 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .soltar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .drive-pend { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: min(560px, calc(100vw - 32px));
   padding: 8px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--warn); box-shadow: 0 10px 28px rgba(0,0,0,.35); font-size: 12.5px; }
+.proy-btn { font-size: 12.5px; padding: 6px 11px; }
+.proy-btn.nuevo { border-color: var(--warn); color: var(--warn); animation: latePy 1.6s ease-in-out infinite; }
+@keyframes latePy { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .proy-btn.nuevo { animation: none; } }
+.py-card { display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); }
+.py-card.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
+.py-card ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.py-lista { display: grid; gap: 6px; margin-top: 8px; max-height: 320px; overflow-y: auto; }
+.py-lista > div { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 12.5px; }
+.py-lista .v { font: 700 11px var(--mono); color: var(--muted); }
 .esperando { opacity: .6; cursor: progress !important; pointer-events: auto; }
 .esperando::after { content: " …"; }
 .g-editar textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); }
@@ -923,6 +933,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <a class="btn sec" href="/teleprompter" target="_blank" title="Abrir el teleprompter" aria-label="Teleprompter"><span aria-hidden="true">📜</span><span class="txt-largo"> Teleprompter</span></a>
     <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir<span class="txt-largo"> todo</span></button>
     <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todo</span></button>
+    <button class="btn sec proy-btn" id="proyBtn" type="button" hidden title="Proyecto compartido: lo que se edita en otras PCs">☁ Proyecto</button>
     <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
     <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
     <span class="cuenta-ancla">
@@ -1676,6 +1687,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="fila" style="justify-content:flex-end"><button type="button" class="btn sec" id="lkCancelar">Cancelar</button><button class="btn" id="lkAbrir" value="ok">Abrir</button></div>
   </form>
 </dialog>
+<dialog id="dlgProyecto" aria-labelledby="pyTit" style="width:min(640px,96vw)">
+  <div style="padding:18px;display:grid;gap:12px">
+    <div class="fila" style="justify-content:space-between"><h2 id="pyTit" style="margin:0">Proyecto de la sesión</h2><button class="btn sec peq" type="button" id="pyCerrar">Cerrar</button></div>
+    <div id="pyAviso"></div>
+    <details id="pyHist"><summary class="muted" style="cursor:pointer">Historial: quién cambió qué y cuándo</summary><div id="pyLista" class="py-lista"></div></details>
+    <p class="muted" style="margin:0;font-size:11.5px">Lo que editas aquí (subtítulos, marcas, cortes, zoom, imágenes, versiones, portadas y copies) se sube solo a Drive cada minuto, y las otras PCs ven el aviso para traerlo. Antes de traer algo, la sala guarda una copia de lo tuyo (Configuración → Copias de seguridad).</p>
+  </div>
+</dialog>
 <dialog id="dlgAtajos" aria-labelledby="atTit" style="width:min(620px,94vw)">
   <div style="padding:18px;display:grid;gap:12px">
     <div class="fila" style="justify-content:space-between"><h2 id="atTit" style="margin:0">Teclas del editor</h2><button class="btn sec peq" type="button" id="atCerrar">Cerrar</button></div>
@@ -2013,6 +2032,7 @@ async function cargar() {
   else if (!E.hay_produccion) avisar("Esta sesión no tiene guion: se arma igual con lo que hay y, al procesar, la sala arma el guion con lo que se dijo. Si tienes el guion, súbelo en la pestaña Guion.", "muted");
   else avisar("");
   vigilar(E.trabajo);
+  if (typeof revisarProyecto === "function") revisarProyecto();  // ¿otra PC cambió esta sesión?
 }
 
 function pintarDrivePend(lista) {
@@ -6285,6 +6305,74 @@ $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (n
 };
 $("evPartes").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!cerrarVideo()) return; await exportarPartes([cod]); };
 $("evGuardar").onclick = () => guardarVersion(true, true);
+// ---------- Proyecto compartido («Actualizar proyecto») ----------
+// Cada minuto se mira si otra PC subió una versión nueva de la edición de esta sesión. Si hay, sale el aviso con
+// «Actualizar», «Ahora no» y «Quedarme con lo mío» (si no hay otra ventana abierta; si la hay, el botón ☁ titila).
+let proy = null;
+const hace = t => { const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60)); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+function pospuesto(v) { try { return Number(sessionStorage.getItem("py_luego_" + E.semana + "_" + v) || 0) > Date.now(); } catch (e) { return false; } }
+async function revisarProyecto(forzar, abrir) {
+  try { proy = await (await fetch("/api/proyecto" + (forzar ? "?forzar" : ""))).json(); } catch (e) { return; }
+  const b = $("proyBtn");
+  b.hidden = !proy.activo;
+  if (!proy.activo) return;
+  b.classList.toggle("nuevo", !!proy.pendiente);
+  b.textContent = proy.pendiente ? `⟳ Cambios de ${proy.ultima?.autor || "otra PC"}` : proy.cambie ? "☁ Subiendo tus cambios…" : "☁ Proyecto al día";
+  b.title = proy.pendiente ? "Hay una versión nueva del proyecto hecha en otra PC: tócalo para verla" : "Proyecto compartido: historial y versiones";
+  const libre = !document.querySelector("dialog[open]");
+  if (proy.pendiente && (abrir || (libre && !pospuesto(proy.version_remota)))) pintarProyecto(true);
+  else if ($("dlgProyecto").open) pintarProyecto(false);
+}
+function pintarProyecto(mostrar) {
+  const p = proy || {}, u = p.ultima || {};
+  if (p.pendiente) {
+    $("pyAviso").innerHTML = `<div class="py-card"><b style="font-size:16px">Hay una actualización del proyecto</b>
+      <span><b>${esc(u.autor || "Otra PC")}</b>${u.pc ? ` <span class="muted">(${esc(u.pc)})</span>` : ""} la hizo ${hace(u.fecha || 0)}${u.motivo ? ` · ${esc(u.motivo)}` : ""}. Cambió:</span>
+      <ul>${(u.cambios || []).map(c => `<li>${esc(c)}</li>`).join("") || "<li>ajustes de la sesión</li>"}</ul>
+      ${p.choque?.length ? `<span class="pill warn" style="white-space:normal;line-height:1.4">⚠ Tú también cambiaste ${esc(p.choque.join(", "))}. Si actualizas, ahí queda lo de ${esc(u.autor || "la otra PC")} (lo tuyo se guarda en una copia de seguridad).</span>`
+        : p.cambie ? `<span class="muted" style="font-size:12.5px">Lo que cambiaste tú (${esc((p.mias || []).join(", ") || "tus cambios")}) se queda: se junta con lo suyo.</span>` : ""}
+      <div class="fila"><button class="btn" type="button" id="pyActualizar">⟳ Actualizar</button>
+        <button class="btn sec" type="button" id="pyLuego">Ahora no</button>
+        <button class="btn sec" type="button" id="pyMio" title="Lo tuyo pasa a ser la versión del proyecto; lo de ${esc(u.autor || "la otra PC")} queda en el historial">Quedarme con lo mío</button></div></div>`;
+  } else {
+    $("pyAviso").innerHTML = `<div class="py-card ok"><b>✓ Tienes la última versión del proyecto${p.version_local ? ` (versión ${p.version_local})` : ""}</b>
+      <span class="muted" style="font-size:12.5px">${p.cambie ? "Tus cambios nuevos se suben solos en menos de un minuto." : u.autor ? `Último cambio: ${esc(u.autor)}, ${hace(u.fecha || 0)}.` : "Todavía nadie subió cambios de esta sesión."}</span>
+      ${p.cambie ? `<div class="fila"><button class="btn sec peq" type="button" id="pySubir">☁ Subir mis cambios ahora</button></div>` : ""}</div>`;
+  }
+  $("pyLista").innerHTML = (p.historial || []).map(h => `<div><span class="v">v${h.version}</span>
+      <span><b>${esc(h.autor || "")}</b> · ${hace(h.fecha || 0)}${h.motivo ? ` · ${esc(h.motivo)}` : ""}<br><span class="muted">${esc((h.cambios || []).join(" · ") || "ajustes")}</span></span>
+      ${h.version === p.version_local ? `<span class="pill ok">la tuya</span>` : `<button class="btn sec peq" type="button" data-py-volver="${h.version}">Volver a esta</button>`}</div>`).join("")
+    || `<p class="muted" style="margin:0">Sin versiones todavía.</p>`;
+  if (mostrar && !$("dlgProyecto").open) $("dlgProyecto").showModal();
+}
+async function accionProyecto(accion, extra = {}) {
+  if (accion !== "quedarme" && accion !== "publicar" && $("dlg").open && !cerrarVideo()) return;
+  try {
+    const r = await post("/api/proyecto", { accion, ...extra });
+    $("dlgProyecto").close(); await cargar();
+    if (accion === "actualizar" || accion === "volver") {
+      const n = E.salidas.filter(s => s.desactualizado).length;
+      avisar(`Proyecto ${accion === "volver" ? `vuelto a la versión ${extra.version}` : `actualizado con lo de ${r.autor || "la otra PC"}`}.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar (Inicio → Armar).` : ""}`, "ok");
+    } else avisar(accion === "quedarme" ? "Listo: tu versión es ahora la del proyecto. Las otras PCs verán el aviso." : "Tus cambios se subieron al proyecto.", "ok");
+    revisarProyecto(true);
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("proyBtn").onclick = () => { pintarProyecto(true); revisarProyecto(true); };
+$("pyCerrar").onclick = () => $("dlgProyecto").close();
+$("dlgProyecto").addEventListener("click", e => {
+  const id = e.target.id, v = e.target.closest("[data-py-volver]")?.dataset.pyVolver;
+  if (id === "pyActualizar") accionProyecto("actualizar");
+  else if (id === "pyMio") { if (confirm(`¿Quedarte con tu versión? La de ${proy?.ultima?.autor || "la otra PC"} queda en el historial (se puede volver a ella).`)) accionProyecto("quedarme"); }
+  else if (id === "pySubir") accionProyecto("publicar");
+  else if (id === "pyLuego") {
+    try { sessionStorage.setItem("py_luego_" + E.semana + "_" + proy.version_remota, String(Date.now() + 30 * 60000)); } catch (er) {}
+    $("dlgProyecto").close(); avisar("Sigues con lo tuyo. El aviso vuelve a salir en 30 minutos (o toca ⟳ arriba cuando quieras).", "muted");
+  }
+  else if (v && confirm(`¿Volver a la versión ${v}? Lo de ahora queda en el historial y en una copia de seguridad.`)) accionProyecto("volver", { version: Number(v) });
+});
+setInterval(() => { if (E && !document.hidden) revisarProyecto(); }, 60000);
+setTimeout(() => revisarProyecto(true), 6000);
+
 // ---------- Atajos básicos: Ctrl+S guarda · Ctrl+C copia · Ctrl+X corta · Ctrl+V pega · Ctrl+A elige todo ----------
 // En un campo de texto, Ctrl+C, Ctrl+V, Ctrl+X y Ctrl+A hacen lo de siempre (copiar y pegar texto); Ctrl+S guarda en todas partes.
 function guardarConTeclado() {
