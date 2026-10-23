@@ -503,7 +503,18 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .py-lista > div { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 12.5px; }
 .py-lista .v { font: 700 11px var(--mono); color: var(--muted); }
 .esperando { opacity: .6; cursor: progress !important; pointer-events: auto; }
-.esperando::after { content: " …"; }
+.esperando:not(.actualizando)::after { content: " …"; }
+/* «Actualizando…»: el botón gira y no se puede volver a tocar hasta que termina */
+.actualizando { opacity: 1 !important; cursor: progress !important; }
+.actualizando .gira { display: inline-block; animation: giraAct 1s linear infinite; }
+@keyframes giraAct { to { transform: rotate(360deg); } }
+.cortina-act { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; width: 100vw; height: 100vh; margin: 0; display: none; place-items: center; }
+.cortina-act[open] { display: grid; }
+.cortina-act::backdrop { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(3px); }
+.cortina-act > div { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 26px 30px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line2); box-shadow: 0 20px 50px rgba(0,0,0,.35); max-width: min(440px, 90vw); }
+.cortina-act b { font-size: 20px; }
+.cortina-act .gira { font-size: 34px; display: inline-block; animation: giraAct 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .actualizando .gira, .cortina-act .gira { animation-duration: 3s; } }
 .g-editar textarea { width: 100%; min-height: 64px; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); }
 /* Configuración */
 .conf { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -6347,6 +6358,13 @@ function pintarProyecto(mostrar) {
 }
 async function accionProyecto(accion, extra = {}) {
   if (accion !== "quedarme" && accion !== "publicar" && $("dlg").open && !cerrarVideo()) return;
+  const textos = { actualizar: "Actualizando…", volver: "Actualizando…", quedarme: "Guardando tu versión…", publicar: "Subiendo…" };
+  const boton = { actualizar: $("pyActualizar"), quedarme: $("pyMio"), publicar: $("pySubir") }[accion]
+    || $("pyLista").querySelector(`[data-py-volver="${extra.version}"]`);
+  const otros = [...$("dlgProyecto").querySelectorAll("button")].filter(b => b !== boton && b.id !== "pyCerrar");
+  otros.forEach(b => { b.disabled = true; });
+  const volver = ponerActualizando([boton], textos[accion]);
+  if (accion === "actualizar" || accion === "volver") { $("pyTit").textContent = "Actualizando el proyecto…"; avisar("Actualizando el proyecto…"); }
   try {
     const r = await post("/api/proyecto", { accion, ...extra });
     $("dlgProyecto").close(); await cargar();
@@ -6356,6 +6374,7 @@ async function accionProyecto(accion, extra = {}) {
     } else avisar(accion === "quedarme" ? "Listo: tu versión es ahora la del proyecto. Las otras PCs verán el aviso." : "Tus cambios se subieron al proyecto.", "ok");
     revisarProyecto(true);
   } catch (err) { avisar("Error: " + err.message, "err"); }
+  finally { volver(); otros.forEach(b => { b.disabled = false; }); $("pyTit").textContent = "Proyecto de la sesión"; }
 }
 $("proyBtn").onclick = () => { pintarProyecto(true); revisarProyecto(true); };
 $("pyCerrar").onclick = () => $("dlgProyecto").close();
@@ -7536,20 +7555,47 @@ $("actBuscar").onclick = async () => {
   }
   b.disabled = false; b.textContent = "Buscar actualizaciones";
 };
+// Mientras se actualiza, el botón dice «Actualizando…» (con un ícono que gira) y no se puede volver a tocar.
+// Devuelve una función que lo deja como estaba (si algo falla).
+function ponerActualizando(botones, texto = "Actualizando…") {
+  const antes = botones.filter(Boolean).map(b => [b, b.innerHTML, b.disabled]);
+  antes.forEach(([b]) => { b.innerHTML = `<span class="gira" aria-hidden="true">⟳</span> ${texto}`; b.disabled = true; b.classList.add("actualizando"); b.setAttribute("aria-busy", "true"); });
+  return () => antes.forEach(([b, html, dis]) => { b.innerHTML = html; b.disabled = dis; b.classList.remove("actualizando"); b.removeAttribute("aria-busy"); });
+}
+// Cortina sobre toda la sala mientras se instala la versión nueva y se reinicia (la ventana se recarga sola)
+// (es una ventana propia: así queda encima de cualquier otra ventana abierta; Esc no la cierra)
+function cortinaActualizando(titulo, detalle) {
+  let c = $("cortinaAct");
+  if (!c) {
+    c = document.createElement("dialog"); c.id = "cortinaAct"; c.className = "cortina-act"; c.setAttribute("aria-live", "assertive");
+    c.addEventListener("cancel", e => e.preventDefault());
+    document.body.appendChild(c);
+  }
+  c.innerHTML = `<div><span class="gira" aria-hidden="true">⟳</span><b>${esc(titulo)}</b><span class="muted" style="font-size:13px">${esc(detalle)}</span></div>`;
+  c.hidden = false;
+  if (!c.open) c.showModal();
+  return c;
+}
+function quitarCortina() { const c = $("cortinaAct"); if (c?.open) c.close(); }
 $("vActualizar").onclick = async () => {
   if (infoVersion?.requiere_completa) { abrirAfuera(infoVersion.url_completa); return avisar("Esta versión trae un instalador nuevo: se está descargando. Ábrelo y sigue los pasos; tus datos no se tocan.", "muted"); }
-  $("vActualizar").disabled = true; avisar("Descargando la versión nueva… la sala se reinicia sola.");
+  const volver = ponerActualizando([$("vActualizar"), $("actInstalar")]);
+  const nueva = infoVersion?.nueva ? ` a la v${infoVersion.nueva}` : "";
+  cortinaActualizando(`Actualizando${nueva}…`, "Bajando la versión nueva. No cierres la sala: se reinicia sola en unos segundos.");
   try {
     const r = await post("/api/actualizar");
-    avisar(`Actualizado a v${r.version}. Reiniciando…`, "ok");
+    cortinaActualizando(`Actualizando a la v${r.version}…`, "Versión nueva instalada. Reiniciando la sala…");
     const desde = Date.now();
     const esperar = async () => {
       try { const v = await (await fetch("/api/version?forzar")).json(); if (v.actual === r.version) return location.reload(); } catch (e) {}
-      if (Date.now() - desde > 90000) return avisar("La versión nueva no arrancó en 90 segundos. Cierra el Estudio y vuelve a abrirlo; si no abre, baja el instalador completo desde Configuración → Actualizaciones.", "err");
+      if (Date.now() - desde > 90000) {
+        quitarCortina(); volver();
+        return avisar("La versión nueva no arrancó en 90 segundos. Cierra el Estudio y vuelve a abrirlo; si no abre, baja el instalador completo desde Configuración → Actualizaciones.", "err");
+      }
       setTimeout(esperar, 1500);
     };
     setTimeout(esperar, 2500);
-  } catch (e) { avisar("No se pudo actualizar: " + e.message, "err"); $("vActualizar").disabled = false; }
+  } catch (e) { quitarCortina(); volver(); avisar("No se pudo actualizar: " + e.message, "err"); }
 };
 revisarVersion(); setInterval(revisarVersion, 3600 * 1000);
 setTimeout(() => revisarGuionDrive(true), 4000);
