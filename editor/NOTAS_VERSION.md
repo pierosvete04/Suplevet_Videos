@@ -1,3 +1,9 @@
+Versión 1.41.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Abre más rápido**: la sesión se carga 3 veces más rápido (antes miraba la carpeta de clips unas 30 veces seguidas) y la revisión del guion en Drive pasa de unos 14 s a 2 s. Arreglado un error al arrancar que no dejaba revisar la conexión con Drive.
+- **Inicio nuevo, solo con tu sesión**: arriba el **siguiente paso** en grande con su botón y la barra de avance; debajo los **videos para revisar**. «Cómo va la sesión» y Claude quedan plegados (Claude se abre solo si falta el guion).
+- Las sesiones se cambian con la lista de arriba, que ahora tiene **«Ver todas las sesiones…»** (en su propia ventana) y **«📁 Abrir desde un link de carpeta…»**: pegas el link de la carpeta de Drive (dentro de EDICIÓN DE VIDEOS) y la sala trabaja en esa sesión.
+- **Teleprompter**: «Desplazar solo» a poca velocidad ya se mueve, marca la pieza que vas leyendo y no da tirones; la guía naranja va en la línea que se lee; espacio y flechas ya no actúan dos veces; el guion se actualiza solo (o con ↻); la pantalla de la tablet no se apaga mientras lees; el tamaño se puede cambiar en el celular y avisa si la sala no responde.
+
 Versión 1.40.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Atajos básicos**: **Ctrl+S** guarda lo que tengas abierto (el editor, el copy, la portada o la altura del subtítulo del video, la pieza, el texto del guion o la plantilla). En el editor, **Ctrl+C** copia lo elegido (un pedazo, una imagen, un zoom, un sonido o un subtítulo), **Ctrl+X** lo corta y **Ctrl+V** lo pega donde está el cabezal (un pedazo de video se pega justo después del suyo). En Videos, **Ctrl+A** elige todos. En un campo de texto, copiar y pegar funcionan como siempre. Todo está en la ventana «Teclas» (tecla ?).
 - Arreglo: al tocar un sonido en la página Sonidos salía un error y en el editor el volumen de la vista previa podía quedar mal (desde la 1.40.0).
