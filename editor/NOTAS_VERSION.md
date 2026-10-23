@@ -1,3 +1,7 @@
+Versión 1.40.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Atajos básicos**: **Ctrl+S** guarda lo que tengas abierto (el editor, el copy, la portada o la altura del subtítulo del video, la pieza, el texto del guion o la plantilla). En el editor, **Ctrl+C** copia lo elegido (un pedazo, una imagen, un zoom, un sonido o un subtítulo), **Ctrl+X** lo corta y **Ctrl+V** lo pega donde está el cabezal (un pedazo de video se pega justo después del suyo). En Videos, **Ctrl+A** elige todos. En un campo de texto, copiar y pegar funcionan como siempre. Todo está en la ventana «Teclas» (tecla ?).
+- Arreglo: al tocar un sonido en la página Sonidos salía un error y en el editor el volumen de la vista previa podía quedar mal (desde la 1.40.0).
+
 Versión 1.40.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Editor más claro**: los botones van en grupos (Reproducir · Deshacer · Cortar · Imagen y zoom · Ver) y cada uno muestra su tecla. Botones nuevos de **Deshacer y Rehacer**, zoom de la línea de tiempo con −, + y «Ajustar», y la ventana **«Teclas»** (también con la tecla ?). El tiempo muestra el número de cuadro.
 - Arriba del editor se ve siempre **«● Cambios sin guardar»** y el botón 💾 para guardar, sin bajar hasta el final.
