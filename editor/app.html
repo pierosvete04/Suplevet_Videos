@@ -1633,7 +1633,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 </dialog>
 <dialog id="dlgEditor" aria-labelledby="edTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="ed-estado" id="edEstado" aria-live="polite"></span></div>
-    <div class="fila"><button class="btn peq" id="edGuardarTop" type="button">💾 Guardar</button><button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
+    <div class="fila"><button class="btn peq" id="edGuardarTop" type="button">💾 Guardar</button><kbd class="ed-kbd" title="Guardar con el teclado">Ctrl+S</kbd><button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
   <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
 </dialog>
@@ -1647,6 +1647,10 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div><kbd>S</kbd><span>Cortar donde está el cabezal</span></div>
       <div><kbd>Supr</kbd><span>Quitar el pedazo, el fotograma, la imagen o las palabras elegidas</span></div>
       <div><kbd>Shift</kbd>+<kbd>Supr</kbd><span>Quitar la frase entera del cuerpo</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>S</kbd><span>Guardar (y rearmar los videos que cambian)</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>C</kbd><span>Copiar lo elegido: un pedazo, una imagen, un zoom, un sonido o un subtítulo</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>X</kbd><span>Cortar lo elegido (copiarlo y quitarlo)</span></div>
+      <div><kbd>Ctrl</kbd>+<kbd>V</kbd><span>Pegar donde está el cabezal</span></div>
       <div><kbd>Ctrl</kbd>+<kbd>Z</kbd><span>Deshacer</span></div>
       <div><kbd>Ctrl</kbd>+<kbd>Y</kbd><span>Rehacer</span></div>
       <div><kbd>Ctrl</kbd>+<kbd>G</kbd><span>Agrupar o desagrupar el audio del pedazo</span></div>
@@ -1660,7 +1664,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div>Clic derecho<span>Más opciones del bloque (dividir, duplicar, cambiar la toma…)</span></div>
       <div><kbd>?</kbd><span>Esta ventana</span></div>
     </div>
-    <p class="muted" style="margin:0;font-size:12px">Las teclas no hacen nada mientras escribes en un campo. Lo que cambies en el <b>cuerpo</b> vale para todos sus videos; en el <b>hook</b> o el <b>CTA</b>, para los videos que los usan.</p>
+    <p class="muted" style="margin:0;font-size:12px">Fuera del editor: <kbd class="ed-kbd">Ctrl</kbd>+<kbd class="ed-kbd">S</kbd> guarda la pieza, el texto del guion, la plantilla o el copy que estés cambiando, y en Videos <kbd class="ed-kbd">Ctrl</kbd>+<kbd class="ed-kbd">A</kbd> elige todos. Mientras escribes en un campo, Ctrl+C, Ctrl+V y Ctrl+A copian, pegan y eligen texto como siempre.</p>
+    <p class="muted" style="margin:0;font-size:12px">Las demás teclas no hacen nada mientras escribes en un campo. Lo que cambies en el <b>cuerpo</b> vale para todos sus videos; en el <b>hook</b> o el <b>CTA</b>, para los videos que los usan.</p>
   </div>
 </dialog>
 <dialog id="dlgToma" aria-labelledby="tmTit" style="width:min(760px,96vw)">
@@ -3864,7 +3869,7 @@ function pararAudios() {
 function tocar(id) {
   clearTimeout(tocarRecorte.t); dsModo = null; if (dsAmp) dsAmp.gain.value = 1; reproductor.volume = 1; reproductor.pause();
   reproductor.src = "/sfx?id=" + encodeURIComponent(id); reproductor.playbackRate = 1; reproductor.play().catch(() => {});
-  ganancia(id).then(g => { if (reproductor.src.endsWith(encodeURIComponent(id))) { if (dsAmp) dsAmp.gain.value = g; else reproductor.volume = Math.min(1, g); } });
+  nivelSonido(id).then(g => { if (reproductor.src.endsWith(encodeURIComponent(id))) { if (ganancia(g)) reproductor.volume = 1; else reproductor.volume = Math.min(1, g); } });
 }
 async function cargarBiblioteca() {
   // si falla no se guarda la lista vacía (antes quedaba «Sin archivos» hasta reiniciar la sala)
@@ -3877,7 +3882,7 @@ async function cargarBiblioteca() {
 // En el video cada sonido se lleva a un mismo volumen (y puede subir hasta +12 dB): para que lo que se escucha aquí
 // suene igual de fuerte que en el video, se pide ese factor una vez por sonido
 const gananciaSon = {};
-async function ganancia(id) {
+async function nivelSonido(id) {  // (otro nombre: «ganancia» ya es el amplificador de la página Sonidos)
   if (gananciaSon[id] == null) { try { gananciaSon[id] = (await (await fetch("/api/ganancia?id=" + encodeURIComponent(id))).json()).g || 1; } catch (e) { gananciaSon[id] = 1; } }
   return gananciaSon[id];
 }
@@ -4370,7 +4375,9 @@ function tocarRecorte(e) {  // escucha solo el pedazo que quedó del sonido
   reproductor.preservesPitch = true; reproductor.playbackRate = e.vel || 1; reproductor.play().catch(() => {});
   clearTimeout(tocarRecorte.t); tocarRecorte.t = setTimeout(() => reproductor.pause(), (e.largo || .6) / (e.vel || 1) * 1000);
 }
+let sonidoSel = null;  // el sonido tocado en la pista Sonidos (Ctrl+C lo copia)
 function abrirSonido(e) {
+  sonidoSel = e;
   const m = piezaDeOriginal(e.t);
   $("evInspector").innerHTML = `<div class="fila" style="justify-content:space-between"><b>Sonido en ${esc(m.pieza)} · ${m.tp.toFixed(2)} s</b>
       <span class="muted" style="font-size:12px">dura ${(e.largo || .6).toFixed(2)} s${e.dur_archivo ? ` de ${e.dur_archivo.toFixed(2)} s` : ""}</span></div>
@@ -6023,7 +6030,7 @@ function sonarPrevia() {
       const te = realDe(e.t, false);
       if (te != null && te > evFxPrev && te <= tr && e.id && !e.quitado) {
         const a = new Audio("/sfx?id=" + encodeURIComponent(e.id)); a.volume = Math.min(1, .6 * (e.vol ?? 1) * (gananciaSon[e.id] ?? 1));
-        ganancia(e.id); sonidosPrevia.push(a);  // se paran todos al pausar
+        nivelSonido(e.id); sonidosPrevia.push(a);  // se paran todos al pausar
         a.preservesPitch = true; a.playbackRate = e.vel || 1;  // como atempo en el armado: más rápido sin cambiar el tono
         a.addEventListener("loadedmetadata", () => { a.currentTime = e.desde || 0; }, { once: true });
         a.play().catch(() => {}); setTimeout(() => a.pause(), (e.largo || 2) / (e.vel || 1) * 1000 + 80);
@@ -6056,7 +6063,7 @@ function pintarEstadoEd() {
     $("evDeshacer").disabled = !ed.historial?.length; $("evRehacer").disabled = !ed.rehacer?.length;
     $("evDeshacer").title = ed.historial?.length ? `Deshace el último cambio (quedan ${ed.historial.length})` : "No hay nada que deshacer";
     $("edGuardarTop").disabled = !sucio;
-    $("edGuardarTop").title = $("evArmar").textContent;
+    $("edGuardarTop").title = $("evArmar").textContent + " (Ctrl+S)";
     $("edGuardarTop").textContent = sucio ? "💾 Guardar cambios" : "💾 Guardado";
   });
 }
@@ -6165,6 +6172,112 @@ $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (n
 };
 $("evPartes").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!cerrarVideo()) return; await exportarPartes([cod]); };
 $("evGuardar").onclick = () => guardarVersion(true, true);
+// ---------- Atajos básicos: Ctrl+S guarda · Ctrl+C copia · Ctrl+X corta · Ctrl+V pega · Ctrl+A elige todo ----------
+// En un campo de texto, Ctrl+C, Ctrl+V, Ctrl+X y Ctrl+A hacen lo de siempre (copiar y pegar texto); Ctrl+S guarda en todas partes.
+function guardarConTeclado() {
+  const abierto = id => $(id)?.open;
+  if (abierto("dlgExportar") || abierto("dlgToma") || abierto("dlgVersionCuerpo") || abierto("dlgAtajos")) return avisar("Termina primero lo de la ventana abierta.", "muted");
+  if (abierto("dlgEditor")) return $("evArmar").click();
+  if (abierto("dlg")) {
+    const que = sinGuardar();
+    if (que.includes("el copy")) $("guardarCopy").click();
+    if (que.includes("la portada")) $("porGuardar").click();
+    if (que.includes("la altura o la plantilla del subtítulo")) $("vidSubsGuardar").click();
+    if (que.includes("los cambios del editor") || que.includes("los sonidos sin rearmar")) $("evArmar").click();
+    if (!que.length) avisar("No hay nada sin guardar en este video.", "muted");
+    return;
+  }
+  const tab = document.querySelector("nav button[aria-selected='true']")?.dataset.tab;
+  if (tab === "piezas") return piezaSucia() ? $("guardar").click() : avisar("No hay cambios sin guardar en esta pieza.", "muted");
+  if (tab === "guion") { const b = document.querySelector("#guionLista .g-editar [data-gguardar]"); return b ? guardarTextoGuion(b) : avisar("No estás editando el texto de ninguna pieza.", "muted"); }
+  if (tab === "plantillas") return $("plantGuardar").click();
+  if (tab === "notas" && document.activeElement === $("notas")) return $("guardarNotas").click();
+  avisar("Aquí no hay nada que guardar con Ctrl+S.", "muted");
+}
+let portapapeles = null;  // lo copiado en el editor: {tipo, datos, texto}
+function copiarTexto(t) { try { navigator.clipboard.writeText(t).catch(() => {}); } catch (e) {} }
+function copiarEd(cortar) {
+  if (!est || est.error || !ed) return;
+  const cp = capaSel(), k = puntoSel(), linea = lineaSel(), b = bloqueSel();
+  const verSonido = sonidoSel && $("evInspector").querySelector("#fxPlay");
+  if (cp) {
+    portapapeles = { tipo: "capa", datos: JSON.parse(JSON.stringify(cp)), texto: `la imagen ${cp.id}` };
+    if (cortar) quitarCapaSel();
+  } else if (k) {
+    portapapeles = { tipo: "punto", datos: { s: k.s, x: k.x, y: k.y, curva: k.curva }, texto: `el zoom de ${Math.round(k.s * 100)} %` };
+    if (cortar) quitarPuntoSel();
+  } else if (ed.vozSel) {
+    const { ws, s } = selVoz(); const t = s.hueco ? "" : ws.slice(s.i0, s.i1 + 1).map(w => w.w).join(" ");
+    if (t) copiarTexto(t);
+    portapapeles = { tipo: "texto", texto: t ? `«${t}»` : "el silencio" };
+    if (cortar) alternarVozSel();
+  } else if (linea) {
+    copiarTexto(linea.l.texto);
+    portapapeles = { tipo: "texto", texto: `el subtítulo «${linea.l.texto}»` };
+    if (cortar) return avisar("Un subtítulo se borra con el botón 🗑 Borrar (está copiado: pégalo con Ctrl+V en un campo de texto).", "muted");
+  } else if (verSonido) {
+    portapapeles = { tipo: "sonido", datos: { ...sonidoSel }, texto: `el sonido ${sonidoSel.sfx || sonidoSel.cat}` };
+    if (cortar) { const m = piezaDeOriginal(sonidoSel.tm ?? sonidoSel.t); cambiarSonido({ pieza: m.pieza, accion: "quitar", t: m.tp, cat: sonidoSel.cat, id: sonidoSel.id }); sonidoSel.quitado = true; pintarEfectos(); }
+  } else if (b && !b.fuera && !b.cortado) {
+    portapapeles = { tipo: "pedazo", datos: { key: b.key, pz: b.pz, a: b.a, b: b.b }, texto: b.t };
+    if (cortar) borrarSel(false);
+  } else return avisar("Elige primero qué copiar: un pedazo, una imagen, un fotograma de zoom, un sonido o un subtítulo.", "muted");
+  const como = portapapeles.tipo === "texto" ? "Pégalo con Ctrl+V en un campo de texto."
+    : portapapeles.tipo === "pedazo" ? (cortar ? "Se quitó del video (Ctrl+Z lo vuelve a poner)." : "Ctrl+V pone una copia justo después de él.")
+    : "Pon el cabezal donde lo quieras y pégalo con Ctrl+V.";
+  avisar(`${cortar ? "Cortado" : "Copiado"}: ${portapapeles.texto}. ${como}`, "ok");
+}
+function pegarEd() {
+  if (!est || est.error || !ed) return;
+  const p = portapapeles;
+  if (!p) return avisar("No hay nada copiado todavía: elige algo y toca Ctrl+C.", "muted");
+  const c = cabezalEnPieza();
+  if (!c && p.tipo !== "pedazo") return;
+  pararEditor();
+  if (p.tipo === "capa") {
+    const cp = { ...JSON.parse(JSON.stringify(p.datos)), t: +c.tp.toFixed(3) };
+    cp.dur = Math.max(.3, Math.min(cp.dur, finPieza(c.pz) - cp.t));
+    const lista = capasDe(c.pz); lista.push(cp); lista.sort((x, y) => x.t - y.t);
+    ed.cSel = { pz: c.pz, i: lista.indexOf(cp) }; ed.kSel = null; ed.sel = null; ed.subSel = null;
+    pintarEditor(); vistaEd();
+    return avisar(`Imagen ${cp.id} pegada en el cabezal.`, "ok");
+  }
+  if (p.tipo === "punto") {
+    const k = nuevoPunto(c.pz, c.tp, p.datos); k.s = p.datos.s; k.x = p.datos.x; k.y = p.datos.y; k.curva = p.datos.curva || "suave";
+    pintarEditor(); vistaEd();
+    return avisar(`Zoom de ${Math.round(k.s * 100)} % pegado en el cabezal.`, "ok");
+  }
+  if (p.tipo === "sonido") {
+    const e = p.datos;
+    cambiarSonido({ pieza: c.s.pieza.nombre, accion: "agregar", t: c.tp, cat: e.cat, id: e.id || undefined, nombre: e.sfx,
+                    desde: e.desde, largo: e.largo, vol: e.vol, vel: e.vel });
+    return avisar(`Sonido pegado en el cabezal (${c.s.pieza.nombre} · ${c.tp.toFixed(2)} s). Se escucha al guardar y rearmar.`, "ok");
+  }
+  if (p.tipo === "pedazo") {
+    // el video solo puede repetir un pedazo justo después del suyo (como «Duplicar»)
+    const b = bloquesEd().find(x => !x.dup && x.pz === p.datos.pz && Math.abs(x.a - p.datos.a) < .01 && Math.abs(x.b - p.datos.b) < .01 && !x.fuera && !x.cortado);
+    if (!b) return avisar("Ese pedazo ya no está (se cortó o se quitó). Para volver a ponerlo usa Ctrl+Z.", "muted");
+    duplicarSel(b.key);
+    return avisar(`Pegado: ${p.texto}. La copia va justo después del pedazo original.`, "ok");
+  }
+  avisar("Lo copiado es texto: pégalo con Ctrl+V en un campo de texto.", "muted");
+}
+document.addEventListener("keydown", e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const t = e.key.toLowerCase(), enCampo = e.target.closest?.("input, textarea, select, [contenteditable]");
+  if (t === "s") { e.preventDefault(); e.stopPropagation(); guardarConTeclado(); return; }  // también dentro de un campo
+  if (enCampo) return;  // en un campo de texto, copiar y pegar hacen lo de siempre
+  if ($("dlgEditor").open && !document.querySelector("#dlgAtajos[open], #dlgToma[open], #dlgVersionCuerpo[open]")) {
+    if (t === "c") { e.preventDefault(); copiarEd(false); }
+    else if (t === "x") { e.preventDefault(); copiarEd(true); }
+    else if (t === "v") { e.preventDefault(); pegarEd(); }
+    return;
+  }
+  if (t === "a" && !document.querySelector("dialog[open]") && document.querySelector("nav button[aria-selected='true']")?.dataset.tab === "videos") {
+    e.preventDefault(); $("selTodos").click();
+  }
+}, true);
+
 // ---------- Motor de cuerpo ----------
 // · Cambiar la toma: la grabación de una pieza (una frase del cuerpo, el hook o el CTA) se cambia por otra; todos sus
 //   videos se rearman solos con los mismos hooks y CTA. Las imágenes y sonidos puestos en palabras se quedan.
