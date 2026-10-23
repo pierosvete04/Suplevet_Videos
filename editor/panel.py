@@ -68,17 +68,18 @@ def importar_finales(avance=print):
     for sesion in drive.actualizar_lista():
         for carpeta in ("V.FINALES", "VIDEOS FINALES"):
             try:
-                lista = json.loads(drive._rc("lsjson", f"{drive.REMOTO}:{sesion}/{carpeta}", "--files-only", timeout=60) or "[]")
+                lista = json.loads(drive._rc("lsjson", f"{drive.REMOTO}:{sesion}/{carpeta}", "--files-only", "-R", timeout=60) or "[]")
             except RuntimeError:
                 continue
             for f in lista:
-                if not f["Name"].lower().endswith((".mp4", ".mov")):
+                # también los de la carpeta de cada exporte («23-10-2026 P05 …»); los sueltos por partes no
+                if not f["Name"].lower().endswith((".mp4", ".mov")) or "POR_PARTES/" in f["Path"]:
                     continue
                 codigo = re.sub(r"[^A-Za-z0-9_-]+", "-", f"{sesion.split()[0]}-{Path(f['Name']).stem}").strip("-")[:80]
                 avance(f"Importando {sesion} / {f['Name']}")
                 with tempfile.TemporaryDirectory() as tmp:
                     local = Path(tmp) / (codigo + Path(f["Name"]).suffix.lower())
-                    drive._rc("copyto", f"{drive.REMOTO}:{sesion}/{carpeta}/{f['Name']}", local, timeout=1800)
+                    drive._rc("copyto", f"{drive.REMOTO}:{sesion}/{carpeta}/{f['Path']}", local, timeout=1800)
                     video = local
                     if local.suffix != ".mp4":  # el panel solo reproduce mp4
                         video = local.with_suffix(".mp4")

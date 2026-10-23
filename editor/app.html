@@ -1351,7 +1351,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div style="display:grid;gap:8px;margin-top:12px">
           <button class="btn" id="exTodo">Exportar todo</button>
           <button class="btn sec" id="exSel" disabled>Exportar seleccionados</button>
-          <button class="btn sec" id="exPartes" disabled title="Cada video en su carpeta (V.FINALES/POR_PARTES): hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes">Exportar por partes</button>
+          <button class="btn sec" id="exPartes" disabled title="Cada video en su carpeta (POR_PARTES): hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes">Exportar por partes</button>
           <button class="btn sec" id="subirPanel" title="Los manda al panel de videos (edicion.suplevet.pe/videos) para revisarlos y aprobarlos">Subir al panel</button>
           <button class="btn sec peq" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes al panel</button>
         </div>
@@ -1530,6 +1530,22 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div style="display:grid;gap:6px"><span class="muted" style="font-size:12px">Sesiones del grupo</span><div id="grSesiones" style="display:grid;gap:4px"></div></div>
     <label class="muted" style="display:grid;gap:4px;font-size:12px">La que tiene el guion (ahí van Flow, música y V.FINALES)<select id="grGuion"></select></label>
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
+  </form>
+</dialog>
+<dialog id="dlgExportar" aria-labelledby="dxTit" style="width:min(520px,94vw)">
+  <form method="dialog" style="padding:18px;display:grid;gap:14px" id="formExportar">
+    <h2 id="dxTit" style="margin:0">Exportar videos</h2>
+    <div style="display:grid;gap:6px">
+      <b style="font-size:14px">1. ¿Quieres llevar estos videos al Drive?</b>
+      <div class="fila"><button type="button" class="btn sec" id="dxDriveSi">Sí, al Drive</button><button type="button" class="btn sec" id="dxDriveNo">No</button></div>
+      <span class="muted" style="font-size:12px" id="dxDriveNota"></span>
+    </div>
+    <div style="display:grid;gap:6px">
+      <b style="font-size:14px">2. ¿A qué carpeta de tu PC los exportas?</b>
+      <div class="fila"><button type="button" class="btn sec" id="dxElegir">Elegir carpeta…</button><span id="dxRuta" class="muted" style="font-size:12.5px;word-break:break-all">Sin elegir</span></div>
+      <span class="muted" style="font-size:12px" id="dxQueda"></span>
+    </div>
+    <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="dxOk" value="ok" disabled>Exportar</button></div>
   </form>
 </dialog>
 <dialog id="dlgAnalizar" aria-labelledby="daTit" style="width:min(560px,94vw)">
@@ -2827,8 +2843,41 @@ document.addEventListener("change", e => {
 });
 $("exMarcarTodos").onclick = () => { E.salidas.filter(s => s.existe).forEach(s => exElegidos.add(s.codigo)); pintarExport(); };
 $("exNinguno").onclick = () => { exElegidos.clear(); pintarExport(); };
+// Antes de cada exporte: «¿Al Drive?» y «¿A qué carpeta?». Siempre se exporta dentro de una carpeta con la fecha
+// de hoy y el nombre de la sesión. Devuelve { drive, carpeta } o null si se canceló.
+function preguntarDestino(n) {
+  const dlg = $("dlgExportar"), activo = (E.drive || {}).activo;
+  let alDrive = null, carpeta = "";
+  try { carpeta = localStorage.getItem("sala_carpeta_exporte") || ""; } catch (e) {}
+  const hoy = new Date(), fecha = [hoy.getDate(), hoy.getMonth() + 1].map(x => String(x).padStart(2, "0")).join("-") + "-" + hoy.getFullYear();
+  const sub = `${fecha} ${String(E.semana || "Sesión").replace(/[<>:"/\\|?*]+/g, " ").trim()}`;
+  const pintar = () => {
+    $("dxDriveSi").className = "btn" + (alDrive === true ? "" : " sec");
+    $("dxDriveNo").className = "btn" + (alDrive === false ? "" : " sec");
+    $("dxRuta").textContent = carpeta || "Sin elegir";
+    $("dxQueda").textContent = carpeta ? `Quedan en: ${carpeta}\\${sub}` : `Se crea una carpeta «${sub}» con los videos dentro.`;
+    $("dxOk").disabled = alDrive === null || !carpeta;
+  };
+  $("dxTit").textContent = `Exportar ${n} video${n === 1 ? "" : "s"}`;
+  $("dxDriveNota").textContent = activo ? "Si dices que sí, se copian también a V.FINALES de la sesión y se suben al Drive."
+    : "La sala no está conectada a Drive: si dices que sí, se copian a V.FINALES de la carpeta de trabajo.";
+  $("dxDriveSi").onclick = () => { alDrive = true; pintar(); };
+  $("dxDriveNo").onclick = () => { alDrive = false; pintar(); };
+  $("dxElegir").onclick = async () => {
+    $("dxElegir").disabled = true; $("dxElegir").textContent = "Elige en la ventana de Windows…";
+    try { const r = await post("/api/elegir_carpeta", { inicial: carpeta }); if (r.carpeta) { carpeta = r.carpeta; try { localStorage.setItem("sala_carpeta_exporte", carpeta); } catch (e) {} } }
+    catch (e) { avisar("No se pudo abrir el cuadro de carpetas: " + e.message, "err"); }
+    $("dxElegir").disabled = false; $("dxElegir").textContent = "Elegir carpeta…"; pintar();
+  };
+  pintar();
+  return new Promise(ok => {
+    dlg.onclose = () => ok(dlg.returnValue === "ok" ? { drive: alDrive, carpeta } : null);
+    dlg.returnValue = ""; dlg.showModal();
+  });
+}
 async function exportarVideos(codigos) {
-  try { await post("/api/trabajo_sel", { accion: "exportar_sel", codigos, ajustes: ajustesExport() }); vigilar(await (await fetch("/api/trabajo")).json());
+  const destino = await preguntarDestino(codigos.length); if (!destino) return;
+  try { await post("/api/trabajo_sel", { accion: "exportar_sel", codigos, ajustes: ajustesExport(), ...destino }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar(`Exportando ${codigos.length} videos… lo ves en Procesos (☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
@@ -2836,8 +2885,9 @@ $("abrirListos").onclick = async () => { try { await post("/api/abrir_listos"); 
 $("exTodo").onclick = () => { const cods = E.salidas.filter(s => s.existe).map(s => s.codigo); if (!cods.length) return avisar("No hay videos armados todavía.", "err"); exportarVideos(cods); };
 $("exSel").onclick = () => exportarVideos([...exElegidos]);
 async function exportarPartes(codigos) {
-  try { await post("/api/trabajo_sel", { accion: "partes_sel", codigos }); vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Exportando por partes ${codigos.length} video${codigos.length === 1 ? "" : "s"}… quedan en V.FINALES/POR_PARTES (lo ves en Procesos ☰).`, "ok"); }
+  const destino = await preguntarDestino(codigos.length); if (!destino) return;
+  try { await post("/api/trabajo_sel", { accion: "partes_sel", codigos, ...destino }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Exportando por partes ${codigos.length} video${codigos.length === 1 ? "" : "s"}… quedan en la carpeta POR_PARTES (lo ves en Procesos ☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
 $("exPartes").onclick = () => exportarPartes([...exElegidos]);
@@ -3352,7 +3402,9 @@ document.addEventListener("change", e => {
   pintarSeleccion();
 });
 async function trabajoSel(accion) {
-  try { await post("/api/trabajo_sel", { accion, codigos: [...elegidos] }); vigilar(await (await fetch("/api/trabajo")).json()); }
+  let destino = {};
+  if (accion === "exportar_sel" || accion === "partes_sel") { destino = await preguntarDestino(elegidos.size); if (!destino) return; }
+  try { await post("/api/trabajo_sel", { accion, codigos: [...elegidos], ...destino }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 }
 $("selArmar").onclick = () => trabajoSel("armar_sel");

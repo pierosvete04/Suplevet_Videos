@@ -368,6 +368,49 @@ def leer_guion_de_carpeta():
     return r
 
 
+def exportar_a(extra, hacer, avance):
+    """Exporta en una carpeta «<fecha> <sesión>» dentro de la carpeta que eligió el usuario (o de V.FINALES si no eligió)
+    y, si dijo que sí al Drive, la copia también a V.FINALES y la sube. hacer(raiz) exporta y devuelve los hechos."""
+    nombre = motor.carpeta_de_exporte()
+    elegida = (extra.get("carpeta") or "").strip()
+    if elegida and not Path(elegida).is_dir():
+        raise RuntimeError(f"No existe la carpeta {elegida}")
+    raiz = Path(elegida) / nombre if elegida else motor.S.listos / nombre
+    hechos = hacer(raiz)
+    if extra.get("drive", not elegida):
+        en_drive = motor.S.listos / nombre
+        if raiz != en_drive and raiz.exists():
+            avance("Copiando el exporte a V.FINALES para el Drive")
+            shutil.copytree(raiz, en_drive, dirs_exist_ok=True)
+        if drive.estado()["activo"]:
+            drive.subir(motor.S.drive, [f"{motor.S.listos.name}/{nombre}"], avance=avance)
+    if elegida and hechos and sys.platform == "win32":
+        os.startfile(str(raiz))  # abre la carpeta del exporte en el explorador
+    return hechos, raiz
+
+
+def elegir_carpeta(inicial=""):
+    """Abre el cuadro de Windows para elegir una carpeta. Devuelve la ruta, o "" si se canceló."""
+    if sys.platform != "win32":
+        import tkinter
+        from tkinter import filedialog
+        tk = tkinter.Tk()
+        tk.withdraw()
+        tk.attributes("-topmost", True)
+        r = filedialog.askdirectory(initialdir=inicial or None, title="¿Dónde exportas los videos?")
+        tk.destroy()
+        return r or ""
+    ps = ("Add-Type -AssemblyName System.Windows.Forms;"
+          "$f = New-Object System.Windows.Forms.Form; $f.TopMost = $true; $f.ShowInTaskbar = $false;"
+          "$d = New-Object System.Windows.Forms.FolderBrowserDialog;"
+          "$d.Description = 'Elige la carpeta donde se exportan los videos (se crea dentro una carpeta con la fecha y la sesión)';"
+          "$d.ShowNewFolderButton = $true; $d.SelectedPath = $env:SALA_CARPETA;"
+          "if ($d.ShowDialog($f) -eq 'OK') { [Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $d.SelectedPath }")
+    r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, timeout=600,
+                       env={**os.environ, "SALA_CARPETA": inicial or ""}, creationflags=0x08000000)
+    return r.stdout.decode("utf-8", "replace").strip()
+
+
 def lanzar(accion, pieza=None, extra=None):
     """Corre procesar/armar/exportar en segundo plano para que la app no se congele."""
     if TRABAJO["activo"]:
@@ -473,19 +516,16 @@ def lanzar(accion, pieza=None, extra=None):
                            + (f", {len(res['con_problemas'])} con problemas" if res["con_problemas"] else "")
                            + (f", {len(res['sin_identificar'])} clips sin identificar" if res["sin_identificar"] else ""))
                 if accion == "partes_sel":
-                    hechos = motor.exportar_partes(extra["codigos"], avance=avance)
-                    if drive.estado()["activo"]:
-                        drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
-                    avance(f"Exportados por partes {len(hechos)} videos a {motor.S.listos.name}/POR_PARTES")
+                    hechos, raiz = exportar_a(extra, lambda r: motor.exportar_partes(extra["codigos"], avance=avance, raiz=r), avance)
+                    avance(f"Exportados por partes {len(hechos)} videos a {raiz}{os.sep}POR_PARTES")
                 if accion == "exportar_sel":
                     faltan = [c for c in motor.combinaciones() if c["codigo"] in extra["codigos"]
                               and not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
                     if faltan:
                         motor.armar(avance=avance, codigos=[c["codigo"] for c in faltan])
-                    hechos = motor.exportar(avance=avance, codigos=extra["codigos"], ajustes=extra.get("ajustes"))
-                    if drive.estado()["activo"]:
-                        drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
-                    avance(f"Exportados {len(hechos)} videos a {motor.S.listos.name}")
+                    hechos, raiz = exportar_a(extra, lambda r: motor.exportar(avance=avance, codigos=extra["codigos"],
+                                                                              ajustes=extra.get("ajustes"), raiz=r), avance)
+                    avance(f"Exportados {len(hechos)} videos a {raiz}")
                 if accion == "conectar":
                     drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
                 if accion == "bajar":
@@ -1220,6 +1260,8 @@ class H(BaseHTTPRequestHandler):
                 codigos = motor.editar_sonido(pieza, b["accion"], b["t"], b["cat"], b.get("id"), b.get("nuevaCat"), b.get("t_nuevo"),
                                               b.get("desde"), b.get("largo"), b.get("vol"), b.get("vel"))
                 self._json({"ok": True, "codigos": codigos})
+            elif u.path == "/api/elegir_carpeta":  # cuadro de Windows para elegir dónde exportar
+                self._json({"carpeta": elegir_carpeta(str(self._cuerpo().get("inicial") or ""))})
             elif u.path == "/api/abrir_listos":  # abre en el explorador la carpeta de los videos exportados (V.FINALES)
                 d = motor.S.listos
                 d.mkdir(parents=True, exist_ok=True)
@@ -1280,7 +1322,10 @@ class H(BaseHTTPRequestHandler):
                     aj = {k: v for k, v in b["ajustes"].items() if k in motor.AJUSTES_EXPORTAR}
                     motor.guardar_config({"exportar": aj})
                     b["ajustes"] = aj
-                lanzar(b["accion"], extra={"codigos": b["codigos"], "ajustes": b.get("ajustes")})
+                extra = {"codigos": b["codigos"], "ajustes": b.get("ajustes")}
+                if "drive" in b or b.get("carpeta"):  # lo que se respondió en «¿Al Drive? ¿A qué carpeta?»
+                    extra.update(drive=bool(b.get("drive")), carpeta=str(b.get("carpeta") or ""))
+                lanzar(b["accion"], extra=extra)
                 self._json({"ok": True})
             elif u.path == "/api/asignar":
                 b = self._cuerpo()

@@ -1,3 +1,9 @@
+Versión 1.39.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Exportar pregunta antes de empezar**: primero «¿Quieres llevar estos videos al Drive?» (Sí / No) y luego «¿A qué carpeta de tu PC los exportas?», con el cuadro de Windows para elegirla (recuerda la última que usaste).
+- **Siempre se exporta dentro de una carpeta** con la fecha y el nombre de la sesión (por ejemplo «23-10-2026 P05 VETERINARIOS»), aunque sea un solo video. Los días (DIA_1…) y «por partes» (POR_PARTES) van dentro de esa carpeta.
+- Con **Sí al Drive**, la carpeta queda en tu PC y además se copia a V.FINALES de la sesión y se sube. Con **No**, queda solo en tu PC. Al terminar se abre sola en el explorador.
+- «Subir finales existentes al panel» también encuentra los videos que están dentro de esas carpetas.
+
 Versión 1.38.1 (se actualiza desde la app con «Actualizar ahora»):
 - **El cabezal y los clics ya caen donde deben**: con pedazos cortos, el cabezal, la regla y los clics en la línea de tiempo se corrían respecto de lo dibujado (hasta unos 8 s con la línea de tiempo alejada). Tocar la regla te llevaba a otro segundo y el zoom con el touchpad movía lo que estaba bajo el cursor. Ahora todo usa la misma medida.
 - Al **dividir (S) un pedazo duplicado o desagrupado**, la copia seguía con solo una mitad y solo una mitad quedaba desagrupada; ahora las dos mitades siguen igual.

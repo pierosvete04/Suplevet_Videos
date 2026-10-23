@@ -5420,8 +5420,15 @@ def _elementos_por_separado(destino, limpio, combo, orden, offs, subs, mapa, ove
             shutil.copy2(o["archivo"], destino / "imagenes" / o["archivo"].name)
 
 
-def exportar_partes(codigos, avance=print):
-    """«Exportar por partes»: cada video en su carpeta (Listos/POR_PARTES/<video>) con el video completo, el hook,
+def carpeta_de_exporte():
+    """Nombre de la carpeta de cada exporte: la fecha de hoy y el nombre de la sesión («23-10-2026 P05 VETERINARIOS»).
+    Siempre se exporta dentro de una carpeta así, aunque sea un solo video."""
+    nombre = re.sub(r'[<>:"/\\|?*]+', " ", S.semana).strip() or "Sesión"
+    return f"{time.strftime('%d-%m-%Y')} {nombre}"
+
+
+def exportar_partes(codigos, avance=print, raiz=None):
+    """«Exportar por partes»: cada video en su carpeta (<exporte>/POR_PARTES/<video>) con el video completo, el hook,
     el cuerpo y el CTA sueltos, el video sin subtítulos, voz, música y efectos en .wav, los subtítulos en .srt
     y las imágenes que usa. Sirve para terminarlo en CapCut, Premiere o pasarlo a otro editor."""
     por_codigo = {c["codigo"]: c for c in combinaciones()}
@@ -5430,7 +5437,7 @@ def exportar_partes(codigos, avance=print):
         c = por_codigo.get(cod)
         if not c:
             continue
-        destino = S.listos / "POR_PARTES" / c["archivo"]
+        destino = Path(raiz or S.listos / carpeta_de_exporte()) / "POR_PARTES" / c["archivo"]
         if destino.exists():
             shutil.rmtree(destino)
         avance(f"Exportando por partes {c['archivo']} ({n + 1}/{len(codigos)})")
@@ -5635,9 +5642,11 @@ def _render_final(video, portada, destino, aj):
                "-dn", "-map_chapters", "-1", "-movflags", "+faststart", str(destino)])
 
 
-def exportar(avance=print, codigos=None, ajustes=None):
-    """Deja en V.FINALES (listos) cada video con los ajustes de exportación, su portada (.jpg) y su copy (.txt).
-    Por días según el calendario (DIA_X) si «por_dia» o si no se eligieron videos; si no, todos juntos."""
+def exportar(avance=print, codigos=None, ajustes=None, raiz=None):
+    """Deja cada video con los ajustes de exportación, su portada (.jpg) y su copy (.txt) en la carpeta del exporte
+    (raiz; si no se da, V.FINALES/<fecha sesión>). Por días según el calendario (DIA_X) si «por_dia» o si no se
+    eligieron videos; si no, todos juntos."""
+    raiz = Path(raiz or S.listos / carpeta_de_exporte())
     aj = {**ajustes_exportar(), **(ajustes or {})}
     por_codigo = {c["codigo"]: c for c in combinaciones()}
     hechos = []
@@ -5650,7 +5659,7 @@ def exportar(avance=print, codigos=None, ajustes=None):
         if sueltos:
             plan["SIN_DIA"] = sueltos
     for dia, codigos in plan.items():
-        destino = S.listos / dia if dia else S.listos
+        destino = raiz / dia if dia else raiz
         destino.mkdir(parents=True, exist_ok=True)
         for cod in codigos:
             c = por_codigo.get(cod)
