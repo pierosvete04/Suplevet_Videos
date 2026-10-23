@@ -1,3 +1,12 @@
+Versión 1.42.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Actualizar proyecto**: lo que se edita en una sesión (subtítulos, marcas, cortes, zoom, imágenes, versiones, portadas y copies) se sube solo a Drive cada minuto, con quién lo hizo, cuándo y qué cambió. En las otras PCs el botón **☁** de arriba avisa y sale una ventana con:
+  - **Actualizar**: trae lo del otro y conserva lo tuyo (si los dos cambiaron cosas distintas, quedan las dos). Antes se guarda una copia de seguridad de lo tuyo.
+  - **Ahora no**: sigues con lo tuyo; el aviso vuelve en 30 minutos.
+  - **Quedarme con lo mío**: lo tuyo pasa a ser la versión del proyecto; lo del otro queda en el historial.
+- Si los dos tocaron la misma pieza, el aviso lo dice antes de actualizar.
+- **Historial** del proyecto: quién cambió qué y cuándo, con «Volver a esta» para cualquier versión.
+- La primera vez que dos PCs abren la misma sesión, la primera sube su versión y la otra elige si trae esa o se queda con la suya.
+
 Versión 1.41.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Abre más rápido**: la sesión se carga 3 veces más rápido (antes miraba la carpeta de clips unas 30 veces seguidas) y la revisión del guion en Drive pasa de unos 14 s a 2 s. Arreglado un error al arrancar que no dejaba revisar la conexión con Drive.
 - **Inicio nuevo, solo con tu sesión**: arriba el **siguiente paso** en grande con su botón y la barra de avance; debajo los **videos para revisar**. «Cómo va la sesión» y Claude quedan plegados (Claude se abre solo si falta el guion).
