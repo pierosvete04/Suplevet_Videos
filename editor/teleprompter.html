@@ -41,7 +41,9 @@ body.pocas .velo { display: block; } body.pocas #guia { display: none; }
 .pin { display: grid; place-items: center; height: 100vh; }
 .pin form { display: grid; gap: 10px; width: min(320px, 90vw); }
 .pin input { font: 700 28px var(--f); text-align: center; padding: 12px; border-radius: 12px; border: 1px solid #2c3f48; background: #16232a; color: var(--ink); letter-spacing: .3em; }
-@media (max-width: 700px) { header label.opc { display: none; } }
+#recargar { padding: 10px 12px; }
+/* en el celular el tamaño se sigue pudiendo cambiar (antes se escondía): solo se achica el texto de la etiqueta */
+@media (max-width: 700px) { header label.opc .txt { display: none; } header label.opc input[type=range] { width: 80px; } }
 </style>
 </head>
 <body>
@@ -54,10 +56,11 @@ body.pocas .velo { display: block; } body.pocas #guia { display: none; }
     <option value="hook">Solo hooks</option>
     <option value="cta">Solo CTAs</option>
   </select>
-  <label class="opc">Tamaño <input type="range" id="tam" min="28" max="140" value="56"></label>
+  <label class="opc" title="Tamaño de la letra"><span class="txt">Tamaño</span> <input type="range" id="tam" min="28" max="140" value="56" aria-label="Tamaño de la letra"></label>
   <label>Líneas <select id="lineas" title="En la tablet: solo se ven 2 o 3 líneas, a la altura de la cámara">
     <option value="0">Todas</option><option value="2">2</option><option value="3">3</option></select></label>
   <button id="espejo" aria-pressed="false" title="Para vidrio de teleprompter">Espejo</button>
+  <button id="recargar" title="Trae el guion de nuevo (si se cambió en la sala)" aria-label="Actualizar el guion">↻</button>
 </header>
 <main id="escena" aria-live="polite"></main>
 <div id="guia" aria-hidden="true"></div>
@@ -83,10 +86,15 @@ let datos = null, piezas = [], actual = 0, palabraActual = 0, rec = null, escuch
 
 function avisar(t, ms = 3500) { const a = $("aviso"); a.textContent = t; a.style.display = "block"; clearTimeout(a._t); a._t = setTimeout(() => a.style.display = "none", ms); }
 
-async function cargar(sesion) {
-  const r = await fetch(API + (sesion ? "?sesion=" + encodeURIComponent(sesion) : ""), { credentials: "same-origin" });
+async function cargar(sesion, callado) {
+  let r;
+  try { r = await fetch(API + (sesion ? "?sesion=" + encodeURIComponent(sesion) : ""), { credentials: "same-origin" }); }
+  catch (e) { if (!callado) avisar("No me puedo conectar con la sala. Revisa que esté abierta (y en la misma WiFi, si es la tablet).", 6000); return; }
   if (r.status === 401) return pedirPin();
-  datos = await r.json();
+  if (!r.ok) { if (!callado) avisar("La sala no pudo dar el guion. Vuelve a intentar con ↻.", 5000); return; }
+  const nuevo = await r.json();
+  if (callado && datos && JSON.stringify(nuevo.piezas) === JSON.stringify(datos.piezas)) return;  // nada cambió
+  datos = nuevo;
   $("sesion").innerHTML = (datos.sesiones || []).map(s => `<option ${s === datos.sesion ? "selected" : ""}>${esc(s)}</option>`).join("");
   $("titulo").textContent = datos.sesion || "Teleprompter";
   pintar();
@@ -106,6 +114,7 @@ function pintar() {
 }
 
 function irA(i, scroll = true) {
+  if (scroll && autoTimer) auto(false);  // ir a otra pieza a mano para el desplazamiento automático
   actual = Math.max(0, Math.min(i, piezas.length - 1));
   palabraActual = 0;
   cortarOido();  // lo que dijiste antes de cambiar de pieza no cuenta para la nueva
@@ -117,10 +126,11 @@ function irA(i, scroll = true) {
 
 // Deja la línea de «el» al 30% de la escena, deslizando suave (nunca de golpe)
 let destino = null, deslizando = false;
+const LECTURA = 0.3;  // la línea que se lee queda al 30 % de la escena (ahí va la guía naranja)
 function centrar(el) {
-  if (!el) return;
+  if (!el || autoTimer) return;  // desplazándose solo no se centra (se peleaban y la pantalla daba tirones)
   const e = $("escena");
-  const meta = Math.max(0, Math.round(e.scrollTop + el.getBoundingClientRect().top - e.getBoundingClientRect().top - e.clientHeight * 0.3));
+  const meta = Math.max(0, Math.round(e.scrollTop + el.getBoundingClientRect().top - e.getBoundingClientRect().top - e.clientHeight * LECTURA));
   if (Math.abs(meta - (deslizando ? destino : e.scrollTop)) < 4) return;  // misma línea: no se mueve
   destino = meta;
   if (!deslizando) { deslizando = true; requestAnimationFrame(deslizar); }
@@ -236,18 +246,49 @@ function iniciarVoz() {
     if (escuchando) setTimeout(() => { if (escuchando) try { rec.start(); } catch (e) {} }, 150);
   };
   oidoAntes = []; oidoSesion = []; corte = 0;
+  if (autoTimer) auto(false);  // la voz y el desplazamiento solo no van juntos
   escuchando = true; rec.start();
   $("voz").setAttribute("aria-pressed", "true"); $("voz").textContent = "🎙 Escuchando…";
+  mantenerPantalla(true);
 }
-function pararVoz() { escuchando = false; clearTimeout(finTimer); finTimer = null; try { rec && rec.stop(); } catch (e) {} $("voz").setAttribute("aria-pressed", "false"); $("voz").textContent = "🎙 Seguir mi voz"; }
+function pararVoz() { escuchando = false; clearTimeout(finTimer); finTimer = null; try { rec && rec.stop(); } catch (e) {} $("voz").setAttribute("aria-pressed", "false"); $("voz").textContent = "🎙 Seguir mi voz"; mantenerPantalla(!!autoTimer); }
 
 // ---------- Desplazamiento automático ----------
+let resto = 0;
 function auto(on) {
-  clearInterval(autoTimer);
+  clearInterval(autoTimer); autoTimer = null;
   $("auto").setAttribute("aria-pressed", String(on));
   $("auto").textContent = on ? "❚❚ Pausar" : "▶ Desplazar solo";
-  if (on) autoTimer = setInterval(() => { $("escena").scrollTop += Number($("vel").value) / 30; }, 33);
+  destino = null; resto = 0;
+  if (on) autoTimer = setInterval(() => {
+    const e = $("escena");
+    resto += Number($("vel").value) / 30;
+    const paso = Math.floor(resto);
+    if (paso >= 1) { e.scrollTop += paso; resto -= paso; }
+    piezaEnLaGuia();
+  }, 33);
+  mantenerPantalla(on || escuchando);
 }
+// la pieza que pasa por la línea de lectura es la actual (así «Toma buena» y el contador van con lo que se lee)
+function piezaEnLaGuia() {
+  const e = $("escena"), y = e.getBoundingClientRect().top + e.clientHeight * LECTURA;
+  const s = [...document.querySelectorAll(".pieza")].find(x => { const r = x.getBoundingClientRect(); return r.top <= y && r.bottom >= y; });
+  const i = s ? Number(s.dataset.i) : actual;
+  if (i !== actual) {
+    actual = i; palabraActual = 0;
+    document.querySelectorAll(".pieza").forEach(x => x.classList.toggle("otra", Number(x.dataset.i) !== actual));
+    $("estado").textContent = `${actual + 1} / ${piezas.length}`;
+  }
+}
+// la pantalla de la tablet no se apaga mientras se lee (si el navegador lo permite)
+let candado = null;
+async function mantenerPantalla(on) {
+  try {
+    if (on && !candado && navigator.wakeLock) { candado = await navigator.wakeLock.request("screen"); candado.addEventListener("release", () => { candado = null; }); }
+    else if (!on && candado) { await candado.release(); candado = null; }
+  } catch (e) { candado = null; }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && (autoTimer || escuchando)) mantenerPantalla(true); });
 
 // ---------- PIN (desde la tablet por WiFi) ----------
 function pedirPin() {
@@ -267,17 +308,24 @@ function pedirPin() {
 // ---------- Pocas líneas (tablet): se tapa todo menos una franja de 2 o 3 líneas donde va la palabra actual ----------
 function ponerVelos() {
   const n = Number($("lineas").value);
+  const e = $("escena"), r = e.getBoundingClientRect(), lh = parseFloat(e.style.fontSize || 56) * 1.3;
+  $("guia").style.top = (r.top + e.clientHeight * LECTURA + lh) + "px";  // debajo de la línea que se lee
   document.body.classList.toggle("pocas", n > 0);
   if (!n) return;
-  const e = $("escena"), r = e.getBoundingClientRect(), lh = parseFloat(e.style.fontSize || 56) * 1.3;
-  const arriba = r.top + e.clientHeight * 0.3 - lh * 0.15;  // donde «centrar» deja la línea actual
+  const arriba = r.top + e.clientHeight * LECTURA - lh * 0.15;  // donde «centrar» deja la línea actual
   $("veloA").style.height = Math.max(0, arriba) + "px";
   $("veloB").style.height = Math.max(0, innerHeight - arriba - lh * (n + .3)) + "px";
 }
 addEventListener("resize", ponerVelos);
 
 // ---------- Controles ----------
-$("tam").oninput = e => { $("escena").style.fontSize = e.target.value + "px"; guardar("tam", e.target.value); ponerVelos(); };
+$("tam").oninput = e => {
+  $("escena").style.fontSize = e.target.value + "px"; guardar("tam", e.target.value); ponerVelos();
+  centrar(document.querySelector(`#p${actual} .w.actual`) || document.getElementById("p" + actual));  // lo que lees no se va de la línea
+};
+$("recargar").onclick = async () => { await cargar(datos?.sesion); avisar("Guion actualizado"); };
+// el guion se trae solo cada minuto si no se está leyendo (si lo cambiaron en la sala, se ve aquí)
+setInterval(() => { if (datos && !escuchando && !autoTimer && !document.hidden) cargar(datos.sesion, true); }, 60000);
 $("lineas").onchange = e => { guardar("lineas", e.target.value); ponerVelos(); const w = document.querySelector(`#p${actual} .w.actual`) || document.getElementById("p" + actual); centrar(w); };
 $("espejo").onclick = () => { const on = !$("escena").classList.contains("espejo"); $("escena").classList.toggle("espejo", on); $("espejo").setAttribute("aria-pressed", on); guardar("espejo", on); };
 $("voz").onclick = () => escuchando ? pararVoz() : iniciarVoz();
@@ -290,6 +338,8 @@ $("filtro").onchange = () => { actual = 0; pintar(); };
 $("sesion").onchange = e => { actual = 0; cargar(e.target.value); };
 $("escena").addEventListener("click", e => { const s = e.target.closest(".pieza"); if (s && Number(s.dataset.i) !== actual) irA(Number(s.dataset.i)); });
 document.addEventListener("keydown", e => {
+  // con el foco en un botón, una lista o un campo, las teclas hacen lo suyo (antes la flecha cambiaba la sesión y además la pieza)
+  if (e.target.closest("input, select, textarea, button")) return;
   if (e.key === "ArrowRight" || e.key === "PageDown") irA(actual + 1);
   if (e.key === "ArrowLeft" || e.key === "PageUp") irA(actual - 1);
   if (e.key === " ") { e.preventDefault(); auto($("auto").getAttribute("aria-pressed") !== "true"); }
@@ -298,6 +348,8 @@ $("tam").value = leer("tam", 56); $("escena").style.fontSize = $("tam").value + 
 $("vel").value = leer("vel", 45);
 if (leer("espejo", false)) $("espejo").click();
 $("lineas").value = leer("lineas", "0"); ponerVelos();
+// al tocar un botón, el foco vuelve a la página: así espacio y las flechas siguen funcionando para leer
+document.addEventListener("click", e => { const b = e.target.closest("button"); if (b && b.id !== "recargar") b.blur(); });
 cargar();
 </script>
 </body>

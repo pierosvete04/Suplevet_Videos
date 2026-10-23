@@ -514,6 +514,90 @@ def poner_en_cola(accion, pieza=None, extra=None):
     COLA.append((accion, pieza, dict(extra or {})))
 
 
+def abrir_sesion(sem):
+    """Abre (y si no existe, crea) una sesión: la de la lista de arriba, una nueva o la de un link."""
+    sem = " ".join(str(sem).split()).replace("/", "／")  # Drive permite "11/10 SESIÓN"; en disco se guarda con la barra ancha
+    if TRABAJO["activo"] and sem != motor.S.semana:
+        # el trabajo seguiría con las carpetas de la otra sesión: los videos quedaban en la sesión equivocada
+        raise RuntimeError("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.")
+    if not motor.nombre_sesion_valido(sem):
+        raise ValueError('Nombre de sesión no válido (sin / \\ : * ? " < > |)')
+    nueva = motor.S.base / sem
+    es_grupo = sem in motor.grupos()
+    try:  # lo último de la sesión que se deja queda guardado
+        respaldos.hacer(auto=True)
+    except Exception as e:
+        print("No se pudo guardar la copia de seguridad:", e)
+    recien = False
+    if not es_grupo and drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
+        try:  # la lista guardada puede estar vieja: antes de crear una sesión nueva en Drive se mira de nuevo
+            drive.actualizar_lista()
+        except Exception as e:  # noqa: BLE001
+            print("No se pudo actualizar la lista de Drive:", e)
+    if not es_grupo and drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
+        drive.crear_sesion(sem)
+        recien = True
+    if not es_grupo and not nueva.exists() and (recien or not (drive.estado()["activo"] and sem in drive.sesiones_en_drive())):
+        for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "V.FINALES"):
+            (nueva / sub).mkdir(parents=True, exist_ok=True)
+    if recien:  # recién creada está vacía: no hace falta bajarla (eso trababa «Escribir guion con Claude»)
+        (drive.CACHE / sem).mkdir(parents=True, exist_ok=True)
+        (drive.CACHE / sem / ".bajada").write_text(str(time.time()), encoding="utf-8")
+    motor.usar_semana(sem)
+    motor.guardar_config({"semana": sem})
+    if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
+        lanzar("bajar")  # se baja sola la primera vez que se abre
+
+
+def sesion_de_link(link):
+    """La sesión de un link de carpeta de Drive (de EDICIÓN DE VIDEOS) o de una carpeta de esta PC."""
+    link = link.strip().strip('"').strip()
+    if not link:
+        raise ValueError("Pega el link de la carpeta (en Drive: clic derecho → Compartir → Copiar enlace)")
+    if re.match(r"^[A-Za-z]:[\\/]|^\\\\", link):
+        return sesion_de_carpeta_local(Path(link))
+    if not drive.estado()["activo"]:
+        raise RuntimeError("Para abrir una carpeta de Drive con su link, conecta primero la sala con Google Drive (Configuración → Google Drive).")
+    fid = drive.carpeta_id(link)
+    if fid == drive.estado().get("carpeta_id"):
+        raise ValueError("Ese es el link de la carpeta del equipo (EDICIÓN DE VIDEOS). Pega el link de una sesión de adentro, o elígela en la lista de arriba.")
+    carpetas = json.loads(drive._rc("lsjson", f"{drive.REMOTO}:", "--dirs-only", "--max-depth", "2", timeout=120) or "[]")
+    d = next((x for x in carpetas if x.get("ID") == fid), None)
+    if not d:
+        raise ValueError("Esa carpeta no está dentro de EDICIÓN DE VIDEOS (o tu cuenta no la ve). Muévela dentro de la carpeta del equipo en Drive y vuelve a intentar.")
+    partes = d["Path"].split("/")
+    drive.actualizar_lista()
+    # un día de grabación dentro de una producción («P02 …/11／10 SESIÓN») se trabaja desde la producción
+    return partes[0]
+
+
+def sesion_de_carpeta_local(p):
+    """Una carpeta de esta PC: si está en la carpeta de trabajo es esa sesión; si está en otro lado se enlaza ahí
+    (un acceso de Windows: los archivos no se mueven ni se copian)."""
+    if not p.is_dir():
+        raise ValueError(f"No encuentro la carpeta {p}")
+    if drive.estado()["activo"]:
+        raise RuntimeError("La sala está conectada a Drive: abre la carpeta con su link de Drive, o cópiala dentro de EDICIÓN DE VIDEOS.")
+    base = motor.S.base
+    try:
+        return p.resolve().relative_to(base.resolve()).parts[0]
+    except ValueError:
+        pass
+    nombre = p.name
+    if not motor.nombre_sesion_valido(nombre):
+        raise ValueError("El nombre de esa carpeta no sirve como sesión: cámbiale el nombre (sin / \\ : * ? \" < > |)")
+    enlace = base / nombre
+    if enlace.exists():
+        if enlace.resolve() == p.resolve():
+            return nombre
+        raise ValueError(f"Ya hay una sesión «{nombre}» en la carpeta de trabajo: cámbiale el nombre a la carpeta y vuelve a intentar.")
+    base.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(["cmd", "/c", "mklink", "/J", str(enlace), str(p)], capture_output=True, text=True, creationflags=0x08000000)
+    if r.returncode != 0:
+        raise RuntimeError("Windows no dejó enlazar la carpeta: " + (r.stderr or r.stdout).strip()[:200])
+    return nombre
+
+
 def lanzar(accion, pieza=None, extra=None, en_cola=False):
     """Corre procesar/armar/exportar en segundo plano para que la app no se congele. Con en_cola, si ya hay un
     trabajo corriendo, queda en la cola y se corre solo al terminar. Devuelve True si quedó en la cola."""
@@ -1173,34 +1257,12 @@ class H(BaseHTTPRequestHandler):
                 motor.guardar_formato(self._cuerpo()["formato"])
                 self._json({"ok": True, "formato": motor.formato()})
             elif u.path == "/api/semana":
-                sem = " ".join(self._cuerpo()["semana"].split())
-                sem = sem.replace("/", "／")  # Drive permite "11/10 SESIÓN"; en disco se guarda con la barra ancha
-                if TRABAJO["activo"] and sem != motor.S.semana:
-                    # el trabajo seguiría con las carpetas de la otra sesión: los videos quedaban en la sesión equivocada
-                    raise RuntimeError("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.")
-                if not motor.nombre_sesion_valido(sem):
-                    raise ValueError('Nombre de sesión no válido (sin / \\ : * ? " < > |)')
-                nueva = motor.S.base / sem
-                es_grupo = sem in motor.grupos()
-                try:  # lo último de la sesión que se deja queda guardado
-                    respaldos.hacer(auto=True)
-                except Exception as e:
-                    print("No se pudo guardar la copia de seguridad:", e)
-                recien = False
-                if not es_grupo and drive.estado()["activo"] and sem not in drive.sesiones_en_drive():
-                    drive.crear_sesion(sem)
-                    recien = True
-                if not es_grupo and not nueva.exists() and (recien or not (drive.estado()["activo"] and sem in drive.sesiones_en_drive())):
-                    for sub in ("Guion", "Clips/Hooks", "Clips/Cuerpo", "Clips/CTA", "Flow", "V.FINALES"):
-                        (nueva / sub).mkdir(parents=True, exist_ok=True)
-                if recien:  # recién creada está vacía: no hace falta bajarla (eso trababa «Escribir guion con Claude»)
-                    (drive.CACHE / sem).mkdir(parents=True, exist_ok=True)
-                    (drive.CACHE / sem / ".bajada").write_text(str(time.time()), encoding="utf-8")
-                motor.usar_semana(sem)
-                motor.guardar_config({"semana": sem})
-                if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
-                    lanzar("bajar")  # se baja sola la primera vez que se abre
+                abrir_sesion(self._cuerpo()["semana"])
                 self._json({"ok": True})
+            elif u.path == "/api/abrir_link":  # trabajar en una carpeta pegando su link de Drive (o su ruta en esta PC)
+                sem = sesion_de_link(str(self._cuerpo().get("link") or ""))
+                abrir_sesion(sem)
+                self._json({"ok": True, "semana": motor.S.semana})
             elif u.path == "/api/respaldos":  # guardar una copia ahora o restaurar una
                 b = self._cuerpo()
                 if b.get("accion") == "restaurar":

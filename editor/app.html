@@ -87,6 +87,26 @@ section[hidden] { display: none; }
 
 /* Inicio */
 .inicio { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Inicio: solo la sesión abierta. Arriba el siguiente paso (lo que hay que hacer ahora), después lo que falta revisar */
+.inicio2 { display: grid; gap: 16px; max-width: 1080px; margin: 0 auto; }
+.siguiente { margin-top: 16px; position: relative; z-index: 1; }
+.siguiente .sig { display: grid; gap: 6px; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.siguiente .sig.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+.siguiente .sig > b { font: 700 20px var(--fd, var(--f)); }
+.siguiente .sig .fila { margin-top: 6px; }
+.avance { height: 8px; border-radius: 999px; background: var(--hondo); overflow: hidden; margin-top: 4px; }
+.avance i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 999px; }
+.revisar-hoy { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 12px; }
+.revisar-hoy .rv { position: relative; aspect-ratio: 9/16; border-radius: 10px; overflow: hidden; background: #000 center/cover no-repeat; border: 1px solid var(--line); cursor: pointer; }
+.revisar-hoy .rv:hover, .revisar-hoy .rv:focus-visible { border-color: var(--accent); outline: none; transform: translateY(-2px); }
+.revisar-hoy .rv span { position: absolute; inset: auto 0 0 0; padding: 14px 6px 6px; font: 700 10.5px var(--mono); color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.85)); }
+.revisar-hoy .rv .pill { position: absolute; top: 6px; left: 6px; font-size: 10px; }
+.det-inicio > summary { cursor: pointer; list-style: none; display: flex; gap: 8px; align-items: baseline; font-size: 15px; }
+.det-inicio > summary::-webkit-details-marker { display: none; }
+.det-inicio > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+.det-inicio[open] > summary::before { transform: rotate(90deg); }
+.claude-int { margin-top: 12px; }
 .inicio > div { display: grid; gap: 16px; min-width: 0; }
 .hero { position: relative; overflow: hidden; }
 .hero::after { content: ""; position: absolute; right: -80px; top: -80px; width: 280px; height: 280px; border-radius: 50%;
@@ -942,25 +962,30 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <p id="aviso" role="status" class="muted" style="margin:0 0 10px"></p>
 
   <section data-panel="inicio">
-    <div class="inicio">
-      <div>
-        <div class="caja hero brilla">
-          <span class="etq">Sesión abierta</span>
-          <h2 id="inSesion">—</h2>
-          <span class="muted" id="inSub" style="font-size:13px"></span>
-          <div id="inBajando" hidden style="margin-top:12px">
-            <span style="font-size:13px" id="inBajandoTxt">Bajando de Drive…</span>
-            <div class="barra-prog" id="inBarra"><i></i></div>
-          </div>
-          <div class="stats" id="inStats"></div>
+    <div class="inicio2">
+      <div class="caja hero brilla">
+        <span class="etq">Sesión abierta</span>
+        <h2 id="inSesion">—</h2>
+        <span class="muted" id="inSub" style="font-size:13px"></span>
+        <div id="inBajando" hidden style="margin-top:12px">
+          <span style="font-size:13px" id="inBajandoTxt">Bajando de Drive…</span>
+          <div class="barra-prog" id="inBarra"><i></i></div>
         </div>
-        <div class="caja">
-          <h2>Cómo va esta sesión</h2>
-          <ol class="pasos" id="inPasos"></ol>
-        </div>
+        <div class="siguiente" id="inSiguiente"></div>
+        <div class="stats" id="inStats"></div>
       </div>
-      <div>
-        <div class="caja brilla" id="cajaClaude">
+      <div class="caja">
+        <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Para revisar <span class="pill" id="inNRevisar"></span></h2>
+          <button class="btn sec peq" data-ir="videos" type="button">Ver todos los videos</button></div>
+        <div class="revisar-hoy" id="inRevisar"></div>
+      </div>
+      <details class="caja det-inicio" id="detPasos">
+        <summary><b>Cómo va esta sesión</b> <span class="muted" id="inPasosRes"></span></summary>
+        <ol class="pasos" id="inPasos" style="margin-top:10px"></ol>
+      </details>
+      <details class="caja det-inicio det-claude" id="detClaude">
+        <summary><b>✳ Claude</b> <span class="muted" id="clResumen">escribir o revisar el guion</span></summary>
+        <div class="claude-int" id="cajaClaude">
           <div class="claude-cab"><div class="claude-logo" aria-hidden="true">C</div>
             <div><h2 style="margin:0">Claude</h2><span class="muted" style="font-size:12px" id="clEstado">Revisando…</span></div></div>
           <div id="clConfig" hidden style="margin-top:12px;font-size:13px"></div>
@@ -1008,20 +1033,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           </div>
           <pre class="salida-claude" id="clSalida" hidden></pre>
         </div>
-        <div class="caja" id="cajaSesiones">
-          <div class="fila" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Sesiones</h2>
-            <div class="fila"><button class="btn sec peq" id="inGrupo" title="Varias grabaciones que son una sola producción (un guion)">Unir en grupo</button>
-            <button class="btn sec peq" id="inNueva">+ Nueva sesión</button></div></div>
-          <div class="fila" style="margin-bottom:8px"><input id="inBuscar" type="search" placeholder="Buscar sesión…" aria-label="Buscar sesión" style="flex:1;min-width:140px">
-            <select id="inTipo" aria-label="Tipo de producción" style="padding:5px 8px;font-size:12px"><option value="">Todas</option><option value="ads">Ads</option><option value="organico">Orgánico</option></select>
-            <label class="fila muted" style="font-size:12px"><input type="checkbox" id="inVerArch"> Ver archivadas <span id="inNArch"></span></label></div>
-          <div class="sesiones" id="inSesiones"></div>
-          <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
-            <button class="btn sec peq" id="inRenombrarGrupo" type="button" hidden title="Las carpetas de Drive de sus días no cambian">Cambiar nombre del grupo</button>
-            <span class="muted" style="font-size:11.5px">Archiva las que ya terminaste: dejan de salir en las listas y las encuentras buscando.</span></div>
-          <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
-        </div>
-      </div>
+      </details>
     </div>
   </section>
 
@@ -1637,6 +1649,33 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div class="cuerpo-editor" id="edCuerpo"></div>
   <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
 </dialog>
+<dialog id="dlgSesiones" aria-labelledby="sesTit" style="width:min(720px,96vw)">
+  <div style="padding:18px;display:grid;gap:10px">
+    <div class="fila" style="justify-content:space-between"><h2 id="sesTit" style="margin:0">Sesiones</h2><button class="btn sec peq" type="button" id="sesCerrar">Cerrar</button></div>
+        <div id="cajaSesiones">
+          <div class="fila" style="justify-content:flex-end;margin-bottom:8px">
+            <div class="fila"><button class="btn sec peq" id="inGrupo" title="Varias grabaciones que son una sola producción (un guion)">Unir en grupo</button>
+            <button class="btn sec peq" id="inNueva">+ Nueva sesión</button></div></div>
+          <div class="fila" style="margin-bottom:8px"><input id="inBuscar" type="search" placeholder="Buscar sesión…" aria-label="Buscar sesión" style="flex:1;min-width:140px">
+            <select id="inTipo" aria-label="Tipo de producción" style="padding:5px 8px;font-size:12px"><option value="">Todas</option><option value="ads">Ads</option><option value="organico">Orgánico</option></select>
+            <label class="fila muted" style="font-size:12px"><input type="checkbox" id="inVerArch"> Ver archivadas <span id="inNArch"></span></label></div>
+          <div class="sesiones" id="inSesiones"></div>
+          <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
+            <button class="btn sec peq" id="inRenombrarGrupo" type="button" hidden title="Las carpetas de Drive de sus días no cambian">Cambiar nombre del grupo</button>
+            <span class="muted" style="font-size:11.5px">Archiva las que ya terminaste: dejan de salir en las listas y las encuentras buscando.</span></div>
+          <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
+        </div>
+  </div>
+</dialog>
+<dialog id="dlgLink" aria-labelledby="lkTit" style="width:min(560px,94vw)">
+  <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formLink">
+    <h2 id="lkTit" style="margin:0">Abrir una carpeta con su link</h2>
+    <p class="muted" style="margin:0;font-size:12.5px">Pega el link de la carpeta de la sesión en Drive (clic derecho en la carpeta → Compartir → Copiar enlace). Tiene que estar dentro de EDICIÓN DE VIDEOS. Si la sala no está conectada a Drive, también puedes pegar la ruta de una carpeta de esta PC (por ejemplo D:\Grabaciones\P06 ADS PELAJE).</p>
+    <input id="lkLink" placeholder="https://drive.google.com/drive/folders/…" aria-label="Link o ruta de la carpeta" required>
+    <span id="lkEstado" class="muted" style="font-size:12.5px" aria-live="polite"></span>
+    <div class="fila" style="justify-content:flex-end"><button type="button" class="btn sec" id="lkCancelar">Cancelar</button><button class="btn" id="lkAbrir" value="ok">Abrir</button></div>
+  </form>
+</dialog>
 <dialog id="dlgAtajos" aria-labelledby="atTit" style="width:min(620px,94vw)">
   <div style="padding:18px;display:grid;gap:12px">
     <div class="fila" style="justify-content:space-between"><h2 id="atTit" style="margin:0">Teclas del editor</h2><button class="btn sec peq" type="button" id="atCerrar">Cerrar</button></div>
@@ -1956,7 +1995,7 @@ async function cargar() {
   const activas = sesionesActivas();
   $("semana").innerHTML = [...activas].reverse().map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("")
     + (activas.includes(E.semana) ? "" : `<option value="${esc(E.semana)}" selected>${esc(E.semana)} (archivada)</option>`)
-    + `<option value="__buscar">Buscar o ver archivadas…</option><option value="__nueva">+ Nueva sesión…</option>`;
+    + `<option value="__link">📁 Abrir desde un link de carpeta…</option><option value="__buscar">Ver todas las sesiones…</option><option value="__nueva">+ Nueva sesión…</option>`;
   $("notas").value = E.notas;
   $("actVersion").textContent = "v" + E.version;
   pintarRed();
@@ -2014,6 +2053,12 @@ function pintarInicio() {
   ];
   const ahora = pasos.findIndex(p => !p[0]);
   $("inPasos").innerHTML = pasos.map(([ok, txt, accion], i) => `<li class="${ok ? "hecho" : i === ahora ? "ahora" : ""}"><span>${txt}</span>${accion}</li>`).join("");
+  const hechos = pasos.filter(p => p[0]).length;
+  $("inPasosRes").textContent = `${hechos} de ${pasos.length} pasos hechos`;
+  pintarSiguiente(ahora, pasos, { vids, armados, listos, viejos, faltan, sinId });
+  pintarRevisar();
+  $("clResumen").textContent = E.hay_produccion ? "guion listo · revisar lo grabado o escribir el de otra sesión" : "esta sesión no tiene guion: escríbelo aquí";
+  if (!E.hay_produccion && !pintarInicio.yaAbri) { $("detClaude").open = true; pintarInicio.yaAbri = true; }
   pintarListaSesiones();
   const sesionesGuion = [...sesionesActivas()].reverse();
   const elegida = $("clSesion").value;
@@ -2025,6 +2070,72 @@ function pintarInicio() {
   pintarConexiones();
   pintarNuevaVista();  // el selector de CTAs se apaga si la sesión ya dice ADS u ORG
 }
+// El siguiente paso de la sesión, en grande y con su botón: lo primero que se ve al abrir la sala
+const AYUDA_PASO = [
+  "Sin guion la sala arma igual con lo que se grabó, pero con guion compara lo dicho y pone imágenes, sonidos y copies.",
+  "Graba con el teleprompter y sube los clips a la carpeta Clips de la sesión en Drive.",
+  "La sala escucha cada clip, lo compara con el guion y lo prepara para armar.",
+  "Algunos clips no se reconocieron solos: dile a qué pieza corresponde cada uno.",
+  "Faltan imágenes de Flow o la música del guion: genéralas o súbelas.",
+  "Con todo listo, la sala arma cada video (hook + cuerpo + CTA) con subtítulos, imágenes y sonidos.",
+  "Mira cada video, corrige lo que haga falta en el editor, apruébalo y expórtalo.",
+];
+function pintarSiguiente(ahora, pasos, n) {
+  const pct = Math.round(pasos.filter(p => p[0]).length / pasos.length * 100);
+  const avance = `<div class="avance" title="${pct} % de la sesión"><i style="width:${pct}%"></i></div>`;
+  if (ahora < 0) {
+    $("inSiguiente").innerHTML = `<div class="sig ok"><span class="etq">Sesión terminada</span><b>✓ Todos los videos están aprobados</b>
+      <span class="muted">Exporta los que falten o abre otra sesión desde la lista de arriba.</span>${avance}
+      <div class="fila"><button class="btn" type="button" data-ir="publicar">Ir a Exportar</button></div></div>`;
+    return;
+  }
+  const botones = [
+    `<button class="btn" type="button" data-ir="claude">✳ Escribir el guion con Claude</button><button class="btn sec" type="button" data-ir="guion">Subir un guion</button>`,
+    `<a class="btn" href="/teleprompter" target="_blank">📜 Abrir el teleprompter</a>${n.sinId ? `<button class="btn sec" type="button" data-ir="faltan">Ver los ${n.sinId} clips subidos</button>` : ""}`,
+    `<button class="btn" type="button" data-clic="escuchar">🎧 Analizar los clips</button><button class="btn sec" type="button" data-ir="guion">Ver el guion</button>`,
+    `<button class="btn" type="button" data-ir="faltan">Identificar ${plural(n.sinId, "clip")}</button>`,
+    `<button class="btn" type="button" data-clic="generarFlow">✦ Generar lo que falta (${n.faltan})</button><button class="btn sec" type="button" data-ir="faltan">Ver qué falta</button>`,
+    `<button class="btn" type="button" data-clic="todo">▶ Armar ${n.viejos ? `y rearmar (${n.vids.length - n.armados + n.viejos})` : `los ${n.vids.length - n.armados} videos`}</button>`,
+    `<button class="btn" type="button" data-ir="videos">Revisar ${plural(n.vids.length - n.listos, "video")}</button><button class="btn sec" type="button" data-ir="publicar">Exportar</button>`,
+  ];
+  $("inSiguiente").innerHTML = `<div class="sig"><span class="etq">Siguiente paso · ${ahora + 1} de ${pasos.length}</span><b>${pasos[ahora][1]}</b>
+    <span class="muted">${AYUDA_PASO[ahora] || ""}</span>${avance}<div class="fila">${botones[ahora] || ""}</div></div>`;
+}
+// Los videos armados que todavía no se aprueban (primero los que hay que rearmar)
+function pintarRevisar() {
+  const lista = E.salidas.filter(s => s.existe && s.estado !== "listo").sort((a, b) => (b.desactualizado - a.desactualizado) || (a.estado === "editando" ? -1 : 0));
+  $("inNRevisar").textContent = lista.length || "";
+  $("inRevisar").innerHTML = lista.slice(0, 12).map(s => `<div class="rv" role="button" tabindex="0" data-cod="${esc(s.codigo)}" title="Abrir ${esc(s.archivo)}" style="${s.portada ? `background-image:url('${s.portada}')` : ""}">
+      ${s.desactualizado ? `<span class="pill warn">⟳ rearmar</span>` : s.estado === "editando" ? `<span class="pill azul">editando</span>` : ""}<span>${esc(s.codigo)}</span></div>`).join("")
+    + (lista.length > 12 ? `<button class="btn sec" type="button" data-ir="videos" style="align-self:center">y ${lista.length - 12} más</button>` : "")
+    || `<p class="muted" style="margin:0;grid-column:1/-1">${E.salidas.some(s => s.existe) ? "✓ No hay videos por revisar: todos los armados están aprobados." : "Todavía no hay videos armados."}</p>`;
+}
+document.addEventListener("click", e => {  // botones del siguiente paso que aprietan otro botón de la sala
+  const b = e.target.closest("[data-clic]"); if (b) $(b.dataset.clic)?.click();
+});
+document.addEventListener("keydown", e => {
+  const t = e.target.closest?.(".rv[role=button]");
+  if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); abrirVideo(t.dataset.cod); }
+});
+// Abrir una sesión pegando el link de su carpeta de Drive (o la ruta de una carpeta de esta PC)
+function abrirLink() {
+  $("lkLink").value = ""; $("lkEstado").textContent = ""; $("dlgLink").showModal(); $("lkLink").focus();
+}
+$("lkCancelar").onclick = () => $("dlgLink").close();
+$("sesCerrar").onclick = () => $("dlgSesiones").close();
+$("formLink").addEventListener("submit", async e => {
+  e.preventDefault();
+  const link = $("lkLink").value.trim(); if (!link) return;
+  if (E?.trabajo?.activo) return ($("lkEstado").textContent = "La sala está trabajando (☰): espera a que termine para cambiar de sesión.");
+  $("lkEstado").textContent = "Buscando la carpeta…"; $("lkAbrir").disabled = true;
+  try {
+    const r = await post("/api/abrir_link", { link });
+    $("dlgLink").close(); elegidos.clear(); sel = null; await cargar();
+    avisar(`Abierta «${r.semana}».`, "ok");
+  } catch (err) { $("lkEstado").textContent = "⚠ " + err.message; }
+  finally { $("lkAbrir").disabled = false; }
+});
+
 // Sesiones: las archivadas (ya terminadas) no salen en las listas; se encuentran buscando o con «Ver archivadas».
 // Las sesiones que forman un grupo (los días de grabación) no salen sueltas: se trabajan desde el grupo.
 // (los días de una carpeta «P02 …» viven dentro de ella en Drive: no esconden otra sesión suelta con el mismo nombre)
@@ -2112,13 +2223,14 @@ document.addEventListener("click", async e => {
   if (t.id === "clLogin") { try { await post("/api/claude", { accion: "login" }); avisar("Se abrió una ventana: entra con tu cuenta de Claude y vuelve aquí.", "ok"); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
   if (t.dataset.ir) {
     if (t.dataset.ir === "claude") {  // si Claude no está conectado, el formulario está escondido: se lleva a conectarlo
+      irTab("inicio"); $("detClaude").open = true;
       if ($("clListo").hidden) { $("cajaClaude").scrollIntoView({ behavior: "smooth", block: "center" }); avisar("Primero conecta Claude aquí abajo y después escribe el guion.", "muted"); }
       else $("clPedido").focus();
       return;
     }
     irTab(t.dataset.ir); return;
   }
-  if (t.dataset.abrirSesion) { cambiarSesion(t.dataset.abrirSesion); return; }
+  if (t.dataset.abrirSesion) { $("dlgSesiones").close(); cambiarSesion(t.dataset.abrirSesion); return; }
 });
 // Estructura del guion: cuántos cuerpos y hooks; un tema por cuerpo (propuesto por Claude o escrito a mano)
 let propuestas = [];
@@ -3481,7 +3593,8 @@ function plVista(pl) {
 function factorAltura() { return esHorizontal() ? .6 : 1; }
 $("semana").onchange = async e => {
   let s = e.target.value;
-  if (s === "__buscar") { irTab("inicio"); await cargar(); $("inBuscar").focus(); $("cajaSesiones").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  if (s === "__buscar") { e.target.value = E.semana; pintarListaSesiones(); $("dlgSesiones").showModal(); $("inBuscar").focus(); return; }
+  if (s === "__link") { e.target.value = E.semana; return abrirLink(); }
   if (s === "__nueva") { if (!await nuevaSesion()) cargar(); return; }
   cambiarSesion(s);
 };
