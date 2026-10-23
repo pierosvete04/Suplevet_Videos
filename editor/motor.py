@@ -2693,6 +2693,9 @@ def _limpiar_rangos(r):
     return out
 
 
+DESFASE_MAX = 3.0  # segundos que se puede correr la voz desagrupada (lo mismo en el editor)
+
+
 def _limpiar_aparte(r):
     """Pedazos con el audio desagrupado del video (Ctrl+G en el editor): {pieza: [{a, b, sin_voz, sin_imagen, desfase}]}
     a/b en segundos del clip · sin_voz: el pedazo se ve mudo · sin_imagen: la voz suena sobre su primer cuadro congelado ·
@@ -2705,7 +2708,7 @@ def _limpiar_aparte(r):
         for x in (v or [])[:80]:
             try:
                 a, b = float(x["a"]), float(x["b"])
-                d = max(-3.0, min(3.0, float(x.get("desfase") or 0)))
+                d = max(-DESFASE_MAX, min(DESFASE_MAX, float(x.get("desfase") or 0)))
             except (TypeError, ValueError, KeyError):
                 continue
             if b - a >= 0.03:

@@ -1,3 +1,9 @@
+Versión 1.38.1 (se actualiza desde la app con «Actualizar ahora»):
+- **El cabezal y los clics ya caen donde deben**: con pedazos cortos, el cabezal, la regla y los clics en la línea de tiempo se corrían respecto de lo dibujado (hasta unos 8 s con la línea de tiempo alejada). Tocar la regla te llevaba a otro segundo y el zoom con el touchpad movía lo que estaba bajo el cursor. Ahora todo usa la misma medida.
+- Al **dividir (S) un pedazo duplicado o desagrupado**, la copia seguía con solo una mitad y solo una mitad quedaba desagrupada; ahora las dos mitades siguen igual.
+- La **copia de un pedazo desagrupado** se ve y suena en la vista previa igual que en el video armado (con la voz corrida, quitada o la imagen congelada de su original).
+- «Quitar pausas» tocado dos veces ya no deja cortes repetidos (con uno repetido, «Volver a poner» no parecía funcionar).
+
 Versión 1.38.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Clic derecho en la línea de tiempo** (como CapCut): en un bloque de video, Dividir en el cabezal, Duplicar, Desagrupar o agrupar el audio, Borrar y Borrar la frase entera; en la voz, quitarla o correrla.
 - **Audio y video agrupados o por separado con Ctrl+G**: desagrupado, la voz del pedazo se elige aparte en la pista Voz y se **arrastra para correrla** antes o después de su imagen (cortes en J y en L, hasta 3 s); Supr en la voz la quita (el pedazo se ve mudo) y Supr en el video quita la imagen (queda su primer cuadro congelado mientras suena la voz). Ctrl+G otra vez los vuelve a juntar.

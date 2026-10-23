@@ -3391,7 +3391,7 @@ function pintarAudio() {
   let x = 0, html = "";
   const dibujos = [];
   for (const b of bloquesEd()) {
-    const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
+    const w = anchoBloque(b);
     const ap = b.fuera ? null : b.aparte, corre = ap ? (ap.desfase || 0) * px : 0;
     html += `<div class="ev-a ${b.fuera ? "fuera" : ""} ${b.cortado ? "cortado" : ""} ${ap ? "suelto" : ""} ${ap?.sin_voz ? "mudo" : ""} ${ap && ed.aSel === b.key ? "sel" : ""}" style="left:${x}px;width:${w}px${corre ? `;transform:translateX(${corre.toFixed(1)}px)` : ""}" data-audio="${b.key}" title="${ap ? `Voz de ${esc(b.t)}, desagrupada: arrástrala para correrla, Supr para quitarla` : `Audio de ${esc(b.t)}`}"><canvas></canvas></div>`;
     dibujos.push({ b, w });
@@ -4145,32 +4145,33 @@ function bloquesEd() {
     }
   }
   // pedazos con el audio desagrupado (Ctrl+G) y copias (Duplicar): la copia va justo después de su pedazo
-  const final = [];
-  for (const b of out) {
-    b.aparte = aparteDe(b);
-    final.push(b);
-    if (!b.fuera && !b.cortado) (ed.dups?.[b.pz] || []).filter(d => dentroDe(d, b)).forEach((d, n) =>
-      final.push({ ...b, key: `${b.key}~d${n}`, dup: d, aparte: null, t: `${b.t} · copia` }));
-  }
+  // Un desagrupado o una copia vale para todos los pedazos que caen dentro de su tramo: si después se divide (S)
+  // el pedazo, las dos mitades siguen desagrupadas y la copia sigue entera (antes quedaba solo una mitad)
+  out.forEach(b => { b.aparte = aparteDe(b); });
+  const final = [...out];
+  (["hook", "cuerpo", "cta"]).forEach(pz => (ed.dups?.[pz] || []).forEach((d, n) => {
+    const dentro = final.filter(b => !b.dup && b.pz === pz && !b.fuera && !b.cortado && cubre(d, b));
+    if (!dentro.length) return;
+    const tras = final.indexOf(dentro[dentro.length - 1]) + 1;
+    // la copia lleva lo mismo que su original (voz quitada o corrida, imagen congelada), igual que en el video armado
+    final.splice(tras, 0, ...dentro.map((b, k) => ({ ...b, key: `${b.key}~d${n}.${k}`, dup: d, t: `${b.t} · copia` })));
+  }));
   return final;
 }
-const medioDe = x => Array.isArray(x) ? (x[0] + x[1]) / 2 : (x.a + x.b) / 2;
-const dentroDe = (x, b) => medioDe(x) >= b.a - 1e-3 && medioDe(x) <= b.b + 1e-3;
-function aparteDe(b) { return (ed.aparte?.[b.pz] || []).find(x => dentroDe(x, b)) || null; }
-// al guardar, cada desagrupado y cada copia toman los bordes actuales de su pedazo (por si se movió un corte o un borde)
+const desdeDe = x => Array.isArray(x) ? x[0] : x.a, hastaDe = x => Array.isArray(x) ? x[1] : x.b;
+const cubre = (x, b) => (b.a + b.b) / 2 >= desdeDe(x) - 1e-3 && (b.a + b.b) / 2 <= hastaDe(x) + 1e-3;  // el pedazo b cae dentro del tramo x
+function aparteDe(b) { return (ed.aparte?.[b.pz] || []).find(x => cubre(x, b)) || null; }
+// al guardar, cada desagrupado y cada copia toman los bordes actuales de sus pedazos (por si se movió un corte o un borde)
+function tramoActual(pz, x) {
+  const bs = bloquesEd().filter(b => !b.dup && b.pz === pz && cubre(x, b));
+  return bs.length ? [+Math.min(...bs.map(b => b.a)).toFixed(3), +Math.max(...bs.map(b => b.b)).toFixed(3)] : [desdeDe(x), hastaDe(x)];
+}
 function aparteParaGuardar() {
-  const out = {}, bs = bloquesEd().filter(b => !b.dup);
-  for (const [pz, lista] of Object.entries(ed.aparte || {})) {
-    out[pz] = lista.map(x => { const b = bs.find(bb => bb.pz === pz && dentroDe(x, bb)); return b ? { ...x, a: +b.a.toFixed(3), b: +b.b.toFixed(3) } : x; });
-  }
-  return out;
+  return Object.fromEntries(Object.entries(ed.aparte || {}).map(([pz, lista]) =>
+    [pz, lista.map(x => { const [a, b] = tramoActual(pz, x); return { ...x, a, b }; })]));
 }
 function dupsParaGuardar() {
-  const out = {}, bs = bloquesEd().filter(b => !b.dup);
-  for (const [pz, lista] of Object.entries(ed.dups || {})) {
-    out[pz] = lista.map(x => { const b = bs.find(bb => bb.pz === pz && dentroDe(x, bb)); return b ? [+b.a.toFixed(3), +b.b.toFixed(3)] : x; });
-  }
-  return out;
+  return Object.fromEntries(Object.entries(ed.dups || {}).map(([pz, lista]) => [pz, lista.map(x => tramoActual(pz, x))]));
 }
 function segmentosEd() {  // los que se ven, con su inicio en el video final (g0)
   let g = 0;
@@ -4178,13 +4179,19 @@ function segmentosEd() {  // los que se ven, con su inicio en el video final (g0
 }
 const escalaEd = () => Number($("evEscala").value);
 const ANCHO_FUERA = 26;
-function xDeTiempo(t) {  // posición en la línea de tiempo (las frases ocultas ocupan una ranura fija)
+// Ancho dibujado de un bloque: lo quitado ocupa una ranura fija y un pedazo muy corto no baja de 14 px (para poder tocarlo).
+// Todo lo que pasa de tiempo a posición (cabezal, regla, clics, subtítulos) usa este mismo ancho: antes usaba el real
+// y, con pedazos cortos, el cabezal y los clics se corrían (hasta 50 px, unos 8 s, con la línea de tiempo alejada).
+const ANCHO_MIN = 14;  // px: un pedazo más corto se dibuja así de ancho para poder tocarlo
+function anchoBloque(b) { return b.fuera ? ANCHO_FUERA : Math.max(ANCHO_MIN, (b.b - b.a) * escalaEd()); }
+function xDeTiempo(t) {  // posición en la línea de tiempo
   let x = 0, g = 0;
   for (const b of bloquesEd()) {
-    if (b.fuera) { x += ANCHO_FUERA + 3; continue; }
+    const w = anchoBloque(b);
+    if (b.fuera) { x += w + 3; continue; }
     const d = b.b - b.a;
-    if (t <= g + d) return x + (t - g) * escalaEd();
-    x += d * escalaEd() + 3; g += d;
+    if (t <= g + d) return x + (d > 0 ? (t - g) / d * w : 0);
+    x += w + 3; g += d;
   }
   return x;
 }
@@ -4199,7 +4206,7 @@ function pintarEditor() {
     : `${final.toFixed(1)} s${Math.abs(original - final) > .05 ? ` · antes ${original.toFixed(1)} s` : ""}`;
   let x = 0, html = "", subs = "";
   for (const b of bloquesEd()) {
-    const w = b.fuera ? ANCHO_FUERA : Math.max(14, (b.b - b.a) * px);
+    const w = anchoBloque(b);
     const z = (b.zoom ? `<span class="zm">${{ in: "zoom +", out: "zoom −", punch: "punch" }[b.zoom.tipo]}</span>` : "")
       + (b.vel && b.vel !== 1 && !b.fuera ? `<span class="zm vel">${b.vel}×</span>` : "")
       + (b.aparte ? `<span class="ev-tag" title="Audio desagrupado: Ctrl+G para volver a agrupar">⛓ suelto</span>` : "")
@@ -4215,7 +4222,7 @@ function pintarEditor() {
       b.pieza.lineas.forEach((l, li) => {
         const s0 = Math.max(l.s, b.a), s1 = Math.min(l.e, b.b);
         if (s1 - s0 < .05) return;
-        const sx = x + (s0 - b.a) * px, sw = Math.max(10, (s1 - s0) * px - 2);
+        const k = w / Math.max(.001, b.b - b.a), sx = x + (s0 - b.a) * k, sw = Math.max(10, (s1 - s0) * k - 2);
         const id = `${b.pieza.nombre}|${li}`;
         const elegido = ed.subSel === id;
         subs += `<div class="ev-s ${elegido ? "sel" : ""}" data-sub="${esc(id)}" style="left:${sx}px;width:${sw}px" title="${esc(l.texto)} · tócalo para editarlo, arrástralo para moverlo">${
@@ -4432,13 +4439,14 @@ $("evCarrilZ").addEventListener("pointerup", () => {
 function finPieza(pz) {
   return pz === "hook" ? est.hook.dur || 0 : pz === "cta" ? est.cta.dur || 0 : est.cuerpo.partes.reduce((m, p) => Math.max(m, p.fin), 0);
 }
-function gDeX(x) {  // posición en la línea de tiempo → segundo del video editado
+function gDeX(x) {  // posición en la línea de tiempo → segundo del video editado (lo inverso de xDeTiempo)
   let g = 0, xx = 0;
   for (const b of bloquesEd()) {
-    if (b.fuera) { xx += ANCHO_FUERA + 3; continue; }
-    const w = (b.b - b.a) * escalaEd();
-    if (x <= xx + w) return g + Math.max(0, x - xx) / escalaEd();
-    xx += w + 3; g += b.b - b.a;
+    const w = anchoBloque(b);
+    if (b.fuera) { xx += w + 3; continue; }
+    const d = b.b - b.a;
+    if (x <= xx + w) return g + Math.min(d, Math.max(0, x - xx) / w * d);
+    xx += w + 3; g += d;
   }
   return g;
 }
@@ -4774,7 +4782,7 @@ function duplicarSel(key = ed.sel) {
   if (b.dup) return avisar("Duplica el pedazo original.", "muted");
   (ed.dups[b.pz] = ed.dups[b.pz] || []).push([+b.a.toFixed(3), +b.b.toFixed(3)]);
   pintarEditor();
-  const copias = segmentosEd().filter(x => x.key.startsWith(b.key + "~d")), s = copias[copias.length - 1];
+  const copias = segmentosEd().filter(x => x.dup && x.key.startsWith(b.key + "~d")), s = copias[0];
   if (s) { ed.sel = s.key; irA(s.g0); pintarEditor(); }
 }
 function quitarDuplicado(b) {
@@ -4812,7 +4820,10 @@ function rehacerEd() {
   ed.historial.push(estadoEd()); const j = ed.rehacer.pop(); ponerEstadoEd(j); ed._ult = j;
   ed.sel = ed.aSel = null; pararEditor(); pintarEditor(); irA(Math.min(ed.t, segmentosEd().reduce((a, x) => a + x.b - x.a, 0) - .05));
 }
-// Arrastrar la voz desagrupada: se corre respecto de su imagen (−3 a +3 s, de a 0,05 s)
+// Arrastrar la voz desagrupada: se corre respecto de su imagen (−3 a +3 s, de a 0,05 s; los botones, de a 0,25 s).
+// El motor acepta el mismo máximo (_limpiar_aparte).
+const DESFASE_MAX = 3, PASO_DESFASE = .05, SALTO_DESFASE = .25;
+const limitarDesfase = d => +Math.max(-DESFASE_MAX, Math.min(DESFASE_MAX, d)).toFixed(2);
 let arrVoz = null, finArrVoz = 0;
 $("evCarrilA").addEventListener("pointerdown", e => {
   const el = e.target.closest("[data-audio]"); if (!el || e.button !== 0) return;
@@ -4825,7 +4836,7 @@ $("evCarrilA").addEventListener("pointermove", e => {
   if (!arrVoz) return;
   const dx = e.clientX - arrVoz.x0; if (!arrVoz.movido && Math.abs(dx) < 3) return;
   arrVoz.movido = true;
-  arrVoz.ap.desfase = Math.max(-3, Math.min(3, Math.round((arrVoz.d0 + dx / escalaEd()) * 20) / 20));
+  arrVoz.ap.desfase = limitarDesfase(Math.round((arrVoz.d0 + dx / escalaEd()) / PASO_DESFASE) * PASO_DESFASE);
   anotarHistorial(); pintarAudio(); pintarInspector();
 });
 ["pointerup", "pointercancel"].forEach(ev => $("evCarrilA").addEventListener(ev, () => {
@@ -4851,7 +4862,7 @@ function accionMenuEd(acc) {
   else if (acc === "congelar") alternarAparte(b.key, "sin_imagen");
   else if (acc === "silenciar") alternarAparte(b.key, "sin_voz");
   else if (acc === "antes" || acc === "despues" || acc === "lugar") {
-    b.aparte.desfase = acc === "lugar" ? 0 : Math.max(-3, Math.min(3, +((b.aparte.desfase || 0) + (acc === "antes" ? -.25 : .25)).toFixed(2)));
+    b.aparte.desfase = acc === "lugar" ? 0 : limitarDesfase((b.aparte.desfase || 0) + (acc === "antes" ? -SALTO_DESFASE : SALTO_DESFASE));
     pintarEditor();
   }
   else if (acc === "borrar") { if (b.dup) quitarDuplicado(b); else { ed.sel = b.key; ed.aSel = null; quitarPedazoSel(); } }
@@ -4936,7 +4947,7 @@ $("evInspector").addEventListener("click", e => {
 });
 function quitarPausasDe(b) {
   const o = ondas[b.pieza.nombre]; if (!o || !o.picos.length) return 0;
-  const MIN = .35, RESPIRO = .12, cortes = ed.cortes[b.pz] = ed.cortes[b.pz] || [], quitar = ed.quitarR[b.pz] = ed.quitarR[b.pz] || [];
+  const MIN = .35, RESPIRO = .12;
   let n = 0, ini = null;
   const i0 = Math.ceil(b.a * o.por_seg), i1 = Math.floor(b.b * o.por_seg);
   for (let i = i0; i <= i1 + 1; i++) {
@@ -4945,13 +4956,14 @@ function quitarPausasDe(b) {
     if (!callado && ini != null) {
       const a = ini / o.por_seg + RESPIRO, c = i / o.por_seg - RESPIRO;
       // solo pausas en medio del bloque y más largas que MIN (los bordes ya se recortan al preparar el clip)
-      if (c - a >= MIN - 2 * RESPIRO && a > b.a + .05 && c < b.b - .05) {
-        cortes.push(+a.toFixed(3), +c.toFixed(3)); quitar.push([+a.toFixed(3), +c.toFixed(3)]); n++;
+      // ponerRango junta el corte con los que pisa: tocar «Quitar pausas» dos veces ya no deja cortes repetidos
+      // (con uno repetido, «Volver a poner» sacaba solo una copia y el silencio parecía no volver)
+      if (c - a >= MIN - 2 * RESPIRO && a > b.a + .05 && c < b.b - .05 && !rangosDe(b.pz).some(r => r[0] <= a + .01 && r[1] >= c - .01)) {
+        ponerRango(b.pz, a, c); n++;
       }
       ini = null;
     }
   }
-  ed.cortes[b.pz] = [...new Set(cortes)].sort((x, y) => x - y);
   return n;
 }
 // Quitar silencios: cada bloque (hook, cada frase del cuerpo y CTA) empieza un poquito antes de la primera palabra
@@ -5335,14 +5347,8 @@ function cabezalEnClip(nombre) {  // segundo del cabezal dentro del clip de esa 
   return s && s.pieza.nombre === nombre ? s.a + (ed.t - s.g0) : null;
 }
 $("evRegla").addEventListener("click", e => {  // tocar la regla mueve el cabezal
-  const r = $("evRegla").getBoundingClientRect(), x = e.clientX - r.left;
-  let g = 0, xx = 0;
-  for (const b of bloquesEd()) {
-    if (b.fuera) { xx += ANCHO_FUERA + 3; continue; }
-    const w = (b.b - b.a) * escalaEd();
-    if (x <= xx + w) { irA(g + Math.max(0, x - xx) / escalaEd()); return; }
-    xx += w + 3; g += b.b - b.a;
-  }
+  const r = $("evRegla").getBoundingClientRect();
+  irA(gDeX(e.clientX - r.left));
 });
 $("evInspector").addEventListener("input", e => {
   const b = bloquesEd().find(x => x.key === ed.sel);
@@ -5391,11 +5397,11 @@ $("evTL").addEventListener("wheel", e => {
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault();
     const antes = escalaEd(), r = tl.getBoundingClientRect();
-    const xCursor = e.clientX - r.left - 78, tCursor = (tl.scrollLeft + xCursor) / antes;  // segundo que está bajo el cursor
+    const xCursor = e.clientX - r.left - 78, tCursor = gDeX(tl.scrollLeft + xCursor);  // segundo que está bajo el cursor
     const paso = Math.max(-40, Math.min(40, e.deltaY));  // el touchpad manda pasos chicos; la rueda del mouse, grandes
     const nueva = Math.max(6, Math.min(400, antes * Math.exp(-paso * 0.01)));
     $("evEscala").value = nueva; pintarEditor();
-    tl.scrollLeft = Math.max(0, tCursor * escalaEd() - xCursor);
+    tl.scrollLeft = Math.max(0, xDeTiempo(tCursor) - xCursor);  // el mismo segundo queda bajo el cursor
   } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !e.shiftKey) {
     // dos dedos arriba/abajo o la rueda del mouse: se mueve por la línea de tiempo (de lado)
     e.preventDefault();
