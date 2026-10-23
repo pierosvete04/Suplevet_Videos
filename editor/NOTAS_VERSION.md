@@ -1,3 +1,17 @@
+Versión 1.40.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Editor más claro**: los botones van en grupos (Reproducir · Deshacer · Cortar · Imagen y zoom · Ver) y cada uno muestra su tecla. Botones nuevos de **Deshacer y Rehacer**, zoom de la línea de tiempo con −, + y «Ajustar», y la ventana **«Teclas»** (también con la tecla ?). El tiempo muestra el número de cuadro.
+- Arriba del editor se ve siempre **«● Cambios sin guardar»** y el botón 💾 para guardar, sin bajar hasta el final.
+- **Deshacer (Ctrl+Z) ahora deshace los arrastres** (bordes, fotogramas de zoom, imágenes, voz) y los cambios de subtítulos.
+- **Motor de cuerpo**: lo que editas en el cuerpo vale para todos sus videos (C1 con H1, H2, H3…) y ahora el editor muestra cuáles son. Nuevo **«↻ Cambiar la toma»**: otra grabación para una frase, el hook o el CTA, y todos sus videos se rearman con los mismos hooks y CTA (las imágenes y sonidos puestos en palabras se quedan). Nuevo **«⑂ Nueva versión del cuerpo»**: otra versión con los mismos hooks y CTA, editada aparte (C1-H1-…-B) o con otra toma completa; los videos de siempre no cambian.
+- **Exportar**: el cuadro para elegir carpeta sale delante de la sala y también se puede pegar la ruta. Revisa que la carpeta exista y deje guardar, y si ya exportaste hoy ahí pregunta si se crea otra carpeta o se reemplaza. Cancelar ya no deja un video cortado.
+- **Lo que no guardaste ya no se borra solo**: en Guion (la revisión de cada 90 s), en Piezas y al terminar un rearmado (ya no se abre otro video encima del que estás editando).
+- **Guardar con la sala ocupada ya no da error**: queda en cola y se rearma cuando termine. No se puede cambiar de sesión mientras la sala trabaja.
+- **Subidas seguras**: si una subida se corta no se toca el archivo bueno; lo reemplazado queda en _REEMPLAZADOS (también en Drive, así no vuelve la versión vieja). Si una subida a Drive falla, sale un aviso con «Reintentar».
+- **Guion**: subir o reimportar un Word ya no borra las marcas del guion de Claude ni lo corregido en la sala. Entiende mejor «C3.1 HASTA C3.4», «CTAs: …», listas y tablas de Word y los .txt con tildes del Bloc de notas.
+- **Subtítulos**: al corregir una palabra se conservan los tiempos de las demás y las marcas siguen a su palabra. Cambiar la toma de una pieza ya no borra sus marcas.
+- **Sonidos y plantillas**: editar un sonido deja «⟳ rearmar» a sus videos y suena entero; la vista previa suena igual de fuerte que en el video. Borrar una plantilla dice cuántos videos la usan y ofrece rearmarlos.
+- Arreglos menores: doble clic ya no manda dos pedidos, la búsqueda de sesiones encuentra nombres con tildes, una sesión nueva ya no traba «Escribir guion con Claude», y más.
+
 Versión 1.39.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Exportar pregunta antes de empezar**: primero «¿Quieres llevar estos videos al Drive?» (Sí / No) y luego «¿A qué carpeta de tu PC los exportas?», con el cuadro de Windows para elegirla (recuerda la última que usaste).
 - **Siempre se exporta dentro de una carpeta** con la fecha y el nombre de la sesión (por ejemplo «23-10-2026 P05 VETERINARIOS»), aunque sea un solo video. Los días (DIA_1…) y «por partes» (POR_PARTES) van dentro de esa carpeta.
