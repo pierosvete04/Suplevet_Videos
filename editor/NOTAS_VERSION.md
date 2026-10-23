@@ -1,3 +1,7 @@
+Versión 1.43.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Revisión de calidad**: si hay videos con el subtítulo donde lo tapan los botones de TikTok e Instagram, sale el botón **«⬆ Subir el subtítulo a 330 px»**: lo sube en la plantilla que usan (o en el video, si tiene su propia altura) y rearma esos videos.
+- **Faltantes → «✦ Más apoyo visual (Claude)»**: Claude agrega a cada cuerpo 3 imágenes más y 1 clip en movimiento, en las palabras clave repartidas a lo largo de lo que se dice (lo que ya había se queda). Después se generan con «Generar lo que falta» y se rearman los videos.
+
 Versión 1.42.1 (se actualiza desde la app con «Actualizar ahora»):
 - Al tocar **«Actualizar ahora»** el botón dice **«Actualizando…»** y una pantalla encima de la sala muestra cómo va (bajando la versión nueva, reiniciando) hasta que se abre sola. Si algo falla, el botón vuelve y dice por qué.
 - En el aviso del proyecto, **«⟳ Actualizar»** también dice **«Actualizando…»** hasta que termina, y los otros botones se bloquean mientras tanto.
