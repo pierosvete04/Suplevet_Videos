@@ -769,6 +769,14 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         drive.subir(sesion, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = texto
                     avance("Guion listo: " + (texto.strip().splitlines() or [""])[0][:120])
+                if accion == "mas_apoyo":  # más imágenes y clips por cuerpo, escritos por Claude
+                    texto = asistente.mas_apoyo_visual(avance=avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = texto
+                    falta = sum(1 for a in motor.checklist()["assets"] if not a["listo"])
+                    avance(f"Listo: Claude agregó apoyo visual. Faltan {falta} imágenes o clips por generar en Flow (Faltantes → «Generar lo que falta»).")
                 if accion == "prompts_flow":
                     texto = asistente.generar_prompts_flow(avance=avance)
                     motor._prod_cache = None
@@ -1288,6 +1296,10 @@ class H(BaseHTTPRequestHandler):
                 except Exception:  # noqa: BLE001
                     pass
                 self._json({"ok": True, **r})
+            elif u.path == "/api/subir_subtitulos":  # revisión de calidad: el subtítulo donde no lo tapan los botones
+                codigos = motor.subir_subtitulos()
+                cola = bool(codigos and self._cuerpo().get("armar") and lanzar("armar_sel", extra={"codigos": codigos}, en_cola=True))
+                self._json({"ok": True, "codigos": codigos, "en_cola": cola})
             elif u.path == "/api/abrir_link":  # trabajar en una carpeta pegando su link de Drive (o su ruta en esta PC)
                 sem = sesion_de_link(str(self._cuerpo().get("link") or ""))
                 abrir_sesion(sem)
@@ -1610,6 +1622,8 @@ class H(BaseHTTPRequestHandler):
                     if len(nota) < 3:
                         raise ValueError("Escribe qué hay que cambiar en la imagen")
                     lanzar("rehacer", extra={"id": str(b.get("id", "")), "nota": nota})
+                elif b.get("accion") == "mas_apoyo":
+                    lanzar("mas_apoyo")
                 elif b.get("accion") == "temas":
                     lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
                                            "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",

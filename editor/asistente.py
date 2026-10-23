@@ -213,6 +213,63 @@ Al terminar responde en 3 líneas: cuántas imágenes agregaste y en qué piezas
     return texto
 
 
+def mas_apoyo_visual(por_cuerpo=3, clips=1, avance=print):
+    """«Más apoyo visual»: agrega a cada cuerpo más imágenes de Flow y un clip en movimiento, en las palabras clave
+    repartidas a lo largo de lo que dice (las que ya tiene se quedan). Devuelve el resumen de Claude."""
+    actualizar_conocimiento(avance)
+    motor.usar_semana(motor.S.semana)
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    antes = json.loads(prod.read_text(encoding="utf-8"))
+    n_antes = len(antes.get("assets") or [])
+    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    prompt = f"""Lee el guion de la sesión «{motor.S.semana}»: {prod}
+Las reglas para escribir prompts de Flow están en la sección «Prompts limpios» de {reglas}. Léela antes de escribir.
+
+Los videos tienen muy poco apoyo visual (casi una imagen por pieza). Para CADA cuerpo (C1, C2…; no los hooks ni los CTA)
+agrega {por_cuerpo} imágenes nuevas y {clips} clip{"s" if clips != 1 else ""} en movimiento, sin tocar lo que ya hay:
+1. En `assets`, cada imagen nueva: {{"id": "<cuerpo>_IMG<n>", "tipo": "imagen", "pieza": "<cuerpo>", "palabra": "…",
+   "flow": {{"herramienta": "Google Flow · Imagen", "formato": "9:16 vertical", "prompt": "…", "plan_b": "…",
+   "que_muestra": "…", "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style"}}}}
+   (sigue la numeración: si ya existe C1_IMG1, las nuevas son C1_IMG2, C1_IMG3…).
+   Cada clip: {{"id": "<cuerpo>_CLIP<n>", "tipo": "clip", "pieza": "<cuerpo>", "palabra": "…",
+   "flow": {{"herramienta": "Google Flow · Video", "formato": "9:16 vertical, 4 a 6 segundos", "prompt": "…", "plan_b": "…",
+   "que_muestra": "…", "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style, fast cuts"}}}}
+   El prompt del clip describe un plano corto con un movimiento simple de la mascota o de la cámara (por ejemplo «a happy dog
+   running toward the camera in a sunny garden, slow motion»).
+2. En `marcas` de ese cuerpo, una marca por asset nuevo: imágenes {{"palabra": "…", "asset": "<id>", "dur": 1.5, "modo": "completa",
+   "mov": "zoom_in"}} (alterna zoom_in y zoom_out), clips {{"palabra": "…", "asset": "<id>", "dur": 2.5, "modo": "completa", "mov": "fijo"}}.
+
+Dónde ponerlas:
+- Repártelas a lo largo de todo el cuerpo (principio, medio y final), en las palabras que más se pueden ver: el problema,
+  la mascota, la comida, el resultado. Nunca dos marcas en la misma frase ni en la misma palabra que una que ya existe.
+- `palabra` debe aparecer tal cual en el texto de ESE cuerpo (en minúsculas, 1 a 3 palabras). Si no aparece, elige otra.
+
+Reglas de las imágenes (las mismas de siempre):
+- Siempre hay una mascota de por medio: cada imagen o clip muestra a un perro o gato real, nunca solo un objeto o una persona sin animal.
+- La mascota muestra el estado que dice la frase (decaída si la frase habla de un problema, activa y contenta si habla del resultado).
+  Lo interno (defensas, digestión, piel, pelo) se muestra en el animal, nunca células, órganos, intestinos ni microscopios.
+- Para los estados malos usa las palabras de reemplazo de «Prompts limpios»: nada de sick, ill, pain ni similares.
+{COMIDA}
+- Sin texto, sin logos ni envases con marca. Prompts en inglés, fotorrealistas. Nada de la lista prohibida de «Prompts limpios».
+- No toques `texto`, `partes`, `dicho`, `origen`, `nota`, ni las marcas ni los assets que ya existen.
+- Usa Edit para cambiar el archivo. Al final el archivo debe ser JSON válido.
+
+Al terminar responde en 3 líneas: cuántas imágenes y cuántos clips agregaste y en qué cuerpos."""
+    texto = correr(prompt, [motor.S.guion], avance=avance)
+    try:
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    except ValueError as e:
+        avance("El produccion.json salió con un error de formato: Claude lo corrige…")
+        correr(f"El archivo {prod} no es JSON válido ({e}). Corrígelo sin cambiar el contenido.", [motor.S.guion], avance=avance, max_turnos=15)
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    if len(datos.get("assets") or []) <= n_antes:
+        raise RuntimeError("Claude no agregó imágenes nuevas. " + texto[:200])
+    motor._prod_cache = None
+    return texto
+
+
 def generar_prompts_musica(avance=print):
     """Agrega a produccion.json la música (prompts de Flow Music) y qué pista usa cada cuerpo, si el guion no la trae.
     No cambia el texto, los tiempos ni lo que ya tiene el guion."""

@@ -503,6 +503,7 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .py-lista > div { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 12.5px; }
 .py-lista .v { font: 700 11px var(--mono); color: var(--muted); }
 .esperando { opacity: .6; cursor: progress !important; pointer-events: auto; }
+.cal-arreglo { justify-content: space-between; gap: 10px; padding: 10px 12px; margin: 0 0 10px; border-radius: 10px; border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); font-size: 13px; }
 .esperando:not(.actualizando)::after { content: " …"; }
 /* «Actualizando…»: el botón gira y no se puede volver a tocar hasta que termina */
 .actualizando { opacity: 1 !important; cursor: progress !important; }
@@ -1196,6 +1197,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div><h2 style="margin:0">Generar en Flow con Chrome</h2>
           <span class="muted" style="font-size:12px" id="generarInfo">Claude abre tu Chrome, genera en Google Flow las imágenes y en Flow Music la música que faltan, y las guarda en su cuadro. Si el guion no tiene música, primero escribe sus prompts.</span></div>
         <button class="btn" id="generarFlow" type="button">✦ Generar lo que falta</button>
+        <button class="btn sec" id="masApoyo" type="button" title="Claude agrega a cada cuerpo 3 imágenes más y 1 clip en movimiento, en las palabras clave">✦ Más apoyo visual (Claude)</button>
       </div>
       <p class="muted" style="margin:8px 0 0;font-size:12px">Necesita Chrome con la extensión de Claude (la misma cuenta de esta sala) y tu sesión de Google abierta en Flow. Usa los créditos de tu plan de Flow. Si Google pide entrar o un captcha, se detiene y te avisa.</p>
     </div>
@@ -3013,7 +3015,7 @@ function vigilar(t) {
   caja.hidden = !t.activo;
   $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["producir", "todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas", "generarFlow"].forEach(id => $(id).disabled = t.activo);
+  ["producir", "todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas", "generarFlow", "masApoyo"].forEach(id => $(id).disabled = t.activo);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -7512,11 +7514,34 @@ async function pintarCalidad() {
   const filas = Object.entries(r).filter(([, v]) => v.problemas.length);
   const graves = filas.filter(([, v]) => v.problemas.some(p => p.nivel === "err")).length;
   const icono = { err: "⛔", warn: "⚠", info: "ℹ" };
+  // el subtítulo muy abajo se arregla de una vez para todos (antes había que cambiar la plantilla a mano)
+  const bajos = filas.filter(([, v]) => v.problemas.some(p => p.txt.startsWith("Subtítulo muy abajo"))).length;
   $("calLista").innerHTML = `<p style="margin:0 0 8px;font-size:13.5px">${filas.length ? `<b>${filas.length}</b> de ${Object.keys(r).length} videos con algo que revisar${graves ? ` · <b style="color:var(--err)">${graves} graves</b>` : ""}.` : `✓ Los ${Object.keys(r).length} videos están bien.`}</p>
+    ${bajos ? `<div class="fila cal-arreglo"><span>⚠ En <b>${plural(bajos, "video")}</b> el subtítulo queda donde lo tapan los botones y el texto de TikTok e Instagram.</span>
+      <button class="btn peq" type="button" id="calSubir">⬆ Subir el subtítulo a 330 px en ${bajos === 1 ? "ese video" : `los ${bajos}`}</button></div>` : ""}
     <div class="tabla-calidad">${filas.map(([cod, v]) => `<div><a href="#" data-cal-abrir="${esc(cod)}"><code>${esc(cod)}</code></a>
       <span>${v.problemas.map(p => `<span class="cal ${p.nivel}">${icono[p.nivel] || ""} ${esc(p.txt)}</span>`).join("")}</span></div>`).join("")}</div>`;
 }
 $("calRevisar").onclick = pintarCalidad;
+$("masApoyo").onclick = async () => {
+  if (!(infoClaude?.instalado && infoClaude?.sesion)) return avisar("Primero conecta Claude (Inicio → Claude).", "err");
+  if (!confirm("Claude agrega a cada cuerpo 3 imágenes más y 1 clip en movimiento, en las palabras clave (lo que ya hay se queda). Después se generan en Flow con «Generar lo que falta» y se rearman los videos. ¿Seguir?")) return;
+  const volver = ponerActualizando([$("masApoyo")], "Claude está agregando…");
+  try { await post("/api/claude", { accion: "mas_apoyo" }); vigilar(await (await fetch("/api/trabajo")).json()); avisar("Claude está agregando imágenes y clips… lo ves en Procesos (☰).", "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+  finally { volver(); }
+};
+document.addEventListener("click", async e => {
+  if (e.target.id !== "calSubir") return;
+  if (!confirm("Sube el subtítulo a 330 px desde abajo (en la plantilla que usan, o en el video si tiene su propia altura) y rearma esos videos. ¿Seguir?")) return;
+  const volver = ponerActualizando([e.target], "Subiendo el subtítulo…");
+  try {
+    const r = await post("/api/subir_subtitulos", { armar: true });
+    await cargar(); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Subtítulo subido a 330 px en ${plural(r.codigos.length, "video")}. ${r.en_cola ? "Se rearman cuando la sala termine lo que está haciendo (☰)." : "Rearmándolos… lo ves en Procesos (☰)."}`, "ok");
+    pintarCalidad();
+  } catch (err) { avisar("Error: " + err.message, "err"); volver(); }
+});
 document.addEventListener("click", e => { const a = e.target.closest("[data-cal-abrir]"); if (a) { e.preventDefault(); abrirVideo(a.dataset.calAbrir); } });
 
 // ---------- Actualizaciones ----------

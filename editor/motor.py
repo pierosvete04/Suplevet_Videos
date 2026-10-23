@@ -4400,6 +4400,40 @@ def ajustes_video(codigo):
         return {}
 
 
+ALTURA_SEGURA = 330  # px desde abajo: más abajo lo tapan la descripción y los botones de TikTok e Instagram
+
+
+def subir_subtitulos(minimo=ALTURA_SEGURA):
+    """«Subir el subtítulo a 330 px»: en cada video con el subtítulo más abajo de lo seguro, lo sube a esa altura.
+    Si la altura viene del video (ajustes propios), se cambia en el video; si viene de su plantilla, en la plantilla
+    (una vez para todos los videos que la usan). Devuelve los videos que hay que rearmar."""
+    campos = ("altura_desde_abajo", "altura_hook", "altura_cta")
+    plantillas_a_subir, codigos = set(), []
+    for c in combinaciones():
+        aj = (ajustes_video(c["codigo"]).get("ajustes_sub") or {})
+        propias = {k: aj[k] for k in campos if aj.get(k) not in (None, "")}
+        bajas = {k: v for k, v in propias.items() if float(v) < minimo}
+        if bajas:
+            guardar_ajustes_video(c["codigo"], {"ajustes_sub": {**aj, **{k: minimo for k in bajas}}})
+            codigos.append(c["codigo"])
+        pl = plantilla_sub(c)
+        if any(pl.get(k) not in (None, "") and float(pl[k]) < minimo and k not in propias for k in campos):
+            plantillas_a_subir.add(id_plantilla_de(c))
+            codigos.append(c["codigo"])
+    if plantillas_a_subir:
+        todas, propias = plantillas(), dict(CONFIG.get("plantillas_propias") or {})
+        for pid in plantillas_a_subir:
+            base = dict(propias.get(pid) or todas.get(pid) or {})
+            for k in campos:
+                if base.get(k) not in (None, "") and float(base[k]) < minimo:
+                    base[k] = minimo
+            if not base.get("altura_desde_abajo") or float(base["altura_desde_abajo"]) < minimo:
+                base["altura_desde_abajo"] = max(minimo, float(base.get("altura_desde_abajo") or 0))
+            propias[pid] = {**base, "editado": time.time()}
+        guardar_config({"plantillas_propias": propias})
+    return sorted(set(codigos))
+
+
 def guardar_ajustes_video(codigo, datos):
     try:
         todos = json.loads(_ajustes_video_path().read_text(encoding="utf-8"))
