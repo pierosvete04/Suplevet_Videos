@@ -1,3 +1,6 @@
+Versión 1.45.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Inicio en tres columnas**, usando todo el ancho: a la izquierda la sesión y sus números; al medio el siguiente paso, «Preparar la sesión» y los videos para revisar; a la derecha «Cómo va esta sesión», los últimos cambios y Claude. En pantallas chicas pasa a dos columnas, y en el celular a una.
+
 Versión 1.45.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Exportar**: lo primero que ves son los videos de la sesión. La revisión de calidad ahora es un aviso de una línea encima de los videos (rojo si hay algo grave, naranja si hay algo que revisar, verde si todo está bien) y la lista se abre con «Ver detalle».
 
