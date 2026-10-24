@@ -737,6 +737,18 @@ dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color:
 .pasos-prod label { color: var(--ink); }
 .res-prod { display: grid; gap: 2px; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--hondo); border-left: 3px solid var(--line2); }
 .res-prod.err { border-left-color: var(--err); } .res-prod.warn { border-left-color: var(--warn); } .res-prod span { color: var(--muted); overflow-wrap: anywhere; }
+.cal-anuncio { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.cal-anuncio > summary { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; list-style: none; font-size: 13px; }
+.cal-anuncio > summary::-webkit-details-marker { display: none; }
+.cal-anuncio #calResumen { flex: 1; }
+.cal-anuncio .cal-ver { font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.cal-anuncio .cal-ver::after { content: " ▾"; }
+.cal-anuncio[open] .cal-ver::after { content: " ▴"; }
+.cal-anuncio[open] .cal-ver { font-size: 0; } .cal-anuncio[open] .cal-ver::after { content: "Ocultar ▴"; font-size: 12px; }
+.cal-anuncio.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, var(--surface)); }
+.cal-anuncio.err { border-color: var(--err); background: color-mix(in srgb, var(--err) 7%, var(--surface)); }
+.cal-anuncio.ok { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.cal-cuerpo { display: grid; gap: 10px; padding: 0 12px 12px; }
 .tabla-calidad { display: grid; gap: 4px; max-height: 420px; overflow: auto; }
 .tabla-calidad > div { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 6px 8px; border-radius: 8px; align-items: start; }
 .tabla-calidad > div:nth-child(odd) { background: var(--hondo); }
@@ -1497,14 +1509,6 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   </section>
 
   <section data-panel="publicar" hidden>
-    <div class="caja" style="margin-bottom:14px" id="cajaCalidad">
-      <div class="fila" style="justify-content:space-between">
-        <div><h2 style="margin:0">Revisión de calidad</h2>
-          <span class="muted" style="font-size:12.5px">Antes de exportar: videos muy largos, sin música, con imágenes que faltan, audio muy bajo o saturado, silencios largos o subtítulos donde los tapan los botones de TikTok e Instagram.</span></div>
-        <button class="btn sec" id="calRevisar" type="button">Revisar los videos</button>
-      </div>
-      <div id="calLista" style="margin-top:10px"></div>
-    </div>
     <div class="export-layout">
       <div class="caja export-ajustes">
         <h2>Exportar</h2>
@@ -1540,6 +1544,16 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <h2 style="margin:0">Videos de la sesión <span class="pill" id="exCuenta"></span></h2>
           <div class="fila"><button class="btn sec peq" id="exMarcarTodos">Seleccionar todos</button><button class="btn sec peq" id="exNinguno">Ninguno</button></div>
         </div>
+        <!-- la revisión de calidad es un aviso de una línea: el detalle se despliega solo si lo pides -->
+        <details class="cal-anuncio" id="cajaCalidad">
+          <summary><span class="cal-ico" aria-hidden="true">🩺</span><span id="calResumen"><b>Revisa la calidad</b> de los videos antes de exportar</span><span class="cal-ver">Ver detalle</span></summary>
+          <div class="cal-cuerpo">
+            <div class="fila" style="justify-content:space-between;gap:10px">
+              <span class="muted" style="font-size:12.5px;flex:1;min-width:220px">Se revisa: videos muy largos, sin música, con imágenes que faltan, audio muy bajo o saturado, silencios largos o subtítulos donde los tapan los botones de TikTok e Instagram.</span>
+              <button class="btn sec peq" id="calRevisar" type="button">Revisar de nuevo</button></div>
+            <div id="calLista"></div>
+          </div>
+        </details>
         <div class="grid-portadas" id="exVideos"></div>
         <details style="margin-top:14px"><summary>Calendario de publicación</summary><div class="dias" id="dias" style="margin-top:10px"></div></details>
       </div>
@@ -8130,14 +8144,19 @@ document.addEventListener("change", e => {
 // ---------- Revisión de calidad ----------
 async function pintarCalidad() {
   $("calLista").innerHTML = `<p class="muted" style="margin:0">Revisando…</p>`;
-  let r; try { r = await (await fetch("/api/calidad")).json(); } catch (e) { $("calLista").innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; return; }
+  $("cajaCalidad").className = "cal-anuncio"; $("calResumen").innerHTML = `<b>Revisando la calidad</b> de los videos…`;
+  let r; try { r = await (await fetch("/api/calidad")).json(); } catch (e) { $("calLista").innerHTML = `<p class="muted">Error: ${esc(e.message)}</p>`; $("calResumen").innerHTML = `No se pudo revisar la calidad.`; return; }
   const filas = Object.entries(r).filter(([, v]) => v.problemas.length);
   const graves = filas.filter(([, v]) => v.problemas.some(p => p.nivel === "err")).length;
   const icono = { err: "⛔", warn: "⚠", info: "ℹ" };
   // el subtítulo muy abajo se arregla de una vez para todos (antes había que cambiar la plantilla a mano)
   const bajos = filas.filter(([, v]) => v.problemas.some(p => p.txt.startsWith("Subtítulo muy abajo"))).length;
-  $("calLista").innerHTML = `<p style="margin:0 0 8px;font-size:13.5px">${filas.length ? `<b>${filas.length}</b> de ${Object.keys(r).length} videos con algo que revisar${graves ? ` · <b style="color:var(--err)">${graves} graves</b>` : ""}.` : `✓ Los ${Object.keys(r).length} videos están bien.`}</p>
-    ${bajos ? `<div class="fila cal-arreglo"><span>⚠ En <b>${plural(bajos, "video")}</b> el subtítulo queda donde lo tapan los botones y el texto de TikTok e Instagram.</span>
+  const total = Object.keys(r).length;
+  $("cajaCalidad").className = "cal-anuncio " + (graves ? "err" : filas.length ? "warn" : "ok");
+  $("calResumen").innerHTML = !total ? `<b>Revisión de calidad:</b> todavía no hay videos armados.`
+    : filas.length ? `<b>${graves ? "⛔" : "⚠"} Revisa la calidad:</b> ${filas.length} de ${total} videos con algo que revisar${graves ? ` · <b style="color:var(--err)">${graves} graves</b>` : ""}${bajos ? " · subtítulo muy abajo" : ""}.`
+    : `<b>✓ Calidad revisada:</b> los ${total} videos están bien.`;
+  $("calLista").innerHTML = `${bajos ? `<div class="fila cal-arreglo"><span>⚠ En <b>${plural(bajos, "video")}</b> el subtítulo queda donde lo tapan los botones y el texto de TikTok e Instagram.</span>
       <button class="btn peq" type="button" id="calSubir">⬆ Subir el subtítulo a 330 px en ${bajos === 1 ? "ese video" : `los ${bajos}`}</button></div>` : ""}
     <div class="tabla-calidad">${filas.map(([cod, v]) => `<div><a href="#" data-cal-abrir="${esc(cod)}"><code>${esc(cod)}</code></a>
       <span>${v.problemas.map(p => `<span class="cal ${p.nivel}">${icono[p.nivel] || ""} ${esc(p.txt)}</span>`).join("")}</span></div>`).join("")}</div>`;
