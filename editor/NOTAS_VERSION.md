@@ -1,3 +1,8 @@
+Versión 1.46.7 (se actualiza desde la app con «Actualizar ahora»):
+- **Colores por función**: los botones principales en un azul más oscuro; lo que hace la IA (los botones con ✦) en violeta; verde, ámbar y rojo para listo, aviso y peligro. Así se reconoce cada botón por su color.
+- **Sombras**: las tarjetas y los botones tienen una sombra suave, y lo que se puede tocar se levanta un poco al pasar el mouse.
+- **Ventana maximizada siempre**: ahora se maximiza cada vez que abres la sala (antes, si la sala ya estaba corriendo, la ventana nueva quedaba chica).
+
 Versión 1.46.6 (se actualiza desde la app con «Actualizar ahora»):
 - **Encabezado nuevo, en dos filas**: arriba «Sala de edición» con el nombre del proyecto debajo, y a la derecha los avisos, los procesos y tu cuenta. Abajo, la sesión y el formato a la izquierda, y las acciones de trabajo a la derecha (Teleprompter, Armar todo y Producir todo). En el celular, todo baja de línea sin cortarse.
 

@@ -606,16 +606,13 @@ def sesion_de_carpeta_local(p):
     return nombre
 
 
-_VENTANA_MAXIMIZADA = []
-
-
 def maximizar_ventana():
-    """La sala se abre en pantalla completa (maximizada). La ventana la crea el .exe; se maximiza desde aquí con Windows
-    para no tener que bajar el instalador completo. Solo la primera vez que la página pide el estado, y solo en ventanas
-    de esta PC cuyo título empieza con «Sala de edición» (la propia o la de Edge en modo aplicación)."""
-    if _VENTANA_MAXIMIZADA or os.name != "nt" or motor.CONFIG.get("ventana_maximizada") is False:
+    """La sala se abre en pantalla completa (maximizada). La ventana la crea el .exe a 1440×920; se maximiza desde aquí
+    con Windows para no tener que bajar el instalador completo. Lo pide la página cada vez que se abre una ventana
+    (antes era solo la primera vez que arrancaba la sala: si ya estaba corriendo, la ventana nueva quedaba chica).
+    Solo ventanas de esta PC cuyo título empieza con «Sala de edición» (la propia o la de Edge en modo aplicación)."""
+    if os.name != "nt" or motor.CONFIG.get("ventana_maximizada") is False:
         return
-    _VENTANA_MAXIMIZADA.append(True)
 
     def tarea():
         import ctypes
@@ -1035,7 +1032,6 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b)
         elif u.path == "/api/estado":
-            maximizar_ventana()
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
@@ -1472,6 +1468,9 @@ class H(BaseHTTPRequestHandler):
                 d = clips_largos.carpeta_salida(str(self._cuerpo().get("id") or ""))
                 d.mkdir(parents=True, exist_ok=True)
                 os.startfile(str(d))
+                self._json({"ok": True})
+            elif u.path == "/api/maximizar":  # la página recién abierta pide su ventana maximizada
+                maximizar_ventana()
                 self._json({"ok": True})
             elif u.path == "/api/paquete_antigravity":
                 b = self._cuerpo()
