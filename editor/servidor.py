@@ -185,6 +185,7 @@ def estado():
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
+            "portada_estilo": {"fuente": motor.CONFIG["portada"].get("fuente") or "", "mayusculas": motor.CONFIG["portada"].get("mayusculas", True)},
             "propias": list(motor.CONFIG.get("plantillas_propias", {})), "fabrica": list(motor.CONFIG.get("plantillas_sub", {})),
             "elementos": elementos(), "luts": motor.luts(),
             "claves": [motor.norm(x) for x in motor.CONFIG["palabras_clave"]],
@@ -1468,6 +1469,13 @@ class H(BaseHTTPRequestHandler):
                 d = clips_largos.carpeta_salida(str(self._cuerpo().get("id") or ""))
                 d.mkdir(parents=True, exist_ok=True)
                 os.startfile(str(d))
+                self._json({"ok": True})
+            elif u.path == "/api/abrir_navegador":  # el teleprompter va en el navegador (en la ventana de la sala no había cómo volver)
+                ruta = str(self._cuerpo().get("ruta") or "/teleprompter")
+                if not ruta.startswith("/teleprompter"):
+                    raise ValueError("Solo se abre el teleprompter")
+                import webbrowser
+                webbrowser.open(f"http://localhost:{self.server.server_address[1]}{ruta}")
                 self._json({"ok": True})
             elif u.path == "/api/maximizar":  # la página recién abierta pide su ventana maximizada
                 maximizar_ventana()

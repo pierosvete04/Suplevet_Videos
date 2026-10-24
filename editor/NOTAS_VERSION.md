@@ -1,3 +1,11 @@
+Versión 1.46.9 (se actualiza desde la app con «Actualizar ahora»):
+- **La ✕ del video ya cierra**: las preguntas («¿Cerrar sin guardar?», «¿Borrar…?», etc.) no se veían en la ventana del programa y la sala quedaba esperando. Ahora son ventanas de la sala, con «Sí» y «Cancelar», y cada decisión queda en Notificaciones.
+- **«Armar todos los videos» pregunta antes** cuántos videos va a armar.
+- **Portada en vivo**: el título, el logo y las imágenes se mueven pegados al mouse, sin esperar. Al soltarlos llega la portada exacta. **Doble clic en el título** para escribirlo ahí mismo.
+- **Logos e imágenes con miniaturas**: arriba, lo que está puesto en la portada (con ✕ para quitarlo); abajo, todos tus logos e imágenes. Tocas uno y se pone.
+- **«Este video usa»** es ahora una lista corta, sin cajas.
+- **Abrir la portada en grande** (y los clips armados) se ve dentro de la sala con «← Volver». El teleprompter se abre en el navegador.
+
 Versión 1.46.8 (se actualiza desde la app con «Actualizar ahora»):
 - **Detalle del video**: el estado se elige en una lista («Estado: 🟡 Por revisar / 🔵 Editando / 🟢 Aprobado»). Los botones dicen «✎ Editar video» y «⟳ Rearmar». Lo que usa el video (subtítulos, música, imágenes y sonidos) va en tarjetas debajo del video.
 - **Portada editable**: la vista es más grande y sobre ella **arrastras el título, el logo y las imágenes**. La esquina amarilla cambia su tamaño, y el título también se mueve de lado. Sigues pudiendo cambiar la letra, los colores y la caja, agregar stickers o imágenes, y «⬆ Usar una imagen mía» como portada. «Deshacer cambios» vuelve a la portada guardada.

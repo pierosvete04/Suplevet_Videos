@@ -644,6 +644,14 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .por-lay { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 18px; margin-top: 10px; align-items: start; }
 .por-lienzo { position: relative; width: 100%; aspect-ratio: 9/16; border-radius: 12px; overflow: hidden; background: #000; box-shadow: var(--sombra-alta); user-select: none; touch-action: none; }
 .por-lienzo img.por-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+/* mientras se mueve algo se ve la versión en vivo (fondo + capas); al quedarse quieto llega la portada exacta y tapa las capas */
+.por-lienzo.vivo #porVista { opacity: 0; }
+.por-lienzo:not(.vivo) .por-cosa > .contenido { visibility: hidden; }
+.por-cosa > .contenido { display: block; width: 100%; pointer-events: none; }
+.por-cosa.titulo { display: grid; place-items: center; }
+.por-cosa.titulo > .contenido { text-align: center; line-height: 1.12; paint-order: stroke fill; white-space: pre-wrap; overflow-wrap: anywhere; }
+.por-cosa.editando { cursor: text; border-color: #ffd23f; border-style: solid; }
+.por-cosa.editando > .contenido { pointer-events: auto; outline: none; }
 .por-cosa { position: absolute; border: 2px dashed rgba(255,255,255,.85); border-radius: 6px; cursor: grab; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .por-cosa:hover, .por-cosa.activa { border-style: solid; border-color: #ffd23f; }
 .por-cosa > em { position: absolute; left: -2px; top: -20px; font: 700 10.5px var(--f); font-style: normal; color: #111; background: #ffd23f; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
@@ -652,6 +660,29 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .por-ctrl > fieldset { break-inside: avoid; margin: 0 0 12px; }
 .por-ayuda { font-size: 12px; margin: 0; }
 @media (max-width: 860px) { .por-lay { grid-template-columns: minmax(0, 1fr); } .por-lienzo { max-width: 320px; } }
+/* Ventana de preguntas de la sala (reemplaza a confirm/prompt/alert) */
+dialog.pregunta { width: min(460px, 92vw); padding: 0; border-radius: 16px; border: 1px solid var(--line2); box-shadow: var(--sombra-alta); }
+.pq { display: grid; gap: 14px; padding: 20px 22px 18px; }
+.pq p { margin: 0; font-size: 14.5px; line-height: 1.5; white-space: pre-line; }
+.btn.peligro-btn { background: linear-gradient(180deg, color-mix(in srgb, var(--err) 92%, #fff), var(--err)); box-shadow: 0 4px 12px color-mix(in srgb, var(--err) 35%, transparent); }
+/* Portada: galería de logos e imágenes y lo que está puesto */
+.por-galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+.por-galeria button { display: grid; gap: 4px; justify-items: center; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: 11px var(--f); color: var(--ink); min-width: 0; }
+.por-galeria button:hover { border-color: var(--accent); box-shadow: var(--sombra-caja); }
+.por-galeria img, .por-capas img { width: 100%; height: 44px; object-fit: contain; border-radius: 6px; background: repeating-conic-gradient(#8883 0 25%, transparent 0 50%) 50% / 10px 10px; }
+.por-galeria span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.por-capas { display: grid; gap: 6px; }
+.por-capas > div { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.por-capas b { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .por-capas small { display: block; color: var(--muted); font-size: 11px; }
+/* Este video usa: una lista corta, sin cajas */
+.usa-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; margin: 0; font-size: 12.5px; }
+.usa-lista > div { display: flex; gap: 6px; min-width: 0; } .usa-lista dt { color: var(--muted); flex: none; } .usa-lista dd { margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usa-lista .warn dd { color: var(--warn); }
+/* Visor dentro de la sala (portadas, clips): con un botón para volver */
+dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-radius: 16px; }
+.visor-cab { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--flotante); }
+.visor-cuerpo { display: grid; place-items: center; padding: 14px; background: var(--hondo); }
+.visor-cuerpo img, .visor-cuerpo video { max-width: 100%; max-height: 80vh; border-radius: 10px; box-shadow: var(--sombra-alta); }
 /* Faltantes: los tres pasos de Flow en columnas */
 .fl-caja { display: grid; gap: 14px; margin-bottom: 14px; }
 .fl-cab { display: grid; gap: 2px; }
@@ -2056,6 +2087,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 </main>
 
 <div id="estadoTrabajo" hidden role="status" aria-live="polite" title="Ver el proceso y cancelarlo"><span class="rueda" aria-hidden="true"></span><span id="trabajo"></span></div>
+<dialog id="dlgVer" class="visor" aria-labelledby="verTit">
+  <div class="visor-cab"><button class="btn sec peq" type="button" id="verVolver">← Volver</button><b id="verTit" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b></div>
+  <div class="visor-cuerpo" id="verCuerpo"></div>
+</dialog>
+<dialog id="dlgPregunta" class="pregunta" aria-labelledby="pqTexto">
+  <div class="pq"><p id="pqTexto"></p><input id="pqCampo" hidden autocomplete="off">
+    <div class="fila" style="justify-content:flex-end"><button class="btn sec" type="button" id="pqNo">Cancelar</button><button class="btn" type="button" id="pqSi">Sí, seguir</button></div></div>
+</dialog>
 <dialog id="dlgProducir" aria-labelledby="prodTit" style="width:min(560px,94vw)">
   <div class="dlg-cab"><h2 id="prodTit" style="margin:0">Producir todo</h2><button class="btn sec peq" id="prodCerrar" aria-label="Cerrar">✕</button></div>
   <div style="padding:16px;display:grid;gap:12px" id="prodCuerpo">
@@ -2330,7 +2369,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <button class="btn sec peq" id="cerrar" aria-label="Cerrar">✕</button></div></div>
   <div class="dlg-cuerpo">
     <div style="display:grid;gap:10px;align-content:start"><video id="dlgVideo" controls playsinline preload="metadata"></video>
-      <div class="usa-caja"><span class="etq">Este video usa</span><div class="usa-grid" id="dlgUsa"></div></div>
+      <div class="usa-caja"><span class="etq">Este video usa</span><dl class="usa-lista" id="dlgUsa"></dl></div>
       <a id="dlgPortada" class="muted" style="font-size:12px" target="_blank">Abrir portada en grande</a></div>
     <div>
       <div class="redes fila" id="redes">
@@ -2355,8 +2394,9 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <span class="muted" style="font-size:12px">Arrastra el título, el logo y las imágenes sobre la portada; la esquina amarilla cambia su tamaño. Se rehace al instante.</span></div>
       <div class="por-lay">
         <div style="display:grid;gap:8px">
-          <div class="por-lienzo" id="porLienzo"><img id="porVista" class="por-img" alt="Vista de la portada"><div id="porCosas"></div></div>
+          <div class="por-lienzo" id="porLienzo"><img id="porBase" class="por-img" alt=""><img id="porVista" class="por-img" alt="Vista de la portada"><div id="porCosas"></div></div>
           <span class="muted" style="font-size:11.5px;text-align:center" id="porEstado">Portada actual</span>
+          <span class="muted" style="font-size:11px;text-align:center">Doble clic en el título para escribirlo ahí mismo.</span>
           <div class="fila" style="justify-content:center"><button class="btn" id="porGuardar">Guardar portada</button>
             <button class="btn sec peq" id="porVolver">Deshacer cambios</button></div>
         </div>
@@ -2377,12 +2417,13 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <label>Altura del título: <b id="porYTxt"></b><input type="range" id="porY" min="150" max="1780" step="10"></label>
             <button class="btn-link" type="button" id="porCentrar" style="justify-self:start;font-size:12px">Centrar el título de lado a lado</button>
           </fieldset>
-          <fieldset><legend>Logo, stickers e imágenes encima</legend>
-            <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porLogo"> Logo de la marca</label>
-            <label>Qué logo<select id="porLogoArchivo"></select></label>
-            <div id="porElems" style="display:grid;gap:6px"></div>
-            <div class="fila"><select id="porElemSel" style="flex:1"></select><button class="btn sec peq" id="porElemAgregar" type="button">Agregar</button>
-              <label class="btn sec peq" style="cursor:pointer">Subir imagen<input type="file" id="porElemSubir" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
+          <fieldset><legend>Logos e imágenes</legend>
+            <span class="etq">En la portada</span>
+            <div id="porElems" class="por-capas"></div>
+            <span class="etq">Toca uno para ponerlo</span>
+            <div id="porGaleria" class="por-galeria"></div>
+            <label class="btn sec peq" style="cursor:pointer;justify-self:start">⬆ Subir logo o imagen<input type="file" id="porElemSubir" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+            <input type="checkbox" id="porLogo" hidden><select id="porLogoArchivo" hidden></select><select id="porElemSel" hidden></select><button id="porElemAgregar" type="button" hidden></button>
           </fieldset>
         </div>
       </div>
@@ -2549,6 +2590,56 @@ const avisar = (txt, cls = "muted") => {
   t.textContent = txt; t.className = "toast " + cls + " ver";
   clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("ver"), cls === "err" ? 8000 : 4500);
 };
+// ---------- Enlaces de la sala ----------
+// En la ventana del programa, un enlace a una imagen o un video de la sala la reemplazaba entera y no había cómo volver:
+// se abre en un visor con «← Volver». El teleprompter se abre en el navegador de la PC.
+function abrirVisor(url, titulo) {
+  const es = (/\.(mp4|mov|webm)(\?|$)/i.test(url) || /\/api\/clips\/salida/.test(url)) ? "video" : "img";
+  $("verTit").textContent = titulo || "";
+  $("verCuerpo").innerHTML = es === "video" ? `<video src="${esc(url)}" controls autoplay playsinline></video>` : `<img src="${esc(url)}" alt="">`;
+  $("dlgVer").showModal();
+}
+$("verVolver").onclick = () => { $("verCuerpo").innerHTML = ""; $("dlgVer").close(); };
+$("dlgVer").addEventListener("close", () => { $("verCuerpo").innerHTML = ""; });
+document.addEventListener("click", e => {
+  const a = e.target.closest?.("a[href]"); if (!a || e.defaultPrevented) return;
+  const href = a.getAttribute("href") || "";
+  let u; try { u = new URL(href, location.href); } catch (err) { return; }
+  if (u.origin !== location.origin || href.startsWith("#")) return;  // los de afuera los maneja la ventana (van al navegador)
+  if (u.pathname.startsWith("/teleprompter")) { e.preventDefault(); post("/api/abrir_navegador", { ruta: u.pathname + u.search }).catch(() => window.open(u.href, "_blank")); return; }
+  if (/\.(jpe?g|png|webp|gif|mp4|mov|webm)(\?|$)/i.test(u.pathname + u.search) || u.pathname.startsWith("/api/clips/salida") || u.pathname.startsWith("/portadas/")) {
+    e.preventDefault(); abrirVisor(u.href, a.textContent.trim() || u.pathname.split("/").pop());
+  }
+});
+
+// ---------- Preguntas y avisos en ventanas de la sala ----------
+// confirm(), prompt() y alert() del navegador no se ven en la ventana del programa: la página quedaba esperando una
+// respuesta invisible (la ✕ del video no cerraba). Estas son ventanas de la sala, y cada decisión queda en Notificaciones.
+function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false }) {
+  return new Promise(ok => {
+    const d = $("dlgPregunta");
+    $("pqTexto").textContent = texto;
+    $("pqSi").textContent = si; $("pqNo").textContent = no; $("pqNo").hidden = no === null;
+    $("pqSi").className = "btn" + (peligro ? " peligro-btn" : "");
+    $("pqCampo").hidden = campo === null; $("pqCampo").value = campo ?? "";
+    const cerrar = v => { d.close(); $("pqSi").onclick = $("pqNo").onclick = null; d.oncancel = null; $("pqCampo").onkeydown = null; ok(v); };
+    $("pqSi").onclick = () => cerrar(campo === null ? true : $("pqCampo").value);
+    $("pqNo").onclick = () => cerrar(campo === null ? false : null);
+    d.oncancel = e => { e.preventDefault(); cerrar(campo === null ? false : null); };
+    $("pqCampo").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("pqSi").click(); } };
+    d.showModal();
+    setTimeout(() => (campo === null ? $("pqSi") : $("pqCampo")).focus(), 30);
+  });
+}
+const resumenPregunta = txt => String(txt).split(/[?.\n]/)[0].replace(/^¿/, "").slice(0, 110);
+async function preguntar(texto) {
+  const peligro = /borrar|quitar|descartar|perder|desconectar|cerrar el link/i.test(texto);
+  const r = await ventanaPregunta({ texto, si: peligro ? "Sí" : "Sí, seguir", peligro });
+  guardarNotif((r ? "✓ Confirmaste: " : "✕ Cancelaste: ") + resumenPregunta(texto), "ok");  // queda en Notificaciones (las «muted» no se guardan)
+  return r;
+}
+async function pedirTexto(texto, valor = "") { return ventanaPregunta({ texto, si: "Aceptar", campo: String(valor ?? "") }); }
+function avisoModal(texto) { return ventanaPregunta({ texto: String(texto), si: "Entendido", no: null }); }
 const norm = w => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ]/g, "");
 // El botón que se tocó queda «esperando» mientras el pedido va y vuelve: un segundo clic no hace nada
 // (antes un doble clic en Guardar creaba dos versiones, abría dos ventanas de inicio de sesión…)
@@ -2695,7 +2786,7 @@ function pintarSiguiente(ahora, pasos, n) {
 // Los videos armados que todavía no se aprueban (primero los que hay que rearmar)
 document.addEventListener("click", async e => {
   if (e.target.id !== "todoPorMi") return;
-  if (!confirm("La sala escucha todos los clips, arma el guion con lo que se dijo, les pone a los clips el nombre de su pieza (también en la carpeta de Drive del equipo) y, si Claude está conectado, propone las imágenes y la música. ¿Seguir?")) return;
+  if (!await preguntar("La sala escucha todos los clips, arma el guion con lo que se dijo, les pone a los clips el nombre de su pieza (también en la carpeta de Drive del equipo) y, si Claude está conectado, propone las imágenes y la música. ¿Seguir?")) return;
   const volver = ponerActualizando([e.target], "Analizando y ordenando…");
   try { await post("/api/trabajo", { accion: "todo_por_mi" }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar("La sala está analizando y ordenando todo… lo ves en Procesos (☰). Puede tardar varios minutos.", "ok"); }
@@ -2763,7 +2854,7 @@ function pintarListaSesiones() {
 }
 $("inBuscar").addEventListener("input", pintarListaSesiones);
 $("inRenombrarGrupo").onclick = async () => {
-  const nuevo = prompt(`Nuevo nombre para «${E.semana}» (por ejemplo «P01 B2B VETERINARIOS»):`, E.siguiente_produccion ? `${E.siguiente_produccion} ` : "");
+  const nuevo = await pedirTexto(`Nuevo nombre para «${E.semana}» (por ejemplo «P01 B2B VETERINARIOS»):`, E.siguiente_produccion ? `${E.siguiente_produccion} ` : "");
   if (!nuevo || !nuevo.trim()) return;
   try { const r = await post("/api/renombrar_grupo", { viejo: E.semana, nuevo }); await cargar(); avisar(`El grupo ahora se llama «${r.nuevo}». Los días de grabación y sus carpetas en Drive no cambian.`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -2915,7 +3006,7 @@ $("clGuion").onclick = async () => {
 };
 const revisarConClaude = async () => {
   if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
-  if (!confirm(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y rearmar los videos. ¿Seguir?`)) return;
+  if (!await preguntar(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y rearmar los videos. ¿Seguir?`)) return;
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
   try { await post("/api/claude", { accion: "revisar" }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -2939,12 +3030,12 @@ $("formGrupo").addEventListener("submit", async e => {
   e.preventDefault();
   const sesiones = [...$("grSesiones").querySelectorAll("input:checked")].map(i => i.value);
   try { await post("/api/grupo", { nombre: $("grNombre").value, sesiones, guion: $("grGuion").value }); $("dlgGrupo").close(); sel = null; await cargar(); avisar("Grupo creado: ahora ves todos sus clips y videos juntos.", "ok"); }
-  catch (err) { avisar("Error: " + err.message, "err"); alert(err.message); }
+  catch (err) { avisar("Error: " + err.message, "err"); avisoModal(err.message); }
 });
 $("inNueva").onclick = async () => { const s = await nuevaSesion(); if (s) avisar(`Sesión «${s}» creada.`, "ok"); };
 const claveNombre = t => String(t || "").toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g, "");
 async function nuevaSesion() {
-  const s = prompt("Nombre de la nueva producción: número + ADS u ORG + tema (el día de grabación no hace falta).\nEj.: " + nombreSesionSugerido() + "ADS ARTICULACIONES  ·  " + nombreSesionSugerido() + "ORG PELAJE", nombreSesionSugerido() + "ADS ");
+  const s = await pedirTexto("Nombre de la nueva producción: número + ADS u ORG + tema (el día de grabación no hace falta).\nEj.: " + nombreSesionSugerido() + "ADS ARTICULACIONES  ·  " + nombreSesionSugerido() + "ORG PELAJE", nombreSesionSugerido() + "ADS ");
   if (s === null) return null;
   if (!s.trim() || /^\s*P\d+(\s+(ADS|ORG))?\s*$/i.test(s)) { avisar("Falta el tema de la producción (por ejemplo ARTICULACIONES).", "err"); return null; }
   if (/[\\/:*?"<>|]/.test(s)) { avisar('El nombre no puede llevar / \\ : * ? " < > |', "err"); return null; }
@@ -2956,7 +3047,7 @@ async function nuevaSesion() {
 async function cambiarSesion(s) {
   // con un trabajo corriendo, cambiar de sesión mezclaba los videos de una sesión con las carpetas de la otra
   if (E?.trabajo?.activo && s !== E.semana) return avisar("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.", "err");
-  if ($("dlg").open && !cerrarVideo()) return;
+  if ($("dlg").open && !await cerrarVideo()) return;
   clMostrarForm = false;
   elegidos.clear(); pintarSeleccion();  // lo elegido era de la otra sesión
   $("clSalida").hidden = true; $("clSalida").textContent = "";
@@ -3055,7 +3146,7 @@ document.addEventListener("click", async e => {
   const de = e.target.closest("[data-est]");
   if (de && actual) { try { await post("/api/estado_video", { codigo: actual.codigo, estado: de.dataset.est }); actual.estado = de.dataset.est; pintarEstadoDlg(); cargar(); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
   const tp = e.target.closest("[data-tipo]");
-  if (tp) { if (tp.dataset.tipo !== tipoPieza && !dejarPieza()) return; tipoPieza = tp.dataset.tipo; sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || sel; pintarPiezas(); pintarPieza(true); return; }
+  if (tp) { if (tp.dataset.tipo !== tipoPieza && !await dejarPieza()) return; tipoPieza = tp.dataset.tipo; sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || sel; pintarPiezas(); pintarPieza(true); return; }
 });
 // Qué usa cada video: plantilla de subtítulos, música, imágenes y sonidos (del último armado)
 function plantillaDe(s) {
@@ -3081,7 +3172,7 @@ function pintarEstadoDlg() {
 function usaTarjetas(s) {
   const pl = plantillaDe(s), r = s.receta || {};
   const mus = (r.musica || "").replace(/\s*\([\d.]+ s\)/g, "");
-  const t = (ico, que, val, cls = "") => `<div class="usa-t ${cls}"><span class="usa-ico" aria-hidden="true">${ico}</span><span><small>${que}</small><b>${esc(val)}</b></span></div>`;
+  const t = (ico, que, val, cls = "") => `<div class="${cls}"><dt>${que}:</dt><dd title="${esc(val)}">${esc(val)}</dd></div>`;
   return [t("Aa", "Subtítulos", pl.nombre + (pl.propia ? " · propia" : "")),
     mus ? t("♪", "Música", mus) : r.duracion ? t("♪", "Música", "Sin música", "warn") : "",
     t("▣", "Imágenes", String((r.imagenes || []).length) + ((r.faltan_assets || []).length ? ` · faltan ${r.faltan_assets.length}` : ""), (r.faltan_assets || []).length ? "warn" : ""),
@@ -3170,9 +3261,9 @@ function piezaSucia() {
 }
 function pintarSucia() { $("piezaSucia").hidden = !piezaSucia(); }
 // ¿Se puede dejar la pieza que está en pantalla? (pregunta si tiene cambios sin guardar)
-function dejarPieza() {
+async function dejarPieza() {
   if (!piezaSucia()) return true;
-  if (confirm(`${piezaPintada} tiene cambios sin guardar (subtítulos o marcas). ¿Dejarla igual y perderlos?`)) { piezaPintada = null; return true; }
+  if (await preguntar(`${piezaPintada} tiene cambios sin guardar (subtítulos o marcas). ¿Dejarla igual y perderlos?`)) { piezaPintada = null; return true; }
   return false;
 }
 function pintarPieza(forzar) {
@@ -3484,7 +3575,7 @@ document.addEventListener("change", e => {
 });
 $("descTodos").onclick = () => { document.querySelectorAll("[data-desc]").forEach(c => descElegidos.add(c.dataset.desc)); pintarSinAsignar(); };
 $("descBorrar").onclick = async () => {
-  if (!confirm(`¿Descartar ${descElegidos.size} clip${descElegidos.size === 1 ? "" : "s"}? Se mueven a Clips/_DESCARTADOS (en esta PC y en Drive) y dejan de aparecer. Se pueden recuperar.`)) return;
+  if (!await preguntar(`¿Descartar ${descElegidos.size} clip${descElegidos.size === 1 ? "" : "s"}? Se mueven a Clips/_DESCARTADOS (en esta PC y en Drive) y dejan de aparecer. Se pueden recuperar.`)) return;
   try { const r = await post("/api/descartar", { rels: [...descElegidos] }); descElegidos.clear(); avisar(`${r.movidos} clips descartados.`, "ok"); await cargar(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 };
@@ -3580,7 +3671,7 @@ async function subir(lbl, file, varios) {
   const esVid = file.type.startsWith("video/") || ["mov", "mp4", "m4v", "webm"].includes(ext);
   if (["hooks", "cuerpos", "ctas"].includes(lbl.dataset.destino) && !esVid) return avisar(`${lbl.dataset.nombre} es una toma grabada: arrastra un video, no ${file.type.startsWith("image/") ? "una imagen" : "ese archivo"}.`, "err");
   if (acepta === "video/*" && !esVid) return avisar(`${lbl.dataset.nombre} es un clip: arrastra un video.`, "err");
-  if (lbl.querySelector("img, video") && !confirm(`${lbl.dataset.nombre} ya tiene un archivo. ¿Reemplazarlo por «${file.name}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
+  if (lbl.querySelector("img, video") && !await preguntar(`${lbl.dataset.nombre} ya tiene un archivo. ¿Reemplazarlo por «${file.name}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
   if (varios > 1) avisar(`Soltaste ${varios} archivos: se usa solo el primero («${file.name}») para ${lbl.dataset.nombre}.`, "muted");
   const span = lbl.querySelector("span");
   lbl.dataset.subiendo = "1"; lbl.classList.add("subiendo");
@@ -3665,13 +3756,13 @@ async function trabajo(accion, pieza) {
 }
 
 // ---------- Eventos ----------
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
   const tab = e.target.closest("nav button");
   if (tab) {
     const antes = document.querySelector("nav button[aria-selected='true']")?.dataset.tab;
-    if (antes === "piezas" && tab.dataset.tab !== "piezas" && !dejarPieza()) return;
+    if (antes === "piezas" && tab.dataset.tab !== "piezas" && !await dejarPieza()) return;
     if (antes === "guion" && tab.dataset.tab !== "guion" && [...document.querySelectorAll("#guionLista .g-editar textarea")].length
-        && !confirm("Estás editando el texto de una pieza del guion. ¿Salir sin guardar?")) return;
+        && !await preguntar("Estás editando el texto de una pieza del guion. ¿Salir sin guardar?")) return;
     pararAudios();
     document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === tab));
     document.querySelectorAll("[data-panel]").forEach(s => s.hidden = s.dataset.panel !== tab.dataset.tab);
@@ -3686,7 +3777,7 @@ document.addEventListener("click", e => {
   const card = e.target.closest("[data-cod]");
   if (card) return abrirVideo(card.dataset.cod);
   const pz = e.target.closest(".pieza");
-  if (pz) { if (pz.dataset.p !== sel && !dejarPieza()) return; sel = pz.dataset.p; pintarPiezas(); pintarPieza(true); return; }
+  if (pz) { if (pz.dataset.p !== sel && !await dejarPieza()) return; sel = pz.dataset.p; pintarPiezas(); pintarPieza(true); return; }
   const t = e.target.closest(".linea button");
   if (t) { const v = $("vPieza"); v.currentTime = Number(t.dataset.t); v.play(); bucle(); return; }
   const rb = e.target.closest("#redes button");
@@ -3719,10 +3810,10 @@ async function rehacerImagen(id) {
   try { await post("/api/claude", { accion: "rehacer", id, nota }); vigilar(await (await fetch("/api/trabajo")).json()); avisar(`Claude está rehaciendo el prompt de ${id}…`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
   const b = e.target.closest("[data-plant]");
   if (b && b.dataset.plant !== plantSel && plantSucia()
-    && !confirm(`Tienes cambios sin guardar en «${plantEdit.nombre || plantSel}». ¿Cambiar de plantilla y perderlos?`)) return;
+    && !await preguntar(`Tienes cambios sin guardar en «${plantEdit.nombre || plantSel}». ¿Cambiar de plantilla y perderlos?`)) return;
   if (b) elegirPlantilla(b.dataset.plant);
 });
 document.addEventListener("keydown", e => {
@@ -3763,7 +3854,11 @@ $("nuevaMarca").onclick = () => {  // la palabra que suena en el segundo actual 
 };
 $("guardar").onclick = () => guardar(false);
 $("guardarArmar").onclick = () => guardar(true);
-$("todo").onclick = () => trabajo("todo");
+$("todo").onclick = async () => {
+  const n = (E.salidas || []).length;
+  if (!(await preguntar(`¿Armar todos los videos de «${E.semana}»?${n ? ` Son ${n} videos: puede tardar varios minutos.` : ""} Los ves en Procesos (☰) mientras se arman.`))) return;
+  trabajo("todo");
+};
 // ---------- Producir todo ----------
 $("producir").onclick = async () => {
   $("prodPanel").disabled = !E.panel; $("prodPanel").checked = !!E.panel && $("prodPanel").checked;
@@ -3971,9 +4066,9 @@ $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMues
 $("plantPredet").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit, true), "Plantilla guardada y en uso en los videos."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
   leerFormPlantilla();
-  const nombre = prompt("Nombre de la nueva plantilla:", (plantEdit.nombre || plantSel) + " (mía)");
+  const nombre = await pedirTexto("Nombre de la nueva plantilla:", (plantEdit.nombre || plantSel) + " (mía)");
   if (!nombre) return;
-  if (Object.values(E.plantillas).some(p => claveNombre(p.nombre) === claveNombre(nombre)) && !confirm(`Ya hay una plantilla «${nombre}». ¿Crear otra con el mismo nombre?`)) return;
+  if (Object.values(E.plantillas).some(p => claveNombre(p.nombre) === claveNombre(nombre)) && !await preguntar(`Ya hay una plantilla «${nombre}». ¿Crear otra con el mismo nombre?`)) return;
   const base = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
   let id = base;
   for (let n = 2; E.plantillas[id]; n++) id = `${base}_${n}`;  // antes, con un nombre repetido se pisaba la otra plantilla
@@ -3983,7 +4078,7 @@ $("plantGuardar").onclick = async () => { leerFormPlantilla(); try { ofrecerRear
 $("plantBorrar").onclick = async () => {
   const fabrica = E.fabrica.includes(plantSel), nombre = E.plantillas[plantSel]?.nombre || plantSel;
   const enUso = plantSel === E.plantilla_predeterminada ? " Es la que usan los videos por defecto: pasan a usar la de la sala." : "";
-  if (!confirm((fabrica ? `¿Volver «${nombre}» a como venía de fábrica?` : `¿Borrar la plantilla «${nombre}»?`) + enUso + " Los videos que la usan quedan por rearmar.")) return;
+  if (!await preguntar((fabrica ? `¿Volver «${nombre}» a como venía de fábrica?` : `¿Borrar la plantilla «${nombre}»?`) + enUso + " Los videos que la usan quedan por rearmar.")) return;
   try {
     const r = await post("/api/plantilla", { id: plantSel, borrar: true });
     if (!fabrica) plantSel = null;
@@ -3995,7 +4090,7 @@ $("subirFuente").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}`, f, true); avisar(`Fuente ${f.name} agregada.`, "ok"); await cargar(); pintarPlantillas(); }
   catch (err) {
-    if (err.existe && confirm(`Ya hay una fuente «${f.name}». ¿Reemplazarla? Las plantillas que la usan cambian de letra.`)) {
+    if (err.existe && await preguntar(`Ya hay una fuente «${f.name}». ¿Reemplazarla? Las plantillas que la usan cambian de letra.`)) {
       try { await post(`/api/fuente?nombre=${encodeURIComponent(f.name)}&reemplazar=1`, f, true); avisar(`Fuente ${f.name} reemplazada.`, "ok"); await cargar(); pintarPlantillas(); }
       catch (e2) { avisar("Error: " + e2.message, "err"); }
     } else if (!err.existe) avisar("Error: " + err.message, "err");
@@ -4098,7 +4193,7 @@ $("dlgNotifs").addEventListener("click", e => {
 });
 $("notifLeidas").onclick = () => { marcarLeidas(); pintarNotifs(); };
 $("notifCerrar").onclick = () => $("dlgNotifs").close();
-$("notifBorrar").onclick = () => { if (!confirm("¿Borrar todas las notificaciones?")) return; try { localStorage.removeItem("sala_notifs"); } catch (e) {} pintarNotifs(); pintarCampana(); };
+$("notifBorrar").onclick = async () => { if (!await preguntar("¿Borrar todas las notificaciones?")) return; try { localStorage.removeItem("sala_notifs"); } catch (e) {} pintarNotifs(); pintarCampana(); };
 pintarCampana();
 // ---------- Historial de procesos con tiempos ----------
 const durTxt = s => { s = Math.round(s || 0); return s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`; };
@@ -4149,14 +4244,14 @@ async function pintarRespaldos() {
   } catch (e) { caja.innerHTML = `<p class="err" style="margin:0">No pude leer las copias: ${esc(e.message)}</p>`; }
 }
 $("respGuardar").onclick = async () => {
-  const nombre = prompt("Nombre de la copia (para reconocerla después):", "Antes de cambiar…");
+  const nombre = await pedirTexto("Nombre de la copia (para reconocerla después):", "Antes de cambiar…");
   if (nombre === null) return;
   try { const r = await post("/api/respaldos", { nombre: nombre || "Guardada a mano" }); avisar(`Copia guardada (${r.respaldo.kb} KB).`, "ok"); pintarRespaldos(); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("respLista").addEventListener("click", async e => {
   const b = e.target.closest("[data-resp]"); if (!b) return;
-  if (!confirm(`¿Dejar la sesión como estaba el ${b.dataset.fecha}?
+  if (!await preguntar(`¿Dejar la sesión como estaba el ${b.dataset.fecha}?
 
 Antes se guarda una copia de cómo está ahora, por si quieres volver. Después hay que rearmar los videos.`)) return;
   b.disabled = true; b.textContent = "Restaurando…";
@@ -4189,7 +4284,7 @@ document.addEventListener("keydown", e => {
 });
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
-  let cuerpo = cuerpos.length === 1 ? cuerpos[0] : prompt(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
+  let cuerpo = cuerpos.length === 1 ? cuerpos[0] : await pedirTexto(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
   if (!cuerpo) return;
   try { const r = await post("/api/numerar_hooks", { cuerpo }); avisar(`${r.asignadas} hooks numerados como ${cuerpo}_H1…`, "ok"); await cargar(); }
   catch (e) { avisar("Error: " + e.message, "err"); }
@@ -4200,11 +4295,11 @@ $("aceptarSug").onclick = async () => {
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("subirPanel").onclick = () => trabajo("panel");
-$("importarFinales").onclick = () => { if (confirm("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
+$("importarFinales").onclick = async () => { if (await preguntar("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
 
-$("rearmarUno").onclick = () => { if (actual) { const cod = actual.codigo; if (!cerrarVideo()) return; trabajo("uno", cod); } };
+$("rearmarUno").onclick = async () => { if (actual) { const cod = actual.codigo; if (!await cerrarVideo()) return; trabajo("uno", cod); } };
 $("cerrar").onclick = cerrarVideo;
-$("dlg").addEventListener("cancel", e => { e.preventDefault(); if (!$("dlgEditor").open) cerrarVideo(); });
+$("dlg").addEventListener("cancel", async e => { e.preventDefault(); if (!$("dlgEditor").open) await cerrarVideo(); });
 $("dlgReceta").addEventListener("click", e => {  // ir al segundo de una imagen o un sonido en el video
   const a = e.target.closest("[data-ir-seg]"); if (!a) return;
   e.preventDefault(); const v = $("dlgVideo"); v.currentTime = Number(a.dataset.irSeg); v.play().catch(() => {});
@@ -4228,7 +4323,7 @@ $("copiarCopy").onclick = () => {
 $("formato").onchange = async e => {
   const f = e.target.value, nombre = f === "horizontal" ? "horizontal 16:9" : "vertical 9:16";
   const preparadas = (E.piezas || []).some(p => p.procesada);
-  if (!confirm(`¿Pasar esta sesión a ${nombre}?` + (preparadas ? "\n\nLas piezas se preparan otra vez con el tamaño nuevo y después hay que re-armar los videos. Los subtítulos corregidos se conservan." : ""))) {
+  if (!await preguntar(`¿Pasar esta sesión a ${nombre}?` + (preparadas ? "\n\nLas piezas se preparan otra vez con el tamaño nuevo y después hay que re-armar los videos. Los subtítulos corregidos se conservan." : ""))) {
     e.target.value = E.formato || "vertical"; return;
   }
   try {
@@ -4316,7 +4411,7 @@ $("driveJson").onchange = async e => {
 $("driveLista").onclick = () => accionDrive("lista");
 $("driveBajar").onclick = () => accionDrive("bajar");
 $("driveSubir").onclick = () => accionDrive("subir");
-$("driveDesconectar").onclick = () => { if (confirm("¿Dejar de trabajar con Drive en esta PC?")) accionDrive("desconectar"); };
+$("driveDesconectar").onclick = async () => { if (await preguntar("¿Dejar de trabajar con Drive en esta PC?")) accionDrive("desconectar"); };
 function pintarRed() {
   const r = E.red || {};
   $("redBoton").textContent = r.activa ? "Desactivar acceso por WiFi" : "Activar acceso por WiFi";
@@ -4360,10 +4455,11 @@ function abrirPortada() {
   $("porLogoArchivo").innerHTML = `<option value="">El principal (para fondo oscuro)</option>` +
     logos.map(l => `<option value="${esc(l.archivo)}">${esc(l.nombre)} · ${esc(l.uso)}${l.fondo !== "cualquiera" ? " · fondo " + esc(l.fondo) : ""}</option>`).join("");
   $("porLogoArchivo").value = logos.some(l => l.archivo === a.logo_archivo) ? a.logo_archivo : "";
-  $("porLogoArchivo").closest("label").hidden = logos.length < 2;
+  // el logo se elige en la galería de «Logos e imágenes»
   $("porSolo").checked = !!a.solo_imagen;
   $("porElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("");
   pintarFondoPortada(); pintarElemsPortada(); pintarCosasPortada();
+  porBaseClave = ""; actualizarBasePortada(); $("porLienzo").classList.remove("vivo");
   $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; porSucia = false;
 }
 let porSucia = false;  // hay cambios de portada que se ven en vivo pero no se guardaron
@@ -4379,17 +4475,21 @@ function pintarFondoPortada() {
   $("porT").disabled = !!porDiseno.fondo;
 }
 function pintarElemsPortada() {
-  $("porElems").innerHTML = porDiseno.elementos.map((e, i) => `<div class="fila-elem-por"><span title="${esc(e.archivo)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.archivo)}</span>
-      <input type="number" data-pe="${i}" data-k="x" value="${e.x}" title="Desde la izquierda (px)"><input type="number" data-pe="${i}" data-k="y" value="${e.y}" title="Desde arriba (px)">
-      <input type="number" data-pe="${i}" data-k="ancho" value="${e.ancho}" title="Ancho (px)"><button class="btn sec peq" data-pe-quitar="${i}" type="button">✕</button></div>`).join("")
-    || `<span class="muted" style="font-size:12px">Sin imágenes encima. Medidas en px del video (${(E.lienzo || [1080, 1920]).join(" × ")}): izquierda, arriba, ancho.</span>`;
+  const lg = logoPortada(), url = a => (E.elementos || []).find(e => e.archivo === a)?.url || "";
+  pintarGaleriaPortada();
+  $("porElems").innerHTML = (lg ? `<div><img src="${lg.url}" alt=""><span><b>${esc(lg.nombre)}</b><small>Logo de la marca</small></span><button class="btn sec peq" type="button" data-quitar-logo title="Quitar el logo">✕</button></div>` : "")
+    + porDiseno.elementos.map((e, i) => `<div><img src="${url(e.archivo)}" alt=""><span><b>${esc(e.archivo.replace(/\.[^.]+$/, ""))}</b><small>${Math.round(e.ancho)} px de ancho</small></span><button class="btn sec peq" data-pe-quitar="${i}" type="button" title="Quitarla">✕</button></div>`).join("")
+    || `<span class="muted" style="font-size:12px">Nada encima. Toca un logo o una imagen de abajo.</span>`;
 }
 // Vista en vivo: cada cambio rehace la portada al instante, sin guardarla
 function verPortadaEnVivo(espera = 250) {
-  pintarCosasPortada();
+  pintarCosasPortada(); actualizarBasePortada();
+  $("porLienzo").classList.add("vivo"); porSucia = true;
+  $("porEstado").innerHTML = `<span class="pill warn">Sin guardar</span> Así quedará: toca «Guardar portada»`;
   clearTimeout(porTimer);
   porTimer = setTimeout(() => {
     const q = new URLSearchParams({ codigo: actual.codigo, d: JSON.stringify(leerPortada()), _: Date.now() });
+    $("porVista").onload = () => { if (!arrPor && !porEditandoTitulo) $("porLienzo").classList.remove("vivo"); };
     $("porVista").src = `/api/portada_vista?${q}`; porSucia = true;
     $("porEstado").innerHTML = `<span class="pill warn">Sin guardar</span> Así quedará: toca «Guardar portada»`;
   }, espera);
@@ -4402,7 +4502,10 @@ $("porForm").addEventListener("input", e => {
   if (!["porT", "porY"].includes(e.target.id)) verPortadaEnVivo(e.target.id === "porTitulo" ? 600 : 300);
 });
 $("porForm").addEventListener("change", e => { if (e.target.type === "checkbox" || e.target.tagName === "SELECT") verPortadaEnVivo(0); });
-$("porElems").addEventListener("click", e => { const i = e.target.dataset.peQuitar; if (i !== undefined) { porDiseno.elementos.splice(Number(i), 1); pintarElemsPortada(); verPortadaEnVivo(0); } });
+$("porElems").addEventListener("click", e => {
+  if (e.target.closest("[data-quitar-logo]")) { $("porLogo").checked = false; pintarElemsPortada(); verPortadaEnVivo(0); return; }
+  const i = e.target.closest("[data-pe-quitar]")?.dataset.peQuitar; if (i !== undefined) { porDiseno.elementos.splice(Number(i), 1); pintarElemsPortada(); verPortadaEnVivo(0); }
+});
 $("porElemAgregar").onclick = () => { const a = $("porElemSel").value; if (!a) return; porDiseno.elementos.push({ archivo: a, x: 60, y: 80, ancho: 300, opacidad: 100 }); pintarElemsPortada(); verPortadaEnVivo(0); };
 async function subirImagenPortada(f) {
   const r = await post(`/api/elemento?nombre=${encodeURIComponent(f.name)}`, f, true);
@@ -4424,77 +4527,129 @@ $("porSubir").onchange = async e => {
 };
 $("porFondoQuitar").onclick = () => { delete porDiseno.fondo; porDiseno.fondo = ""; pintarFondoPortada(); verPortadaEnVivo(0); };
 // ---------- Arrastrar en la portada: el título, el logo y cada imagen (y su tamaño, con la esquina amarilla) ----------
-const tamImg = {};  // ancho/alto de cada imagen, para dibujar su recuadro con la forma real
-function proporcion(url) {
-  if (!url) return 1;
-  if (tamImg[url]) return tamImg[url];
-  const im = new Image(); im.onload = () => { tamImg[url] = im.naturalHeight / Math.max(1, im.naturalWidth); pintarCosasPortada(); }; im.src = url;
-  return 0.4;
+const tamImg = {};  // (se deja por compatibilidad)
+function plantillaFuente() {
+  const id = (actual?.ajustes_video || {}).plantilla || E.plantilla;
+  return (E.plantillas?.[id] || {}).fuente || "";
 }
-function logoPortadaUrl() {
+function logoPortada() {  // {archivo, url} del logo que va en la portada, o null
   const logos = (E.marca || {}).logos || [];
   if (!$("porLogo").checked || $("porSolo").checked) return null;
-  const elegido = logos.find(l => l.archivo === $("porLogoArchivo").value)
+  const l = logos.find(x => x.archivo === $("porLogoArchivo").value)
     || [...logos].sort((a, b) => ((a.fondo !== "oscuro" && a.fondo !== "cualquiera") - (b.fondo !== "oscuro" && b.fondo !== "cualquiera")) || ((a.uso !== "principal") - (b.uso !== "principal")))[0];
-  return elegido ? `/marca/logos/${encodeURIComponent(elegido.archivo)}` : "";
+  return l ? { archivo: l.archivo, nombre: l.nombre, url: `/marca/logos/${encodeURIComponent(l.archivo)}` } : null;
 }
+function htmlTitulo() {
+  const est = E.portada_estilo || {}, fuente = $("porFuente").value;
+  let txt = $("porTitulo").value || "";
+  if ((est.mayusculas ?? true) && !fuente) txt = txt.toUpperCase();
+  const acento = $("porAcento").value;
+  return esc(txt).replace(/\*(.+?)\*/g, `<span style="color:${acento}">$1</span>`);
+}
+// las capas de la portada: el título (con su letra y colores), el logo y cada imagen, dibujados aquí para moverlos sin esperar
 function pintarCosasPortada() {
-  const caja = $("porCosas"); if (!caja || !actual) return;
+  const caja = $("porCosas"); if (!caja || !actual || porEditandoTitulo) return;
   const [W, H] = E.lienzo || [1080, 1920], k = $("porLienzo").clientWidth / W;
   if (!k) return;
-  const cosas = [];
+  const html = [];
   if (!$("porSolo").checked) {
-    const tam = Number($("porTam").value) || 128, txt = ($("porTitulo").value || "").replace(/\*/g, "") || "Título";
-    const ancho = Math.min(W - 180, txt.length * tam * 0.56), lineas = Math.max(1, Math.ceil(txt.length * tam * 0.56 / (W - 180)));
-    const alto = lineas * tam * 1.12, cx = porDiseno.x ?? W / 2, cy = Number($("porY").value) || H / 2;
-    cosas.push({ id: "titulo", nombre: "Título", x: cx - ancho / 2, y: cy - alto / 2, w: ancho, h: alto });
+    const tam = Number($("porTam").value) || 128, fuente = $("porFuente").value || (E.portada_estilo || {}).fuente || plantillaFuente();
+    const borde = Number($("porBorde").value) || 0, caja2 = $("porCaja").checked;
+    const cx = porDiseno.x ?? W / 2, cy = Number($("porY").value) || H / 2;
+    const estilo = `font-family:'F_${esc(fuente)}','Arial Black',sans-serif;font-size:${tam * k}px;color:${$("porColor").value};`
+      + (caja2 ? `background:${$("porColorCaja").value};padding:${Math.max(borde, 18) * k}px;border-radius:${6 * k}px;` : `-webkit-text-stroke:${borde * 2 * k}px ${$("porColorBorde").value};text-shadow:0 ${4 * k}px ${10 * k}px rgba(0,0,0,.45);`);
+    html.push(`<div class="por-cosa titulo" data-cosa="titulo" style="left:${(cx - (W - 180) / 2) * k}px;top:${cy * k}px;width:${(W - 180) * k}px;transform:translateY(-50%)">
+      <em>Título</em><span class="contenido" style="${estilo}">${htmlTitulo()}</span><i data-tam="titulo" title="Arrastra para cambiar el tamaño"></i></div>`);
   }
-  const lu = logoPortadaUrl();
-  if (lu !== null && lu !== undefined) {
-    const lw = Number(porDiseno.logo_ancho) || 380, lh = lw * proporcion(lu);
-    const ty = Number($("porY").value) || H / 2, ly = porDiseno.logo_y ?? (H > W ? (ty < 900 ? 1490 : 330) : (ty < H / 2 ? H - 190 : 70));
-    cosas.push({ id: "logo", nombre: "Logo", x: porDiseno.logo_x ?? (W - lw) / 2, y: ly, w: lw, h: lh });
+  const lg = logoPortada();
+  if (lg) {
+    const lw = Number(porDiseno.logo_ancho) || 380, ty = Number($("porY").value) || H / 2;
+    const ly = porDiseno.logo_y ?? (H > W ? (ty < 900 ? 1490 : 330) : (ty < H / 2 ? H - 190 : 70));
+    const lx = porDiseno.logo_x ?? (W - lw) / 2;
+    html.push(`<div class="por-cosa" data-cosa="logo" style="left:${lx * k}px;top:${ly * k}px;width:${lw * k}px">
+      <em>Logo</em><img class="contenido" src="${lg.url}" alt="" draggable="false"><i data-tam="logo" title="Arrastra para cambiar el tamaño"></i></div>`);
   }
   porDiseno.elementos.forEach((el, i) => {
     const url = (E.elementos || []).find(e => e.archivo === el.archivo)?.url || "";
-    const w = Number(el.ancho) || 300;
-    cosas.push({ id: "el" + i, nombre: el.archivo.replace(/\.[^.]+$/, ""), x: Number(el.x) || 0, y: Number(el.y) || 0, w, h: w * proporcion(url) });
+    html.push(`<div class="por-cosa" data-cosa="el${i}" style="left:${(Number(el.x) || 0) * k}px;top:${(Number(el.y) || 0) * k}px;width:${(Number(el.ancho) || 300) * k}px;opacity:${(el.opacidad ?? 100) / 100}">
+      <em>${esc(el.archivo.replace(/\.[^.]+$/, ""))}</em><img class="contenido" src="${url}" alt="" draggable="false"><i data-tam="el${i}" title="Arrastra para cambiar el tamaño"></i></div>`);
   });
-  caja.innerHTML = cosas.map(c => `<div class="por-cosa" data-cosa="${c.id}" style="left:${c.x * k}px;top:${c.y * k}px;width:${c.w * k}px;height:${c.h * k}px">
-      <em>${esc(c.nombre)}</em><i data-tam="${c.id}" title="Arrastra para cambiar el tamaño"></i></div>`).join("");
+  caja.innerHTML = html.join("");
 }
-let arrPor = null;
+// el fondo solo (sin título, logo ni imágenes): cambia con el momento del hook o la imagen propia
+let porBaseClave = "";
+function actualizarBasePortada() {
+  if (!actual) return;
+  const d = { ...leerPortada(), solo_imagen: true, elementos: [], logo: false };
+  const clave = JSON.stringify([d.segundo, d.fondo, d.oscurecer]);
+  if (clave === porBaseClave) return;
+  porBaseClave = clave;
+  $("porBase").src = `/api/portada_vista?${new URLSearchParams({ codigo: actual.codigo, d: JSON.stringify(d), _: Date.now() })}`;
+}
+let arrPor = null, porEditandoTitulo = false;
 $("porLienzo").addEventListener("pointerdown", e => {
-  const c = e.target.closest("[data-cosa]"); if (!c) return;
+  const c = e.target.closest("[data-cosa]"); if (!c || porEditandoTitulo) return;
   e.preventDefault(); $("porLienzo").setPointerCapture(e.pointerId);
+  $("porLienzo").classList.add("vivo"); clearTimeout(porTimer);
   const [W] = E.lienzo || [1080, 1920], k = $("porLienzo").clientWidth / W, id = c.dataset.cosa;
   const el = id.startsWith("el") ? porDiseno.elementos[Number(id.slice(2))] : null;
   arrPor = { id, tam: !!e.target.closest("[data-tam]"), x0: e.clientX, y0: e.clientY, k, caja: c,
     ini: id === "titulo" ? { x: porDiseno.x ?? W / 2, y: Number($("porY").value), tam: Number($("porTam").value) }
-      : id === "logo" ? { x: c.offsetLeft / k, y: c.offsetTop / k, w: Number(porDiseno.logo_ancho) || 380 }
+      : id === "logo" ? { x: c.offsetLeft / k, y: c.offsetTop / k, w: c.offsetWidth / k }
       : { x: Number(el.x) || 0, y: Number(el.y) || 0, w: Number(el.ancho) || 300 } };
   c.classList.add("activa");
 });
+// mientras se arrastra solo se mueve ese recuadro (sin redibujar todo): va pegado al mouse
 $("porLienzo").addEventListener("pointermove", e => {
   const a = arrPor; if (!a) return;
-  const dx = (e.clientX - a.x0) / a.k, dy = (e.clientY - a.y0) / a.k, r = v => Math.round(v);
+  const dx = (e.clientX - a.x0) / a.k, dy = (e.clientY - a.y0) / a.k, r = v => Math.round(v), [W] = E.lienzo || [1080, 1920], c = a.caja;
   if (a.id === "titulo") {
-    if (a.tam) { $("porTam").value = Math.max(50, Math.min(220, r(a.ini.tam + dx / 4))); }
-    else { porDiseno.x = r(a.ini.x + dx); $("porY").value = Math.max(150, Math.min(Number($("porY").max), r(a.ini.y + dy))); $("porYTxt").textContent = $("porY").value + " px desde arriba"; }
+    if (a.tam) { const tam = Math.max(50, Math.min(220, r(a.ini.tam + dx / 4))); $("porTam").value = tam; c.querySelector(".contenido").style.fontSize = tam * a.k + "px"; }
+    else { porDiseno.x = r(a.ini.x + dx); const y = Math.max(150, Math.min(Number($("porY").max), r(a.ini.y + dy))); $("porY").value = y;
+      $("porYTxt").textContent = y + " px desde arriba"; c.style.left = (porDiseno.x - (W - 180) / 2) * a.k + "px"; c.style.top = y * a.k + "px"; }
   } else if (a.id === "logo") {
-    if (a.tam) porDiseno.logo_ancho = Math.max(60, r(a.ini.w + dx));
-    else { porDiseno.logo_x = r(a.ini.x + dx); porDiseno.logo_y = r(a.ini.y + dy); }
+    if (a.tam) { porDiseno.logo_ancho = Math.max(60, r(a.ini.w + dx)); c.style.width = porDiseno.logo_ancho * a.k + "px"; }
+    else { porDiseno.logo_x = r(a.ini.x + dx); porDiseno.logo_y = r(a.ini.y + dy); c.style.left = porDiseno.logo_x * a.k + "px"; c.style.top = porDiseno.logo_y * a.k + "px"; }
   } else {
     const el = porDiseno.elementos[Number(a.id.slice(2))];
-    if (a.tam) el.ancho = Math.max(20, r(a.ini.w + dx)); else { el.x = r(a.ini.x + dx); el.y = r(a.ini.y + dy); }
-    pintarElemsPortada();
+    if (a.tam) { el.ancho = Math.max(20, r(a.ini.w + dx)); c.style.width = el.ancho * a.k + "px"; }
+    else { el.x = r(a.ini.x + dx); el.y = r(a.ini.y + dy); c.style.left = el.x * a.k + "px"; c.style.top = el.y * a.k + "px"; }
   }
-  pintarCosasPortada();
-  $("porCosas").querySelector(`[data-cosa="${a.id}"]`)?.classList.add("activa");
 });
-["pointerup", "pointercancel"].forEach(t => $("porLienzo").addEventListener(t, () => { if (arrPor) { arrPor = null; verPortadaEnVivo(0); } }));
+["pointerup", "pointercancel"].forEach(t => $("porLienzo").addEventListener(t, () => { if (arrPor) { arrPor.caja.classList.remove("activa"); arrPor = null; verPortadaEnVivo(700); } }));
+// doble clic en el título: se escribe ahí mismo (Enter o clic afuera lo deja)
+$("porLienzo").addEventListener("dblclick", e => {
+  const c = e.target.closest('[data-cosa="titulo"]');
+  if (!c) { if (e.target.closest("[data-cosa]")) $("porElems").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  porEditandoTitulo = true; $("porLienzo").classList.add("vivo");
+  const sp = c.querySelector(".contenido"); c.classList.add("editando");
+  sp.textContent = $("porTitulo").value; sp.contentEditable = "true"; sp.focus();
+  document.getSelection().selectAllChildren(sp);
+  const listo = () => { sp.contentEditable = "false"; c.classList.remove("editando"); porEditandoTitulo = false;
+    $("porTitulo").value = sp.innerText.replace(/\n+/g, " ").trim(); verPortadaEnVivo(0); };
+  sp.addEventListener("blur", listo, { once: true });
+  sp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); sp.blur(); } if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); sp.textContent = $("porTitulo").value; sp.blur(); } });
+});
 $("porCentrar").onclick = () => { delete porDiseno.x; verPortadaEnVivo(0); };
 new ResizeObserver(() => pintarCosasPortada()).observe($("porLienzo"));
+// la galería: los logos de la marca y las imágenes subidas, con miniatura; tocar uno lo pone en la portada
+function pintarGaleriaPortada() {
+  const logos = (E.marca || {}).logos || [], imgs = E.elementos || [];
+  $("porGaleria").innerHTML = logos.map(l => `<button type="button" data-gal-logo="${esc(l.archivo)}" title="Logo: ${esc(l.nombre)}"><img src="/marca/logos/${encodeURIComponent(l.archivo)}" alt=""><span>${esc(l.nombre)}</span></button>`).join("")
+    + imgs.map(x => `<button type="button" data-gal-el="${esc(x.archivo)}" title="${esc(x.archivo)}"><img src="${x.url}" alt=""><span>${esc(x.archivo.replace(/\.[^.]+$/, ""))}</span></button>`).join("")
+    || `<span class="muted" style="font-size:12px">Todavía no hay logos ni imágenes: súbelos aquí o en Configuración → Marca.</span>`;
+}
+$("porGaleria").addEventListener("click", e => {
+  const lg = e.target.closest("[data-gal-logo]"), el = e.target.closest("[data-gal-el]");
+  const [W, H] = E.lienzo || [1080, 1920];
+  if (lg) {
+    if (![...$("porLogoArchivo").options].some(o => o.value === lg.dataset.galLogo)) $("porLogoArchivo").add(new Option(lg.dataset.galLogo, lg.dataset.galLogo));
+    $("porLogoArchivo").value = lg.dataset.galLogo; $("porLogo").checked = true;
+  } else if (el) {
+    porDiseno.elementos.push({ archivo: el.dataset.galEl, x: Math.round((W - 300) / 2), y: Math.round(H * 0.12), ancho: 300, opacidad: 100 });
+  } else return;
+  pintarElemsPortada(); verPortadaEnVivo(0);
+});
 // «Ver portada actual» deja el formulario como está guardado (antes solo cambiaba la imagen y los cambios seguían en el formulario)
 $("porVolver").onclick = abrirPortada;
 $("porGuardar").onclick = async () => {
@@ -4592,7 +4747,7 @@ $("selTodos").onclick = () => {
 };
 $("selPlantillaAplicar").onclick = async () => {
   const pl = $("selPlantilla").value, nombre = pl ? E.plantillas[pl]?.nombre : "la que está en uso";
-  if (!confirm(`¿Poner la plantilla «${nombre}» a ${elegidos.size} video${elegidos.size === 1 ? "" : "s"} y rearmarlos?`)) return;
+  if (!await preguntar(`¿Poner la plantilla «${nombre}» a ${elegidos.size} video${elegidos.size === 1 ? "" : "s"} y rearmarlos?`)) return;
   try { const r = await post("/api/ajustes_video", { codigos: [...elegidos], plantilla: pl, armar: true });
     avisar(`Rearmando ${r.codigos.length} videos con la plantilla «${nombre}»… lo ves en Procesos (☰).`, "ok");
     elegidos.clear(); pintarSeleccion(); await cargar(); }
@@ -5140,7 +5295,7 @@ $("dsGuardar").onclick = async () => {
     if (typeof ondasSon !== "undefined") delete ondasSon[dsSon.id];  // la pista del editor del video vuelve a leer la onda editada
     const n = r.codigos.length, que = Object.keys(r.ajustes).length ? `«${dsSon.nombre}» guardado así.` : `«${dsSon.nombre}» vuelve a ser el original.`;
     if (!n) return avisar(`${que} Se usa así en los próximos videos que armes.`, "ok");
-    if (!confirm(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que ya lo usan?`)) return avisar(`${que} Se nota cuando rearmes esos ${n} videos.`, "ok");
+    if (!await preguntar(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que ya lo usan?`)) return avisar(`${que} Se nota cuando rearmes esos ${n} videos.`, "ok");
     await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar(`${que} Rearmando ${n} videos… lo ves en Procesos (☰).`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
@@ -5341,10 +5496,10 @@ function sinGuardar() {
 let firmaSubs = null;  // cómo estaban la plantilla y las alturas del subtítulo al abrir el video
 const firmaSubsVideo = () => JSON.stringify(["vidPlantilla", "vidAltura", "vidAlturaHook", "vidAlturaCta"].map(id => $(id).value)
   .concat([$("vidHookIgual").checked, $("vidCtaIgual").checked]));
-function cerrarVideo() {  // al cerrar con ✕, Esc, exportar o rearmar, avisa si se pierde algo
+async function cerrarVideo() {  // al cerrar con ✕, Esc, exportar o rearmar, avisa si se pierde algo
   if (!$("dlg").open) return true;
   const que = sinGuardar();
-  if (que.length && !confirm(`Tienes ${que.join(", ").replace(/, ([^,]*)$/, " y $1")} sin guardar. ¿Cerrar igual y perderlo?`)) return false;
+  if (que.length && !await preguntar(`Tienes ${que.join(", ").replace(/, ([^,]*)$/, " y $1")} sin guardar. ¿Cerrar igual y perderlo?`)) return false;
   firmaGuardada = null; firmaSubs = null; $("dlg").close(); return true;
 }
 function pintarAlcance() {
@@ -7021,7 +7176,7 @@ $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (n
     avisar(`Guardado solo en ${r.codigo}${r.en_cola ? ": se rearma cuando la sala termine lo que está haciendo (☰)" : ". Rearmándolo…"} Los demás videos de ${cuerpo} no cambian.`, "ok");
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
-$("evPartes").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!cerrarVideo()) return; await exportarPartes([cod]); };
+$("evPartes").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!await cerrarVideo()) return; await exportarPartes([cod]); };
 $("evGuardar").onclick = () => guardarVersion(true, true);
 // ---------- Proyecto compartido («Actualizar proyecto») ----------
 // Cada minuto se mira si otra PC subió una versión nueva de la edición de esta sesión. Si hay, sale el aviso con
@@ -7065,7 +7220,7 @@ function pintarProyecto(mostrar) {
   if (mostrar && !$("dlgProyecto").open) $("dlgProyecto").showModal();
 }
 async function accionProyecto(accion, extra = {}) {
-  if (accion !== "quedarme" && accion !== "publicar" && $("dlg").open && !cerrarVideo()) return;
+  if (accion !== "quedarme" && accion !== "publicar" && $("dlg").open && !await cerrarVideo()) return;
   const textos = { actualizar: "Actualizando…", volver: "Actualizando…", quedarme: "Guardando tu versión…", publicar: "Subiendo…" };
   const boton = { actualizar: $("pyActualizar"), quedarme: $("pyMio"), publicar: $("pySubir") }[accion]
     || $("pyLista").querySelector(`[data-py-volver="${extra.version}"]`);
@@ -7086,16 +7241,16 @@ async function accionProyecto(accion, extra = {}) {
 }
 $("proyBtn").onclick = () => { pintarProyecto(true); revisarProyecto(true); };
 $("pyCerrar").onclick = () => $("dlgProyecto").close();
-$("dlgProyecto").addEventListener("click", e => {
+$("dlgProyecto").addEventListener("click", async e => {
   const id = e.target.id, v = e.target.closest("[data-py-volver]")?.dataset.pyVolver;
   if (id === "pyActualizar") accionProyecto("actualizar");
-  else if (id === "pyMio") { if (confirm(`¿Quedarte con tu versión? La de ${proy?.ultima?.autor || "la otra PC"} queda en el historial (se puede volver a ella).`)) accionProyecto("quedarme"); }
+  else if (id === "pyMio") { if (await preguntar(`¿Quedarte con tu versión? La de ${proy?.ultima?.autor || "la otra PC"} queda en el historial (se puede volver a ella).`)) accionProyecto("quedarme"); }
   else if (id === "pySubir") accionProyecto("publicar");
   else if (id === "pyLuego") {
     try { sessionStorage.setItem("py_luego_" + E.semana + "_" + proy.version_remota, String(Date.now() + 30 * 60000)); } catch (er) {}
     $("dlgProyecto").close(); avisar("Sigues con lo tuyo. El aviso vuelve a salir en 30 minutos (o toca ⟳ arriba cuando quieras).", "muted");
   }
-  else if (v && confirm(`¿Volver a la versión ${v}? Lo de ahora queda en el historial y en una copia de seguridad.`)) accionProyecto("volver", { version: Number(v) });
+  else if (v && await preguntar(`¿Volver a la versión ${v}? Lo de ahora queda en el historial y en una copia de seguridad.`)) accionProyecto("volver", { version: Number(v) });
 });
 setInterval(() => { if (E && !document.hidden) revisarProyecto(); }, 60000);
 setTimeout(() => revisarProyecto(true), 6000);
@@ -7209,7 +7364,7 @@ $("mkForm").addEventListener("click", async e => {
   const q = e.target.closest("[data-cquitar]");
   if (q) { MK.colores.splice(+q.dataset.cquitar, 1); pintarColoresMarca(); mkMarcarSucia(); pintarVistaMarca(); return; }
   const b = e.target.closest("[data-mkquitar]"); if (!b) return;
-  if (!confirm(`¿Quitar «${b.dataset.archivo}» de la marca? Se aparta a _MARCA/_BORRADOS (no se borra del todo).`)) return;
+  if (!await preguntar(`¿Quitar «${b.dataset.archivo}» de la marca? Se aparta a _MARCA/_BORRADOS (no se borra del todo).`)) return;
   try { const r = await post("/api/marca_borrar", { tipo: b.dataset.mkquitar, archivo: b.dataset.archivo }); mkTraerListas(r.marca); avisar("Listo: lo aparté.", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
@@ -7278,14 +7433,14 @@ $("eqRefrescar").onclick = pintarEquipo;
 $("eqForm").addEventListener("submit", async e => {
   e.preventDefault();
   const email = $("eqEmail").value.trim(), rol = $("eqRol").value;
-  if (!confirm(`¿Invitar a ${email} como ${rol === "writer" ? "Editor (puede editar)" : "Lector (solo mira)"}? Google le manda un correo.`)) return;
+  if (!await preguntar(`¿Invitar a ${email} como ${rol === "writer" ? "Editor (puede editar)" : "Lector (solo mira)"}? Google le manda un correo.`)) return;
   try { await post("/api/equipo", { accion: "invitar", email, rol }); $("eqEmail").value = ""; avisar(`Listo: ${email} ya puede entrar. Le llegó un correo de Google.`, "ok"); pintarEquipo(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
 $("eqLista").addEventListener("click", async e => {
   const b = e.target.closest("[data-eqquitar]"); if (!b) return;
   const link = b.dataset.eqnombre === "Cualquiera con el link";
-  if (!confirm(link ? "¿Cerrar el link? Quien entraba solo con el link deja de poder entrar; las personas invitadas por correo siguen igual."
+  if (!await preguntar(link ? "¿Cerrar el link? Quien entraba solo con el link deja de poder entrar; las personas invitadas por correo siguen igual."
     : `¿Quitarle el acceso a ${b.dataset.eqnombre}? Deja de ver la carpeta y las sesiones.`)) return;
   try { await post("/api/equipo", { accion: "quitar", id: b.dataset.eqquitar }); avisar(link ? "Link cerrado: ahora solo entran las personas invitadas." : "Acceso quitado.", "ok"); pintarEquipo(); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -7395,7 +7550,7 @@ $("clEntero").onclick = () => {
 };
 $("clAbrir").onclick = async () => { try { await post("/api/clips/abrir", { id: CL.sel }); } catch (err) { avisar("Error: " + err.message, "err"); } };
 $("clBorrar").onclick = async () => {
-  if (!confirm(`¿Quitar «${CL.d.nombre}» de la sala? Se borra el video subido de esta PC (los clips ya armados se quedan en V.FINALES).`)) return;
+  if (!await preguntar(`¿Quitar «${CL.d.nombre}» de la sala? Se borra el video subido de esta PC (los clips ya armados se quedan en V.FINALES).`)) return;
   try { await post("/api/clips/borrar", { id: CL.sel }); CL.sel = null; CL.d = null; $("clDetalle").hidden = true; $("clVacio").hidden = false; cargarClips(); } catch (err) { avisar("Error: " + err.message, "err"); }
 };
 $("clArmar").onclick = async () => {
@@ -7447,7 +7602,7 @@ const IM_TIPOS = n => /\.(png|webp|jpe?g)$/i.test(n) ? [["logos", "Logo"], ["pro
 async function importarMarca(lista) {
   lista = lista.filter(x => x.file && !/(^|\/)(\.|__MACOSX)/.test(x.ruta));
   if (!lista.length) return avisar("No llegó ningún archivo.", "err");
-  if (mkSucia && !confirm("Tienes cambios de la marca sin guardar: al importar se pierden. ¿Seguir?")) return;
+  if (mkSucia && !await preguntar("Tienes cambios de la marca sin guardar: al importar se pierden. ¿Seguir?")) return;
   IM = null; $("imPie").hidden = true; $("imTit").textContent = "Subiendo tu marca…";
   if (!$("dlgImpMarca").open) $("dlgImpMarca").showModal();
   const progreso = t => { $("imCuerpo").innerHTML = `<p class="muted" style="margin:0">${t}</p>`; };
@@ -7721,7 +7876,7 @@ $("prepLista").addEventListener("click", async e => {
 });
 $("prepGuion").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-  if (E.hay_produccion && !confirm(`Esta sesión ya tiene guion. ¿Lo cambio por «${f.name}»? (el anterior queda guardado como copia; las marcas que ya tenía se conservan)`)) return;
+  if (E.hay_produccion && !await preguntar(`Esta sesión ya tiene guion. ¿Lo cambio por «${f.name}»? (el anterior queda guardado como copia; las marcas que ya tenía se conservan)`)) return;
   avisar(`Leyendo «${f.name}»…`);
   try {
     const r = await post(`/api/subir_guion?nombre=${encodeURIComponent(f.name)}`, f, true);
@@ -7888,7 +8043,7 @@ $("tmCuerpo").addEventListener("click", async e => {
   if (!rel) return;
   const pieza = E.piezas.find(x => (x.tomas || []).some(t => t.nombre === nombre))?.nombre || nombre, n = videosQueUsan(pieza);
   const aviso = $("dlg").open && sinGuardar().length ? "\n\nTienes cambios sin guardar en el video abierto: se pierden (los cortes hechos a mano en esa parte pueden quedar corridos con la toma nueva)." : "";
-  if (!confirm(`¿Cambiar la toma de ${nombre}? Se rearman ${plural(n, "video")} con los mismos hooks y CTA.${aviso}`)) return;
+  if (!await preguntar(`¿Cambiar la toma de ${nombre}? Se rearman ${plural(n, "video")} con los mismos hooks y CTA.${aviso}`)) return;
   try {
     const r = await post("/api/asignar", { rel, pieza: nombre, armar: true });
     $("dlgToma").close(); firmaGuardada = null; firmaSubs = null; if ($("dlg").open) $("dlg").close();
@@ -7896,9 +8051,9 @@ $("tmCuerpo").addEventListener("click", async e => {
     avisar(`Toma de ${nombre} cambiada. ${r.en_cola ? "Se prepara y se rearman sus videos cuando la sala termine lo que está haciendo (☰)." : "Preparando la toma nueva y rearmando sus videos… lo ves en Procesos (☰)."}`, "ok");
   } catch (err) { avisar("Error: " + err.message, "err"); }
 });
-function abrirVersionCuerpo() {
+async function abrirVersionCuerpo() {
   if (!est || est.error) return;
-  if (sinGuardar().length && !confirm("Tienes cambios sin guardar en este video. La versión nueva arranca con lo último que guardaste. ¿Seguir sin guardarlos? (para guardarlos primero, toca «Cancelar» y luego 💾)")) return;
+  if (sinGuardar().length && !await preguntar("Tienes cambios sin guardar en este video. La versión nueva arranca con lo último que guardaste. ¿Seguir sin guardarlos? (para guardarlos primero, toca «Cancelar» y luego 💾)")) return;
   const cuerpo = est.cuerpo.nombre, nom = verPieza(cuerpo), letra = est.edicion || "A";
   const n = E.salidas.filter(s => !s.es_version && !s.propio && s.cuerpo === cuerpo && (s.edicion || "A") === letra).length;
   $("vcTit").textContent = `Nueva versión de ${nom}`;
@@ -7931,9 +8086,9 @@ $("vcEdicion").onclick = () => crearVersionCuerpo({ modo: "edicion", edicion: es
   `Versión ${r.edicion} lista: se arman ${plural(r.codigos.length, "video")} (…-${r.edicion}) con los mismos hooks y CTA. El primero se abre solo cuando esté; los demás, en Videos (filtro «Ed. ${r.edicion}»).`);
 $("vcToma").onclick = () => { if ($("vcClip").value) crearVersionCuerpo({ modo: "toma", rel: $("vcClip").value }, r =>
   `La toma quedó como ${verPieza(r.pieza)}: se prepara y se arman ${plural(r.codigos.length, "video")} con los mismos hooks y CTA.`); };
-$("evAlcance").addEventListener("click", e => {
+$("evAlcance").addEventListener("click", async e => {
   const b = e.target.closest("[data-cuerpo-acc]"); if (!b || !est) return;
-  if (b.dataset.cuerpoAcc === "toma") abrirToma(est.cuerpo.nombre); else abrirVersionCuerpo();
+  if (b.dataset.cuerpoAcc === "toma") abrirToma(est.cuerpo.nombre); else await abrirVersionCuerpo();
 });
 
 // «Editar» abre el editor en su propia ventana grande (línea de tiempo + subtítulos de este video)
@@ -7951,9 +8106,9 @@ new ResizeObserver(() => $("dlgEditor").style.setProperty("--alto-cab-ed", $("dl
 $("edCerrar").onclick = () => $("dlgEditor").close();
 $("dlgEditor").addEventListener("close", pararEditor);
 $("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checked) evMusica.pause(); });
-$("evExportar").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!cerrarVideo()) return; await exportarVideos([cod]); };
+$("evExportar").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!await cerrarVideo()) return; await exportarVideos([cod]); };
 $("evBorrar").onclick = async () => {
-  if (!est || est.base || !confirm(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se rearma.` : `¿Borrar la versión ${est.codigo}?`)) return;
+  if (!est || est.base || !await preguntar(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se rearma.` : `¿Borrar la versión ${est.codigo}?`)) return;
   try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar();
     if (est.propio) { reabrir = est.codigo; vigilar(await (await fetch("/api/trabajo")).json()); }
     avisar(est.propio ? `${est.codigo} vuelve a lo de ${est.cuerpo.nombre}. Rearmándolo…` : "Versión borrada.", "ok"); }
@@ -8051,7 +8206,7 @@ $("planCuerpo").addEventListener("click", async e => {
       avisar(`Lista la edición ${r.letra}. Ajústale el zoom, la música y los subtítulos, y márcala en los cuerpos que quieras.`, "ok");
     }
     const b = e.target.closest("[data-ed-borrar]");
-    if (b && confirm(`¿Quitar la edición ${b.dataset.edBorrar}? Sus cortes y sonidos propios se pierden; sus videos ya armados quedan en la carpeta.`)) {
+    if (b && await preguntar(`¿Quitar la edición ${b.dataset.edBorrar}? Sus cortes y sonidos propios se pierden; sus videos ya armados quedan en la carpeta.`)) {
       const r = await post("/api/ediciones", { accion: "borrar", letra: b.dataset.edBorrar });
       E.ediciones = r.ediciones; E.plan = r.plan; planBorrador = null; pintarPlan(); await cargar();
     }
@@ -8092,7 +8247,7 @@ async function pintarGuion() {
 $("gSubirGuion").onchange = async e => {
   const f = e.target.files[0]; e.target.value = "";
   if (!f) return;
-  if (ultimoGuion && ultimoGuion.origen !== "grabado" && !confirm(`Esta sesión ya tiene guion. ¿Lo reemplazo por «${f.name}»? (el anterior queda guardado como copia)`)) return;
+  if (ultimoGuion && ultimoGuion.origen !== "grabado" && !await preguntar(`Esta sesión ya tiene guion. ¿Lo reemplazo por «${f.name}»? (el anterior queda guardado como copia)`)) return;
   try {
     const r = await post(`/api/subir_guion?nombre=${encodeURIComponent(f.name)}`, f, true);
     avisar(`Guion subido: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}`
@@ -8438,9 +8593,9 @@ async function asignarClip(rel, pieza) {
   } catch (err) { avisar("Error: " + err.message, "err"); }
 }
 
-$("generarFlow").onclick = () => {
+$("generarFlow").onclick = async () => {
   if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
-  if (!confirm("Claude va a abrir tu Chrome y generar en Flow lo que falta, con los créditos de tu plan. Mientras trabaja, no uses esa ventana de Chrome. ¿Seguir?")) return;
+  if (!await preguntar("Claude va a abrir tu Chrome y generar en Flow lo que falta, con los créditos de tu plan. Mientras trabaja, no uses esa ventana de Chrome. ¿Seguir?")) return;
   trabajo("generar_flow");
 };
 
@@ -8480,13 +8635,13 @@ document.addEventListener("click", async e => {
   const sel = document.querySelector(`select[data-desc-id="${CSS.escape(b.dataset.importar)}"]`), id = sel?.value;
   if (!id) return avisar("Elige primero a qué pista, imagen o clip corresponde.", "err");
   const ya = [...(E.checklist.musica || []), ...(E.checklist.assets || [])].find(x => x.id === id)?.listo;
-  if (ya && !confirm(`${id} ya tiene un archivo. ¿Reemplazarlo por «${b.dataset.importar}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
+  if (ya && !await preguntar(`${id} ya tiene un archivo. ¿Reemplazarlo por «${b.dataset.importar}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
   b.disabled = true; b.textContent = "Guardando…";
   try {
     const r = await post("/api/importar_descarga", { nombre: b.dataset.importar, id, destino: b.dataset.destino });
     await cargar(); pintarDescargas();
     if (!r.codigos.length) return avisar(`${r.archivo} guardado en la sesión y subiéndose a Drive. Ningún video armado lo usa todavía.`, "ok");
-    if (confirm(`${r.archivo} quedó guardado. ¿Rearmar ahora los ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que lo usan?`)) {
+    if (await preguntar(`${r.archivo} quedó guardado. ¿Rearmar ahora los ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"} que lo usan?`)) {
       await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos });
       vigilar(await (await fetch("/api/trabajo")).json());
       avisar(`${r.archivo} guardado. Rearmando ${r.codigos.length} video${r.codigos.length === 1 ? "" : "s"}… lo ves en Procesos (☰).`, "ok");
@@ -8508,7 +8663,7 @@ async function pintarInforme() {
 }
 $("informeVer").onclick = pintarInforme;
 $("ordenarTodo").onclick = async () => {
-  if (!confirm("La sala escucha los clips nuevos, asigna los que coinciden con el guion y renombra todos los identificados en la carpeta de Drive del equipo. ¿Seguir?")) return;
+  if (!await preguntar("La sala escucha los clips nuevos, asigna los que coinciden con el guion y renombra todos los identificados en la carpeta de Drive del equipo. ¿Seguir?")) return;
   try {
     await post("/api/trabajo", { accion: "ordenar_todo" }); vigilar(await (await fetch("/api/trabajo")).json());
     $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Analizando y renombrando… lo ves en Procesos (☰). Al terminar aparece aquí lo que no se pudo identificar.</p>`;
@@ -8531,7 +8686,7 @@ $("ordenarVer").onclick = async () => {
       ${r.cambios.length ? `<div class="fila" style="margin-top:10px"><button class="btn" id="ordenarAplicar" type="button">Renombrar ${r.cambios.length} clips en Drive</button>
         <span class="muted" style="font-size:12px">Los clips sin pieza y las tomas que no se usan se quedan como están (descártalos abajo si sobran).</span></div>` : ""}`;
     if (r.cambios.length) $("ordenarAplicar").onclick = async () => {
-      if (!confirm(`¿Renombrar ${r.cambios.length} clips en la carpeta de Drive del equipo? Los links directos a esos archivos dejan de servir; los de las carpetas siguen igual.`)) return;
+      if (!await preguntar(`¿Renombrar ${r.cambios.length} clips en la carpeta de Drive del equipo? Los links directos a esos archivos dejan de servir; los de las carpetas siguen igual.`)) return;
       try { await post("/api/trabajo", { accion: "renombrar", plan: r.cambios.map(c => ({ viejo: c.viejo, nuevo: c.nuevo })) }); vigilar(await (await fetch("/api/trabajo")).json());
         $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Renombrando… lo ves en Procesos (☰).</p>`; }
       catch (err) { avisar("Error: " + err.message, "err"); }
@@ -8834,7 +8989,7 @@ async function guardarPlantilla(id, datos, predeterminada) {
 async function ofrecerRearmar(r, que) {
   const n = (r && r.codigos || []).length;
   if (!n) return avisar(`${que} Ningún video la usa todavía.`, "ok");
-  if (!confirm(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que la usan para verla en el video?`))
+  if (!await preguntar(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que la usan para verla en el video?`))
     return avisar(`${que} Los ${n} videos que la usan quedaron marcados «⟳ rearmar».`, "ok");
   try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar(`${que} Rearmando ${n} videos… lo ves en Procesos (☰).`, "ok"); }
@@ -9006,7 +9161,7 @@ $("masApoyo").onclick = async () => {
     irTab("inicio"); return avisar("Para agregar los prompts conecta Claude (Inicio → Claude) o instala Antigravity.", "err");
   }
   const pedido = pedidoApoyo();
-  if (!confirm(`Claude deja cada cuerpo con ${plural(pedido.por_cuerpo, "imagen", "imágenes")} y ${plural(pedido.clips, "clip")}, y cada hook con ${plural(pedido.por_hook, "imagen", "imágenes")}, en las palabras clave (lo que ya hay se queda). Después se generan en Flow con «Generar lo que falta» y se rearman los videos. ¿Seguir?`)) return;
+  if (!await preguntar(`Claude deja cada cuerpo con ${plural(pedido.por_cuerpo, "imagen", "imágenes")} y ${plural(pedido.clips, "clip")}, y cada hook con ${plural(pedido.por_hook, "imagen", "imágenes")}, en las palabras clave (lo que ya hay se queda). Después se generan en Flow con «Generar lo que falta» y se rearman los videos. ¿Seguir?`)) return;
   const volver = ponerActualizando([$("masApoyo")], "Claude está agregando…");
   try { await post("/api/claude", { accion: "mas_apoyo", ...pedido }); vigilar(await (await fetch("/api/trabajo")).json()); avisar("Claude está agregando imágenes y clips… lo ves en Procesos (☰).", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -9014,7 +9169,7 @@ $("masApoyo").onclick = async () => {
 };
 document.addEventListener("click", async e => {
   if (e.target.id !== "calSubir") return;
-  if (!confirm("Sube el subtítulo a 330 px desde abajo (en la plantilla que usan, o en el video si tiene su propia altura) y rearma esos videos. ¿Seguir?")) return;
+  if (!await preguntar("Sube el subtítulo a 330 px desde abajo (en la plantilla que usan, o en el video si tiene su propia altura) y rearma esos videos. ¿Seguir?")) return;
   const volver = ponerActualizando([e.target], "Subiendo el subtítulo…");
   try {
     const r = await post("/api/subir_subtitulos", { armar: true });
@@ -9036,7 +9191,7 @@ async function revisarVersion() {
     if (hay) { $("vNueva").textContent = "v" + infoVersion.nueva; $("vActual").textContent = "(tienes v" + infoVersion.actual + ")"; }
   } catch (e) {}
 }
-$("vNotas").onclick = () => alert(infoVersion?.notas || "Sin notas.");
+$("vNotas").onclick = () => avisoModal(infoVersion?.notas || "Sin notas.");
 $("actBuscar").onclick = async () => {
   const b = $("actBuscar"); b.disabled = true; b.textContent = "Buscando…";
   $("actResultado").innerHTML = `<span class="muted">Revisando en GitHub si hay una versión nueva…</span>`;
