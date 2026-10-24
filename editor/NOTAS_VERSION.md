@@ -1,3 +1,8 @@
+Versión 1.45.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Configuración → 🎨 Marca**: los colores (con para qué sirve cada uno), varios logos (cuál es y sobre qué fondo va), las tipografías (súbelas en .ttf u .otf y elige cuál va en títulos, texto y subtítulos), las fotos del producto y cómo habla la marca (palabras prohibidas, frases obligatorias, cierres y llamado a la acción). Con una muestra que cambia en vivo. Se guarda en la carpeta _MARCA del Drive: la usa todo el equipo y las otras salas.
+- **Portadas**: eliges qué logo de la marca va. Los colores de la marca salen primero en todos los selectores de color.
+- **Asistente de primera vez**: quien recién instala la sala entra con Google, elige su carpeta (de «Mi unidad», de «Compartidas conmigo», con un link) o crea la suya, y la sala revisa que pueda editarla. Después le muestra cómo invitar al equipo como Editor, cargar la marca y crear la primera sesión. Se vuelve a abrir en Configuración → Google Drive → «Elegir o crear la carpeta…».
+
 Versión 1.44.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Al abrir la sala: «¿Con qué sesión trabajas hoy?»**. Sale «Seguir donde te quedaste» y todas las sesiones de Drive, cada una con su estado (guion, videos armados, cuándo se trabajó). Se busca, se abre con un link o se crea una sesión nueva (Ads u Orgánico + tema). También desde la lista de arriba → «Ver todas las sesiones…».
 - **Preparar la sesión** (en Inicio, mientras no hay clips): te dice qué falta, paso a paso: el guion (súbelo y la sala lo separa en cuerpos, hooks y CTA, o lo escribe Claude), las imágenes y clips (los propone Claude), la música (la propone Claude), los sonidos (automáticos) y grabar.
