@@ -1984,6 +1984,35 @@ def hojas_guion():
     return {"titulo": prod.get("semana") or S.semana, "hojas": hojas, "ctas": generales}
 
 
+PALABRAS_POR_SEG = 2.6  # al hablar rápido, como en los videos
+
+
+def apoyo_visual():
+    """Cuántas imágenes y clips de Flow tiene hoy cada cuerpo y cada hook, y cuántos recomienda la sala:
+    una imagen cada ~4 s de voz mantiene la atención; en el hook, una imagen en los primeros segundos engancha."""
+    prod = produccion()
+    ps = prod.get("piezas") or {}
+    assets = {a["id"]: a for a in prod.get("assets", [])}
+    filas = []
+    for n in _orden_piezas(prod):
+        info = ps[n]
+        tipo = "cuerpo" if info.get("tipo") == "cuerpo" else tipo_de(n)
+        if tipo not in ("cuerpo", "hook"):
+            continue
+        ids = [x["asset"] for x in info.get("marcas", []) if x.get("asset")]
+        clips = sum(1 for i in ids if (assets.get(i) or {}).get("tipo") == "clip")
+        filas.append({"pieza": n, "tipo": tipo, "seg": round(len(str(info.get("texto", "")).split()) / PALABRAS_POR_SEG, 1),
+                      "imagenes": len(ids) - clips, "clips": clips})
+    segs = sorted(f["seg"] for f in filas if f["tipo"] == "cuerpo") or [25.0]
+    seg_c = segs[len(segs) // 2]
+    segs_h = sorted(f["seg"] for f in filas if f["tipo"] == "hook") or [4.0]
+    seg_h = segs_h[len(segs_h) // 2]
+    rec = {"cuerpo": max(2, min(10, round(seg_c / 4))), "clips": 1 if seg_c >= 15 else 0, "hook": 2 if seg_h > 6 else 1}
+    razon = (f"Los cuerpos duran unos {seg_c:.0f} s: una imagen cada 4 s mantiene la atención sin tapar a la persona. "
+             f"Los hooks duran unos {seg_h:.0f} s: {'dos imágenes rápidas en los primeros segundos enganchan' if rec['hook'] == 2 else 'una imagen en los primeros segundos engancha'}.")
+    return {"piezas": filas, "recomendado": rec, "razon": razon}
+
+
 SALTO_DE_HOJA = "<<<SALTO>>>"  # en el Word, aquí empieza una hoja nueva
 
 

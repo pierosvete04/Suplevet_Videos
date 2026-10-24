@@ -802,7 +802,8 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     TRABAJO["resultado"] = texto
                     avance("Guion listo: " + (texto.strip().splitlines() or [""])[0][:120])
                 if accion == "mas_apoyo":  # más imágenes y clips por cuerpo, escritos por Claude
-                    texto = asistente.mas_apoyo_visual(avance=avance)
+                    op = extra or {}
+                    texto = asistente.mas_apoyo_visual(int(op.get("por_cuerpo", 3)), int(op.get("clips", 1)), int(op.get("por_hook", 0)), avance=avance)
                     motor._prod_cache = None
                     if drive.estado()["activo"]:
                         drive.subir(motor.S.drive, ["Guion"], avance=avance)
@@ -1175,6 +1176,8 @@ class H(BaseHTTPRequestHandler):
             self._json(motor.onda_archivo(f) if f else {"por_seg": 50, "picos": [], "dur": 0})
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
+        elif u.path == "/api/apoyo_visual":
+            self._json(motor.apoyo_visual())
         elif u.path == "/api/guion_hojas":
             self._json(motor.hojas_guion())
         elif u.path == "/api/guion_doc":
@@ -1780,7 +1783,7 @@ class H(BaseHTTPRequestHandler):
                         raise ValueError("Escribe qué hay que cambiar en la imagen")
                     lanzar("rehacer", extra={"id": str(b.get("id", "")), "nota": nota})
                 elif b.get("accion") == "mas_apoyo":
-                    lanzar("mas_apoyo")
+                    lanzar("mas_apoyo", extra={k: max(0, min(12, int(b.get(k) or 0))) for k in ("por_cuerpo", "clips", "por_hook")})
                 elif b.get("accion") == "temas":
                     lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
                                            "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",

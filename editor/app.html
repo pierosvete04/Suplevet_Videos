@@ -594,6 +594,12 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .cl-hechos { display: grid; gap: 4px; font-size: 12.5px; max-height: 170px; overflow-y: auto; }
 .cl-hechos a { color: var(--accent); }
 @media (max-width: 960px) { .cl-lay, .cl-cab { grid-template-columns: 1fr; } .cl-lado { position: static; } }
+/* Faltantes: cuántas imágenes por cuerpo y por hook */
+.apoyo { display: grid; gap: 10px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--hondo, var(--surface2)); }
+.apoyo-campos { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto; gap: 10px; align-items: end; }
+.apoyo-campos small { display: block; margin-top: 3px; font-size: 11.5px; color: var(--ok); }
+.apoyo-pie { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+@media (max-width: 900px) { .apoyo-campos { grid-template-columns: 1fr 1fr; } }
 /* Guion: las tres acciones de arriba */
 .g-acciones { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .g-accion { display: flex; gap: 14px; align-items: flex-start; text-align: left; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line);
@@ -1409,7 +1415,17 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div><h2 style="margin:0">Generar en Flow con Chrome</h2>
           <span class="muted" style="font-size:12px" id="generarInfo">Claude abre tu Chrome, genera en Google Flow las imágenes y en Flow Music la música que faltan, y las guarda en su cuadro. Si el guion no tiene música, primero escribe sus prompts.</span></div>
         <button class="btn" id="generarFlow" type="button">✦ Generar lo que falta</button>
-        <button class="btn sec" id="masApoyo" type="button" title="Claude agrega a cada cuerpo 3 imágenes más y 1 clip en movimiento, en las palabras clave">✦ Más apoyo visual (Claude)</button>
+      </div>
+      <div class="apoyo" id="apoyoCaja">
+        <div><b>¿Cuántas imágenes quieres?</b> <span class="muted" id="apRazon" style="font-size:12px"></span></div>
+        <div class="apoyo-campos form-plant">
+          <label>Imágenes por cuerpo<input type="number" id="apCuerpo" min="0" max="12"><small id="apRecCuerpo"></small></label>
+          <label>Clips en movimiento por cuerpo<input type="number" id="apClips" min="0" max="4"><small id="apRecClips"></small></label>
+          <label>Imágenes por hook<input type="number" id="apHook" min="0" max="4"><small id="apRecHook"></small></label>
+          <button class="btn sec peq" type="button" id="apRec">Usar lo recomendado</button>
+        </div>
+        <div class="apoyo-pie"><span id="apResumen" class="muted" style="font-size:12.5px"></span>
+          <button class="btn" id="masApoyo" type="button">✦ Agregar las imágenes (Claude)</button></div>
       </div>
       <p class="muted" style="margin:8px 0 0;font-size:12px">Necesita Chrome con la extensión de Claude (la misma cuenta de esta sala) y tu sesión de Google abierta en Flow. Usa los créditos de tu plan de Flow. Si Google pide entrar o un captcha, se detiene y te avisa.</p>
     </div>
@@ -3339,6 +3355,7 @@ function pintarMusica() {
 }
 
 function pintarFaltan() {
+  pintarApoyo();
   pintarSinAsignar();
   pintarMusica();
   const ch = E.checklist;
@@ -8636,11 +8653,35 @@ async function pintarCalidad() {
       <span>${v.problemas.map(p => `<span class="cal ${p.nivel}">${icono[p.nivel] || ""} ${esc(p.txt)}</span>`).join("")}</span></div>`).join("")}</div>`;
 }
 $("calRevisar").onclick = pintarCalidad;
+// Cuántas imágenes por cuerpo y por hook: la sala recomienda según cuánto duran (una imagen cada ~4 s de voz)
+let AP = null;
+async function pintarApoyo() {
+  try { AP = await (await fetch("/api/apoyo_visual")).json(); } catch (e) { return; }
+  const r = AP.recomendado;
+  $("apoyoCaja").hidden = !AP.piezas.length;
+  $("apRazon").textContent = AP.razon;
+  $("apRecCuerpo").textContent = `Recomendado: ${r.cuerpo}`; $("apRecClips").textContent = `Recomendado: ${r.clips}`; $("apRecHook").textContent = `Recomendado: ${r.hook}`;
+  if ($("apCuerpo").value === "") { $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; }
+  resumenApoyo();
+}
+function resumenApoyo() {
+  if (!AP) return;
+  const c = +$("apCuerpo").value || 0, cl = +$("apClips").value || 0, h = +$("apHook").value || 0;
+  let img = 0, clips = 0;
+  AP.piezas.forEach(f => { img += Math.max(0, (f.tipo === "cuerpo" ? c : h) - f.imagenes); if (f.tipo === "cuerpo") clips += Math.max(0, cl - f.clips); });
+  const ya = AP.piezas.reduce((s, f) => s + f.imagenes + f.clips, 0), nc = AP.piezas.filter(f => f.tipo === "cuerpo").length, nh = AP.piezas.length - nc;
+  $("apResumen").innerHTML = img + clips ? `Hoy hay <b>${ya}</b> en ${plural(nc, "cuerpo")} y ${plural(nh, "hook")}. Se agregan <b>${plural(img, "imagen", "imágenes")}</b>${clips ? ` y <b>${plural(clips, "clip")}</b>` : ""} (las que ya hay se quedan).`
+    : "Cada cuerpo y cada hook ya tienen esa cantidad: sube los números para agregar más.";
+  $("masApoyo").disabled = !(img + clips) || !!E?.trabajo?.activo;
+}
+["apCuerpo", "apClips", "apHook"].forEach(id => $(id).addEventListener("input", resumenApoyo));
+$("apRec").onclick = () => { const r = AP?.recomendado; if (!r) return; $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; resumenApoyo(); };
 $("masApoyo").onclick = async () => {
   if (!(infoClaude?.instalado && infoClaude?.sesion)) return avisar("Primero conecta Claude (Inicio → Claude).", "err");
-  if (!confirm("Claude agrega a cada cuerpo 3 imágenes más y 1 clip en movimiento, en las palabras clave (lo que ya hay se queda). Después se generan en Flow con «Generar lo que falta» y se rearman los videos. ¿Seguir?")) return;
+  const pedido = { por_cuerpo: +$("apCuerpo").value || 0, clips: +$("apClips").value || 0, por_hook: +$("apHook").value || 0 };
+  if (!confirm(`Claude deja cada cuerpo con ${plural(pedido.por_cuerpo, "imagen", "imágenes")} y ${plural(pedido.clips, "clip")}, y cada hook con ${plural(pedido.por_hook, "imagen", "imágenes")}, en las palabras clave (lo que ya hay se queda). Después se generan en Flow con «Generar lo que falta» y se rearman los videos. ¿Seguir?`)) return;
   const volver = ponerActualizando([$("masApoyo")], "Claude está agregando…");
-  try { await post("/api/claude", { accion: "mas_apoyo" }); vigilar(await (await fetch("/api/trabajo")).json()); avisar("Claude está agregando imágenes y clips… lo ves en Procesos (☰).", "ok"); }
+  try { await post("/api/claude", { accion: "mas_apoyo", ...pedido }); vigilar(await (await fetch("/api/trabajo")).json()); avisar("Claude está agregando imágenes y clips… lo ves en Procesos (☰).", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
   finally { volver(); }
 };
