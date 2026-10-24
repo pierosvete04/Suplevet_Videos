@@ -4,11 +4,17 @@
   - La ficha es una tabla de dos columnas hecha por la sala: se lee por los títulos de la izquierda (sin IA).
   - Lo que se sube (carpeta, .zip o archivos sueltos) queda aparte (_importar_marca/<id>) hasta que la persona revisa
     la propuesta y la guarda: la carpeta dice qué es cada cosa; si no hay carpeta, el tipo de archivo, el nombre y si
-    la imagen tiene fondo transparente. Los colores salen de la ficha o, si no hay, de los píxeles del logo (con ffmpeg).
+    la imagen tiene fondo transparente. Los colores salen de la ficha o, si no hay, de los píxeles del logo (con ffmpeg,
+    o con el lector de imágenes de Windows si la app no trae ffmpeg).
+
+Es el mismo archivo en la Sala de edición y en la Sala de diseño (las dos escriben _MARCA): si se cambia en una, se
+copia igual a la otra. Lo que cada app guarda distinto lo resuelve su marca.py (logos_info, guardar, guardar_archivo…).
 """
+import base64
 import html
 import io
 import json
+import os
 import re
 import secrets
 import shutil
@@ -18,9 +24,15 @@ import zipfile
 from pathlib import Path
 
 import marca
-import motor
 
-BASE = motor.DATOS / "_importar_marca"
+try:  # Sala de edición
+    import motor
+    DATOS, FFMPEG = motor.DATOS, motor.FFMPEG
+except ImportError:  # Sala de diseño: no trae ffmpeg (las imágenes se leen con Windows)
+    import nucleo
+    DATOS, FFMPEG = nucleo.DATOS, shutil.which("ffmpeg")
+
+BASE = DATOS / "_importar_marca"
 IMAGENES = (".png", ".webp", ".jpg", ".jpeg")
 FUENTES = (".ttf", ".otf")
 TIPOS = ("logos", "productos", "fuentes", "manual", "ficha", "ignorar")
@@ -72,9 +84,10 @@ ficha de marca.docx
   la sala saca los colores de tu logo.
 
 CUANDO TERMINES
-  Abre la Sala de edición: Configuración → Marca → «Importar mi marca»
-  y sube esta carpeta tal cual (o comprímela en .zip). La sala te muestra lo que
-  encontró y nada se guarda hasta que tú lo apruebes.
+  Abre la Sala de edición (Configuración → Marca) o la Sala de diseño (pestaña Marca),
+  toca «Importar mi marca» y sube esta carpeta tal cual (o comprímela en .zip). La sala
+  te muestra lo que encontró y nada se guarda hasta que tú lo apruebes. Las dos salas
+  usan la misma marca: se carga una sola vez.
 """
 
 
@@ -108,7 +121,7 @@ def ficha_docx():
             '<w:tc><w:tcPr><w:tcW w:w="6000" w:type="dxa"/></w:tcPr><w:p/></w:tc></w:tr>')
     cuerpo = (_parrafo("Ficha de marca", negrita=True, tam=40, espacio=80)
               + _parrafo("Escribe solo en la columna de la derecha. No cambies los títulos de la izquierda: así la sala lee tus respuestas sola.", tam=20, color="4A5568")
-              + _parrafo("Si algo no lo sabes, déjalo vacío: lo completas después en la sala (Configuración → Marca).", tam=20, color="4A5568", espacio=200)
+              + _parrafo("Si algo no lo sabes, déjalo vacío: lo completas después en la sala (pantalla Marca).", tam=20, color="4A5568", espacio=200)
               + f'<w:tbl><w:tblPr><w:tblW w:w="9600" w:type="dxa"/><w:tblBorders>{bordes}</w:tblBorders>'
                 '<w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>'
                 '<w:tblGrid><w:gridCol w:w="3600"/><w:gridCol w:w="6000"/></w:tblGrid>' + "".join(filas) + "</w:tbl>"
@@ -227,8 +240,10 @@ def marca_de_ficha(f):
 # ---------- Mirar una imagen: transparencia, luz y colores (con ffmpeg, sin librerías) ----------
 
 def _pixeles(ruta, lado=48):
+    if not FFMPEG:
+        return _pixeles_windows([ruta], lado).get(str(ruta), [])
     try:
-        r = subprocess.run([motor.FFMPEG, "-v", "error", "-i", str(ruta), "-frames:v", "1", "-vf",
+        r = subprocess.run([FFMPEG, "-v", "error", "-i", str(ruta), "-frames:v", "1", "-vf",
                             f"scale={lado}:{lado}:force_original_aspect_ratio=decrease", "-f", "rawvideo", "-pix_fmt", "rgba", "-"],
                            capture_output=True, timeout=30, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.TimeoutExpired):
@@ -237,8 +252,65 @@ def _pixeles(ruta, lado=48):
     return [tuple(d[i:i + 4]) for i in range(0, len(d) - 3, 4)]
 
 
+# Sin ffmpeg: el lector de imágenes que trae Windows (System.Drawing), todas de una vez (abrir PowerShell tarda ~1 s).
+# Lee PNG, JPG, GIF y BMP; un WEBP queda sin colores (y sin transparencia: su carpeta o su nombre dicen qué es).
+_PS_PIXELES = r"""
+Add-Type -AssemblyName System.Drawing
+foreach ($r in Get-Content -LiteralPath $env:LISTA_IMAGENES -Encoding UTF8) {
+  try {
+    $img = [System.Drawing.Image]::FromFile($r)
+    $e = [Math]::Min(1.0, [Math]::Min(LADO / $img.Width, LADO / $img.Height))
+    $w = [Math]::Max(1, [int]($img.Width * $e)); $h = [Math]::Max(1, [int]($img.Height * $e))
+    $bmp = New-Object System.Drawing.Bitmap $w, $h, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp); $g.DrawImage($img, 0, 0, $w, $h); $g.Dispose(); $img.Dispose()
+    $d = $bmp.LockBits((New-Object System.Drawing.Rectangle 0, 0, $w, $h), 'ReadOnly', $bmp.PixelFormat)
+    $b = New-Object byte[] ($d.Stride * $h)
+    [Runtime.InteropServices.Marshal]::Copy($d.Scan0, $b, 0, $b.Length); $bmp.UnlockBits($d); $bmp.Dispose()
+    "$w $($d.Stride) " + [Convert]::ToBase64String($b)
+  } catch { "x" }
+}
+"""
+
+
+def _pixeles_windows(rutas, lado=48):
+    """{ruta: [(r, g, b, a), …]} con a lo más lado×lado píxeles por imagen."""
+    rutas = [str(r) for r in rutas]
+    if not rutas or os.name != "nt":
+        return {}
+    lista = BASE / f".lista_{secrets.token_hex(4)}.txt"
+    lista.parent.mkdir(parents=True, exist_ok=True)
+    lista.write_text("\n".join(rutas), encoding="utf-8")
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", _PS_PIXELES.replace("LADO", str(lado))],
+                           capture_output=True, text=True, timeout=60 + 5 * len(rutas), env={**os.environ, "LISTA_IMAGENES": str(lista)},
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        lineas = [l for l in r.stdout.splitlines() if l.strip()]
+    except (OSError, subprocess.TimeoutExpired):
+        lineas = []
+    finally:
+        lista.unlink(missing_ok=True)
+    out = {}
+    for ruta, linea in zip(rutas, lineas):
+        partes = linea.split(" ")
+        if len(partes) != 3:
+            continue
+        ancho, paso, datos = int(partes[0]), int(partes[1]), base64.b64decode(partes[2])
+        px = []
+        for fila in range(0, len(datos), paso):
+            for i in range(fila, fila + ancho * 4, 4):  # Windows guarda azul, verde, rojo, alfa
+                b, g, r_, a = datos[i:i + 4]
+                px.append((r_, g, b, a))
+        out[ruta] = px
+    return out
+
+
+_VISTAS = {}  # sin ffmpeg, analizar() lee todas las imágenes de una vez y aquí quedan
+
+
 def mirar_imagen(ruta):
-    px = _pixeles(ruta)
+    px = _VISTAS.pop(str(ruta), None)
+    if px is None:
+        px = _pixeles(ruta)
     if not px:
         return {"transparente": False, "luz": 0.5, "colores": []}
     opacos = [p for p in px if p[3] > 200]
@@ -382,6 +454,8 @@ def analizar(i):
     """La propuesta: qué es cada archivo y la marca que sale de la ficha (o del logo). No guarda nada todavía."""
     d = _carpeta(i)
     archivos, ficha, avisos = [], {}, []
+    if not FFMPEG:
+        _VISTAS.update(_pixeles_windows([p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in IMAGENES]))
     for f in sorted(p for p in d.rglob("*") if p.is_file()):
         rel = f.relative_to(d).as_posix()
         ext = f.suffix.lower()
@@ -449,10 +523,13 @@ def _buscar_fuente(valor, subidas, d):
     q = _norm(valor).replace(" ", "")
     if not q:
         return valor
-    import fuentes
     for nombre in subidas:
         if q in _norm(Path(nombre).stem).replace(" ", ""):
             return nombre
+    try:
+        import fuentes  # el lector de tipografías de la Sala de edición
+    except ImportError:
+        return valor
     for f in sorted(p for p in d.rglob("*") if p.suffix.lower() in FUENTES):
         try:
             if q in _norm(fuentes.Fuente(f).nombre).replace(" ", ""):
@@ -469,7 +546,7 @@ def aplicar(i, propuesta):
     """Guarda en la marca lo que la persona aprobó (los archivos y lo de la ficha)."""
     d = _carpeta(i)
     actual = marca.datos()
-    logos = {l["archivo"]: l for l in actual["logos"]}
+    logos = marca.logos_info()
     nombres_fuente = {}
     hechos = {"logos": 0, "productos": 0, "fuentes": 0, "manual": 0}
     for a in propuesta.get("archivos") or []:

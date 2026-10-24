@@ -587,6 +587,31 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .cl-hechos { display: grid; gap: 4px; font-size: 12.5px; max-height: 170px; overflow-y: auto; }
 .cl-hechos a { color: var(--accent); }
 @media (max-width: 960px) { .cl-lay, .cl-cab { grid-template-columns: 1fr; } .cl-lado { position: static; } }
+/* Guion: las tres acciones de arriba */
+.g-acciones { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.g-accion { display: flex; gap: 14px; align-items: flex-start; text-align: left; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line);
+  background: var(--tarjeta, var(--surface)); color: var(--ink); font: inherit; cursor: pointer; min-height: 96px; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.g-accion:hover, .g-accion:focus-visible { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 10px 24px rgba(0,0,0,.12); outline: none; }
+.g-accion b { display: block; font-size: 16px; margin-bottom: 3px; }
+.g-accion small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.g-accion .g-ico { width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; font-size: 20px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
+.g-accion.principal { background: linear-gradient(135deg, #1d4ed8, #3d8bff 60%, #5ee1ff); border-color: transparent; color: #fff; box-shadow: 0 10px 28px rgba(29,78,216,.35); }
+.g-accion.principal small { color: rgba(255,255,255,.88); }
+.g-accion.principal .g-ico { background: rgba(255,255,255,.2); color: #fff; }
+.g-accion.principal.encima { outline: 3px dashed #fff; outline-offset: -8px; }
+.g-accion.imprimir { cursor: default; }
+.g-accion.imprimir:hover { transform: none; }
+@media (max-width: 1000px) { .g-acciones { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .g-accion { transition: none; } .g-accion:hover { transform: none; } }
+/* Equipo (Configuración) */
+.eq-lista { display: grid; gap: 6px; }
+.eq-fila { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; }
+.eq-fila img, .eq-fila .eq-av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: var(--surface2); font-weight: 700; }
+.eq-fila small { display: block; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.eq-fila.abierto { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, var(--surface)); }
+.eq-invitar { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto; gap: 8px; align-items: end; }
+@media (max-width: 700px) { .eq-invitar { grid-template-columns: 1fr; } }
 /* Asistente de primera vez */
 dialog.primera { width: min(760px, 96vw); max-height: 92vh; padding: 0; border-radius: 18px; }
 .pv { padding: 24px 26px; display: grid; gap: 16px; }
@@ -1243,13 +1268,25 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   </section>
 
   <section data-panel="guion" hidden>
+    <div class="g-acciones">
+      <label class="g-accion principal" id="gSubirZona" tabindex="0">
+        <span class="g-ico" aria-hidden="true">⬆</span>
+        <span><b>Subir guion</b><small>Word, .txt, .md o el de Claude (.json). Haz clic o arrástralo aquí.</small></span>
+        <input type="file" id="gSubirGuion" accept=".docx,.md,.txt,.json" hidden></label>
+      <button class="g-accion" type="button" id="gArmar">
+        <span class="g-ico" aria-hidden="true">✦</span>
+        <span><b id="gArmarTit">Armar el guion con los clips</b><small id="gArmarTxt">Escucha los clips, saca los subtítulos y arma el guion con lo que se dijo. En esta PC, sin Claude.</small></span></button>
+      <div class="g-accion imprimir">
+        <span class="g-ico" aria-hidden="true">🖨</span>
+        <span><b>Guion para imprimir</b><small>Para grabar: en letra grande, video por video.</small>
+          <span class="fila" style="margin-top:8px;gap:6px"><button class="btn peq" type="button" id="gWord">Word (.docx)</button>
+            <button class="btn sec peq" type="button" id="gPdf">PDF / imprimir</button></span></span></div>
+    </div>
     <div class="caja" style="margin-bottom:14px">
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Guion de la sesión</h2>
           <span class="muted" style="font-size:12px" id="gSub">«Analizar clips» trae de Drive todos los clips, pasa su audio a texto (en esta PC, gratis), lo compara con el guion e identifica solo cada clip. Luego ves los cambios aquí.</span></div>
         <div class="fila" style="gap:8px">
-          <label class="btn sec peq" title="El produccion.json de Claude (completo, con marcas y copies) o el guion escrito en Word, .md o .txt. Reemplaza al que hay (queda una copia).">Subir guion
-            <input type="file" id="gSubirGuion" accept=".docx,.md,.txt,.json" hidden></label>
           <a class="btn sec peq" href="/teleprompter" target="_blank">Abrir teleprompter</a>
         </div>
       </div>
@@ -1284,7 +1321,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button data-hvista="hooks" aria-pressed="false">Solo hooks</button>
           <button data-hvista="cuerpos" aria-pressed="false">Solo cuerpos</button>
         </div>
-        <button class="btn sec peq" id="gDocCopiar">Copiar</button><button class="btn sec peq" id="gDocImprimir">Imprimir o guardar PDF</button></div>
+        <button class="btn sec peq" id="gDocCopiar">Copiar</button><button class="btn sec peq" id="gDocWord">Word (.docx)</button><button class="btn sec peq" id="gDocImprimir">Imprimir o guardar PDF</button></div>
     </div>
     <div class="caja documento" id="gDoc" hidden></div>
     <div class="segmento" id="filtroGuion" role="group" aria-label="Qué ver del guion" style="margin-bottom:12px">
@@ -1677,6 +1714,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <a href="#confMarca">🎨 Marca <span class="punto-estado" id="confPMarca"></span></a>
         <a href="#confConexiones" class="activo">🔌 Conexiones <span class="pill" id="confNCon"></span></a>
         <a href="#confDrive">☁ Google Drive <span class="punto-estado" id="confPDrive"></span></a>
+        <a href="#confEquipo">👥 Equipo <span class="punto-estado" id="confPEquipo"></span></a>
         <a href="#confTablet">📱 Teleprompter <span class="punto-estado" id="confPRed"></span></a>
         <a href="#confAct">⟳ Actualizaciones <span class="punto-estado" id="confPAct"></span></a>
         <a href="#confNotas">✎ Notas para Claude</a>
@@ -1787,6 +1825,22 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <button class="accion" id="driveSubir"><b>↑ Subir todo a Drive</b><small>Videos, música, imágenes y asignaciones</small></button>
           </div>
           <div class="conf-pie"><button class="btn-link peligro" id="driveDesconectar" type="button">Desconectar Drive de esta PC</button></div>
+        </section>
+
+        <section class="caja conf-sec" id="confEquipo">
+          <div class="conf-cab">
+            <div><h2>Equipo</h2>
+              <p class="muted">Quién puede entrar a trabajar. Son cuentas de Google: cada persona entra a la sala con la suya, y solo ve las sesiones si tiene permiso en la carpeta del equipo en Drive.
+                Invita como <b>Editor</b> a quien edita, graba o sube clips; como <b>Lector</b> a quien solo mira.</p></div>
+            <button class="btn sec peq" type="button" id="eqRefrescar">Actualizar</button>
+          </div>
+          <form class="eq-invitar form-plant" id="eqForm">
+            <label>Correo de Google<input id="eqEmail" type="email" placeholder="nombre@gmail.com" required autocomplete="off"></label>
+            <label>Puede<select id="eqRol"><option value="writer">Editar (Editor)</option><option value="reader">Solo mirar (Lector)</option></select></label>
+            <button class="btn" id="eqInvitar">Invitar</button>
+          </form>
+          <p class="muted" style="font-size:12px;margin:6px 0 12px">Google le manda un correo con la invitación. Después instala la sala, entra con ese correo y elige la carpeta en «Compartidas conmigo».</p>
+          <div id="eqLista" class="eq-lista"></div>
         </section>
 
         <section class="caja conf-sec" id="confTablet">
@@ -3839,6 +3893,7 @@ function irConf(id) {
   marcarMenuConf(id); scrollTo({ top: 0 });
   if (id === "confCuenta") Cuenta.pintarEn($("cfgCuenta"));
   if (id === "confRespaldos") pintarRespaldos();
+  if (id === "confEquipo") pintarEquipo();
 }
 function marcarMenuConf(id) {
   document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id));
@@ -6893,6 +6948,65 @@ function pintarPaletaMarca() {
   $("confPMarca").className = "punto-estado " + (m.tiene_marca ? "ok" : "warn");
 }
 
+// ---------- Equipo: quién entra a la carpeta del equipo (cuentas de Google) ----------
+async function pintarEquipo() {
+  const caja = $("eqLista");
+  caja.innerHTML = `<p class="muted" style="margin:0">Preguntando a Drive quién tiene acceso…</p>`;
+  let r; try { r = await (await fetch("/api/equipo")).json(); } catch (e) { r = { ok: false, error: e.message }; }
+  if (!r.ok) { caja.innerHTML = `<p class="muted" style="margin:0">${esc(r.error || "No se pudo leer el equipo")}</p>`; $("confPEquipo").className = "punto-estado"; return; }
+  const abierto = r.personas.find(p => p.tipo === "anyone");
+  $("confPEquipo").className = "punto-estado " + (abierto && abierto.rol === "writer" ? "warn" : "ok");
+  caja.innerHTML = r.personas.map(p => {
+    const nombre = p.tipo === "anyone" ? "Cualquiera con el link" : p.tipo === "domain" ? `Todos de ${p.dominio}` : (p.nombre || p.email);
+    const det = p.tipo === "anyone" ? (p.rol === "writer" ? "⚠ Cualquier persona que tenga el link puede editar y borrar. Mejor invita a cada uno por correo y cierra el link." : "Cualquier persona con el link puede mirar.")
+      : p.tipo === "user" ? p.email + (p.yo ? " · tú" : "") : "";
+    const quitable = !["owner", "organizer"].includes(p.rol) && !p.yo;
+    return `<div class="eq-fila ${p.tipo === "anyone" ? "abierto" : ""}">
+      ${p.foto ? `<img src="${esc(p.foto)}" alt="" referrerpolicy="no-referrer">` : `<span class="eq-av" aria-hidden="true">${p.tipo === "anyone" ? "🔗" : esc((nombre || "?")[0].toUpperCase())}</span>`}
+      <span style="min-width:0"><b>${esc(nombre)}</b><small>${esc(det)}</small></span>
+      <span class="pill ${p.rol === "owner" ? "azul" : p.rol === "writer" ? "ok" : ""}">${esc(p.rol_txt)}</span>
+      ${quitable ? `<button class="btn-link peligro" type="button" data-eqquitar="${esc(p.id)}" data-eqnombre="${esc(nombre)}">${p.tipo === "anyone" ? "Cerrar el link" : "Quitar"}</button>` : "<span></span>"}</div>`;
+  }).join("");
+}
+$("eqRefrescar").onclick = pintarEquipo;
+$("eqForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const email = $("eqEmail").value.trim(), rol = $("eqRol").value;
+  if (!confirm(`¿Invitar a ${email} como ${rol === "writer" ? "Editor (puede editar)" : "Lector (solo mira)"}? Google le manda un correo.`)) return;
+  try { await post("/api/equipo", { accion: "invitar", email, rol }); $("eqEmail").value = ""; avisar(`Listo: ${email} ya puede entrar. Le llegó un correo de Google.`, "ok"); pintarEquipo(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
+$("eqLista").addEventListener("click", async e => {
+  const b = e.target.closest("[data-eqquitar]"); if (!b) return;
+  const link = b.dataset.eqnombre === "Cualquiera con el link";
+  if (!confirm(link ? "¿Cerrar el link? Quien entraba solo con el link deja de poder entrar; las personas invitadas por correo siguen igual."
+    : `¿Quitarle el acceso a ${b.dataset.eqnombre}? Deja de ver la carpeta y las sesiones.`)) return;
+  try { await post("/api/equipo", { accion: "quitar", id: b.dataset.eqquitar }); avisar(link ? "Link cerrado: ahora solo entran las personas invitadas." : "Acceso quitado.", "ok"); pintarEquipo(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
+
+// ---------- Guion: subir (también arrastrando), armarlo con los clips y sacarlo para imprimir ----------
+$("gArmar").onclick = () => $("gAnalizar").click();
+async function guionEnWord(version, vista) {
+  try { const r = await post("/api/guion_word", { version, vista }); avisar(`Listo: el guion en Word quedó en ${r.ruta.replace(/\\[^\\]+$/, "")} (y en la carpeta Guion de la sesión).`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("gWord").onclick = () => guionEnWord("host", "combinacion");
+$("gDocWord").onclick = () => guionEnWord(gVersion === "produccion" ? "produccion" : "host", gHostVista);
+$("gPdf").onclick = async () => {
+  const r = await (await fetch("/api/guion_doc?version=host&vista=combinacion")).json();
+  if (!r.texto) return avisar("Esta sesión todavía no tiene guion.", "err");
+  gDocTexto = r.texto; gVersion = "host"; $("gDocImprimir").click(); pintarVersionGuion();
+};
+["dragenter", "dragover"].forEach(t => $("gSubirZona").addEventListener(t, e => { e.preventDefault(); $("gSubirZona").classList.add("encima"); }));
+$("gSubirZona").addEventListener("dragleave", () => $("gSubirZona").classList.remove("encima"));
+$("gSubirZona").addEventListener("drop", e => {
+  e.preventDefault(); $("gSubirZona").classList.remove("encima");
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  const dt = new DataTransfer(); dt.items.add(f); $("gSubirGuion").files = dt.files; $("gSubirGuion").dispatchEvent(new Event("change"));
+});
+$("gSubirZona").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("gSubirGuion").click(); } });
+
 // ---------- Clips en automático: de un video largo (o suelto) a clips verticales editados, sin Claude ----------
 let CL = { lista: [], sel: null, d: null, elegidos: new Set(), hasta: null };
 const tMin = s => { s = Math.max(0, +s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`; };
@@ -7875,6 +7989,10 @@ function pintarEstadoGuion() {
   const paso = !hayClips || pend ? 1 : !corroborado ? 2 : 3;
   [["gAnalizar", 1], ["gCorroborar", 2], ["gRevisar", 3]].forEach(([id, n]) => { $(id).className = "btn" + (paso === n ? "" : " sec"); });
   $("gCorroborar").disabled = !hayClips;
+  $("gArmarTit").textContent = g.hay_guion && g.origen !== "grabado" ? "Analizar los clips con el guion" : "Armar el guion con los clips";
+  $("gArmarTxt").textContent = g.hay_guion && g.origen !== "grabado"
+    ? "Escucha los clips, saca los subtítulos y ve qué pieza del guion es cada uno. En esta PC, sin Claude."
+    : "Escucha los clips, saca los subtítulos y arma el guion con lo que se dijo. En esta PC, sin Claude.";
   $("gCorroborar").title = hayClips ? "" : "Primero «Analizar clips»: todavía no hay clips en esta sesión";
   if (!hayClips && g.hay_guion) $("gEstado").innerHTML = `Todavía no hay clips en esta sesión: empieza por <b>1 · Analizar clips</b>.`;
 }

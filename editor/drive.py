@@ -372,106 +372,102 @@ def crear_sesion(nombre):
     actualizar_lista()
 
 
-# ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del equipo ----------
-# Para quien instala la sala sin tener todavía la carpeta: entra con su cuenta, ve sus carpetas y las compartidas con
-# ella, y elige una o crea la suya. Mientras no elige, las apps no usan la cuenta (sin carpeta no hay dónde trabajar).
-# Las otras dos salas comparten esta sesión de Google (cuenta.py), y con la carpeta elegida quedan conectadas también.
+# ---------- Después de elegir la carpeta del proyecto ----------
+# Entrar y elegir (o crear) la carpeta es común a las tres apps (cuenta.primera, desde la pantalla de cuenta.js).
+# Aquí va solo lo de esta sala: trabajar contra esa carpeta y, si es nueva, dejarle la marca neutra y _SALA.
 
-def entrar_sin_carpeta(client_id="", client_secret=""):
-    """Abre Google en el navegador para entrar. client_id/secret: las del proyecto de Google Cloud del equipo (opcional)."""
-    with cuenta._candado:
-        info = cuenta._leer(cuenta.INFO)
-        if client_id.strip():
-            info["cliente"] = {"id": client_id.strip(), "secreto": client_secret.strip()}
-        if cuenta.CONF.exists():
-            try:
-                cuenta.rc("config", "delete", REMOTO)
-            except RuntimeError:
-                pass
-        cliente = info.get("cliente") or {}
-        extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
-        cuenta.rc("config", "create", REMOTO, "drive", "scope=drive", *extra, timeout=600)
-        info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", entro=time.strftime("%Y-%m-%d %H:%M:%S"))
-        cuenta._guardar(cuenta.INFO, info)
-    cuenta._quien()
-    return cuenta._leer(cuenta.INFO)
-
-
-_SIN_RAIZ = f"{REMOTO},root_folder_id='':"  # «Mi unidad» entera, aunque la conexión ya apunte a una carpeta
-
-
-def carpetas_para_elegir():
-    """{mias: [...], compartidas: [...]}: las carpetas de «Mi unidad» y las compartidas con esta cuenta (nombre e id)."""
-    def lista(*extra):
-        try:
-            return [{"nombre": x["Name"], "id": x.get("ID", "")} for x in json.loads(cuenta.rc("lsjson", _SIN_RAIZ, "--dirs-only", "--max-depth", "1", *extra, timeout=120) or "[]")
-                    if x.get("ID") and not x["Name"].startswith(".")]
-        except RuntimeError:
-            return []
-    return {"mias": sorted(lista(), key=lambda x: x["nombre"].lower()), "compartidas": sorted(lista("--drive-shared-with-me"), key=lambda x: x["nombre"].lower())}
-
-
-def crear_carpeta_equipo(nombre="EDICIÓN DE VIDEOS"):
-    """Crea la carpeta del equipo en «Mi unidad» (si ya existe una con ese nombre, la usa). Devuelve su id."""
-    nombre = " ".join(str(nombre or "").split())[:80] or "EDICIÓN DE VIDEOS"
-    if any(c in nombre for c in '\\/:*?"<>|'):
-        raise ValueError('El nombre de la carpeta no puede llevar / \\ : * ? " < > |')
-    cuenta.rc("mkdir", f"{_SIN_RAIZ}{nombre}", timeout=120)
-    d = next((x for x in carpetas_para_elegir()["mias"] if x["nombre"] == nombre), None)
-    if not d:
-        raise RuntimeError("Se creó la carpeta pero Drive no la muestra todavía: vuelve a intentar en un momento")
-    return d["id"], nombre
-
-
-def usar_carpeta(cid, nombre=""):
-    """Deja la conexión trabajando dentro de esa carpeta (la de las sesiones) y revisa que se pueda escribir en ella.
-    Devuelve {editor: bool, link}."""
-    if not re.fullmatch(r"[\w-]{10,}", cid or ""):
-        raise ValueError("Esa carpeta no es válida")
-    with cuenta._candado:
-        # se cambia solo la línea root_folder_id de la conexión (sin librerías que el .exe podría no traer)
-        texto = cuenta.CONF.read_text(encoding="utf-8")
-        m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
-        if not m:
-            raise RuntimeError("Primero entra con tu cuenta de Google")
-        seccion = m.group(1)
-        if re.search(r"^root_folder_id\s*=.*$", seccion, re.M):
-            seccion = re.sub(r"^root_folder_id\s*=.*$", f"root_folder_id = {cid}", seccion, flags=re.M)
-        else:
-            seccion = f"root_folder_id = {cid}\n" + seccion
-        cuenta.CONF.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
-    # ¿se puede escribir? (con permiso de solo lectura, Drive borra en silencio lo que la sala sube)
-    editor = True
-    prueba = f"_SALA/.prueba_{int(time.time())}.txt"
-    try:
-        cuenta.rc("rcat", f"{REMOTO}:{prueba}", timeout=60, entrada="prueba de la sala")
-        cuenta.rc("deletefile", f"{REMOTO}:{prueba}", timeout=60)
-    except RuntimeError:
-        editor = False
-    link = f"https://drive.google.com/drive/folders/{cid}"
-    info = cuenta._leer(cuenta.INFO)
-    info.update(activo=True, link=link, carpeta_id=cid, carpeta_nombre=nombre)
-    info.pop("sin_carpeta", None)
-    cuenta._guardar(cuenta.INFO, info)
-    motor.guardar_config({"drive": {**motor.CONFIG.get("drive", {}), "activo": True, "link": link, "carpeta_id": cid}})
-    asegurar_config(forzar=True)
-    try:
-        actualizar_lista()
-    except Exception:  # noqa: BLE001
-        pass
-    return {"editor": editor, "link": link, "nombre": nombre}
-
-
-def preparar_carpeta_nueva(nombre_marca=""):
-    """En una carpeta recién creada deja lo de base: _MARCA (con la marca neutra) y _SALA."""
+def tras_elegir_carpeta(r):
     import marca
-    marca.raiz().mkdir(parents=True, exist_ok=True)
-    if not (marca.raiz() / "marca.json").exists():
-        marca.guardar({**marca.NEUTRA, "nombre": nombre_marca})
+    asegurar_config(forzar=True)
+    if r.get("nueva"):
+        marca.raiz().mkdir(parents=True, exist_ok=True)
+        if not (marca.raiz() / "marca.json").exists():
+            marca.guardar({**marca.NEUTRA, "nombre": r.get("marca", "")})
+        try:
+            cuenta.rc("mkdir", f"{REMOTO}:_SALA", timeout=60)
+        except RuntimeError:
+            pass
+    else:
+        threading.Thread(target=marca.bajar, daemon=True).start()
+
+
+# ---------- Equipo: quién entra a la carpeta (las cuentas de Google con permiso) ----------
+# Se usa la misma llave de Google de la sala (la de rclone) para hablar con Drive: ver, invitar y quitar personas.
+ROLES = {"owner": "Dueño", "organizer": "Dueño", "fileOrganizer": "Editor", "writer": "Editor", "commenter": "Comentador", "reader": "Lector"}
+
+
+def _token():
+    import urllib.request  # noqa: F401
+    _rc("lsd", f"{REMOTO}:", "--max-depth", "1", timeout=60)  # si la llave venció, rclone la renueva y la guarda
+    texto = cuenta.CONF.read_text(encoding="utf-8")
+    m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
+    t = m and re.search(r"^token\s*=\s*(.*)$", m.group(1), re.M)
+    if not t:
+        raise RuntimeError("Primero conecta la sala con Google Drive")
+    return json.loads(t.group(1))["access_token"]
+
+
+def _api(metodo, ruta, cuerpo=None):
+    import urllib.error
+    import urllib.request
+    url = f"https://www.googleapis.com/drive/v3/files/{ruta}"
+    req = urllib.request.Request(url, method=metodo, data=json.dumps(cuerpo).encode() if cuerpo is not None else None,
+                                 headers={"Authorization": "Bearer " + _token(), "Content-Type": "application/json"})
     try:
-        cuenta.rc("mkdir", f"{REMOTO}:_SALA", timeout=60)
-    except RuntimeError:
-        pass
+        with urllib.request.urlopen(req, timeout=30) as r:
+            b = r.read()
+            return json.loads(b) if b else {}
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read()).get("error", {}).get("message", "")
+        except ValueError:
+            msg = ""
+        if e.code == 403:
+            raise RuntimeError("Tu cuenta no puede cambiar quién entra a esta carpeta: solo el dueño o un editor con permiso para compartir")
+        raise RuntimeError(f"Drive no aceptó el cambio ({e.code}): {msg}"[:300])
+
+
+def equipo():
+    """Las personas con acceso a la carpeta del equipo (y si está abierta a cualquiera con el link)."""
+    cid = estado().get("carpeta_id") or cuenta._leer(cuenta.INFO).get("carpeta_id")
+    if not cid:
+        raise RuntimeError("La sala no tiene carpeta del equipo todavía")
+    d = _api("GET", f"{cid}/permissions?fields=permissions(id,type,role,emailAddress,displayName,photoLink,domain)&supportsAllDrives=true")
+    yo = (cuenta.estado().get("email") or "").lower()
+    out = []
+    for p in d.get("permissions", []):
+        out.append({"id": p["id"], "tipo": p.get("type"), "rol": p.get("role"), "rol_txt": ROLES.get(p.get("role"), p.get("role")),
+                    "email": p.get("emailAddress", ""), "nombre": p.get("displayName", ""), "foto": p.get("photoLink", ""),
+                    "dominio": p.get("domain", ""), "yo": (p.get("emailAddress") or "").lower() == yo})
+    orden = {"owner": 0, "organizer": 0, "writer": 1, "fileOrganizer": 1, "commenter": 2, "reader": 3}
+    out.sort(key=lambda p: (p["tipo"] == "anyone", orden.get(p["rol"], 9), p["email"]))
+    return {"personas": out, "link": f"https://drive.google.com/drive/folders/{cid}", "carpeta_id": cid}
+
+
+def invitar(email, rol="writer"):
+    email = str(email or "").strip()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise ValueError("Escribe un correo de Google válido")
+    if rol not in ("writer", "reader", "commenter"):
+        raise ValueError("Rol no válido")
+    cid = equipo()["carpeta_id"]
+    _api("POST", f"{cid}/permissions?sendNotificationEmail=true&supportsAllDrives=true", {"type": "user", "role": rol, "emailAddress": email})
+    return equipo()
+
+
+def quitar_acceso(pid):
+    if not re.fullmatch(r"[\w-]+", str(pid or "")):
+        raise ValueError("Permiso no válido")
+    datos = equipo()
+    p = next((x for x in datos["personas"] if x["id"] == pid), None)
+    if not p:
+        raise ValueError("Esa persona ya no tiene acceso")
+    if p["rol"] in ("owner", "organizer"):
+        raise ValueError("Al dueño de la carpeta no se le puede quitar")
+    if p["yo"]:
+        raise ValueError("No puedes quitarte a ti mismo desde la sala")
+    _api("DELETE", f"{datos['carpeta_id']}/permissions/{pid}?supportsAllDrives=true")
+    return equipo()
 
 
 if __name__ == "__main__":

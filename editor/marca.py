@@ -88,6 +88,11 @@ def datos():
     return out
 
 
+def logos_info():
+    """{archivo: {archivo, nombre, uso, fondo}} de los logos que hay (lo usa importar_marca, común con la Sala de diseño)."""
+    return {l["archivo"]: l for l in datos()["logos"]}
+
+
 def resumen():
     """Lo que la pantalla necesita siempre (colores y logos para portadas y plantillas)."""
     d = datos()

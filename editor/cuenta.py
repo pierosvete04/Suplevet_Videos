@@ -10,6 +10,9 @@ El candado de verdad es Drive: solo entra quien tenga compartida la carpeta del 
 «Dispositivos y seguridad» vive en Drive, en _SISTEMA/dispositivos/<correo>/<id de la PC>.json, y cada app lo
 actualiza al abrir y cada 10 minutos. «Cerrar sesión en esa PC» deja una marca que esa PC lee en su siguiente
 latido y entonces cierra la sesión sola.
+
+La primera vez se entra con Google sin link y se elige la carpeta del proyecto (una propia, una compartida o una
+nueva): ver «Primera vez» abajo. Cada app agrega lo suyo después de elegir (por ejemplo, crear su marca base).
 """
 import io
 import json
@@ -100,6 +103,7 @@ def estado():
     con_llave = "token" in _llave()
     return {"conectado": bool(i.get("activo")) and con_llave, "email": i.get("email", ""), "nombre": i.get("nombre", ""),
             "foto": i.get("foto", ""), "link": i.get("link", ""), "carpeta_id": i.get("carpeta_id", ""),
+            "carpeta_nombre": i.get("carpeta_nombre", ""), "con_llave": con_llave, "sin_carpeta": bool(i.get("sin_carpeta")),
             "dispositivo": dispositivo()["nombre"], "cerrada_desde_otra_pc": bool(i.get("cerrada_desde_otra_pc"))}
 
 
@@ -191,7 +195,10 @@ def entrar(link):
             rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)
         except RuntimeError:
             raise RuntimeError("Esa cuenta no tiene acceso a la carpeta del proyecto. Pídele al dueño que la comparta con tu correo.")
-        _guardar(INFO, {**_leer(INFO), "activo": True, "link": link, "carpeta_id": cid, "entro": time.strftime("%Y-%m-%d %H:%M:%S")})
+        info = {**_leer(INFO), "activo": True, "link": link, "carpeta_id": cid, "entro": time.strftime("%Y-%m-%d %H:%M:%S")}
+        for k in ("sin_carpeta", "anterior", "carpeta_nombre"):
+            info.pop(k, None)
+        _guardar(INFO, info)
         _quien()
     latido(forzar=True)
     return estado()
@@ -218,7 +225,127 @@ def cerrar_sesion(marcar_en_drive=True):
         except Exception:
             pass
         i = _leer(INFO)
-        _guardar(INFO, {k: i[k] for k in ("link", "carpeta_id", "cliente", "cerrada_desde_otra_pc") if k in i})
+        _guardar(INFO, {k: i[k] for k in ("link", "carpeta_id", "carpeta_nombre", "cliente", "cerrada_desde_otra_pc") if k in i})
+
+
+# ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del proyecto ----------
+# Para quien recién instala una app: entra con su cuenta, ve sus carpetas y las compartidas con ella, y elige una o
+# crea la suya. Mientras no elige, las apps no usan la cuenta (sin carpeta no hay dónde trabajar).
+
+def entrar_sin_carpeta(client_id="", client_secret=""):
+    """Abre Google en el navegador para entrar. client_id/secret: las del proyecto de Google Cloud del equipo (opcional)."""
+    with _candado:
+        info = _leer(INFO)
+        if client_id.strip():
+            info["cliente"] = {"id": client_id.strip(), "secreto": client_secret.strip()}
+        if CONF.exists():
+            try:
+                rc("config", "delete", REMOTO)
+            except RuntimeError:
+                pass
+        cliente = info.get("cliente") or {}
+        extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
+        rc("config", "create", REMOTO, "drive", "scope=drive", *extra, timeout=600)
+        if info.get("carpeta_id"):  # la carpeta de antes: se ofrece primero al elegir
+            info["anterior"] = {"id": info["carpeta_id"], "nombre": info.get("carpeta_nombre", "")}
+        info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", carpeta_nombre="",
+                    entro=time.strftime("%Y-%m-%d %H:%M:%S"))
+        _guardar(INFO, info)
+    _quien()
+    return estado()
+
+
+_SIN_RAIZ = f"{REMOTO},root_folder_id='':"  # «Mi unidad» entera, aunque la conexión ya apunte a una carpeta
+
+
+def carpetas_para_elegir():
+    """{mias, compartidas, anterior, cuenta, con_llave}: las carpetas de «Mi unidad» y las compartidas con esta cuenta."""
+    con_llave = "token" in _llave()
+
+    def lista(*extra):
+        if not con_llave:
+            return []
+        try:
+            datos = json.loads(rc("lsjson", _SIN_RAIZ, "--dirs-only", "--max-depth", "1", *extra, timeout=120) or "[]")
+        except RuntimeError:
+            return []
+        return sorted(({"nombre": x["Name"], "id": x["ID"]} for x in datos if x.get("ID") and not x["Name"].startswith(".")),
+                      key=lambda x: x["nombre"].lower())
+    return {"mias": lista(), "compartidas": lista("--drive-shared-with-me"), "anterior": _leer(INFO).get("anterior") or {},
+            "cuenta": estado(), "con_llave": con_llave}
+
+
+def crear_carpeta(nombre="EDICIÓN DE VIDEOS"):
+    """Crea la carpeta del proyecto en «Mi unidad» (si ya existe una con ese nombre, la usa). Devuelve (id, nombre)."""
+    nombre = " ".join(str(nombre or "").split())[:80] or "EDICIÓN DE VIDEOS"
+    if any(c in nombre for c in '\\/:*?"<>|'):
+        raise ValueError('El nombre de la carpeta no puede llevar / \\ : * ? " < > |')
+    for sub in ("", "/_MARCA", "/_SISTEMA"):  # lo de base que leen las tres apps
+        rc("mkdir", f"{_SIN_RAIZ}{nombre}{sub}", timeout=120)
+    d = next((x for x in carpetas_para_elegir()["mias"] if x["nombre"] == nombre), None)
+    if not d:
+        raise RuntimeError("Se creó la carpeta pero Drive no la muestra todavía: vuelve a intentar en un momento")
+    return d["id"], nombre
+
+
+def usar_carpeta(cid, nombre=""):
+    """Deja la sesión trabajando dentro de esa carpeta y revisa si se puede escribir en ella. Devuelve {editor, link, nombre}."""
+    if not re.fullmatch(r"[\w-]{10,}", cid or ""):
+        raise ValueError("Esa carpeta no es válida")
+    with _candado:
+        # se cambia solo la línea root_folder_id de la conexión (sin librerías que el .exe podría no traer)
+        texto = CONF.read_text(encoding="utf-8") if CONF.exists() else ""
+        m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
+        if not m:
+            raise RuntimeError("Primero entra con tu cuenta de Google")
+        seccion = m.group(1)
+        if re.search(r"^root_folder_id\s*=.*$", seccion, re.M):
+            seccion = re.sub(r"^root_folder_id\s*=.*$", f"root_folder_id = {cid}", seccion, flags=re.M)
+        else:
+            seccion = f"root_folder_id = {cid}\n" + seccion
+        CONF.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
+    try:
+        rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)
+    except RuntimeError:
+        raise RuntimeError("Tu cuenta no puede abrir esa carpeta. Pide a quien es dueño que te la comparta como Editor.")
+    if not nombre:
+        try:
+            nombre = api_drive(f"files/{cid}?fields=name&supportsAllDrives=true").get("name", "")
+        except Exception:  # noqa: BLE001  (el nombre es solo para mostrar)
+            pass
+    # ¿se puede escribir? (con permiso de solo lectura, Drive rechaza lo que las apps suben)
+    editor = True
+    prueba = f"_SISTEMA/.prueba_{int(time.time())}.txt"
+    try:
+        rc("rcat", f"{REMOTO}:{prueba}", timeout=60, entrada="prueba de escritura")
+        rc("deletefile", f"{REMOTO}:{prueba}", timeout=60)
+    except RuntimeError:
+        editor = False
+    link = f"https://drive.google.com/drive/folders/{cid}"
+    with _candado:
+        info = _leer(INFO)
+        info.update(activo=True, link=link, carpeta_id=cid, carpeta_nombre=nombre)
+        for k in ("sin_carpeta", "anterior", "cerrada_desde_otra_pc"):
+            info.pop(k, None)
+        _guardar(INFO, info)
+    latido(forzar=True)
+    return {"editor": editor, "link": link, "nombre": nombre}
+
+
+def primera(b):
+    """Lo que piden las pantallas de entrar y elegir carpeta (cuenta.js): {accion: entrar|crear|usar|link, ...}.
+    Con «crear» devuelve también nueva=True y el nombre de la marca, para que cada app prepare lo suyo."""
+    acc = b.get("accion")
+    if acc == "entrar":
+        return {"cuenta": entrar_sin_carpeta(str(b.get("client_id") or ""), str(b.get("client_secret") or ""))}
+    if acc == "crear":
+        cid, nombre = crear_carpeta(str(b.get("nombre") or ""))
+        return {**usar_carpeta(cid, nombre), "nueva": True, "marca": " ".join(str(b.get("marca") or "").split())[:60]}
+    if acc == "usar":
+        return usar_carpeta(str(b.get("id") or ""), str(b.get("nombre") or ""))
+    if acc == "link":
+        return usar_carpeta(carpeta_id(str(b.get("link") or "")), "")
+    raise ValueError("Acción no válida")
 
 
 # ---------- Dispositivos ----------

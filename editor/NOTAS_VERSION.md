@@ -1,3 +1,11 @@
+Versión 1.46.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Nueva pestaña ✂ Clips** (sin Claude): sube un video largo (YouTube, en vivo, entrevista) y la sala te propone los mejores clips de 18 a 60 s, con por qué los eligió. Eliges, ajustas el inicio y el final, y salen en vertical: siguiendo a la persona, al centro o con fondo difuminado; sin las pausas largas; con color, subtítulos y zoom frase sí, frase no. El audio se puede mejorar (suave, medio o fuerte) o dejar **tal cual se grabó**. Con «Usar el video entero», un video suelto sale editado solo. Quedan en V.FINALES → «CLIPS …» y se suben a Drive.
+- **Guion**: arriba, tres botones grandes: **Subir guion** (también arrastrando el archivo), **Armar el guion con los clips** (escucha los clips, saca los subtítulos y arma el guion, sin Claude) y **Guion para imprimir** en **Word (.docx)** o PDF.
+- **Marca → Importar mi marca** (sin Claude): «Descargar plantilla de marca» (carpetas + LÉEME + ficha en Word) y subir la carpeta o el .zip. La sala acomoda logos, tipografías, productos y colores (si no los pones, los saca del logo) y te los muestra antes de guardar.
+- **Configuración → Equipo**: quién puede entrar a trabajar (cuentas de Google con permiso en la carpeta del equipo), invitar por correo como Editor o Lector, quitar a alguien y cerrar el link abierto.
+- **Conexiones**: Flow y Flow Music salen «✓ En uso» solos cuando la sesión ya tiene sus imágenes o su música. El panel web ya no hace falta (todo funciona en esta PC y en Drive).
+- **Copias de seguridad**: cada copia dice quién la hizo (la cuenta de Google), en qué PC y de qué sesión.
+
 Versión 1.45.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Inicio en tres columnas**, usando todo el ancho: a la izquierda la sesión y sus números; al medio el siguiente paso, «Preparar la sesión» y los videos para revisar; a la derecha «Cómo va esta sesión», los últimos cambios y Claude. En pantallas chicas pasa a dos columnas, y en el celular a una.
 

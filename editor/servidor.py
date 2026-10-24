@@ -22,6 +22,7 @@ import cuenta
 import drive
 import motor
 import clips_largos
+import guion_word
 import importar_marca
 import marca
 import panel
@@ -1006,6 +1007,11 @@ class H(BaseHTTPRequestHandler):
             if not f.is_file():
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/equipo":
+            try:
+                self._json({"ok": True, **drive.equipo()})
+            except (RuntimeError, ValueError) as e:
+                self._json({"ok": False, "error": str(e)})
         elif u.path == "/api/clips":
             self._json({"ok": True, "videos": clips_largos.lista()})
         elif u.path in ("/api/clips/uno", "/api/clips/fuente", "/api/clips/salida"):
@@ -1381,6 +1387,23 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("El archivo es muy grande (máximo 30 MB)")
                 nombre = marca.guardar_archivo(q["tipo"][0], q["nombre"][0], self.rfile.read(n))
                 self._json({"ok": True, "archivo": nombre, "marca": marca.datos()})
+            elif u.path == "/api/equipo":
+                b = self._cuerpo()
+                if b.get("accion") == "invitar":
+                    self._json({"ok": True, **drive.invitar(b.get("email"), b.get("rol") or "writer")})
+                elif b.get("accion") == "quitar":
+                    self._json({"ok": True, **drive.quitar_acceso(b.get("id"))})
+                else:
+                    raise ValueError("Acción no válida")
+            elif u.path == "/api/guion_word":
+                b = self._cuerpo()
+                version = "produccion" if b.get("version") == "produccion" else "host"
+                texto = motor.documento_guion(version, b.get("vista") or "combinacion")
+                if not texto:
+                    raise ValueError("Esta sesión todavía no tiene guion")
+                f = guion_word.guardar(texto, motor.S.semana, version, motor.S.guion)
+                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                self._json({"ok": True, "ruta": str(f)})
             elif u.path == "/api/clips/subir":
                 n = int(self.headers.get("Content-Length") or 0)
                 i = clips_largos.recibir(q.get("nombre", ["video.mp4"])[0], self.rfile.read, n)
