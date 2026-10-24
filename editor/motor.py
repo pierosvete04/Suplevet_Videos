@@ -5894,6 +5894,7 @@ def exportar_partes(codigos, avance=print, raiz=None):
     y las imágenes que usa. Sirve para terminarlo en CapCut, Premiere o pasarlo a otro editor."""
     por_codigo = {c["codigo"]: c for c in combinaciones()}
     hechos = []
+    codigos = list(dict.fromkeys(codigos))  # sin repetidos
     for n, cod in enumerate(codigos):
         c = por_codigo.get(cod)
         if not c:
@@ -5911,6 +5912,13 @@ def exportar_partes(codigos, avance=print, raiz=None):
                 run([FFMPEG, "-hide_banner", "-y", "-i", str(video), "-ss", f"{desde:.3f}", "-to", f"{hasta:.3f}",
                      "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
                      str(destino / f"{nombre}_{c[nombre[2:]]}.mp4")])
+        portada = S.portadas / f"{c['archivo']}.jpg"
+        if portada.exists():
+            shutil.copy2(portada, destino / "portada.jpg")
+        cp = copy_de(cod)
+        (destino / "copy.txt").write_text(
+            f"INSTAGRAM\n{cp.get('instagram', '')}\n\nTIKTOK\n{cp.get('tiktok', '')}\n\n"
+            f"YOUTUBE · título\n{cp.get('youtube_titulo', '')}\n\nYOUTUBE · descripción\n{cp.get('youtube', '')}\n", encoding="utf-8")
         hechos.append(cod)
     return hechos
 
@@ -6119,6 +6127,9 @@ def exportar(avance=print, codigos=None, ajustes=None, raiz=None):
     raiz = Path(raiz or S.listos / carpeta_de_exporte())
     aj = {**ajustes_exportar(), **(ajustes or {})}
     por_codigo = {c["codigo"]: c for c in combinaciones()}
+    if codigos is None:  # todos los armados (antes: solo los que estaban en el calendario)
+        codigos = [c["codigo"] for c in por_codigo.values() if (S.salida / f"{c['archivo']}.mp4").exists()]
+    codigos = list(dict.fromkeys(codigos))  # sin repetidos, en el mismo orden
     hechos = []
     if codigos and not aj.get("por_dia"):
         plan = {"": list(codigos)}

@@ -1,3 +1,12 @@
+Versión 1.47.5 (se actualiza desde la app con «Actualizar ahora»):
+- **Exportar revisado a fondo** (exportar todo, seleccionados y por partes):
+  - «Exportar todo» ahora saca **todos** los videos armados. Antes se saltaba los que no estaban en ningún día del calendario.
+  - Si un video tiene cambios que todavía no se rearmaron, **se rearma antes de exportar** (puedes apagarlo en el cuadro de exportar). Antes salía la versión vieja.
+  - «Reemplazar lo de hoy» ahora **vacía la carpeta de hoy** antes de exportar, para que no queden videos viejos mezclados. Si en esa carpeta hay archivos que no puso la sala, no se borra nada: se renombra como «(anterior)».
+  - **Por partes** ahora trae también la **portada** y el **copy** de cada video.
+  - Si un video aparece dos veces en la lista, se exporta una sola vez.
+- **Aviso de versión nueva**: ahora es una franja celeste de lado a lado, con el texto al centro (como en el Publicador).
+
 Versión 1.47.4 (se actualiza desde la app con «Actualizar ahora»):
 - **Inicio en una sola pantalla**: en una pantalla ancha, Inicio entra completo sin desplazarse. Las tarjetas son más compactas, «Sesión abierta» y «Cómo va esta sesión» quedan fijas a los costados, y «Para revisar» muestra las miniaturas que entran en tu pantalla, más una tarjeta «+N» con el resto (se ajusta sola si cambias el tamaño de la ventana).
 

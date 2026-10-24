@@ -429,6 +429,10 @@ def exportar_a(extra, hacer, avance):
     # «Crear otra carpeta»: un segundo exporte del mismo día no se mezcla con el primero
     nombre = nombre_libre(base, ok["nombre"]) if extra.get("nueva") else ok["nombre"]
     raiz = base / nombre
+    if not extra.get("nueva") and extra.get("reemplazar"):  # «Reemplazar lo de hoy»: sin restos del exporte anterior
+        vaciar_exporte(raiz, avance)
+        if extra.get("drive", not elegida) and raiz != motor.S.listos / nombre:
+            vaciar_exporte(motor.S.listos / nombre, avance)
     hechos = hacer(raiz)
     if extra.get("drive", not elegida):
         en_drive = motor.S.listos / nombre
@@ -495,6 +499,23 @@ def revisar_destino(carpeta):
         except OSError:
             return {"ok": False, "motivo": "En esa carpeta no se puede guardar (no hay permiso). Elige otra, por ejemplo una en Documentos o en el Escritorio.", "nombre": nombre}
     return {"ok": True, "existe_hoy": (base / nombre).exists(), "nombre": nombre}
+
+
+EXT_EXPORTE = {".mp4", ".jpg", ".txt", ".wav", ".srt", ".png", ".webp", ".jpeg", ".gif"}
+
+
+def vaciar_exporte(carpeta, avance=print):
+    """Al elegir «Reemplazar lo de hoy»: la carpeta del exporte anterior se vacía para que no queden videos viejos
+    mezclados. Si tiene algo que no puso la sala (otros archivos), no se borra: se le cambia el nombre a «(anterior)»."""
+    if not carpeta.is_dir():
+        return
+    archivos = [f for f in carpeta.rglob("*") if f.is_file()]
+    if all(f.suffix.lower() in EXT_EXPORTE or f.name.startswith(".") for f in archivos):
+        shutil.rmtree(carpeta)
+    else:
+        aparte = carpeta.with_name(f"{carpeta.name} (anterior {time.strftime('%H.%M')})")
+        carpeta.rename(aparte)
+        avance(f"La carpeta de hoy tenía otros archivos: la dejé como «{aparte.name}» y exporté en una nueva")
 
 
 def nombre_libre(base, nombre):
@@ -766,8 +787,13 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     ok = revisar_destino((extra.get("carpeta") or "").strip())  # antes de armar: no esperar minutos para el error
                     if not ok["ok"]:
                         raise RuntimeError(ok["motivo"])
+                    def viejo(c):  # tiene cambios guardados después de armarlo
+                        f = motor.S.salida / f"{c['archivo']}.mp4"
+                        return f.exists() and motor.editado_en(c) > f.stat().st_mtime + 1
                     faltan = [c for c in motor.combinaciones() if c["codigo"] in extra["codigos"]
-                              and not (motor.S.salida / f"{c['archivo']}.mp4").exists()]
+                              and (not (motor.S.salida / f"{c['archivo']}.mp4").exists() or (extra.get("rearmar") and viejo(c)))]
+                    if faltan:
+                        avance(f"Antes de exportar: armando {len(faltan)} video{'s' if len(faltan) != 1 else ''} (sin armar o con cambios)")
                     if faltan:
                         motor.armar(avance=avance, codigos=[c["codigo"] for c in faltan])
                     hechos, raiz = exportar_a(extra, lambda r: motor.exportar(avance=avance, codigos=extra["codigos"],
@@ -1868,7 +1894,8 @@ class H(BaseHTTPRequestHandler):
                     b["ajustes"] = aj
                 extra = {"codigos": b["codigos"], "ajustes": b.get("ajustes")}
                 if "drive" in b or b.get("carpeta"):  # lo que se respondió en «¿Al Drive? ¿A qué carpeta?»
-                    extra.update(drive=bool(b.get("drive")), carpeta=str(b.get("carpeta") or ""), nueva=bool(b.get("nueva")))
+                    extra.update(drive=bool(b.get("drive")), carpeta=str(b.get("carpeta") or ""), nueva=bool(b.get("nueva")),
+                                 reemplazar=bool(b.get("reemplazar")), rearmar=bool(b.get("rearmar", True)))
                 lanzar(b["accion"], extra=extra)
                 self._json({"ok": True})
             elif u.path == "/api/asignar":
