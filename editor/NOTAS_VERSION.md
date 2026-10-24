@@ -1,3 +1,8 @@
+Versión 1.46.5 (se actualiza desde la app con «Actualizar ahora»):
+- **Faltantes en 3 pasos**: «¿Cuántas imágenes?» → «Generarlas en Flow» (con Claude en Chrome o con Antigravity, sin Claude) → «Traer lo que bajaste». Todo en un solo bloque, en columnas.
+- **Antigravity conectado**: «Hacerlo con Antigravity» arma el paquete, abre Antigravity solo con esa carpeta y te copia el mensaje para Gemini Flash. En Conexiones aparece Antigravity, y la sala sabe si está instalado.
+- **Pantalla completa**: la sala se abre maximizada.
+
 Versión 1.46.4 (se actualiza desde la app con «Actualizar ahora»):
 - **Faltantes → 🪐 Paquete para Antigravity** (sin Claude): deja en Descargas una carpeta con los prompts que faltan, las instrucciones y un script que baja todo con su nombre, y te copia el mensaje para pegar en Antigravity. Gemini Flash pega los prompts en Flow de corrido (sin esperar cada imagen) y al final baja todas de una vez. Después, «Buscar en Descargas» las pone en su lugar.
 - **Responsive**: en ningún tamaño de ventana la sala se desplaza de lado. Las pestañas, el menú de Configuración, la cabecera, las categorías de Sonidos y las tablas bajan de línea, y los formularios se achican. El aviso de calidad de Exportar quedó centrado.
