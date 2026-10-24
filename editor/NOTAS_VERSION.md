@@ -1,3 +1,9 @@
+Versión 1.44.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Al abrir la sala: «¿Con qué sesión trabajas hoy?»**. Sale «Seguir donde te quedaste» y todas las sesiones de Drive, cada una con su estado (guion, videos armados, cuándo se trabajó). Se busca, se abre con un link o se crea una sesión nueva (Ads u Orgánico + tema). También desde la lista de arriba → «Ver todas las sesiones…».
+- **Preparar la sesión** (en Inicio, mientras no hay clips): te dice qué falta, paso a paso: el guion (súbelo y la sala lo separa en cuerpos, hooks y CTA, o lo escribe Claude), las imágenes y clips (los propone Claude), la música (la propone Claude), los sonidos (automáticos) y grabar.
+- **Sin guion pero con clips**: «⬆ Sube tu guion» o **«✦ Lo analizo y ordeno todo por ti»**: la sala escucha los clips, arma el guion con lo que se dijo, les pone a los clips el nombre de su pieza (también en Drive) y Claude propone las imágenes y la música.
+- **Últimos cambios** en Inicio: las versiones del proyecto (quién cambió qué y cuándo), con «Ver todas las versiones».
+
 Versión 1.43.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Revisión de calidad**: si hay videos con el subtítulo donde lo tapan los botones de TikTok e Instagram, sale el botón **«⬆ Subir el subtítulo a 330 px»**: lo sube en la plantilla que usan (o en el video, si tiene su propia altura) y rearma esos videos.
 - **Faltantes → «✦ Más apoyo visual (Claude)»**: Claude agrega a cada cuerpo 3 imágenes más y 1 clip en movimiento, en las palabras clave repartidas a lo largo de lo que se dice (lo que ya había se queda). Después se generan con «Generar lo que falta» y se rearman los videos.
