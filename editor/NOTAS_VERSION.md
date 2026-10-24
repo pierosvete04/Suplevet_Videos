@@ -1,3 +1,6 @@
+Versión 1.46.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Faltantes → ¿Cuántas imágenes quieres?**: eliges cuántas imágenes por cuerpo, cuántos clips en movimiento por cuerpo y cuántas imágenes por hook (en sus primeros segundos, para enganchar). La sala te recomienda cuántas según lo que dura cada parte (una imagen cada ~4 s de voz) y te dice cuántas se van a agregar antes de pedírselas a Claude. Las que ya hay se quedan.
+
 Versión 1.46.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Inicio → Para revisar**: los videos «editando» ya no salen con una sombra oscura encima, y en vez de «y 8 más» hay una tarjeta «+8 videos más · Ver todos».
 - **Guion para grabar en hojas**: cada cuerpo con todos sus hooks (y sus CTA) en una tarjeta. Al imprimir en **PDF** o **Word**, una hoja por cuerpo, con el título chico y el texto grande para leer al grabar.
