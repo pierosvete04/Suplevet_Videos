@@ -1,3 +1,7 @@
+Versión 1.47.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Exportar**: el panel de ajustes queda **fijo** mientras bajas por los videos y se ve entero, sin barra propia. Es más compacto (dos columnas, interruptores en una fila y la ficha técnica plegada). Hay menos espacio arriba, entre el encabezado y el panel.
+- **Casillas de los videos cuadradas** (antes eran redondas).
+
 Versión 1.47.1 (se actualiza desde la app con «Actualizar ahora»; trae también todo lo de la 1.46.8 y la 1.46.9):
 - **Portada como en CapCut**: el título tiene dos agarraderas amarillas a los costados. Si lo estiras, el texto se acomoda en menos filas; si lo encoges, en más. La esquina sigue agrandando la letra.
 - **Exportar**: los ajustes (resolución, cuadros por segundo, codec…) van fijos en la página, sin barra propia. Solo crece la lista de videos de la sesión.

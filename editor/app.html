@@ -105,6 +105,8 @@ nav button[aria-selected="true"] { color: var(--ink); border-color: var(--accent
 .pill.azul { color: var(--accent2); border-color: rgba(94,225,255,.4); background: rgba(94,225,255,.07); }
 .pill.err { color: var(--err); border-color: rgba(255,107,125,.45); background: rgba(255,107,125,.08); }
 main { padding: 18px 20px 90px; max-width: 1560px; margin: 0 auto; }
+main > #aviso:empty { display: none; }
+main:has(> section[data-panel="publicar"]:not([hidden])) { padding-top: 10px; }
 section[hidden] { display: none; }
 .caja { background: var(--tarjeta); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; box-shadow: var(--sombra-caja); }
 .caja.brilla { box-shadow: var(--glow); border-color: rgba(61,139,255,.35); }
@@ -296,7 +298,7 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 #barraSel { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 19; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--flotante); border: 1px solid var(--line2); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
 #barraSel[hidden] { display: none; }
-.tarjeta .sel { position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.35); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+.tarjeta .sel { position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 7px; border: 2px solid #fff; background: rgba(0,0,0,.35); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
 .tarjeta .sel:checked { border-color: #fff; }
 .tarjeta .nombre { padding: 7px 8px 0; font-size: 12px; font-weight: 600; line-height: 1.3; }
 .tarjeta.elegida { outline: 2px solid var(--accent); box-shadow: var(--glow); }
@@ -1188,8 +1190,15 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 /* Publicar */
 /* Exportar: los ajustes quedan fijos a la izquierda (se ven completos sin bajar); solo baja la lista de videos */
 .export-layout { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 18px; align-items: start; }
-.export-ajustes { position: static;
-  display: grid; gap: 12px; align-content: start; }
+/* el panel va fijo mientras bajas por los videos; es compacto para que se vea entero sin barra propia */
+.export-ajustes { position: sticky; top: calc(var(--alto-header, 56px) + 54px);
+  display: grid; gap: 10px; align-content: start; padding: 14px 16px; }
+@media (max-height: 620px) { .export-ajustes { position: static; } }  /* en pantallas muy bajas no entra: va con la página */
+.export-ajustes .ex-dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.export-ajustes .ex-dos .ex-opcion { padding: 7px 10px; font-size: 12.5px; }
+.export-ajustes details.ex-ficha { border: 0; padding: 0; margin: 0; }
+.export-ajustes details.ex-ficha > summary { font-size: 12px; color: var(--muted); font-weight: 600; }
+.export-ajustes details.ex-ficha .ficha { margin-top: 6px; }
 .export-ajustes h2 { margin: 0; }
 .export-ajustes .form-plant { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
 .export-ajustes .form-plant select { width: 100%; }
@@ -1872,10 +1881,12 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <label>Peso máximo por video<select id="exPeso" title="Si un video sale más pesado, se vuelve a exportar con la calidad justa para no pasarse">
             <option value="0">Sin límite</option><option value="15">15 MB</option><option value="20">20 MB</option><option value="25">25 MB</option>
             <option value="30">30 MB</option><option value="50">50 MB</option></select></label>
-          <label class="ancho">Calidad<select id="exCalidad"><option value="ligera">Ligera (pesa poco)</option><option value="recomendada">Recomendada</option><option value="alta">Alta</option><option value="maxima">Máxima (pesa más)</option></select></label>
-          <label class="ex-opcion ancho"><span>Portada en el primer cuadro<small>El video empieza mostrando su portada</small></span><input type="checkbox" class="interruptor" id="exPortada"></label>
-          <label class="ex-opcion ancho"><span>Una carpeta por día de publicación<small>DIA_1, DIA_2… según el calendario</small></span><input type="checkbox" class="interruptor" id="exPorDia"></label>
-          <div class="ficha ancho" id="exFicha"></div>
+          <label>Calidad<select id="exCalidad"><option value="ligera">Ligera (pesa poco)</option><option value="recomendada">Recomendada</option><option value="alta">Alta</option><option value="maxima">Máxima (pesa más)</option></select></label>
+          <div class="ex-dos ancho">
+            <label class="ex-opcion" title="El video empieza mostrando su portada"><span>Portada al inicio</span><input type="checkbox" class="interruptor" id="exPortada"></label>
+            <label class="ex-opcion" title="DIA_1, DIA_2… según el calendario de publicación"><span>Carpeta por día</span><input type="checkbox" class="interruptor" id="exPorDia"></label>
+          </div>
+          <details class="ex-ficha ancho"><summary>Ver la ficha técnica (formato, peso, audio)</summary><div class="ficha" id="exFicha"></div></details>
         </div>
         <div class="ex-botones">
           <button class="btn" id="exTodo">Exportar todo</button>
