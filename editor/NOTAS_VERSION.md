@@ -1,3 +1,6 @@
+Versión 1.45.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Exportar**: lo primero que ves son los videos de la sesión. La revisión de calidad ahora es un aviso de una línea encima de los videos (rojo si hay algo grave, naranja si hay algo que revisar, verde si todo está bien) y la lista se abre con «Ver detalle».
+
 Versión 1.45.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Configuración → 🎨 Marca**: los colores (con para qué sirve cada uno), varios logos (cuál es y sobre qué fondo va), las tipografías (súbelas en .ttf u .otf y elige cuál va en títulos, texto y subtítulos), las fotos del producto y cómo habla la marca (palabras prohibidas, frases obligatorias, cierres y llamado a la acción). Con una muestra que cambia en vivo. Se guarda en la carpeta _MARCA del Drive: la usa todo el equipo y las otras salas.
 - **Portadas**: eliges qué logo de la marca va. Los colores de la marca salen primero en todos los selectores de color.
