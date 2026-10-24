@@ -137,8 +137,9 @@ def guardar(d):
     return datos()
 
 
-def guardar_archivo(tipo, nombre, contenido):
-    """Un logo, una foto de producto o una tipografía. Devuelve el nombre con que quedó."""
+def guardar_archivo(tipo, nombre, contenido, subir=True):
+    """Un logo, una foto de producto o una tipografía. Devuelve el nombre con que quedó.
+    subir=False: al importar muchos de una vez se suben todos juntos al final."""
     if tipo not in TIPOS:
         raise ValueError("Tipo de archivo de marca no válido")
     nombre = "".join(c if c.isalnum() or c in "._- " else "_" for c in Path(nombre).name).strip()[:80]
@@ -160,9 +161,10 @@ def guardar_archivo(tipo, nombre, contenido):
             tmp.unlink(missing_ok=True)
             raise ValueError("Ese archivo no es una tipografía que la sala pueda leer")
     os.replace(tmp, d / nombre)
-    if tipo == "fuentes":
+    if tipo == "fuentes" and subir:
         copiar_fuentes()
-    subir_en_segundo_plano()
+    if subir:
+        subir_en_segundo_plano()
     return nombre
 
 

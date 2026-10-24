@@ -548,6 +548,21 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .mk-tiras { display: flex; gap: 4px; } .mk-tiras i { flex: 1; height: 18px; border-radius: 5px; border: 1px solid #0002; }
 .mk-sucia { font-size: 12px; }
 @media (max-width: 1100px) { .mk { grid-template-columns: 1fr; } .mk-vista-caja { position: static; max-width: 300px; } }
+.mk-importar { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; padding: 14px 16px; margin: 0 0 16px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.mk-importar ol { margin: 8px 0 6px; padding-left: 20px; display: grid; gap: 5px; font-size: 13px; }
+.mk-imp-acciones { display: grid; gap: 10px; align-content: start; }
+.mk-soltar { display: grid; gap: 6px; justify-items: center; text-align: center; padding: 14px; border: 2px dashed var(--line2); border-radius: 12px; background: var(--surface); }
+.mk-soltar.encima { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.mk-soltar small { color: var(--muted); font-size: 12px; }
+.im-res { display: flex; gap: 8px; flex-wrap: wrap; }
+.im-marca { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.im-colores { display: flex; gap: 8px; flex-wrap: wrap; }
+.im-marca .im-colores label { display: flex; height: auto; color: var(--ink); align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; }
+.im-marca .im-colores input[type=color] { width: 28px; height: 24px; padding: 0; border: 0; background: none; }
+.im-item .mk-img .im-ico { font-size: 34px; }
+.im-item.ignorar { opacity: .55; }
+@media (max-width: 1000px) { .mk-importar { grid-template-columns: 1fr; } }
 /* Asistente de primera vez */
 dialog.primera { width: min(760px, 96vw); max-height: 92vh; padding: 0; border-radius: 18px; }
 .pv { padding: 24px 26px; display: grid; gap: 16px; }
@@ -1610,6 +1625,25 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 los usan las portadas, las plantillas de subtítulos y las otras dos salas. Se carga una vez y sirve para todo el equipo.</p></div>
             <div class="fila"><span class="pill warn mk-sucia" id="mkSucia" hidden>Sin guardar</span><button class="btn" id="mkGuardar" type="button">Guardar marca</button></div>
           </div>
+          <div class="mk-importar">
+            <div>
+              <b>Carga tu marca en 3 pasos</b>
+              <ol><li><b>Descarga la plantilla de marca.</b> Es una carpeta con todo ordenado.</li>
+                <li><b>Llénala:</b> pon tus logos en <code>logos</code>, tus tipografías en <code>fuentes</code> y las fotos de tu producto en <code>productos</code>.
+                  Después completa la ficha de marca (Word) con tus colores y cómo habla tu marca.</li>
+                <li><b>Súbela aquí</b> tal cual, como carpeta o como .zip. La sala la acomoda y te muestra lo que encontró antes de guardar.</li></ol>
+              <small class="muted">¿No tienes todo? Sube lo que tengas: lo demás se completa después. Si no pones los colores, la sala los saca de tu logo.</small>
+            </div>
+            <div class="mk-imp-acciones">
+              <button class="btn sec" type="button" id="mkPlantilla">⬇ Descargar plantilla de marca</button>
+              <div class="mk-soltar" id="mkSoltar">
+                <b>⬆ Importar mi marca</b><small>Arrastra aquí la carpeta o el .zip</small>
+                <div class="fila" style="justify-content:center">
+                  <label class="btn peq" style="cursor:pointer">Elegir carpeta<input type="file" id="mkImpCarpeta" webkitdirectory multiple hidden></label>
+                  <label class="btn sec peq" style="cursor:pointer">Elegir .zip o archivos<input type="file" id="mkImpArchivos" multiple hidden></label></div>
+              </div>
+            </div>
+          </div>
           <div class="mk">
             <div class="mk-form form-plant" id="mkForm">
               <label>Nombre de la marca<input id="mkNombre" placeholder="Ej.: Suplevet"></label>
@@ -1842,6 +1876,16 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="fila"><button class="btn peq" id="edGuardarTop" type="button">💾 Guardar</button><kbd class="ed-kbd" title="Guardar con el teclado">Ctrl+S</kbd><button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
   <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
+</dialog>
+<dialog id="dlgImpMarca" aria-labelledby="imTit" style="width:min(1000px,96vw);max-height:92vh">
+  <div style="padding:20px 22px;display:grid;gap:14px">
+    <div class="fila" style="justify-content:space-between"><h2 id="imTit" style="margin:0">Esto encontré en tu carpeta</h2>
+      <button class="btn sec peq" type="button" id="imCerrar">Cancelar</button></div>
+    <div id="imCuerpo" style="display:grid;gap:14px"></div>
+    <div class="fila" style="justify-content:space-between" id="imPie" hidden>
+      <span class="muted" style="font-size:12.5px">Si algo quedó en el lugar equivocado, cámbialo arriba. Nada se guarda hasta que toques «Guardar en mi marca».</span>
+      <button class="btn" type="button" id="imGuardar">Guardar en mi marca</button></div>
+  </div>
 </dialog>
 <dialog id="dlgPrimera" class="primera" aria-labelledby="pvTit">
   <div class="pv">
@@ -6772,6 +6816,126 @@ function pintarPaletaMarca() {
   $("confPMarca").className = "punto-estado " + (m.tiene_marca ? "ok" : "warn");
 }
 
+// ---------- Importar la marca sin Claude: plantilla, subir carpeta o .zip y revisar antes de guardar ----------
+let IM = null;
+async function descargarPlantillaMarca() {
+  try { const r = await post("/api/marca_plantilla"); avisar(`Listo: «Plantilla de marca.zip» quedó en ${r.ruta.replace(/\\[^\\]+$/, "")}. Ábrela, llénala y súbela aquí.`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("mkPlantilla").onclick = descargarPlantillaMarca;
+const IM_ICONO = { fuentes: "🔤", manual: "📄", ficha: "📝", ignorar: "🚫" };
+const IM_TIPOS = n => /\.(png|webp|jpe?g)$/i.test(n) ? [["logos", "Logo"], ["productos", "Foto de producto"], ["ignorar", "No usar"]]
+  : /\.(ttf|otf)$/i.test(n) ? [["fuentes", "Tipografía"], ["ignorar", "No usar"]]
+  : /\.docx$/i.test(n) ? [["ficha", "Ficha de marca"], ["manual", "Guardar como documento"], ["ignorar", "No usar"]]
+  : [["manual", "Guardar como documento"], ["ignorar", "No usar"]];
+async function importarMarca(lista) {
+  lista = lista.filter(x => x.file && !/(^|\/)(\.|__MACOSX)/.test(x.ruta));
+  if (!lista.length) return avisar("No llegó ningún archivo.", "err");
+  if (mkSucia && !confirm("Tienes cambios de la marca sin guardar: al importar se pierden. ¿Seguir?")) return;
+  IM = null; $("imPie").hidden = true; $("imTit").textContent = "Subiendo tu marca…";
+  if (!$("dlgImpMarca").open) $("dlgImpMarca").showModal();
+  const progreso = t => { $("imCuerpo").innerHTML = `<p class="muted" style="margin:0">${t}</p>`; };
+  try {
+    const { id } = await post("/api/marca_importar?accion=nuevo");
+    for (let k = 0; k < lista.length; k++) {
+      progreso(`Subiendo ${k + 1} de ${lista.length}: ${esc(lista[k].ruta)}`);
+      await post(`/api/marca_importar?accion=subir&id=${id}&ruta=${encodeURIComponent(lista[k].ruta)}`, lista[k].file, true);
+    }
+    progreso("Acomodando: mirando cada archivo y leyendo la ficha…");
+    IM = await post("/api/marca_importar?accion=analizar", { id });
+    pintarImportar();
+  } catch (err) { progreso(`No se pudo: ${esc(err.message)}`); }
+}
+function pintarImportar() {
+  const m = IM.marca || {}, cuenta = t => IM.archivos.filter(a => a.tipo === t).length;
+  const tiene = (E.marca || {}).tiene_marca;
+  if (IM.usarColores === undefined) IM.usarColores = IM.colores_de.startsWith("ficha") || !tiene;
+  $("imTit").textContent = "Esto encontré en tu carpeta";
+  const res = [[cuenta("logos"), "logo", "logos"], [cuenta("fuentes"), "tipografía", "tipografías"], [cuenta("productos"), "foto de producto", "fotos de producto"],
+    [(m.colores || []).length, "color", "colores"], [cuenta("manual"), "documento", "documentos"]].filter(x => x[0]).map(x => `<span class="pill">${plural(x[0], x[1], x[2])}</span>`).join("");
+  const reglas = [(m.evitar || []).length && plural(m.evitar.length, "palabra prohibida", "palabras prohibidas"), (m.obligatorio || []).length && plural(m.obligatorio.length, "frase obligatoria", "frases obligatorias"),
+    (m.cierres || []).length && plural(m.cierres.length, "cierre"), Object.values(m.cta || {}).some(Boolean) && "llamado a la acción", m.notas_para_claude && "cómo habla la marca"].filter(Boolean);
+  const fu = m.fuentes || {};
+  $("imCuerpo").innerHTML = `<div class="im-res">${res || `<span class="muted">No encontré archivos de marca.</span>`}
+      ${IM.ficha ? `<span class="pill ok">✓ Ficha de marca leída</span>` : `<span class="pill">Sin ficha de marca</span>`}</div>
+    ${IM.avisos.length ? `<p class="cal-arreglo fila" style="margin:0">${IM.avisos.map(esc).join("<br>")}</p>` : ""}
+    <div class="im-marca form-plant">
+      <label>Nombre de la marca<input id="imNombre" value="${esc(m.nombre || (E.marca || {}).nombre || "")}" placeholder="Ej.: Suplevet"></label>
+      ${(m.colores || []).length ? `<div style="display:grid;gap:6px"><span class="etq">Colores ${IM.colores_de === "logo" ? "(sacados de tu logo)" : IM.colores_de === "ficha y logo" ? "(de la ficha; el principal, de tu logo)" : "(de la ficha)"}</span>
+        <div class="im-colores">${m.colores.map((c, k) => `<label title="${esc(c.uso)}"><input type="color" data-imc="${k}" value="${esc(c.hex.toLowerCase())}">${esc(c.nombre)} · ${esc(c.uso)}</label>`).join("")}</div>
+        <label class="fila" style="display:flex;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="imUsarColores" ${IM.usarColores ? "checked" : ""}> Usar estos colores${tiene ? " (reemplazan los que tiene ahora la marca)" : ""}</label></div>` : ""}
+      ${Object.values(fu).some(Boolean) ? `<span style="font-size:13px"><b>Tipografías:</b> ${[["titulo", "títulos"], ["cuerpo", "texto"], ["subtitulos", "subtítulos"]].filter(([k]) => fu[k]).map(([k, t]) => `${t}: ${esc(fu[k])}`).join(" · ")}</span>` : ""}
+      ${reglas.length ? `<span style="font-size:13px"><b>Cómo habla:</b> ${esc(reglas.join(" · "))}</span>` : ""}
+    </div>
+    <div class="mk-grid" id="imArchivos">${IM.archivos.map((x, k) => {
+      const img = /\.(png|webp|jpe?g)$/i.test(x.nombre);
+      return `<div class="mk-item im-item ${x.tipo === "ignorar" ? "ignorar" : ""}" data-imi="${k}">
+        <div class="mk-img ${x.tipo === "logos" ? esc(x.fondo) : ""}">${img ? `<img src="/api/marca_importar/ver?id=${IM.id}&ruta=${encodeURIComponent(x.ruta)}" alt="">` : `<span class="im-ico">${IM_ICONO[x.tipo] || "📄"}</span>`}</div>
+        <span title="${esc(x.ruta)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.nombre)}</span>
+        <select data-imc2="tipo" aria-label="Qué es">${mkOpc(IM_TIPOS(x.nombre), x.tipo)}</select>
+        ${x.tipo === "logos" ? `<select data-imc2="uso" aria-label="Qué logo es">${mkOpc(MK_USOS_LOGO, x.uso)}</select>
+          <select data-imc2="fondo" aria-label="Sobre qué fondo va">${mkOpc(MK_FONDOS, x.fondo)}</select>` : ""}</div>`;
+    }).join("")}</div>`;
+  $("imPie").hidden = !IM.archivos.length && !Object.keys(m).length;
+}
+$("imCuerpo").addEventListener("change", e => {
+  if (!IM) return;
+  const c = e.target.dataset.imc, it = e.target.closest("[data-imi]");
+  if (c !== undefined) IM.marca.colores[+c].hex = e.target.value.toUpperCase();
+  if (e.target.id === "imUsarColores") IM.usarColores = e.target.checked;
+  if (e.target.id === "imNombre") IM.marca.nombre = e.target.value.trim();
+  if (it && e.target.dataset.imc2) {
+    const x = IM.archivos[+it.dataset.imi];
+    x[e.target.dataset.imc2] = e.target.value;
+    if (e.target.dataset.imc2 === "tipo") { if (x.tipo === "logos") { x.uso = x.uso || "principal"; x.fondo = x.fondo || "cualquiera"; } pintarImportar(); }
+    else if (e.target.dataset.imc2 === "fondo") it.querySelector(".mk-img").className = "mk-img " + x.fondo;
+  }
+});
+$("imCerrar").onclick = () => $("dlgImpMarca").close();
+$("imGuardar").onclick = async () => {
+  if (!IM) return;
+  IM.marca.nombre = $("imNombre")?.value.trim() || IM.marca.nombre;
+  const propuesta = { archivos: IM.archivos, marca: { ...IM.marca, colores: IM.usarColores ? IM.marca.colores : [] } };
+  try {
+    const r = await post("/api/marca_importar?accion=aplicar", { id: IM.id, propuesta });
+    $("dlgImpMarca").close();
+    if (r.hechos.fuentes) { await cargar(); cargarFuentesCSS(); }
+    MK = r.marca; mkMarcarSucia(false); pintarMarca();
+    E.marca = { nombre: MK.nombre, colores: MK.colores, logos: MK.logos, fuentes: MK.fuentes, tiene_marca: MK.tiene_marca };
+    pintarPaletaMarca();
+    const h = r.hechos;
+    avisar(`Marca importada: ${[h.logos && plural(h.logos, "logo"), h.fuentes && plural(h.fuentes, "tipografía", "tipografías"), h.productos && plural(h.productos, "foto", "fotos"),
+      h.manual && plural(h.manual, "documento")].filter(Boolean).join(", ") || "datos de la ficha"}. ${(E.drive || {}).activo ? "Ya está en el Drive del equipo." : ""}`, "ok");
+    IM = null;
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+// elegir una carpeta (con sus subcarpetas) o varios archivos / un .zip
+$("mkImpCarpeta").onchange = e => { const l = [...e.target.files].map(f => ({ file: f, ruta: f.webkitRelativePath || f.name })); e.target.value = ""; importarMarca(l); };
+$("mkImpArchivos").onchange = e => { const l = [...e.target.files].map(f => ({ file: f, ruta: f.name })); e.target.value = ""; importarMarca(l); };
+// arrastrar: también carpetas enteras (se recorren con sus subcarpetas)
+async function leerEntrada(entrada, base, out) {
+  if (entrada.isFile) {
+    const f = await new Promise((ok, mal) => entrada.file(ok, mal));
+    out.push({ file: f, ruta: base + f.name });
+  } else if (entrada.isDirectory) {
+    const lector = entrada.createReader();
+    let tanda;
+    do {
+      tanda = await new Promise((ok, mal) => lector.readEntries(ok, mal));
+      for (const h of tanda) await leerEntrada(h, base + entrada.name + "/", out);
+    } while (tanda.length);
+  }
+}
+["dragenter", "dragover"].forEach(t => $("mkSoltar").addEventListener(t, e => { e.preventDefault(); $("mkSoltar").classList.add("encima"); }));
+$("mkSoltar").addEventListener("dragleave", () => $("mkSoltar").classList.remove("encima"));
+$("mkSoltar").addEventListener("drop", async e => {
+  e.preventDefault(); $("mkSoltar").classList.remove("encima");
+  const entradas = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean), out = [];
+  if (entradas.length) { for (const en of entradas) await leerEntrada(en, "", out); }
+  else [...e.dataTransfer.files].forEach(f => out.push({ file: f, ruta: f.name }));
+  importarMarca(out);
+});
+
 // ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del equipo ----------
 // Para quien recién instala la sala: entra con su cuenta, elige una carpeta suya, una compartida con ella o crea la suya,
 // y después invita a su equipo, carga la marca y crea la primera sesión.
@@ -6871,10 +7035,14 @@ function pintarPrimera() {
     const tiene = (E.marca || {}).tiene_marca;
     c.innerHTML = `<h2 id="pvTit">${tiene ? "Tu marca ya está cargada" : "Carga tu marca"}</h2>
       <p class="muted" style="margin:0">${tiene ? `La carpeta ya tiene la marca${E.marca.nombre ? ` de <b>${esc(E.marca.nombre)}</b>` : ""}: ${plural((E.marca.colores || []).length, "color", "colores")} y ${plural((E.marca.logos || []).length, "logo")}. Puedes revisarla cuando quieras en Configuración → Marca.`
-        : "Tus colores, logos y tipografías: así las portadas y los subtítulos salen con tu marca. Toma unos minutos y se hace una sola vez para todo el equipo."}</p>
-      <div class="fila"><button class="btn${tiene ? " sec" : ""}" type="button" id="pvMarcaYa">${tiene ? "Revisar la marca" : "Cargar mi marca ahora"}</button>
+        : "Tus colores, logos y tipografías: así las portadas y los subtítulos salen con tu marca. Se hace una sola vez para todo el equipo."}</p>
+      ${tiene ? "" : `<ol><li><b>Descarga la plantilla de marca</b>: una carpeta con todo ordenado.</li><li><b>Llénala</b> con tus logos, tipografías, fotos del producto y la ficha de marca (Word).</li>
+        <li><b>Súbela</b> en Configuración → Marca → «Importar mi marca». La sala la acomoda y te muestra lo que encontró antes de guardar.</li></ol>
+        <div class="fila"><button class="btn sec" type="button" id="pvPlantilla">⬇ Descargar plantilla de marca</button></div>`}
+      <div class="fila"><button class="btn${tiene ? " sec" : ""}" type="button" id="pvMarcaYa">${tiene ? "Revisar la marca" : "Importar mi marca ahora"}</button>
         <button class="btn${tiene ? "" : " sec"}" type="button" id="pvMarcaLuego">${tiene ? "Siguiente →" : "Después"}</button></div>`;
     $("pvMarcaYa").onclick = () => { $("dlgPrimera").close(); irConf("confMarca"); };
+    if ($("pvPlantilla")) $("pvPlantilla").onclick = descargarPlantillaMarca;
     $("pvMarcaLuego").onclick = () => { PV.paso = "sesion"; pintarPrimera(); };
     return;
   }

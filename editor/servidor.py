@@ -21,6 +21,7 @@ import asistente
 import cuenta
 import drive
 import motor
+import importar_marca
 import marca
 import panel
 import proyecto
@@ -996,6 +997,13 @@ class H(BaseHTTPRequestHandler):
             if not f.is_file():
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/marca_importar/ver":  # lo subido para importar, antes de guardarlo (para verlo en la revisión)
+            q = parse_qs(u.query)
+            try:
+                f = importar_marca.ruta_staging(q.get("id", [""])[0], q.get("ruta", [""])[0])
+            except ValueError:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
         elif u.path == "/api/primera/carpetas":  # asistente de primera vez: las carpetas de la cuenta
             con_llave = "token" in cuenta._llave()
             self._json({"ok": True, **(drive.carpetas_para_elegir() if con_llave else {"mias": [], "compartidas": []}),
@@ -1352,6 +1360,25 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("El archivo es muy grande (máximo 30 MB)")
                 nombre = marca.guardar_archivo(q["tipo"][0], q["nombre"][0], self.rfile.read(n))
                 self._json({"ok": True, "archivo": nombre, "marca": marca.datos()})
+            elif u.path == "/api/marca_plantilla":
+                self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
+            elif u.path == "/api/marca_importar":
+                acc = q.get("accion", [""])[0]
+                if acc == "nuevo":
+                    self._json({"ok": True, "id": importar_marca.nuevo()})
+                elif acc == "subir":
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 400 * 1024 * 1024:
+                        raise ValueError("El archivo es muy grande (máximo 400 MB)")
+                    cuantos = importar_marca.recibir(q["id"][0], q["ruta"][0], self.rfile.read, n)
+                    self._json({"ok": True, "archivos": cuantos})
+                elif acc == "analizar":
+                    self._json({"ok": True, **importar_marca.analizar(self._cuerpo().get("id"))})
+                elif acc == "aplicar":
+                    b = self._cuerpo()
+                    self._json({"ok": True, **importar_marca.aplicar(b.get("id"), b.get("propuesta") or {})})
+                else:
+                    raise ValueError("Acción no válida")
             elif u.path == "/api/marca_borrar":
                 b = self._cuerpo()
                 marca.borrar(str(b.get("tipo") or ""), str(b.get("archivo") or ""))
