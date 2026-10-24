@@ -88,7 +88,21 @@ section[hidden] { display: none; }
 /* Inicio */
 .inicio { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 /* Inicio: solo la sesión abierta. Arriba el siguiente paso (lo que hay que hacer ahora), después lo que falta revisar */
-.inicio2 { display: grid; gap: 16px; max-width: 1080px; margin: 0 auto; }
+.inicio2 { display: grid; gap: 16px; grid-template-columns: 280px minmax(0, 1fr) 340px; grid-template-areas: "izq centro der"; align-items: start; }
+.in-col { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.in-izq { grid-area: izq; position: sticky; top: calc(var(--alto-header, 56px) + 60px); }
+.in-centro { grid-area: centro; } .in-der { grid-area: der; }
+.in-izq .hero h2 { font-size: 22px; }
+.in-izq .stats { grid-template-columns: 1fr 1fr; }
+.in-izq .stat:first-child { grid-column: 1 / -1; }
+.in-centro .siguiente { margin-top: 0; }
+.in-centro .siguiente:empty, .in-centro .siguiente[hidden] { display: none; }
+.in-der .det-inicio > summary { flex-wrap: wrap; row-gap: 2px; }
+.in-der .det-inicio > summary > b { white-space: nowrap; }
+.in-der .det-inicio > summary > .muted { flex-basis: 100%; padding-left: 18px; font-size: 12.5px; }
+.in-centro .revisar-hoy { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+@media (max-width: 1280px) { .inicio2 { grid-template-columns: 260px minmax(0, 1fr); grid-template-areas: "izq centro" "izq der"; } }
+@media (max-width: 860px) { .inicio2 { grid-template-columns: 1fr; grid-template-areas: "izq" "centro" "der"; } .in-izq { position: static; } }
 .siguiente { margin-top: 16px; position: relative; z-index: 1; }
 .siguiente .sig { display: grid; gap: 6px; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
@@ -1074,7 +1088,9 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <p id="aviso" role="status" class="muted" style="margin:0 0 10px"></p>
 
   <section data-panel="inicio">
+    <!-- tres columnas: a la izquierda la sesión y sus números, al medio lo que toca hacer y los videos, a la derecha el avance, los cambios y Claude -->
     <div class="inicio2">
+      <div class="in-col in-izq">
       <div class="caja hero brilla">
         <span class="etq">Sesión abierta</span>
         <h2 id="inSesion">—</h2>
@@ -1083,29 +1099,33 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <span style="font-size:13px" id="inBajandoTxt">Bajando de Drive…</span>
           <div class="barra-prog" id="inBarra"><i></i></div>
         </div>
-        <div class="siguiente" id="inSiguiente"></div>
         <div class="stats" id="inStats"></div>
       </div>
+      </div>
+      <div class="in-col in-centro">
+      <div class="siguiente" id="inSiguiente"></div>
       <div class="caja preparar" id="cajaPreparar" hidden>
         <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Preparar la sesión</h2><span class="pill" id="prepAvance"></span></div>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">Antes de grabar: el guion, las imágenes, la música y los sonidos. Cuando subas los clips, la sala arma los videos con todo esto.</p>
         <ol class="prep-lista" id="prepLista"></ol>
         <input type="file" id="prepGuion" accept=".docx,.md,.txt,.json" hidden>
       </div>
-      <div class="caja" id="cajaCambios" hidden>
-        <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Últimos cambios</h2>
-          <button class="btn sec peq" type="button" id="inVersiones">Ver todas las versiones</button></div>
-        <div class="cambios-lista" id="inCambios"></div>
-      </div>
       <div class="caja">
         <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Para revisar <span class="pill" id="inNRevisar"></span></h2>
           <button class="btn sec peq" data-ir="videos" type="button">Ver todos los videos</button></div>
         <div class="revisar-hoy" id="inRevisar"></div>
       </div>
-      <details class="caja det-inicio" id="detPasos">
+      </div>
+      <div class="in-col in-der">
+      <details class="caja det-inicio" id="detPasos" open>
         <summary><b>Cómo va esta sesión</b> <span class="muted" id="inPasosRes"></span></summary>
         <ol class="pasos" id="inPasos" style="margin-top:10px"></ol>
       </details>
+      <div class="caja" id="cajaCambios" hidden>
+        <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Últimos cambios</h2>
+          <button class="btn sec peq" type="button" id="inVersiones">Ver todas las versiones</button></div>
+        <div class="cambios-lista" id="inCambios"></div>
+      </div>
       <details class="caja det-inicio det-claude" id="detClaude">
         <summary><b>✳ Claude</b> <span class="muted" id="clResumen">escribir o revisar el guion</span></summary>
         <div class="claude-int" id="cajaClaude">
@@ -1157,6 +1177,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <pre class="salida-claude" id="clSalida" hidden></pre>
         </div>
       </details>
+      </div>
     </div>
   </section>
 
