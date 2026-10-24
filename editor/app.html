@@ -39,8 +39,8 @@ body { margin: 0; color: var(--ink); font: 14px/1.5 var(--f); min-height: 100vh;
   background-attachment: fixed; }
 ::selection { background: rgba(61,139,255,.45); }
 ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 10px; border: 2px solid var(--bg); } ::-webkit-scrollbar-track { background: transparent; }
-header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
-  padding: 10px 20px; background: var(--vidrio); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+/* Encabezado en dos filas: arriba la app y el proyecto (con avisos, menú y cuenta), abajo la sesión y las acciones de trabajo */
+header { display: grid; gap: 8px; padding: 10px 20px 9px; background: var(--vidrio); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
 .marca-app { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .logo-app { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none;
   background: linear-gradient(135deg, #1d4ed8, #3d8bff 55%, #5ee1ff); box-shadow: 0 0 18px rgba(61,139,255,.45); font: 800 15px var(--fd); color: #fff; }
@@ -747,26 +747,27 @@ dialog.bienvenida { width: min(980px, 96vw); max-height: 92vh; padding: 0; borde
 .conexion .marca { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 /* Cabecera en tres bloques: marca · sesión · acciones. Se acomoda sola al ancho de la ventana */
 #avisoVersion { order: 4; }
-.cab-sesion { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.cab-fila1, .cab-fila2 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; min-width: 0; }
+.cab-fila2 { border-top: 1px solid var(--line); padding-top: 8px; }
+.marca-app { flex: 1 1 auto; }
+.cab-tit { display: grid; gap: 1px; min-width: 0; line-height: 1.15; }
+.cab-app { font: 700 10.5px var(--mono); letter-spacing: .14em; color: var(--muted); }
+.cab-tit h1 { font: 750 19px var(--fd); letter-spacing: -.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cab-iconos { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: none; }
+.cab-sesion { display: flex; align-items: center; gap: 8px; flex: 1 1 320px; min-width: 0; }
 .cab-sesion label { font-size: 12px; flex: none; }
-.cab-sesion #semana { flex: 0 1 280px; min-width: 120px; text-overflow: ellipsis; }
-.cab-sesion #formato { flex: none; }
-.cab-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; margin-left: auto; }
-.marca-app h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.marca-app { flex: 0 1 auto; max-width: 34%; }
+.cab-sesion #semana { flex: 0 1 340px; min-width: 120px; text-overflow: ellipsis; padding: 6px 10px; font-size: 13.5px; }
+.cab-sesion #formato { flex: none; padding: 6px 10px; font-size: 13.5px; }
+.cab-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; margin-left: auto; }
 .txt-corto { display: none; }
-@media (max-width: 1400px) { .marca-app #prefijo { display: none; } }
-@media (max-width: 1440px) { .txt-largo { display: none; } .txt-corto { display: inline; } }
+@media (max-width: 1200px) { .txt-largo { display: none; } .txt-corto { display: inline; } }
 @media (max-width: 1050px) { #cuentaChip .cta-chip { padding: 3px; } #cuentaChip .cta-chip span { display: none; } }
-@media (max-width: 1180px) {  /* dos filas: marca y acciones arriba, la sesión abajo a todo lo ancho */
-  .marca-app { max-width: none; }
-  .cab-sesion { order: 3; flex-basis: 100%; }
-  .cab-sesion #semana { flex: 1 1 auto; }
-}
-@media (max-width: 560px) {  /* en el celular: sin la marca y sin el botón de teleprompter (está en el menú de la cuenta) */
-  .marca-app, .cab-acciones > a[href="/teleprompter"] { display: none; }
-  .cab-acciones { flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-  .cab-acciones .btn:not(.icono) { padding: 7px 10px; }
+@media (max-width: 640px) {
+  header { padding: 8px 12px; }
+  .cab-tit h1 { font-size: 16px; }
+  .cab-sesion { flex-basis: 100%; } .cab-sesion #semana { flex: 1 1 auto; }
+  .cab-acciones { flex: 1 1 100%; justify-content: stretch; } .cab-acciones > * { flex: 1 1 auto; text-align: center; }
+  .cab-acciones > a[href="/teleprompter"] { flex: 0 0 auto; }
 }
 /* Copias de seguridad */
 .resp-lista { display: grid; gap: 6px; }
@@ -1146,21 +1147,13 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 </head>
 <body>
 <header id="cab">
-  <div class="marca-app"><div class="logo-app" aria-hidden="true">E</div>
-    <div style="min-width:0"><h1>SALA DE EDICIÓN <span class="muted" id="prefijo"></span></h1></div></div>
-  <div class="cab-sesion">
-    <label class="muted" for="semana">Sesión</label>
-    <select id="semana"></select>
-    <select id="formato" title="Formato de los videos de esta sesión" aria-label="Formato de los videos de esta sesión">
-      <option value="vertical">Vertical 9:16</option><option value="horizontal">Horizontal 16:9</option></select>
-  </div>
-  <div class="cab-acciones">
-    <a class="btn sec" href="/teleprompter" target="_blank" title="Abrir el teleprompter" aria-label="Teleprompter"><span aria-hidden="true">📜</span><span class="txt-largo"> Teleprompter</span></a>
-    <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir<span class="txt-largo"> todo</span></button>
-    <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todo</span></button>
-    <button class="btn sec proy-btn" id="proyBtn" type="button" hidden title="Proyecto compartido: lo que se edita en otras PCs">☁ Proyecto</button>
-    <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
-    <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
+  <div class="cab-fila1">
+    <div class="marca-app"><div class="logo-app" aria-hidden="true">E</div>
+      <div class="cab-tit"><span class="cab-app">SALA DE EDICIÓN</span><h1 id="prefijo">—</h1></div></div>
+    <div class="cab-iconos">
+      <button class="btn sec proy-btn" id="proyBtn" type="button" hidden title="Proyecto compartido: lo que se edita en otras PCs">☁ Proyecto</button>
+      <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
+      <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
     <span class="cuenta-ancla">
       <span id="cuentaChip"></span>
       <div id="menuCuenta" class="menu-cuenta" role="menu" aria-label="Tu cuenta y configuración" hidden>
@@ -1177,6 +1170,20 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <button role="menuitem" id="tema" title="Cambiar entre modo claro y oscuro"></button>
       </div>
     </span>
+    </div>
+  </div>
+  <div class="cab-fila2">
+    <div class="cab-sesion">
+      <label class="muted" for="semana">Sesión</label>
+      <select id="semana"></select>
+      <select id="formato" title="Formato de los videos de esta sesión" aria-label="Formato de los videos de esta sesión">
+        <option value="vertical">Vertical 9:16</option><option value="horizontal">Horizontal 16:9</option></select>
+    </div>
+    <div class="cab-acciones">
+      <a class="btn sec" href="/teleprompter" target="_blank" title="Abrir el teleprompter" aria-label="Teleprompter"><span aria-hidden="true">📜</span><span class="txt-largo"> Teleprompter</span></a>
+      <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todo</span></button>
+      <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir<span class="txt-largo"> todo</span></button>
+    </div>
   </div>
   <div id="avisoVersion" hidden>
     <span><b>Hay una versión nueva de la sala: <span id="vNueva"></span></b> <span class="muted" id="vActual"></span></span>
@@ -2472,7 +2479,7 @@ document.addEventListener("click", e => {
 async function cargar() {
   E = await (await fetch("/api/estado")).json();
   cargarFuentesCSS();
-  $("prefijo").textContent = `- ${E.semana}`;
+  $("prefijo").textContent = E.semana;
   document.title = `Sala de edición · ${E.semana}`;
   $("formato").value = E.formato || "vertical";
   document.body.classList.toggle("horizontal", esHorizontal());

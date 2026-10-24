@@ -1,3 +1,6 @@
+Versión 1.46.6 (se actualiza desde la app con «Actualizar ahora»):
+- **Encabezado nuevo, en dos filas**: arriba «Sala de edición» con el nombre del proyecto debajo, y a la derecha los avisos, los procesos y tu cuenta. Abajo, la sesión y el formato a la izquierda, y las acciones de trabajo a la derecha (Teleprompter, Armar todo y Producir todo). En el celular, todo baja de línea sin cortarse.
+
 Versión 1.46.5 (se actualiza desde la app con «Actualizar ahora»):
 - **Faltantes en 3 pasos**: «¿Cuántas imágenes?» → «Generarlas en Flow» (con Claude en Chrome o con Antigravity, sin Claude) → «Traer lo que bajaste». Todo en un solo bloque, en columnas.
 - **Antigravity conectado**: «Hacerlo con Antigravity» arma el paquete, abre Antigravity solo con esa carpeta y te copia el mensaje para Gemini Flash. En Conexiones aparece Antigravity, y la sala sabe si está instalado.
