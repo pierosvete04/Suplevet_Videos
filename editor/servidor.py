@@ -200,7 +200,7 @@ def estado():
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
             "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
-            "calendario": motor.calendario(), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]},
+            "calendario": motor.calendario(), "auto_descargas": bool(motor.CONFIG.get("auto_descargas", True)), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]},
             "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "pistas_musica": [f.name for f in motor.pistas_musica()],
             "angulos": {a: motor.nombre_angulo(a) for a in sorted({p.get("angulo") or "" for p in ps} | {""})}, "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
             "listos": str(S.listos), "panel": bool(motor.CONFIG.get("panel", {}).get("url")),
@@ -374,24 +374,128 @@ def generar_en_flow(avance):
     return {"hechos": hechos, "pendientes": pendientes}
 
 
-def descargas_recientes(dias=7):
-    """Música, imágenes y clips bajados en los últimos días (lo de Flow, Flow Music o Suno), lo más nuevo primero."""
+USADOS = "Usados por la sala"  # subcarpeta de Descargas donde quedan los archivos que ya pasaron a una sesión
+
+
+def id_de_archivo(nombre, ids):
+    """El código del guion que lleva el nombre de un archivo bajado («1110_C1_IMG2 (1).png» → 1110_C1_IMG2), o None.
+    Gana el código más largo que aparece entero (así C1_IMG1 no se confunde con C1_IMG10)."""
+    base = re.sub(r"\s*\(\d+\)$", "", Path(nombre).stem).strip().lower()
+    mejor = None
+    for i in ids:
+        il = str(i).lower()
+        if base == il:
+            return i
+        if re.search(rf"(^|[^a-z0-9]){re.escape(il)}($|[^a-z0-9])", base) and (not mejor or len(i) > len(mejor)):
+            mejor = i
+    return mejor
+
+
+def _tipo_descarga(f):
+    ext = f.suffix.lower()
+    return "musica" if ext in motor.EXT_AUDIO else "imagen" if ext in motor.EXT_IMG else "video" if ext in motor.EXT_VID else None
+
+
+def descargas_recientes(dias=7, todos=False):
+    """Música, imágenes y clips bajados en los últimos días (lo de Flow, Flow Music o Suno), lo más nuevo primero.
+    Solo los que se llaman como algo del guion de la sesión; los demás se cuentan (y se ven con todos=True)."""
     base = carpeta_descargas()
-    archivos = []
+    ck = motor.checklist()
+    ids = {"musica": [m["id"] for m in ck.get("musica", [])], "assets": [a["id"] for a in ck.get("assets", [])]}
+    archivos, otros = [], 0
     if base.is_dir():
         limite = time.time() - dias * 86400
         for f in base.iterdir():
-            ext = f.suffix.lower()
-            tipo = "musica" if ext in motor.EXT_AUDIO else "imagen" if ext in motor.EXT_IMG else "video" if ext in motor.EXT_VID else None
+            tipo = _tipo_descarga(f)
             if not tipo or not f.is_file():
                 continue
             st = f.stat()
             if st.st_mtime < limite or st.st_size > 600 * 1024 * 1024:
                 continue
-            archivos.append({"nombre": f.name, "tipo": tipo, "mb": round(st.st_size / 1048576, 1), "fecha": st.st_mtime,
+            aid = id_de_archivo(f.name, ids["musica" if tipo == "musica" else "assets"])
+            if not aid:
+                otros += 1
+                if not todos:
+                    continue
+            archivos.append({"nombre": f.name, "tipo": tipo, "mb": round(st.st_size / 1048576, 1), "fecha": st.st_mtime, "id": aid,
                              "url": "/descargas/" + quote(f.name) + f"?v={int(st.st_mtime)}"})
-    archivos.sort(key=lambda x: -x["fecha"])
-    return {"carpeta": str(base), "dias": dias, "archivos": archivos[:40]}
+    archivos.sort(key=lambda x: (not x["id"], -x["fecha"]))
+    return {"carpeta": str(base), "dias": dias, "archivos": archivos[:60], "otros": otros,
+            "auto": bool(motor.CONFIG.get("auto_descargas", True))}
+
+
+def apartar_descarga(nombre):
+    """El archivo de Descargas que ya pasó a la sesión se guarda en «Descargas/Usados por la sala» (no se borra):
+    así Descargas queda limpio y no se vuelve a ofrecer."""
+    base = carpeta_descargas()
+    f = base / nombre
+    if not f.is_file():
+        return
+    d = base / USADOS
+    d.mkdir(exist_ok=True)
+    destino, n = d / f.name, 2
+    while destino.exists():
+        destino = d / f"{f.stem} ({n}){f.suffix}"
+        n += 1
+    try:
+        shutil.move(str(f), str(destino))
+    except OSError:  # abierto en otro programa: se queda donde está
+        pass
+
+
+AUTO_DESC = []  # lo que llegó solo de Descargas: [{t, archivo, id, codigos}]
+
+
+def traer_descargas(dias=3):
+    """Pasa a la sesión los archivos de Descargas que se llaman como una imagen, clip o pista que FALTA (nunca reemplaza
+    lo que ya está). Devuelve lo que trajo."""
+    base = carpeta_descargas()
+    if not base.is_dir():
+        return []
+    ck = motor.checklist()
+    faltan = {"musica": [m["id"] for m in ck.get("musica", []) if not m.get("listo")],
+              "assets": [a["id"] for a in ck.get("assets", []) if not a.get("listo")]}
+    if not faltan["musica"] and not faltan["assets"]:
+        return []
+    traidos, limite = [], time.time() - dias * 86400
+    for f in sorted(base.iterdir(), key=lambda x: -x.stat().st_mtime if x.is_file() else 0):
+        tipo = _tipo_descarga(f)
+        if not tipo or not f.is_file() or f.name.startswith(".") or f.suffix.lower() in (".crdownload", ".part", ".tmp"):
+            continue
+        st = f.stat()
+        if st.st_mtime < limite or time.time() - st.st_mtime < 3:  # recién llegando: se espera a que termine de bajar
+            continue
+        destino = "musica" if tipo == "musica" else "assets"
+        aid = id_de_archivo(f.name, faltan[destino])
+        if not aid:
+            continue
+        try:
+            archivo, carpeta = importar_descarga(f.name, aid, destino)
+        except (ValueError, OSError):
+            continue
+        apartar_descarga(f.name)
+        faltan[destino].remove(aid)
+        drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
+        traidos.append({"t": time.time(), "archivo": archivo, "id": aid, "codigos": motor.videos_que_usan(aid, destino)})
+    return traidos
+
+
+def vigilar_descargas():
+    """Mientras la sala está abierta, lo que se baja de Flow, Flow Music o Suno con el nombre del guion pasa solo a la
+    sesión (cada 20 s). Se apaga en Faltantes («Traer solos de Descargas»). Solo en la sala de verdad, no en una de prueba."""
+    def revisar():
+        while True:
+            time.sleep(20)
+            if not motor.CONFIG.get("auto_descargas", True) or TRABAJO["activo"]:
+                continue
+            try:
+                r = traer_descargas()
+            except Exception:  # noqa: BLE001 — nunca debe tumbar la sala
+                continue
+            if r:
+                AUTO_DESC.extend(r)
+                del AUTO_DESC[:-50]
+    threading.Thread(target=revisar, daemon=True).start()
 
 
 def subir_asignaciones():
@@ -1269,8 +1373,8 @@ class H(BaseHTTPRequestHandler):
             vista = (parse_qs(u.query).get("vista") or ["combinacion"])[0]
             texto = motor.documento_guion("produccion" if version == "produccion" else "host", vista)
             if texto and "guardar" in u.query:  # quedan también en Drive (carpeta Guion), para abrirlas desde cualquier lado
-                motor.guardar_documentos_guion()
-                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                if motor.guardar_documentos_guion():  # solo si cambiaron (antes, cada cambio de pestaña subía a Drive)
+                    drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
             self._json({"texto": texto})
         elif u.path == "/api/informe":
             f = motor.S.guion / "director" / "informe.md"
@@ -1285,7 +1389,11 @@ class H(BaseHTTPRequestHandler):
         elif u.path.startswith("/grab/"):
             self._archivo(motor.S.grab, unquote(u.path[len("/grab/"):]))
         elif u.path == "/api/descargas":
-            self._json(descargas_recientes())
+            self._json(descargas_recientes(todos=bool(parse_qs(u.query).get("todos"))))
+        elif u.path == "/api/auto_descargas":  # lo que llegó solo de Descargas desde «desde»
+            desde = float(parse_qs(u.query).get("desde", ["0"])[0] or 0)
+            self._json({"ok": True, "auto": bool(motor.CONFIG.get("auto_descargas", True)), "t": time.time(),
+                        "traidos": [x for x in AUTO_DESC if x["t"] > desde]})
         elif u.path.startswith("/descargas/"):  # vista previa de lo que se bajó (solo desde esta PC)
             self._archivo(carpeta_descargas(), unquote(u.path[len("/descargas/"):]))
         else:
@@ -1582,12 +1690,20 @@ class H(BaseHTTPRequestHandler):
                     self._json({"ok": True, **r})
                 else:
                     self._json({"ok": True, "respaldo": respaldos.hacer(nombre=str(b.get("nombre") or "Guardada a mano"))})
+            elif u.path == "/api/auto_descargas":  # prender o apagar «Traer solos de Descargas», o traer ahora
+                b = self._cuerpo()
+                if "activo" in b:
+                    motor.guardar_config({"auto_descargas": bool(b["activo"])})
+                traidos = traer_descargas() if b.get("ahora") else []
+                AUTO_DESC.extend(traidos)
+                self._json({"ok": True, "auto": bool(motor.CONFIG.get("auto_descargas", True)), "traidos": traidos})
             elif u.path == "/api/importar_descarga":
                 # un archivo de Descargas pasa a la sesión con el nombre que pide el guion, se sube a Drive
                 # y se dice qué videos lo usan (para re-armar solo esos)
                 b = self._cuerpo()
                 aid, destino = str(b.get("id", "")), b.get("destino")
                 archivo, carpeta = importar_descarga(str(b.get("nombre", "")), aid, destino)
+                apartar_descarga(str(b.get("nombre", "")))
                 drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
                 self._json({"ok": True, "archivo": archivo, "codigos": motor.videos_que_usan(aid, destino)})
             elif u.path == "/api/archivar":  # una sesión terminada deja de salir en las listas (se encuentra buscando)
@@ -1858,7 +1974,8 @@ class H(BaseHTTPRequestHandler):
                 threading.Thread(target=lambda: _sin_error(drive.reintentar_pendientes), daemon=True).start()
                 self._json({"ok": True})
             elif u.path == "/api/abrir_listos":  # abre en el explorador la carpeta de los videos exportados (V.FINALES)
-                d = motor.S.listos
+                pedida = Path(str(self._cuerpo().get("carpeta") or ""))  # la última carpeta donde se exportó, si existe
+                d = pedida if str(pedida) not in ("", ".") and pedida.is_dir() else motor.S.listos
                 d.mkdir(parents=True, exist_ok=True)
                 if sys.platform == "win32":
                     os.startfile(str(d))
@@ -1912,6 +2029,10 @@ class H(BaseHTTPRequestHandler):
                 vid = motor.guardar_version(b, b.get("id") or None)
                 cola = bool(b.get("armar") and lanzar("uno", vid, en_cola=True))
                 self._json({"ok": True, "codigo": vid, "en_cola": cola})
+            elif u.path == "/api/ajustes_exportar":  # se guardan apenas se cambian en el panel de Exportar
+                aj = {k: v for k, v in (self._cuerpo().get("ajustes") or {}).items() if k in motor.AJUSTES_EXPORTAR}
+                motor.guardar_config({"exportar": aj})
+                self._json({"ok": True})
             elif u.path == "/api/trabajo_sel":
                 b = self._cuerpo()
                 if b.get("ajustes"):  # los ajustes de exportación quedan guardados para la próxima vez
@@ -1998,6 +2119,8 @@ if __name__ == "__main__":
     threading.Thread(target=lambda: _sin_falla(drive.asegurar_config), daemon=True).start()
     threading.Thread(target=lambda: _sin_falla(marca.bajar), daemon=True).start()  # la marca del equipo (_MARCA en Drive)
     respaldos.vigilar()  # copia de los cambios cada pocos minutos, solo si algo cambió
+    if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba no se lleva los archivos de Descargas
+        vigilar_descargas()
     if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba en otro puerto no sube nada al proyecto del equipo
         proyecto.vigilar(lambda: TRABAJO["activo"])  # la edición se comparte con las otras PCs por Drive (Actualizar proyecto)
     cuenta.latido(forzar=True)

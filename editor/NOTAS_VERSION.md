@@ -1,3 +1,35 @@
+Versión 1.48.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Faltantes, nuevo diseño:**
+  - **Arriba, un resumen** con lo que falta y su barra de avance (música, imágenes y clips, piezas grabadas, clips por identificar), y una franja **«Ahora sigue»** con lo primero que hay que hacer y su botón.
+  - Los pasos 1 y 2 de Flow van en dos columnas, y el paso 3 es una **franja angosta** (antes era una columna alta casi vacía).
+  - **Imágenes y clips en galería** de miniaturas con ✓ en las listas; por defecto se ven solo las que faltan. El prompt completo, el plan B y «Rehacer» están en «Más».
+  - **Piezas por grabar** en fichas agrupadas por cuerpo, cada una recibe su video.
+  - «Ordenar la sesión en Drive» queda plegado al final.
+- **Descargas:**
+  - «Buscar en Descargas» muestra **solo los archivos que se llaman como algo del guion** (por ejemplo `1110_C1_IMG1.png`). Los demás (WhatsApp, portadas…) quedan escondidos, y se pueden ver si los pides.
+  - Nuevo **«Traer solos»**: mientras la sala está abierta, lo que bajas con el código en el nombre pasa solo a su video. Nunca reemplaza lo que ya está.
+  - El archivo usado se guarda en «Descargas › Usados por la sala», para que Descargas quede limpio.
+- **Música:**
+  - Los prompts que escribe Claude ahora siempre llevan adrenalina (120–150 BPM, percusión fuerte; nada suave, acústico ni «corporate»).
+  - En Faltantes se avisa si un prompt suena suave.
+- **Plantillas:**
+  - La altura muestra su número.
+  - Se esconden los campos que no aplican: los colores de la caja cuando está «Sin caja» y la segunda línea en «No».
+  - «Borrar» quedó aparte y en rojo, y «Guardar plantilla» ahora dice «Guardar cambios».
+  - Se arregló un error de la consola al guardar.
+- **Exportar:**
+  - «¿Al Drive?» se pregunta cada vez (ya no se recuerda, para no subir sin querer).
+  - Los ajustes se guardan apenas los cambias.
+  - «Quedan en» y «Abrir carpeta» muestran la última carpeta donde exportaste.
+- **Guion:**
+  - Un solo botón para analizar los clips (el de la tarjeta de arriba).
+  - Cambiar entre pestañas ya no sube archivos a Drive si nada cambió.
+  - El aviso del Word dice que se sube a Drive.
+- **En todas las pestañas:** si estás abajo en la página, los avisos salen también abajo, flotando.
+- **Piezas:**
+  - Las palabras del texto se eligen con el teclado (Tab y Enter).
+  - Una imagen puesta que todavía no se generó dice «Falta generarla».
+
 Versión 1.47.9 (se actualiza desde la app con «Actualizar ahora»): arreglos que encontró la revisión de todas las pestañas.
 - **Plantillas (importante):** guardar una plantilla dejaba casi invisible la palabra que se está diciendo («Cuánto crece la que se dice» quedaba en 3). Ya no pasa, y las plantillas que quedaron así se arreglan solas: rearma los videos que se vieron mal.
 - **Plantillas:** «Guardar plantilla» sin cambios ya no deja los videos «por rearmar». No se puede guardar sin nombre.

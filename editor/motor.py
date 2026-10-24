@@ -2120,10 +2120,11 @@ def guardar_documentos_guion():
     hechos = []
     for v in ("host", "produccion"):
         texto = documento_guion(v)
-        if texto:
+        f = S.guion / f"guion_{v}.md"
+        if texto and not (f.exists() and f.read_text(encoding="utf-8") == texto):  # igual que antes: no se toca
             S.guion.mkdir(parents=True, exist_ok=True)
-            (S.guion / f"guion_{v}.md").write_text(texto, encoding="utf-8")
-            hechos.append(f"guion_{v}.md")
+            f.write_text(texto, encoding="utf-8")
+            hechos.append(f.name)
     return hechos
 
 

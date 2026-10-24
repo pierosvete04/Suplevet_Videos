@@ -702,7 +702,50 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
 /* Faltantes: los tres pasos de Flow en columnas */
 .fl-caja { display: grid; gap: 14px; margin-bottom: 14px; }
 .fl-cab { display: grid; gap: 2px; }
-.fl-pasos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.fl-pasos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+/* paso 3: una franja angosta a todo lo ancho (antes era una columna alta casi vacía) */
+.fl-tira { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--hondo, var(--surface2)); }
+.fl-tira-txt { flex: 1 1 320px; min-width: 0; display: grid; gap: 2px; } .fl-tira-txt b { font-size: 15px; }
+.fl-tira-txt small { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.fl-auto { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.fl-btn-tira { flex: none; }
+/* resumen arriba: cuánto falta de cada cosa */
+.fl-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.fl-cuadro { display: grid; gap: 6px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--sombra-caja); cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.fl-cuadro:hover, .fl-cuadro:focus-visible { border-color: var(--accent); outline: none; }
+.fl-cuadro .t { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.fl-cuadro .n { font: 800 22px var(--f); } .fl-cuadro .n small { font: 600 13px var(--f); color: var(--muted); }
+.fl-barra { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; } .fl-barra i { display: block; height: 100%; border-radius: 99px; background: var(--warn); }
+.fl-cuadro.ok .fl-barra i { background: var(--ok); } .fl-cuadro.ok .n { color: var(--ok); }
+.fl-sigue { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; margin-bottom: 14px; border-radius: 14px;
+  border: 1.5px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.fl-sigue .txt { flex: 1 1 260px; } .fl-sigue .txt small { display: block; color: var(--muted); font-size: 12.5px; }
+.fl-sigue.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
+.fl-seccion { margin-bottom: 14px; display: grid; gap: 12px; } .fl-sec-cab { display: grid; gap: 4px; } .fl-sec-cab .muted { font-size: 12.5px; }
+.fl-plegable summary { cursor: pointer; list-style: none; } .fl-plegable summary::-webkit-details-marker { display: none; }
+.fl-plegable summary::before { content: "▸ "; } .fl-plegable[open] summary::before { content: "▾ "; } .fl-plegable { margin-bottom: 14px; }
+/* galería de imágenes: la foto manda; el prompt va en «Más» */
+.galeria-assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.as-card { display: grid; gap: 6px; align-content: start; padding: 8px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.as-card.listo { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.as-foto.soltar { aspect-ratio: 9/16; padding: 0; overflow: hidden; position: relative; border-width: 2px; background: var(--hondo); }
+.as-card.falta .as-foto.soltar { border-color: color-mix(in srgb, var(--warn) 70%, transparent); }
+.as-foto.soltar img, .as-foto.soltar video { width: 100%; height: 100%; max-height: none; object-fit: cover; border-radius: 0; }
+.as-foto.soltar span { position: absolute; left: 6px; right: 6px; bottom: 6px; padding: 4px 6px; border-radius: 8px; font-size: 11.5px; background: rgba(0,0,0,.6); color: #fff; }
+.as-card.falta .as-foto.soltar span { position: static; background: none; color: var(--warn); font-weight: 700; font-size: 12.5px; padding: 10px; }
+.as-card.listo .as-foto::after { content: "✓"; position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; font-weight: 800; font-size: 12px; }
+.as-card code { font-size: 12px; overflow-wrap: anywhere; } .as-card small { color: var(--muted); font-size: 11.5px; line-height: 1.35; }
+.as-card details summary { cursor: pointer; font-size: 12px; color: var(--accent2); font-weight: 600; }
+.as-card details pre { max-height: 160px; }
+.as-acc { display: flex; flex-wrap: wrap; gap: 6px; }
+/* piezas por grabar: fichas por cuerpo que reciben el video */
+.pf-grupo { display: grid; gap: 6px; margin-bottom: 10px; } .pf-grupo h3 { margin: 0; font-size: 13px; color: var(--muted); }
+.pf-fichas { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.pf-ficha.soltar { place-items: start; text-align: left; padding: 10px 12px; border-width: 2px; }
+.pf-ficha.soltar code { font-size: 13px; font-weight: 700; color: var(--ink); } .pf-ficha.soltar small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.mus-suave { padding: 8px 10px; border-radius: 10px; font-size: 12.5px; background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px solid var(--warn); }
+.prompt-corto { font-size: 12.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 900px) { .fl-pasos { grid-template-columns: minmax(0, 1fr); } .fl-btn-tira { width: 100%; } }
 .fl-paso { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--hondo, var(--surface2)); min-width: 0; }
 .fl-tit { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .fl-num { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 800 13px var(--f); color: #fff; background: var(--accent); }
@@ -941,11 +984,11 @@ dialog.pop-notifs::backdrop, :root[data-tema] dialog.pop-notifs::backdrop { back
 .pn-pie.izq { display: block; font-size: 12px; color: var(--muted); line-height: 1.6; }
 .pn-pie.izq b { color: var(--ink); }
 #dlgAviso .usa { font-size: 12px; color: var(--muted); display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-dialog .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); max-width: min(560px, 90vw); padding: 10px 16px; border-radius: 12px;
+dialog .toast, .toast-pag { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); max-width: min(560px, 90vw); padding: 10px 16px; border-radius: 12px;
   background: var(--surface, #111); border: 1px solid var(--line2); box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 13.5px; z-index: 50;
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; color: var(--ink); }
-dialog .toast.ver { opacity: 1; transform: translate(-50%, 0); }
-dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color: var(--ok); }
+dialog .toast.ver, .toast-pag.ver { opacity: 1; transform: translate(-50%, 0); }
+dialog .toast.err, .toast-pag.err { border-color: var(--err); } dialog .toast.ok, .toast-pag.ok { border-color: var(--ok); }
 .btn.icono .punto.num { width: auto; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font: 700 10px/16px var(--f); color: #fff; background: var(--err); top: -5px; right: -5px; }
 .pasos-prod { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
 .pasos-prod label { color: var(--ink); }
@@ -988,6 +1031,8 @@ dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color:
 .tr-corr { grid-column: 2 / -1; font-size: 12px; line-height: 1.4; color: var(--warn); }
 .tr-edita { grid-column: 2 / -1; display: flex; gap: 6px; } .tr-edita input { flex: 1; min-width: 0; }
 .marca-acciones { display: flex; flex-wrap: wrap; gap: 6px; } .marca-acciones .btn { max-width: 100%; white-space: normal; }
+.plant-botones { gap: 6px; align-items: center; } .plant-sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
+.btn.peligro { color: var(--err); }
 .marca-acciones .btn.peligro:not(.sec) { background: var(--err); border-color: var(--err); color: #fff; }
 .marca-acciones .btn.sec.peligro { color: var(--err); }
 /* Galería para elegir imagen, sonido o música, con vista previa */
@@ -1582,11 +1627,11 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <button class="btn peq" id="gPromptsFlow">Crear prompts de Flow</button>
       </div>
       <div class="pasos-guion">
-        <button class="btn" id="gAnalizar"><b>1</b> Analizar clips</button>
+        <button class="btn" id="gAnalizar" hidden>Analizar clips</button>
+        <span class="muted" style="font-size:12.5px">Después de analizar (tarjeta de arriba):</span>
+        <button class="btn sec" id="gCorroborar"><b>1</b> Ver cambios contra el guion</button>
         <span class="flecha" aria-hidden="true">→</span>
-        <button class="btn sec" id="gCorroborar"><b>2</b> Ver cambios contra el guion</button>
-        <span class="flecha" aria-hidden="true">→</span>
-        <button class="btn sec" id="gRevisar"><b>3</b> Que Claude reacomode la edición</button>
+        <button class="btn sec" id="gRevisar"><b>2</b> Que Claude reacomode la edición</button>
         <button class="btn sec" id="gEmparejar" title="Asigna cada clip analizado que quedó sin pieza a la pieza del guion que más se le parece (40 % o más; si dos tomas se parecen a la misma pieza, va la más parecida)">Emparejar lo que falta</button>
       </div>
       <p class="muted" id="gEstado" style="font-size:12px;margin:8px 0 0"></p>
@@ -1671,9 +1716,11 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   </section>
 
   <section data-panel="faltan" hidden>
+    <div class="fl-resumen" id="flResumen"></div>
+    <div class="fl-sigue" id="flSigue" hidden></div>
     <div class="caja fl-caja" id="cajaGenerar">
       <div class="fl-cab"><h2 style="margin:0">Imágenes, clips y música de Flow</h2>
-        <span class="muted" id="generarInfo" style="font-size:12.5px">Tres pasos: decide cuántas imágenes llevan los videos, genéralas en Google Flow y ponlas en los videos.</span></div>
+        <span class="muted" id="generarInfo" style="font-size:12.5px">Decide cuántas imágenes llevan los videos, genéralas en Google Flow y la sala las pone en su video.</span></div>
       <div class="fl-pasos">
         <section class="fl-paso" id="apoyoCaja">
           <div class="fl-tit"><span class="fl-num">1</span><b>¿Cuántas imágenes?</b></div>
@@ -1700,12 +1747,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <small>La sala abre Antigravity con todo listo: Gemini pega los prompts en Flow y baja cada imagen con su nombre. Después usa el paso 3.</small>
             <button class="btn sec fl-btn" id="paqueteAg" type="button">🪐 Hacerlo con Antigravity</button></div>
         </section>
-        <section class="fl-paso">
-          <div class="fl-tit"><span class="fl-num">3</span><b>Ponerlas en los videos</b></div>
-          <p class="muted fl-txt">Lo que bajas de Flow, Flow Music o Suno queda en tu carpeta Descargas. Este botón lo busca ahí, pone cada archivo en su video, lo sube a Drive y rearma ese video.</p>
-          <p class="muted fl-txt" style="font-size:12px;margin:0">Si lo hizo Claude en Chrome, no hace falta: ya quedó puesto.</p>
-          <button class="btn fl-btn" id="buscarDescargas" type="button">📥 Poner en los videos</button>
-        </section>
+      </div>
+      <div class="fl-tira" id="flTira">
+        <span class="fl-num">3</span>
+        <div class="fl-tira-txt"><b>Ponerlas en los videos</b>
+          <small>Bájalas con su código en el nombre (por ejemplo <code>1110_C1_IMG1.png</code>). La sala las encuentra en Descargas, las pone en su video y deja el archivo en «Descargas › Usados por la sala». Si lo hizo Claude en Chrome, ya quedaron puestas.</small></div>
+        <label class="fl-auto" title="Mientras la sala está abierta, lo que bajas con el código del guion en el nombre pasa solo a la sesión (nunca reemplaza lo que ya está)">
+          <input type="checkbox" role="switch" class="interruptor" id="autoDesc"> Traer solos</label>
+        <button class="btn fl-btn-tira" id="buscarDescargas" type="button">📥 Buscar en Descargas</button>
       </div>
       <div class="ag-caja" id="agCaja" hidden>
         <div class="fila" style="justify-content:space-between"><b>🪐 Antigravity: paquete listo</b><span class="muted" id="agInfo" style="font-size:12.5px"></span></div>
@@ -1736,6 +1785,36 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn sec" id="aceptarSug" title="Asigna cada clip a la pieza que sugirió la sala (solo los de 50 % de parecido o más)">Aceptar lo sugerido</button>
         </div>
       </div>
+      <div id="listaDescargas" class="grid-assets"></div>
+    </div>
+    <div class="caja fl-seccion" id="cajaMusica">
+      <div class="fl-sec-cab"><h2 style="margin:0">🎵 Música <span class="pill" id="nMusica"></span></h2>
+        <span class="muted">Una pista por cuerpo, siempre instrumental y con adrenalina. Genérala en Google Flow Music (o Suno) con el prompt y suéltala en su cuadro: no hace falta renombrarla.</span></div>
+      <div class="grid-assets" id="musicas"></div>
+    </div>
+    <div class="caja fl-seccion" id="cajaAssets">
+      <div class="fl-sec-cab fila" style="justify-content:space-between;align-items:flex-end">
+        <div><h2 style="margin:0">🖼 Imágenes y clips <span class="pill" id="nAssets"></span></h2>
+          <span class="muted">Suelta cada imagen en su cuadro. Toca «Más» para ver el prompt completo, el plan B o rehacerla.</span></div>
+        <div class="segmento" role="group" aria-label="Qué imágenes ver"><button type="button" data-fa="faltan" aria-pressed="true">Faltan</button><button type="button" data-fa="todas" aria-pressed="false">Todas</button></div>
+      </div>
+      <div class="galeria-assets" id="assets"></div>
+    </div>
+    <div class="caja fl-seccion" id="cajaPiezasFaltan">
+      <div class="fl-sec-cab"><h2 style="margin:0">🎬 Piezas por grabar <span class="pill" id="nPiezasFaltan"></span></h2>
+        <span class="muted">Suelta el video grabado sobre su código: se guarda con el nombre correcto.</span></div>
+      <div id="faltanPiezas"></div>
+    </div>
+    <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
+      <div class="fila" style="justify-content:space-between">
+        <div><h2 style="margin:0">Clips por identificar <span class="pill" id="nSinAsignar"></span></h2>
+          <span class="muted" style="font-size:12px">Clips con nombre de cámara (IMG_1016…). La sala pasa su audio a texto <b>en esta PC</b> (gratis, sin Claude), lo compara con el guion y dice qué pieza es cada uno. Los archivos no se renombran.</span></div>
+        <div class="fila">
+          <button class="btn sec" id="numerarHooks" hidden>Numerar hooks en orden</button>
+          <button class="btn" id="escuchar" title="Trae los clips de Drive, los escucha, los compara con el guion e identifica los que se parecen claramente">Analizar clips</button>
+          <button class="btn sec" id="aceptarSug" title="Asigna cada clip a la pieza que sugirió la sala (solo los de 50 % de parecido o más)">Aceptar lo sugerido</button>
+        </div>
+      </div>
       <div class="fila" style="justify-content:space-between;margin:8px 0">
         <label class="fila muted" style="font-size:12px"><input type="checkbox" id="ocultarTomas" checked> Ocultar otras tomas de piezas ya sugeridas</label>
         <div class="fila"><button class="btn sec peq" id="descTodos" type="button">Seleccionar todos</button>
@@ -1749,21 +1828,18 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <p class="muted" style="font-size:12px;margin:6px 0">Están en Clips/_DESCARTADOS de la sesión (en Drive también). «Recuperar» los vuelve a la lista.</p>
         <div id="listaDescartados" style="display:grid;gap:4px"></div></details>
     </div>
-    <div class="caja" style="margin-bottom:14px">
-      <h2>Piezas por grabar</h2>
-      <p class="muted" style="margin:0 0 8px">Arrastra el video grabado encima de su nombre; se guarda con el nombre correcto.</p>
-      <div class="grid-assets" id="faltanPiezas"></div>
-    </div>
-    <div class="caja" style="margin-bottom:14px" id="cajaMusica">
-      <h2>Música</h2>
-      <p class="muted" style="margin:0 0 8px">Una pista por cuerpo; cambia solo donde el guion lo pide. Genérala en Google Flow Music (o Suno) con el prompt, siempre instrumental. Descárgala y arrástrala a su cuadro: no hace falta renombrarla.</p>
-      <div class="grid-assets" id="musicas"></div>
-    </div>
-    <div class="caja">
-      <h2>Imágenes y clips de Google Flow</h2>
-      <p class="muted" style="margin:0 0 8px">Copia el prompt, genéralo en Flow, descárgalo y arrástralo a su cuadro. No hace falta renombrarlo.</p>
-      <div class="grid-assets" id="assets"></div>
-    </div>
+    <details class="caja fl-plegable" id="cajaOrdenar">
+      <summary><b>Ordenar la sesión en Drive</b> <span class="muted">· renombra los clips con el nombre de su pieza</span></summary>
+      <div class="fila" style="justify-content:space-between;margin-top:10px">
+        <div>
+          <span class="muted" style="font-size:12px">Cada clip ya identificado toma el nombre de su pieza del guion y va a su carpeta (IMG_1058.MOV → Clips/Hooks/C2_H3.MOV), en Drive y en esta PC. No se vuelve a procesar nada ni se pierde lo editado.</span></div>
+        <div class="fila"><button class="btn" id="ordenarTodo" type="button" title="Escucha los clips nuevos, los compara con el guion, asigna los que coinciden y los renombra. Se hace en esta PC, sin Claude.">Analizar y renombrar todo</button>
+          <button class="btn sec" id="ordenarVer" type="button">Ver cómo quedarían</button>
+          <button class="btn sec" id="informeVer" type="button">Qué no se identificó</button></div>
+      </div>
+      <div id="ordenarLista" style="margin-top:10px"></div>
+      <div id="informeClips" style="margin-top:10px"></div>
+    </details>
   </section>
 
   <section data-panel="plantillas" hidden>
@@ -1784,11 +1860,12 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div class="caja" id="plantEditor">
         <div class="fila" style="justify-content:space-between;margin-bottom:10px">
           <h2 id="plantTitulo" style="margin:0">Plantilla</h2>
-          <div class="fila">
-            <button class="btn peq" id="plantPredet" title="Guarda los cambios y la deja en uso: la llevan todos los videos">Guardar y usar en los videos</button>
-            <button class="btn sec peq" id="plantDuplicar">Duplicar</button>
-            <button class="btn sec peq" id="plantBorrar">Borrar</button>
-            <button class="btn" id="plantGuardar">Guardar plantilla</button>
+          <div class="fila plant-botones">
+            <button class="btn" id="plantGuardar" title="Guarda los cambios de esta plantilla. Los videos que ya la usan quedan por rearmar">Guardar cambios</button>
+            <button class="btn sec" id="plantPredet" title="Guarda los cambios y la deja en uso: la llevan todos los videos de la sesión">Guardar y usar en los videos</button>
+            <button class="btn sec peq" id="plantDuplicar" title="Hace una copia para probar cambios sin tocar esta">Duplicar</button>
+            <span class="plant-sep" aria-hidden="true"></span>
+            <button class="btn sec peq peligro" id="plantBorrar">Borrar</button>
           </div>
         </div>
         <div class="plant-edicion">
@@ -1829,18 +1906,18 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
               <label>Caja de color<select data-p="resaltador.modo">
                 <option value="">Sin caja</option><option value="activa">En la palabra que se dice</option>
                 <option value="clave">Solo en palabras clave</option><option value="ambas">Las dos</option></select></label>
-              <div class="dos"><label>Color de la caja<input type="color" data-p="resaltador.color"></label>
+              <div class="dos" data-dep="res"><label>Color de la caja<input type="color" data-p="resaltador.color"></label>
                 <label>Texto dentro de la caja<input type="color" data-p="resaltador.texto"></label></div>
-              <label>Redondeo<input type="number" step="0.02" min="0" max="0.5" data-p="resaltador.radio"></label>
+              <label data-dep="res">Redondeo (0 = esquinas rectas, 0,5 = redonda)<input type="number" step="0.02" min="0" max="0.5" data-p="resaltador.radio"></label>
             </fieldset>
             <fieldset><legend>Segunda línea</legend>
               <label>La frase va en dos líneas, la de abajo con otra fuente<select data-p="linea2.activa"><option value="false">No, una sola línea</option><option value="true">Sí, dos líneas</option></select></label>
-              <label>Fuente de la segunda línea<select data-p="linea2.fuente" id="plantFuente2"></select></label>
-              <div class="dos"><label>Tamaño de la segunda (%)<input type="number" min="60" max="200" data-p="linea2.escala"></label>
+              <label data-dep="l2">Fuente de la segunda línea<select data-p="linea2.fuente" id="plantFuente2"></select></label>
+              <div class="dos" data-dep="l2"><label>Tamaño de la segunda (%)<input type="number" min="60" max="200" data-p="linea2.escala"></label>
                 <label>Color de la segunda<input type="color" data-p="linea2.color"></label></div>
             </fieldset>
             <fieldset><legend>Cuadro del subtítulo</legend>
-              <label>Altura (px desde abajo)<input type="range" min="100" max="1700" step="10" data-p="altura_desde_abajo"></label>
+              <label>Altura: <b id="plantAlturaVal"></b> px desde abajo<input type="range" min="100" max="1700" step="10" data-p="altura_desde_abajo"></label>
               <div class="dos"><label>Centro horizontal (px)<input type="number" min="100" max="980" step="10" data-p="x_centro"></label>
                 <label>Ancho máximo (px)<input type="number" min="200" max="1080" step="10" data-p="ancho_max"></label></div>
             </fieldset>
@@ -2702,6 +2779,15 @@ const fmt = t => Number(t).toFixed(2) + " s";
 const avisar = (txt, cls = "muted") => {
   const a = $("aviso"); a.textContent = txt; a.className = cls;
   guardarNotif(txt, cls);
+  if (txt && !document.querySelector("dialog[open]")) {  // el aviso de arriba no se ve: sale también abajo, flotando
+    const r = a.getBoundingClientRect(), tope = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--alto-header")) || 56;
+    if (r.bottom < tope + 60 || r.top > innerHeight) {
+      let t = $("toastPag");
+      if (!t) { t = document.createElement("div"); t.id = "toastPag"; t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+      t.textContent = txt; t.className = "toast toast-pag " + cls + " ver";
+      clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("ver"), cls === "err" ? 8000 : 4500);
+    }
+  }
   // con una ventana abierta (detalle del video, editor…) el aviso de arriba queda tapado: se muestra también dentro de ella
   const dlg = [...document.querySelectorAll("dialog[open]")].pop();
   if (!dlg || !txt) return;
@@ -2799,10 +2885,12 @@ async function cargar() {
   pintarRed();
   pintarDrive();
   pintarDrivePend(E.drive_pendientes || []);
-  // ruta corta y legible; la completa al pasar el mouse
-  const partes = String(E.listos || "").split(/[\\/]/).filter(Boolean), iDrive = partes.findIndex(p => p.toLowerCase() === "drive");
+  // ruta corta y legible; la completa al pasar el mouse. Es la última carpeta donde exportaste (la que eliges al
+  // exportar); si nunca elegiste, V.FINALES de la sesión
+  let ultimaCarpeta = ""; try { ultimaCarpeta = localStorage.getItem("sala_carpeta_exporte") || ""; } catch (e) {}
+  const partes = String(ultimaCarpeta || E.listos || "").split(/[\\/]/).filter(Boolean), iDrive = partes.findIndex(p => p.toLowerCase() === "drive");
   $("rutaListos").textContent = (iDrive >= 0 ? ["Drive", ...partes.slice(iDrive + 1)] : partes.slice(-3)).join(" › ");
-  $("rutaListos").title = E.listos || "";
+  $("rutaListos").title = ultimaCarpeta || E.listos || "";
   $("subirPanel").hidden = !E.panel;
   $("importarFinales").hidden = !E.panel || !(E.drive || {}).activo;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || E.piezas[0]?.nombre;
@@ -3578,7 +3666,7 @@ function pintarMarcas() {
     const palabras = l.palabras.map((w, wi) => {
       const m = deWord.get(`${li}-${wi}`), sel = elegidas.has(`${li}-${wi}`), q = quitadaW(w);
       const oculto = m && !pasa(m);
-      return `<span class="w ${m && !oculto ? "con" : ""} ${sel ? "sel" : ""} ${q ? "quitada" : ""}" data-w="${li}-${wi}" title="${w.s.toFixed(2)} s${q ? " · quitada" : ""}">${m && !oculto ? `<i>${iconos(m)}</i>` : ""}${esc(w.w)}</span>`;
+      return `<span class="w ${m && !oculto ? "con" : ""} ${sel ? "sel" : ""} ${q ? "quitada" : ""}" data-w="${li}-${wi}" tabindex="0" role="button" title="${w.s.toFixed(2)} s${q ? " · quitada" : ""}">${m && !oculto ? `<i>${iconos(m)}</i>` : ""}${esc(w.w)}</span>`;
     }).join(" ");
     return `<div class="tr-linea"><span class="tr-t" data-ir-t="${l.s}" title="Escuchar desde aquí">${l.s.toFixed(1)}s</span><span>${palabras}</span>
       <button class="tr-lapiz" type="button" data-editar-linea="${li}" title="Corregir el subtítulo de esta línea" aria-label="Corregir el subtítulo de esta línea">✎</button>
@@ -3613,7 +3701,7 @@ function pintarMarcas() {
         <div class="marca-campos">
           <fieldset><legend>🖼 Imagen o clip encima</legend>
             <div class="gal-elegido">${a ? (a.es_video ? `<video class="mini" src="${esc(a.url)}" muted preload="metadata"></video>` : `<img src="${esc(a.url)}" alt="" class="mini">`) : ""}
-              <span class="nom">${m.asset ? esc(m.asset) : '<span class="muted">Sin imagen</span>'}</span>
+              <span class="nom">${m.asset ? esc(m.asset) + (a ? "" : ' <span class="pill warn" title="Esta imagen todavía no se generó: está en Faltantes">Falta generarla</span>') : '<span class="muted">Sin imagen</span>'}</span>
               <button class="btn sec peq" type="button" data-gal-abrir="imagen">${m.asset ? "Cambiar" : "Elegir imagen…"}</button></div>
             ${m.asset ? `<div class="dos"><label>Dura (s)<input data-mk="dur" type="number" min="0.5" max="6" step="0.1" value="${m.dur ?? 1.5}"></label>
               <label>Cómo<select data-mk="modo">${opt([["completa", "Pantalla completa"], ["ventana", "En ventana"]], m.modo || "completa")}</select></label>
@@ -3743,7 +3831,7 @@ function pintarTl() {
   const conPos = marcasTmp.map(m => ({ m, pos: ubicarComoVideo(p, m.palabra || "", m.n) })).filter(x => x.pos);
   const esSel = pos => marcaSel && pos.li === marcaSel.li && pos.wi === marcaSel.wi;
   const imgs = conPos.filter(x => x.m.asset).map(({ m, pos }) => { const a = urlAsset(m.asset), d = m.dur || 1.5;
-    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${ancho(pos.t, Math.min(D, pos.t + d))};${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s"><span>${a?.es_video ? "🎬 " : ""}${esc(m.asset)}</span></div>`; }).join("")
+    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${ancho(pos.t, Math.min(D, pos.t + d))};${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s"><span>${a ? (a.es_video ? "🎬 " : "") : "⚠ Falta · "}${esc(m.asset)}</span></div>`; }).join("")
     || `<span class="tl-vacio">Sin imágenes: toca una palabra del texto y elige una</span>`;
   const sons = conPos.filter(x => x.m.sfx || x.m.musica).map(({ m, pos }) =>
     `${m.sfx ? `<div class="tl-pin ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)}" title="♪ ${esc(nombreSonido(m.sfx))} en «${esc(m.palabra)}»">♪</div>` : ""}
@@ -3862,6 +3950,13 @@ $("marcas").addEventListener("click", e => {
 });
 $("marcas").addEventListener("input", e => { if (e.target.id === "trEdita" && editLinea != null) { lineasTmp[editLinea] = e.target.value; pintarSucia(); } });
 $("marcas").addEventListener("keydown", e => {
+  const pw = e.target.closest?.(".transcripcion [data-w]");
+  if (pw && ["Enter", " "].includes(e.key)) {  // con el teclado: Enter o Espacio elige la palabra (Shift: hasta ella)
+    e.preventDefault(); e.stopPropagation();
+    const k = pw.dataset.w; pw.dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: e.shiftKey }));
+    document.querySelector(`.transcripcion [data-w="${k}"]`)?.focus();
+    return;
+  }
   if (e.target.id !== "trEdita") return;
   if (e.key === "Enter") { e.preventDefault(); editLinea = null; pintarMarcas(); pintarSucia(); }
   if (e.key === "Escape") { e.preventDefault(); lineasTmp[editLinea] = piezaSel().lineas[editLinea].texto; editLinea = null; pintarMarcas(); pintarSucia(); }
@@ -4005,24 +4100,65 @@ document.addEventListener("click", async e => {
   catch (err) { avisar("Error: " + err.message, "err"); }
 });
 
+// la regla de la marca: música con adrenalina. Un prompt que suena suave se avisa
+const MUSICA_SUAVE = /\b(soft|gentle|calm|acoustic|warm|relax\w*|chill|ambient|lo-?fi|mellow|corporate|soothing|peaceful|plucked|piano ballad)\b/i;
 function pintarMusica() {
   const lista = E.checklist.musica || [];
   $("cajaMusica").hidden = !lista.length;
+  const nListas = lista.filter(m => m.listo).length;
+  $("nMusica").textContent = `${nListas} de ${lista.length}`; $("nMusica").className = "pill " + (nListas === lista.length ? "ok" : "warn");
   $("musicas").innerHTML = lista.map(m => {
     const pr = m.prompt || m.suno || {};
     const campos = Object.entries(pr).filter(([k, v]) => typeof v === "string" && !["herramienta", "modo"].includes(k));
+    const suave = MUSICA_SUAVE.exec(pr.prompt || "");
     return `<div class="caja asset">
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(m.id)}</code></h3>
-        <span class="pill ${m.listo ? "ok" : "warn"}">${m.listo ? "Lista" : "Falta"}</span></div>
+        <span class="pill ${m.listo ? "ok" : "warn"}">${m.listo ? "✓ Lista" : "Falta"}</span></div>
       <span class="muted" style="font-size:12px">${esc(pr.herramienta || (m.suno ? "Suno" : "Google Flow Music"))} · ${esc(m.uso || "")}</span>
-      <pre>${esc(JSON.stringify(pr, null, 2))}</pre>
+      ${suave ? `<div class="mus-suave">⚠ Este prompt suena suave («${esc(suave[0])}»). La regla de la marca es música con adrenalina: cambia el prompt antes de generarla.</div>` : ""}
+      ${pr.prompt ? `<p class="prompt-corto" title="${esc(pr.prompt)}">${esc(pr.prompt)}</p>` : ""}
       <div class="fila">${campos.map(([k, v]) => `<button class="btn sec peq" data-copiar="${esc(v)}">Copiar ${esc(k.replace("_", " "))}</button>`).join("")}</div>
+      <details><summary class="muted" style="font-size:12px;cursor:pointer">Ver todo el prompt</summary><pre>${esc(JSON.stringify(pr, null, 2))}</pre></details>
       ${m.url ? `<audio controls preload="none" src="${m.url}" style="width:100%"></audio>` : ""}
-      <label class="soltar" data-destino="musica" data-nombre="${esc(m.id)}">
-        <span>${m.listo ? "Lista · arrastra otra para reemplazar" : "Arrastra aquí el audio descargado"}</span>
+      <label class="soltar" data-destino="musica" data-nombre="${esc(m.id)}" tabindex="0" role="button">
+        <span>${m.listo ? "✓ Lista · suelta otra para reemplazarla" : "⬇ Suelta aquí el audio descargado (o toca para elegirlo)"}</span>
         <input type="file" accept="audio/*"></label></div>`;
   }).join("");
 }
+// Resumen de arriba y «Ahora sigue»: lo primero que hay que hacer, con su botón
+let filtroAssets = null;
+function pintarResumenFaltan() {
+  const ch = E.checklist, mus = ch.musica || [], as = ch.assets || [], sin = ch.sin_asignar || [];
+  const musOk = mus.filter(m => m.listo).length, asOk = as.filter(a => a.listo).length;
+  const grab = E.piezas.length, total = grab + ch.piezas_faltan.length;
+  const cuadro = (t, n, de, ir, pend) => `<button type="button" class="fl-cuadro ${pend ? "" : "ok"}" data-fl-ir="${ir}">
+      <span class="t">${t}</span><span class="n">${pend ? "" : "✓ "}${n}${de != null ? ` <small>de ${de}</small>` : ""}</span>
+      ${de != null ? `<span class="fl-barra"><i style="width:${de ? Math.round(n / de * 100) : 100}%"></i></span>` : ""}</button>`;
+  $("flResumen").innerHTML = [
+    mus.length ? cuadro("🎵 Música lista", musOk, mus.length, "cajaMusica", musOk < mus.length) : "",
+    cuadro("🖼 Imágenes y clips listos", asOk, as.length, "cajaAssets", asOk < as.length),
+    cuadro("🎬 Piezas grabadas", grab, total, "cajaPiezasFaltan", ch.piezas_faltan.length > 0),
+    cuadro("❓ Clips por identificar", sin.length, null, "cajaSinAsignar", sin.length > 0)].join("");
+  const sigue = sin.length ? [`Identificar ${plural(sin.length, "clip")} grabado${sin.length === 1 ? "" : "s"}`, "La sala los escucha y dice qué pieza es cada uno.", "cajaSinAsignar", "Ver los clips"]
+    : mus.length && musOk < mus.length ? [`Crear la música: ${mus.filter(m => !m.listo).map(m => m.id).join(", ")}`, "Copia el prompt, genérala en Flow Music y suéltala en su cuadro.", "cajaMusica", "Ir a la música"]
+    : asOk < as.length ? [`Generar ${plural(as.length - asOk, "imagen", "imágenes")} en Flow`, "Con Claude en Chrome o con Antigravity; después la sala las pone en su video.", "cajaGenerar", "Generarlas"]
+    : ch.piezas_faltan.length ? [`Grabar ${plural(ch.piezas_faltan.length, "pieza")}`, "Suelta cada video sobre su código.", "cajaPiezasFaltan", "Ver qué falta"]
+    : null;
+  $("flSigue").hidden = false;
+  $("flSigue").className = "fl-sigue" + (sigue ? "" : " ok");
+  $("flSigue").innerHTML = sigue ? `<div class="txt"><b>Ahora sigue: ${esc(sigue[0])}</b><small>${esc(sigue[1])}</small></div><button class="btn" type="button" data-fl-ir="${sigue[2]}">${esc(sigue[3])} →</button>`
+    : `<div class="txt"><b>✓ No falta nada</b><small>Todo lo del guion está grabado, generado y puesto. Revisa los videos en «Videos».</small></div><button class="btn sec" type="button" data-ir="videos">Ir a Videos →</button>`;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-fl-ir]"); if (!b) return;
+  const d = $(b.dataset.flIr); if (!d || d.hidden) return;
+  if (d.tagName === "DETAILS") d.open = true;
+  d.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-fa]"); if (!b) return;
+  filtroAssets = b.dataset.fa; pintarFaltan();
+});
 
 // quién hace cada paso de Flow: Claude (conectado o no) y Antigravity (instalado o no). Se repinta al saber si Claude está.
 function pintarEstadoFlow() {
@@ -4037,6 +4173,8 @@ function pintarFaltan() {
   pintarApoyo();
   pintarSinAsignar();
   pintarMusica();
+  pintarResumenFaltan();
+  $("autoDesc").checked = E.auto_descargas !== false;
   const ch = E.checklist;
   const nImg = ch.assets.filter(a => !a.listo).length, nMus = (ch.musica || []).filter(m => !m.listo).length;
   $("generarFlow").textContent = !(ch.musica || []).length ? "✦ Crear la música y generar lo que falta"
@@ -4050,27 +4188,41 @@ function pintarFaltan() {
   $("nFaltan").title = total ? [ch.piezas_faltan.length && plural(ch.piezas_faltan.length, "pieza por grabar", "piezas por grabar"),
     faltaAssets && plural(faltaAssets, "imagen o pista por generar", "imágenes o pistas por generar"), sinId && plural(sinId, "clip sin identificar", "clips sin identificar")].filter(Boolean).join(" · ") : "No falta nada";
   const carpeta = n => /_H\d/.test(n) ? "hooks" : /CTA/i.test(n) ? "ctas" : "cuerpos";
-  $("faltanPiezas").innerHTML = ch.piezas_faltan.map(n => `<div class="caja asset"><h3><code>${esc(n)}</code> · ${carpeta(n)}</h3>
-      <p class="muted" style="margin:0;font-size:12px">${esc(E.piezas.find(p => p.nombre === n)?.info?.texto || "")}</p>
-      ${zona(carpeta(n), n, null, true, "video/*")}</div>`).join("") || `<p class="muted">Todas las piezas del guion están grabadas.</p>`;
-  $("assets").innerHTML = ch.assets.map(a => {
+  // piezas por grabar, agrupadas por cuerpo: cada ficha recibe su video
+  $("nPiezasFaltan").textContent = ch.piezas_faltan.length || "✓"; $("nPiezasFaltan").className = "pill " + (ch.piezas_faltan.length ? "warn" : "ok");
+  const grupos = new Map();
+  ch.piezas_faltan.forEach(n => { const g = /CTA/i.test(n) && !/^C\d/i.test(n) ? "CTA" : n.split("_")[0]; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(n); });
+  $("faltanPiezas").innerHTML = [...grupos].map(([g, ns]) => `<div class="pf-grupo"><h3>${esc(g)} · ${plural(ns.length, "pieza")}</h3><div class="pf-fichas">${ns.map(n =>
+      `<label class="soltar pf-ficha" tabindex="0" role="button" aria-label="Subir el video de ${esc(n)}" data-destino="${carpeta(n)}" data-nombre="${esc(n)}">
+        <code>${esc(n)}</code><small>${esc((E.piezas.find(p => p.nombre === n)?.info?.texto || "").slice(0, 90))}</small><span>⬇ Suelta aquí el video</span><input type="file" accept="video/*"></label>`).join("")}</div></div>`).join("")
+    || `<p class="muted" style="margin:0">✓ Todas las piezas del guion están grabadas.</p>`;
+  // imágenes y clips: galería; por defecto solo las que faltan (si falta alguna)
+  const faltanA = ch.assets.filter(a => !a.listo).length;
+  if (!filtroAssets) filtroAssets = faltanA ? "faltan" : "todas";
+  document.querySelectorAll("[data-fa]").forEach(b => b.setAttribute("aria-pressed", b.dataset.fa === filtroAssets));
+  $("nAssets").textContent = `${ch.assets.length - faltanA} de ${ch.assets.length}`; $("nAssets").className = "pill " + (faltanA ? "warn" : "ok");
+  const verA = ch.assets.filter(a => filtroAssets === "todas" || !a.listo);
+  $("assets").innerHTML = verA.map(a => {
     const ya = E.assets.find(x => x.id.toLowerCase() === a.id.toLowerCase());
     const prompt = JSON.stringify(a.flow || {}, null, 2);
-    return `<div class="caja asset">
-      <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(a.id)}</code></h3>
-        <span class="pill ${a.listo ? "ok" : "warn"}">${a.listo ? "Listo" : "Falta"}</span></div>
-      <span class="muted" style="font-size:12px">${esc(a.tipo)} · ${esc(a.pieza || "")} en «${esc(a.palabra || "")}»</span>
+    return `<div class="as-card ${a.listo ? "listo" : "falta"}">
+      <label class="soltar as-foto" tabindex="0" role="button" aria-label="Subir archivo para ${esc(a.id)}" data-destino="assets" data-nombre="${esc(a.id)}">
+        ${ya?.url ? (ya.es_video ? `<video src="${ya.url}" muted preload="metadata"></video>` : `<img src="${ya.url}" alt="${esc(a.id)}" loading="lazy">`) : ""}
+        <span>${ya?.url ? "Suelta otra para cambiarla" : `⬇ Falta${a.tipo === "clip" ? " el clip" : ""} · suéltala aquí`}</span>
+        <input type="file" accept="${a.tipo === "clip" ? "video/*" : "image/*,video/*"}"></label>
+      <code>${esc(a.id)}</code><small>${esc(a.tipo)} · ${esc(a.pieza || "")}${a.palabra ? ` en «${esc(a.palabra)}»` : ""}</small>
+      <div class="as-acc"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button></div>
+      <details><summary>Más</summary>
       <pre>${esc(prompt)}</pre>
-      <div class="fila"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button>${a.flow?.plan_b ? `<button class="btn sec peq" data-copiar="${esc(a.flow.plan_b)}" title="Por si Flow rechaza el prompt: el mismo plano dicho más neutro">Copiar plan B</button>` : ""}
+      <div class="as-acc">${a.flow?.plan_b ? `<button class="btn sec peq" data-copiar="${esc(a.flow.plan_b)}" title="Por si Flow rechaza el prompt: el mismo plano dicho más neutro">Copiar plan B</button>` : ""}
         <button class="btn sec peq" data-copiar="${esc(prompt)}">Copiar JSON</button></div>
-      ${zona("assets", a.id, ya?.url, ya?.es_video, a.tipo === "clip" ? "video/*" : "image/*,video/*")}
       ${(a.notas || []).map(n => `<span class="muted" style="font-size:12px">✎ ${esc(n.fecha)}: ${esc(n.nota)}</span>`).join("")}
       <details><summary class="muted" style="font-size:12px;cursor:pointer">✎ Rehacer ${a.tipo === "clip" ? "clip" : "imagen"} con una nota</summary>
         <textarea data-nota-img="${esc(a.id)}" rows="2" style="width:100%;margin-top:6px" placeholder="Qué está mal. Ej.: tiene arándanos y salmón; que sean croquetas con el polvo encima"></textarea>
         <button class="btn peq" data-rehacer-img="${esc(a.id)}">Rehacer con Claude</button>
         <p class="muted" style="margin:4px 0 0;font-size:12px">Claude escribe el prompt nuevo con tu nota y lo guarda en el guion. Después lo copias, generas en Flow y arrastras la imagen nueva aquí.</p>
-      </details></div>`;
-  }).join("") || `<p class="muted">El guion de esta semana no pide imágenes ni clips.</p>`;
+      </details></details></div>`;
+  }).join("") || `<p class="muted" style="margin:0">${ch.assets.length ? "✓ Ya están todas las imágenes y clips. Toca «Todas» para verlas." : "El guion de esta sesión no pide imágenes ni clips."}</p>`;
 }
 
 // Sube un archivo mostrando cuánto va (un .MOV de 500 MB solo decía «Subiendo…»). Devuelve la respuesta de la sala.
@@ -4255,7 +4407,7 @@ $("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play() : v.pause
 $("visor").addEventListener("click", () => $("play").click());  // tocar el video lo reproduce o lo pausa
 document.addEventListener("keydown", e => {  // Enter o Espacio (en Hooks, Cuerpos y CTAs), salvo mientras se escribe
   if (!["Enter", " "].includes(e.key) || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
-  if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable], .transcripcion [data-w]")) return;
   e.preventDefault(); $("play").click();
 });
 $("vPieza").addEventListener("play", () => $("play").textContent = "❚❚ Pausa");
@@ -4320,6 +4472,12 @@ function mostrarResumenProduccion(r) {
 // ---------- Exportar ----------
 const exElegidos = new Set();
 const PESO_MBPS = { ligera: 4, recomendada: 7, alta: 10, maxima: 16 };
+// los ajustes de exportar se guardan apenas se cambian (antes, recién al exportar: si recargabas, se perdían)
+let guardarAjExp = null;
+["exRes", "exFps", "exCodec", "exCalidad", "exPortada", "exPorDia", "exPeso"].forEach(id => $(id)?.addEventListener("change", () => {
+  clearTimeout(guardarAjExp);
+  guardarAjExp = setTimeout(() => post("/api/ajustes_exportar", { ajustes: ajustesExport() }).then(() => { if (E) E.exportar = ajustesExport(); }).catch(() => {}), 400);
+}));
 function ajustesExport() {
   return { resolucion: $("exRes").value, fps: Number($("exFps").value), codec: $("exCodec").value, calidad: $("exCalidad").value,
            portada_inicio: $("exPortada").checked, por_dia: $("exPorDia").checked, peso_max: Number($("exPeso").value) };
@@ -4409,7 +4567,8 @@ $("exNinguno").onclick = () => { exElegidos.clear(); pintarExport(); };
 function preguntarDestino(n, codigos = [], partes = false) {
   const dlg = $("dlgExportar"), activo = (E.drive || {}).activo;
   let alDrive = null, carpeta = "", revision = null, nueva = true, pedido = 0;
-  try { carpeta = localStorage.getItem("sala_carpeta_exporte") || ""; const d = localStorage.getItem("sala_exporte_drive"); if (d) alDrive = d === "si"; } catch (e) {}
+  // «¿Al Drive?» se pregunta cada vez (antes se recordaba, y con un clic de más se subía sin querer)
+  try { carpeta = localStorage.getItem("sala_carpeta_exporte") || ""; } catch (e) {}
   const porDia = !partes && $("exPorDia")?.checked;
   const pintar = () => {
     $("dxDriveSi").setAttribute("aria-checked", String(alDrive === true));
@@ -4445,8 +4604,8 @@ function preguntarDestino(n, codigos = [], partes = false) {
   $("dxRearmarCaja").hidden = !sinArmar || partes;  // por partes ya se arma de nuevo cada video
   $("dxSinArmar").textContent = sinArmar ? `⟳ Rearmar primero ${sinArmar === 1 ? "el video que tiene" : `los ${sinArmar} videos que tienen`} cambios` : "";
   $("dxRearmar").checked = true;
-  $("dxDriveSi").onclick = () => { alDrive = true; try { localStorage.setItem("sala_exporte_drive", "si"); } catch (e) {} pintar(); };
-  $("dxDriveNo").onclick = () => { alDrive = false; try { localStorage.setItem("sala_exporte_drive", "no"); } catch (e) {} pintar(); };
+  $("dxDriveSi").onclick = () => { alDrive = true; pintar(); };
+  $("dxDriveNo").onclick = () => { alDrive = false; pintar(); };
   $("dxNueva").onclick = () => { nueva = true; pintar(); };
   $("dxReemplazar").onclick = () => { nueva = false; pintar(); };
   $("dxCancelar").onclick = () => dlg.close("");
@@ -4471,7 +4630,7 @@ async function exportarVideos(codigos) {
     avisar(`Exportando ${plural(codigos.length, "video")}… lo ves en Procesos (☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
-$("abrirListos").onclick = async () => { try { await post("/api/abrir_listos"); } catch (e) { avisar("No se pudo abrir la carpeta: " + e.message, "err"); } };
+$("abrirListos").onclick = async () => { try { let c = ""; try { c = localStorage.getItem("sala_carpeta_exporte") || ""; } catch (e) {} await post("/api/abrir_listos", { carpeta: c }); } catch (e) { avisar("No se pudo abrir la carpeta: " + e.message, "err"); } };
 $("exTodo").onclick = () => { const cods = E.salidas.filter(s => s.existe).map(s => s.codigo); if (!cods.length) return avisar("No hay videos armados todavía.", "err"); exportarVideos(cods); };
 $("exSel").onclick = () => exportarVideos([...exElegidos]);
 async function exportarPartes(codigos) {
@@ -7875,7 +8034,7 @@ $("eqLista").addEventListener("click", async e => {
 // ---------- Guion: subir (también arrastrando), armarlo con los clips y sacarlo para imprimir ----------
 $("gArmar").onclick = () => $("gAnalizar").click();
 async function guionEnWord(version, vista) {
-  try { const r = await post("/api/guion_word", { version, vista }); avisar(`Listo: el guion en Word quedó en ${r.ruta.replace(/\\[^\\]+$/, "")} (y en la carpeta Guion de la sesión).`, "ok"); }
+  try { const r = await post("/api/guion_word", { version, vista }); avisar(`Listo: el guion en Word quedó en ${r.ruta.replace(/\\[^\\]+$/, "")} (y en la carpeta Guion de la sesión${(E.drive || {}).activo ? ", que se sube a Drive" : ""}).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
 $("gWord").onclick = () => guionEnWord("host", "combinacion");
@@ -8673,8 +8832,7 @@ async function pintarGuion() {
   $("gOrigen").textContent = g.origen === "grabado" ? "Este guion lo armó la sala con lo que se dijo en cada clip (no había guion). Si tienes el de verdad, tócalo en «Subir guion»."
     : g.origen === "subido" ? `Guion subido${g.archivo ? ` desde «${g.archivo}»` : ""}: solo trae el texto de cada pieza (sin marcas, imágenes ni copies).` : "";
   if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Puedes subirlo (Word, .md, .txt o el produccion.json de Claude), escribirlo con Claude, o seguir sin guion: la sala transcribe lo grabado y arma el guion con lo que se dijo.</p>
-    <div class="fila" style="gap:8px"><button class="btn peq" id="gSinGuion">Armar el guion con lo grabado</button><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div></div>`;
-    $("gSinGuion").onclick = () => trabajo("guion_grabado");
+    <div class="fila" style="gap:8px"><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div></div>`;
     return; }
   ultimoGuion = g;
   $("gSinPrompts").hidden = !g.sin_prompts;
@@ -8891,7 +9049,7 @@ function pintarEstadoGuion() {
     ? "Escucha los clips, saca los subtítulos y ve qué pieza del guion es cada uno. En esta PC, sin Claude."
     : "Escucha los clips, saca los subtítulos y arma el guion con lo que se dijo. En esta PC, sin Claude.";
   $("gCorroborar").title = hayClips ? "" : "Primero «Analizar clips»: todavía no hay clips en esta sesión";
-  if (!hayClips && g.hay_guion) $("gEstado").innerHTML = `Todavía no hay clips en esta sesión: empieza por <b>1 · Analizar clips</b>.`;
+  if (!hayClips && g.hay_guion) $("gEstado").innerHTML = `Todavía no hay clips en esta sesión: empieza por <b>Analizar los clips con el guion</b> (arriba).`;
 }
 // Antes de analizar: de qué carpeta de Drive se traen los clips y qué va a pasar
 function confirmarAnalizar() {
@@ -9037,11 +9195,34 @@ $("generarFlow").onclick = async () => {
 
 // ---------- Descargas recientes: lo bajado de Flow, Flow Music o Suno pasa a su pieza con un clic ----------
 let ultimasDescargas = null;
-$("buscarDescargas").onclick = async () => {
+let verOtrasDescargas = false;
+async function buscarDescargas() {
   $("listaDescargas").innerHTML = `<p class="muted" style="margin:0">Buscando en tu carpeta Descargas…</p>`;
-  try { ultimasDescargas = await (await fetch("/api/descargas")).json(); pintarDescargas(); }
+  try { ultimasDescargas = await (await fetch("/api/descargas" + (verOtrasDescargas ? "?todos=1" : ""))).json(); pintarDescargas(); }
   catch (err) { $("listaDescargas").innerHTML = `<p class="muted" style="margin:0">No pude leer la carpeta de Descargas: ${esc(err.message)}</p>`; }
+}
+$("buscarDescargas").onclick = async () => {
+  // primero pasa solo lo que se llama como algo que falta; después muestra lo demás de la sesión para elegir a mano
+  try { const r = await post("/api/auto_descargas", { ahora: true }); if (r.traidos?.length) await avisarTraidos(r.traidos); } catch (e) {}
+  verOtrasDescargas = false; buscarDescargas();
 };
+$("autoDesc").onchange = async e => {
+  try { await post("/api/auto_descargas", { activo: e.target.checked }); E.auto_descargas = e.target.checked;
+    avisar(e.target.checked ? "Listo: lo que bajes con el código del guion en el nombre pasa solo a la sesión mientras la sala está abierta." : "Ya no se traen solos: usa «Buscar en Descargas».", "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); e.target.checked = !e.target.checked; }
+};
+async function avisarTraidos(traidos) {
+  await cargar();
+  const cods = [...new Set(traidos.flatMap(x => x.codigos || []))];
+  avisar(`Llegó de Descargas: ${traidos.map(x => x.archivo).join(", ")}. Ya está en la sesión${cods.length ? ` · ${plural(cods.length, "video")} por rearmar` : ""}.`, "ok");
+}
+// lo que la sala trae sola de Descargas: se avisa al llegar
+let descDesde = Date.now() / 1000;
+setInterval(async () => {
+  if (document.hidden) return;
+  try { const r = await (await fetch("/api/auto_descargas?desde=" + descDesde)).json(); descDesde = r.t;
+    if (r.traidos?.length) await avisarTraidos(r.traidos); } catch (e) {}
+}, 15000);
 function pintarDescargas() {
   const r = ultimasDescargas; if (!r) return;
   const musica = E.checklist.musica || [], assets = E.checklist.assets || [];
@@ -9050,7 +9231,7 @@ function pintarDescargas() {
     const esMus = f.tipo === "musica", lista = esMus ? musica : assets;
     const base = f.nombre.replace(/\.[^.]+$/, "").toLowerCase(), faltan = lista.filter(x => !x.listo);
     // sugerencia: solo el que se llama igual (antes, si faltaba uno solo, cualquier imagen de Descargas quedaba elegida)
-    const sug = lista.find(x => x.id.toLowerCase() === base)?.id || "";
+    const sug = f.id || lista.find(x => x.id.toLowerCase() === base)?.id || "";
     const vista = esMus ? `<audio controls preload="none" src="${f.url}" style="width:100%"></audio>`
       : f.tipo === "video" ? `<video src="${f.url}" controls preload="metadata" style="width:100%;max-height:200px;background:#000;border-radius:8px"></video>`
       : `<img src="${f.url}" alt="" style="width:100%;max-height:200px;object-fit:contain;background:var(--hondo);border-radius:8px">`;
@@ -9064,7 +9245,9 @@ function pintarDescargas() {
         <button class="btn peq" type="button" data-importar="${esc(f.nombre)}" data-destino="${esMus ? "musica" : "assets"}">Usar</button></div>`
         : `<span class="muted" style="font-size:12px">El guion de esta sesión no pide ${esMus ? "música" : "imágenes ni clips"}.</span>`}
     </div>`;
-  }).join("") || `<p class="muted" style="margin:0">No hay música, imágenes ni clips bajados en los últimos ${r.dias} días en ${esc(r.carpeta)}.</p>`;
+  }).join("") + (r.otros && !verOtrasDescargas ? `<p class="muted" style="margin:0;font-size:12.5px">${r.archivos.length ? "" : `No hay nada con el código de esta sesión en el nombre en ${esc(r.carpeta)}. `}Hay ${plural(r.otros, "archivo")} más en Descargas que no se llaman como nada del guion. <button class="btn-link" type="button" id="verOtrasDesc">Verlos y elegir a mano</button></p>`
+    : !r.archivos.length ? `<p class="muted" style="margin:0">No hay música, imágenes ni clips bajados en los últimos ${r.dias} días en ${esc(r.carpeta)}.</p>` : "");
+  const vo = $("verOtrasDesc"); if (vo) vo.onclick = () => { verOtrasDescargas = true; buscarDescargas(); };
 }
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-importar]"); if (!b) return;
@@ -9306,6 +9489,7 @@ function elegirPlantilla(id, conservar) {
     el.value = v === undefined || v === null || v === "" ? (defecto ?? (el.type === "color" ? "#000000" : "")) : String(v);
     el.disabled = false;
   });
+  pintarDependientesPlant();
   $("plantBorrar").hidden = deFabrica && !editada;
   $("plantBorrar").textContent = deFabrica ? "Restaurar original" : "Borrar";
   $("plantAviso").textContent = deFabrica ? "Plantilla de fábrica: tus cambios se guardan encima y con «Restaurar original» vuelve a como venía." : "";
@@ -9329,6 +9513,15 @@ function verPlantillas(v) {
   if (v === "subs") pintarPlantillas(); else { clearInterval(plantTimer); pintarEstiloEdicion(); }
 }
 document.querySelectorAll("[data-pv]").forEach(b => b.onclick = () => verPlantillas(b.dataset.pv));
+// los campos que solo sirven con otro encendido se esconden (los colores de la caja sin caja, la segunda línea en «No»)
+function pintarDependientesPlant() {
+  const v = k => document.querySelector(`#plantForm [data-p="${k}"]`)?.value;
+  document.querySelectorAll('#plantForm [data-dep="res"]').forEach(el => el.hidden = !v("resaltador.modo"));
+  document.querySelectorAll('#plantForm [data-dep="l2"]').forEach(el => el.hidden = v("linea2.activa") !== "true");
+  if ($("plantAlturaVal")) $("plantAlturaVal").textContent = v("altura_desde_abajo") || "";
+}
+document.addEventListener("input", e => { if (e.target.closest?.("#plantForm")) pintarDependientesPlant(); });
+document.addEventListener("change", e => { if (e.target.closest?.("#plantForm")) pintarDependientesPlant(); });
 function leerFormPlantilla() {
   if (!plantEdit) return;
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
@@ -9342,6 +9535,7 @@ function leerFormPlantilla() {
 function ponerCampo(clave, valor) {  // un cambio hecho arrastrando en el lienzo vuelve al formulario
   const el = document.querySelector(`#plantForm [data-p="${clave}"]`);
   if (el) el.value = valor;
+  if (clave === "altura_desde_abajo" && $("plantAlturaVal")) $("plantAlturaVal").textContent = valor;
   plantEdit[clave] = valor;
 }
 // El lienzo es el video entero (1080×1920) en chico: el cuadro del subtítulo y los elementos se mueven ahí.
@@ -9358,6 +9552,7 @@ function animarMuestra() {
   marcarPlantSucia();
   let i = 0;
   const pintar = () => {
+    if (!plantEdit) return;  // se está recargando después de guardar
     colocarCaja();
     const el = $("plantLinea");
     pintarLinea(el, MUESTRA.slice(0, 3), i % 3, CLAVES_MUESTRA, plantEdit, $("plantLienzo").clientWidth || 300);

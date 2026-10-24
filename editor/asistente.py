@@ -303,6 +303,9 @@ Este guion no tiene música. Agrega, sin cambiar nada más del archivo:
 1. `musica`: de 2 a 4 pistas según el tono de los cuerpos, con el formato de la skill:
    {{"id": "MUS_A", "uso": "C1 y C3 (…)", "desde": 0, "prompt": {{"herramienta": "Google Flow Music", "prompt": "…", "evitar": "…", "duracion": "60 s"}}}}
    Los id son MUS_A, MUS_B, MUS_C… El prompt en inglés, siempre instrumental, sin nombres de artistas ni canciones.
+   REGLA DE LA MARCA: la música SIEMPRE tiene adrenalina: enérgica, de 120 a 150 BPM, con percusión marcada, bajo fuerte
+   y tensión que empuja (trap, EDM, phonk, drum & bass, hip-hop enérgico). NUNCA suave, acústica, cálida, relajada,
+   lo-fi, ambiental, de piano suave ni «corporate». En «evitar» pon siempre: soft, acoustic, calm, gentle, warm, lo-fi, ambient.
 2. En cada cuerpo (C1, C2…), `"musica": "<id>"` con la pista que le toca. Los hooks y el CTA no llevan, salvo que la skill lo pida.
 3. `"musica_por_defecto": "<id de la pista más usada>"`.
 No toques `texto`, `partes`, `dicho`, `marcas`, `assets` ni nada de lo que ya existe. Usa Edit. Al final el archivo debe ser JSON válido.
