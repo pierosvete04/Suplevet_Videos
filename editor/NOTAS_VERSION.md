@@ -1,3 +1,7 @@
+Versión 1.47.3 (se actualiza desde la app con «Actualizar ahora»):
+- **El puntero ya no se queda en «cargando»** sobre los botones que todavía no se pueden usar (Exportar seleccionados, Exportar por partes, las flechas en el primer y el último video). Ahora muestra que no se puede tocar y dice por qué: «Primero marca la casilla de los videos…».
+- **Vista previa de Exportar**: flechas grandes a los costados del video para pasar al anterior o al siguiente (también con ← →). En el primer y el último video desaparece la que no lleva a ningún lado.
+
 Versión 1.47.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Exportar**: el panel de ajustes queda **fijo** mientras bajas por los videos y se ve entero, sin barra propia. Es más compacto (dos columnas, interruptores en una fila y la ficha técnica plegada). Hay menos espacio arriba, entre el encabezado y el panel.
 - **Casillas de los videos cuadradas** (antes eran redondas).
