@@ -594,6 +594,11 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .cl-hechos { display: grid; gap: 4px; font-size: 12.5px; max-height: 170px; overflow-y: auto; }
 .cl-hechos a { color: var(--accent); }
 @media (max-width: 960px) { .cl-lay, .cl-cab { grid-template-columns: 1fr; } .cl-lado { position: static; } }
+/* Faltantes: paquete para Antigravity */
+.ag-caja { display: grid; gap: 8px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.ag-pasos { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; }
+.ag-msg { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.ag-msg code { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; }
 /* Faltantes: cuántas imágenes por cuerpo y por hook */
 .apoyo { display: grid; gap: 10px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--hondo, var(--surface2)); }
 .apoyo-campos { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto; gap: 10px; align-items: end; }
@@ -1418,7 +1423,15 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div class="fila" style="justify-content:space-between">
         <div><h2 style="margin:0">Generar en Flow con Chrome</h2>
           <span class="muted" style="font-size:12px" id="generarInfo">Claude abre tu Chrome, genera en Google Flow las imágenes y en Flow Music la música que faltan, y las guarda en su cuadro. Si el guion no tiene música, primero escribe sus prompts.</span></div>
-        <button class="btn" id="generarFlow" type="button">✦ Generar lo que falta</button>
+        <div class="fila"><button class="btn" id="generarFlow" type="button">✦ Generar lo que falta</button>
+          <button class="btn sec" id="paqueteAg" type="button" title="Sin Claude: Gemini Flash en Antigravity pega los prompts en Flow de corrido y baja todo con su nombre">🪐 Paquete para Antigravity</button></div>
+      </div>
+      <div class="ag-caja" id="agCaja" hidden>
+        <b>Paquete listo</b> <span class="muted" id="agInfo" style="font-size:12.5px"></span>
+        <ol class="ag-pasos"><li>Abre <b>Antigravity</b>, empieza una conversación nueva y elige el modelo <b>Gemini Flash</b>.</li>
+          <li>Pega este mensaje y deja que trabaje (pega los prompts de corrido y al final baja todo con su nombre):</li></ol>
+        <div class="ag-msg"><code id="agMsg"></code><button class="btn peq" type="button" id="agCopiar">Copiar mensaje</button></div>
+        <span class="muted" style="font-size:12px">Cuando termine, toca «Buscar en Descargas» (aquí abajo): la sala pone cada imagen en su lugar y la sube a Drive.</span>
       </div>
       <div class="apoyo" id="apoyoCaja">
         <div><b>¿Cuántas imágenes quieres?</b> <span class="muted" id="apRazon" style="font-size:12px"></span></div>
@@ -8657,6 +8670,19 @@ async function pintarCalidad() {
       <span>${v.problemas.map(p => `<span class="cal ${p.nivel}">${icono[p.nivel] || ""} ${esc(p.txt)}</span>`).join("")}</span></div>`).join("")}</div>`;
 }
 $("calRevisar").onclick = pintarCalidad;
+// Paquete para Antigravity: sin Claude, Gemini Flash pega los prompts en Flow de corrido y baja todo con su nombre
+$("paqueteAg").onclick = async () => {
+  try {
+    const r = await post("/api/paquete_antigravity", {});
+    $("agCaja").hidden = false;
+    $("agInfo").textContent = `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""} · carpeta ${r.carpeta}`;
+    $("agMsg").textContent = r.mensaje;
+    copiarTexto(r.mensaje);
+    avisar("Paquete listo y mensaje copiado: pégalo en Antigravity (Gemini Flash).", "ok");
+  } catch (err) { avisar(err.message, "err"); }
+};
+$("agCopiar").onclick = () => { copiarTexto($("agMsg").textContent); avisar("Mensaje copiado.", "ok"); };
+
 // Cuántas imágenes por cuerpo y por hook: la sala recomienda según cuánto duran (una imagen cada ~4 s de voz)
 let AP = null;
 async function pintarApoyo() {

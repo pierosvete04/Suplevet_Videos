@@ -21,6 +21,7 @@ import asistente
 import cuenta
 import drive
 import motor
+import antigravity
 import clips_largos
 import guion_word
 import importar_marca
@@ -1432,6 +1433,8 @@ class H(BaseHTTPRequestHandler):
                 d.mkdir(parents=True, exist_ok=True)
                 os.startfile(str(d))
                 self._json({"ok": True})
+            elif u.path == "/api/paquete_antigravity":
+                self._json({"ok": True, **antigravity.armar(bool(self._cuerpo().get("todas")))})
             elif u.path == "/api/marca_plantilla":
                 self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
             elif u.path == "/api/marca_importar":

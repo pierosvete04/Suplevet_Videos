@@ -1,3 +1,7 @@
+Versión 1.46.4 (se actualiza desde la app con «Actualizar ahora»):
+- **Faltantes → 🪐 Paquete para Antigravity** (sin Claude): deja en Descargas una carpeta con los prompts que faltan, las instrucciones y un script que baja todo con su nombre, y te copia el mensaje para pegar en Antigravity. Gemini Flash pega los prompts en Flow de corrido (sin esperar cada imagen) y al final baja todas de una vez. Después, «Buscar en Descargas» las pone en su lugar.
+- **Responsive**: en ningún tamaño de ventana la sala se desplaza de lado. Las pestañas, el menú de Configuración, la cabecera, las categorías de Sonidos y las tablas bajan de línea, y los formularios se achican. El aviso de calidad de Exportar quedó centrado.
+
 Versión 1.46.3 (se actualiza desde la app con «Actualizar ahora»):
 - **Faltantes → ¿Cuántas imágenes quieres?**: eliges cuántas imágenes por cuerpo, cuántos clips en movimiento por cuerpo y cuántas imágenes por hook (en sus primeros segundos, para enganchar). La sala te recomienda cuántas según lo que dura cada parte (una imagen cada ~4 s de voz) y te dice cuántas se van a agregar antes de pedírselas a Claude. Las que ya hay se quedan.
 
