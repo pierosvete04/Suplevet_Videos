@@ -1,3 +1,9 @@
+Versión 1.47.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Exportar, fijo y completo**: los ajustes quedan fijos a la izquierda y se ven enteros sin bajar; solo bajan los videos de la sesión. El panel es más ancho y los ajustes van en dos columnas.
+- **Vista previa antes de exportar**: toca la imagen de un video para verlo. Desde ahí lo eliges para exportar y pasas al anterior o al siguiente (también con las flechas ← →).
+- **Casillas e interruptores nuevos**: «Portada en el primer cuadro» y «Una carpeta por día» ahora son interruptores. Las casillas de toda la sala se llenan de azul con un ✓.
+- **Faltantes más claro**: «Agregar los prompts» (sin «Claude» en el botón) también funciona con Antigravity: si Claude no está conectado, lo hace Gemini, y la sala revisa lo que escribió antes de usarlo. En el paso 2, cada opción dice si está «Conectado» o «Instalado». El paso 3 ahora se llama «Ponerlas en los videos», con el botón «Poner en los videos».
+
 Versión 1.46.7 (se actualiza desde la app con «Actualizar ahora»):
 - **Colores por función**: los botones principales en un azul más oscuro; lo que hace la IA (los botones con ✦) en violeta; verde, ámbar y rojo para listo, aviso y peligro. Así se reconoce cada botón por su color.
 - **Sombras**: las tarjetas y los botones tienen una sombra suave, y lo que se puede tocar se levanta un poco al pasar el mouse.

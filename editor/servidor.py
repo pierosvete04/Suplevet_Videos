@@ -1475,6 +1475,11 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/paquete_antigravity":
                 b = self._cuerpo()
                 self._json({"ok": True, **antigravity.armar(bool(b.get("todas")), bool(b.get("abrir")))})
+            elif u.path == "/api/prompts_antigravity":  # «Agregar los prompts» con Gemini, sin Claude
+                b = self._cuerpo()
+                self._json({"ok": True, **antigravity.armar_prompts(*(max(0, min(12, int(b.get(k) or 0))) for k in ("por_cuerpo", "clips", "por_hook")), abrir=True)})
+            elif u.path == "/api/traer_prompts_antigravity":
+                self._json({"ok": True, **antigravity.traer_prompts()})
             elif u.path == "/api/marca_plantilla":
                 self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
             elif u.path == "/api/marca_importar":

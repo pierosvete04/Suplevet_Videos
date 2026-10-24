@@ -218,6 +218,25 @@ def mas_apoyo_visual(por_cuerpo=3, clips=1, por_hook=0, avance=print):
     `por_hook` imágenes (cuentan las que ya tiene: solo se agregan las que faltan), en las palabras clave.
     Devuelve el resumen de Claude."""
     actualizar_conocimiento(avance)
+    prompt = pedido_apoyo_visual(por_cuerpo, clips, por_hook)
+    prod = motor.S.guion / "produccion.json"
+    n_antes = len(json.loads(prod.read_text(encoding="utf-8")).get("assets") or [])
+    texto = correr(prompt, [motor.S.guion], avance=avance)
+    try:
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    except ValueError as e:
+        avance("El produccion.json salió con un error de formato: Claude lo corrige…")
+        correr(f"El archivo {prod} no es JSON válido ({e}). Corrígelo sin cambiar el contenido.", [motor.S.guion], avance=avance, max_turnos=15)
+        datos = json.loads(prod.read_text(encoding="utf-8"))
+    if len(datos.get("assets") or []) <= n_antes:
+        raise RuntimeError("Claude no agregó imágenes nuevas. " + texto[:200])
+    motor._prod_cache = None
+    return texto
+
+
+def pedido_apoyo_visual(por_cuerpo=3, clips=1, por_hook=0, ruta=None, reglas=None):
+    """El pedido de «Más apoyo visual», listo para dárselo a Claude o a Gemini (Antigravity trabaja sobre una copia del
+    guion: `ruta` y `reglas` apuntan a esa copia y a las reglas copiadas a su carpeta)."""
     motor.usar_semana(motor.S.semana)
     pedido = []
     for f in motor.apoyo_visual()["piezas"]:
@@ -231,10 +250,8 @@ def mas_apoyo_visual(por_cuerpo=3, clips=1, por_hook=0, avance=print):
     prod = motor.S.guion / "produccion.json"
     if not prod.exists():
         raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
-    antes = json.loads(prod.read_text(encoding="utf-8"))
-    n_antes = len(antes.get("assets") or [])
-    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
-    prompt = f"""Lee el guion de la sesión «{motor.S.semana}»: {prod}
+    reglas = reglas or CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    return f"""Lee el guion de la sesión «{motor.S.semana}»: {ruta or prod}
 Las reglas para escribir prompts de Flow están en la sección «Prompts limpios» de {reglas}. Léela antes de escribir.
 
 Los videos necesitan más apoyo visual. Agrega exactamente esto, sin tocar lo que ya hay (no agregues en otras piezas):
@@ -269,18 +286,6 @@ Reglas de las imágenes (las mismas de siempre):
 - Usa Edit para cambiar el archivo. Al final el archivo debe ser JSON válido.
 
 Al terminar responde en 3 líneas: cuántas imágenes y cuántos clips agregaste y en qué cuerpos."""
-    texto = correr(prompt, [motor.S.guion], avance=avance)
-    try:
-        datos = json.loads(prod.read_text(encoding="utf-8"))
-    except ValueError as e:
-        avance("El produccion.json salió con un error de formato: Claude lo corrige…")
-        correr(f"El archivo {prod} no es JSON válido ({e}). Corrígelo sin cambiar el contenido.", [motor.S.guion], avance=avance, max_turnos=15)
-        datos = json.loads(prod.read_text(encoding="utf-8"))
-    if len(datos.get("assets") or []) <= n_antes:
-        raise RuntimeError("Claude no agregó imágenes nuevas. " + texto[:200])
-    motor._prod_cache = None
-    return texto
-
 
 def generar_prompts_musica(avance=print):
     """Agrega a produccion.json la música (prompts de Flow Music) y qué pista usa cada cuerpo, si el guion no la trae.

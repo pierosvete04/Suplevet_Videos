@@ -5,10 +5,14 @@ Deja en Descargas una carpeta «Paquete Antigravity - <sesión>» con:
   prompts.txt        un prompt por línea con su código delante («C1_IMG2: …»), en el orden en que se pegan
   prompts.json       lo mismo con el plan B de cada uno (si Google rechaza un prompt)
   bajar_flow.js      baja de un golpe las imágenes de Flow con su nombre (C1_IMG2.jpg), ya con la lista de nombres
-Después, en la sala: Faltantes → «Buscar en Descargas» las pone en su lugar y las sube a Drive.
+Después, en la sala: Faltantes → «Poner en los videos» las pone en su lugar y las sube a Drive.
+
+armar_prompts() es el otro paquete: Gemini escribe los prompts (lo que hace «Agregar los prompts» con Claude)
+sobre una copia del guion, y traer_prompts() la revisa y la pasa a la sesión.
 """
 import json
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -61,6 +65,27 @@ async () => {
   return resultado;
 }
 """
+
+
+def _carpeta(que):
+    """(nombre de la producción, carpeta del paquete en Descargas). No la crea."""
+    sesion = motor.produccion().get("semana") or motor.S.semana  # el nombre de la producción (también en un grupo)
+    casa = Path.home()
+    base = next((d for d in (casa / "Downloads", casa / "Descargas", casa / "Desktop") if d.is_dir()), casa)
+    return sesion, base / re.sub(r'[<>:"/\\|?*]+', " ", f"{que} - {sesion}").strip()
+
+
+def _abrir(carpeta, abrir):
+    """Abre la carpeta en Antigravity (como espacio de trabajo) o, si no está instalado, en el Explorador."""
+    ag = exe() if abrir else None
+    try:
+        if ag:
+            subprocess.Popen([str(ag), str(carpeta)])
+            return True
+        subprocess.Popen(["explorer", str(carpeta)])
+    except OSError:
+        pass
+    return False
 
 
 def exe():
@@ -123,7 +148,7 @@ Archivos de esta carpeta ({carpeta}):
 Si aparece un inicio de sesión, términos o un captcha: detente y avisa a la persona. No lo hagas tú.
 
 Al terminar, responde en 2 líneas: cuántas bajaste y cuáles fallaron.
-Después, en la Sala de edición: Faltantes → «Buscar en Descargas» las pone en su lugar.
+Después, en la Sala de edición: Faltantes → «Poner en los videos» las pone en su lugar.
 """
 
 
@@ -131,10 +156,7 @@ def armar(todas=False, abrir=False):
     items = pendientes(todas)
     if not items:
         raise ValueError("No falta ninguna imagen ni clip de Flow en esta sesión")
-    sesion = motor.produccion().get("semana") or motor.S.semana  # el nombre de la producción (también en un grupo)
-    casa = Path.home()
-    base = next((d for d in (casa / "Downloads", casa / "Descargas", casa / "Desktop") if d.is_dir()), casa)
-    carpeta = base / re.sub(r'[<>:"/\\|?*]+', " ", f"Paquete Antigravity - {sesion}").strip()
+    sesion, carpeta = _carpeta("Paquete Antigravity")
     carpeta.mkdir(parents=True, exist_ok=True)
     orden = sorted(items, key=lambda x: (x["tipo"] == "clip", x["codigo"]))  # primero las imágenes
     (carpeta / "prompts.txt").write_text("\n".join(f"{x['codigo']}: {x['prompt']}" for x in orden) + "\n", encoding="utf-8")
@@ -144,18 +166,83 @@ def armar(todas=False, abrir=False):
     texto = instrucciones(sesion, carpeta, orden)
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
-    abierto = False
-    ag = exe() if abrir else None
-    try:
-        if ag:  # Antigravity abre la carpeta como espacio de trabajo
-            subprocess.Popen([str(ag), str(carpeta)])
-            abierto = True
-        else:
-            subprocess.Popen(["explorer", str(carpeta)])
-    except OSError:
-        pass
+    abierto = _abrir(carpeta, abrir)
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual, con el navegador. "
                f"Son {len(nombres)} imágenes" + (f" y {len(orden) - len(nombres)} clips" if len(orden) > len(nombres) else "")
                + " de Google Flow. Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
     return {"carpeta": str(carpeta), "imagenes": len(nombres), "clips": len(orden) - len(nombres), "mensaje": mensaje,
             "abierto": abierto, "instalado": bool(exe())}
+
+
+def armar_prompts(por_cuerpo=3, clips=1, por_hook=0, abrir=False):
+    """«Agregar los prompts» sin Claude: Gemini, en Antigravity, agrega los prompts de Flow a una copia del guion
+    (produccion.json) en Descargas, con las mismas reglas que sigue Claude. Luego traer_prompts() la pasa a la sesión."""
+    import asistente
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise ValueError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    try:
+        asistente.actualizar_conocimiento(lambda *_: None)
+    except RuntimeError:
+        pass
+    origen = asistente.CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    if not origen.exists():
+        raise ValueError("Faltan las reglas para escribir los prompts (las skills de la sala, en Drive _SALA/claude). Conecta Drive y vuelve a intentar.")
+    sesion, carpeta = _carpeta("Prompts Antigravity")
+    carpeta.mkdir(parents=True, exist_ok=True)
+    copia, reglas = carpeta / "produccion.json", carpeta / "REGLAS_PROMPTS.md"
+    shutil.copyfile(prod, copia)
+    shutil.copyfile(origen, reglas)
+    try:
+        pedido = asistente.pedido_apoyo_visual(por_cuerpo, clips, por_hook, ruta=copia, reglas=reglas)
+    except RuntimeError as e:
+        raise ValueError(str(e))
+    pedido = pedido.replace("Usa Edit para cambiar el archivo.", "Edita solo el produccion.json de esta carpeta.")
+    texto = f"""# Prompts de Flow para Antigravity · {sesion}
+
+Trabaja solo con los archivos de esta carpeta ({carpeta}). Aquí hay que escribir bien, así que usa el modelo de
+Gemini que piensa más (no Flash). Empieza una conversación nueva.
+
+{pedido}
+
+Cuando termines, en la Sala de edición se toca «Traer los prompts»: la sala revisa el archivo y lo pasa a la sesión.
+"""
+    (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
+    (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
+    antes = len(json.loads(prod.read_text(encoding="utf-8")).get("assets") or [])
+    (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana, "assets_antes": antes,
+                                                    "mtime": prod.stat().st_mtime}), encoding="utf-8")
+    abierto = _abrir(carpeta, abrir)
+    mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual: agrega los prompts de Flow editando el produccion.json "
+               "de esa carpeta. Al final responde en 3 líneas cuántas imágenes y clips agregaste y en qué piezas.")
+    return {"carpeta": str(carpeta), "mensaje": mensaje, "abierto": abierto, "instalado": bool(exe())}
+
+
+def traer_prompts():
+    """Pasa a la sesión el guion con los prompts que escribió Gemini, si es JSON válido y tiene prompts nuevos."""
+    _, carpeta = _carpeta("Prompts Antigravity")
+    meta_f, copia = carpeta / "_sala.json", carpeta / "produccion.json"
+    if not meta_f.exists() or not copia.exists():
+        raise ValueError("No hay prompts de Antigravity pendientes para esta sesión: primero toca «Agregar los prompts» con Antigravity")
+    meta = json.loads(meta_f.read_text(encoding="utf-8"))
+    if meta.get("semana") != motor.S.semana:
+        raise ValueError("Esos prompts son de otra sesión: abre esa sesión en la sala para traerlos")
+    try:
+        datos = json.loads(copia.read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise ValueError(f"El guion que dejó Gemini tiene un error de formato ({e}). Pídele en Antigravity que lo corrija y vuelve a tocar el botón")
+    nuevos = len(datos.get("assets") or []) - int(meta.get("assets_antes") or 0)
+    if nuevos <= 0:
+        raise ValueError("Gemini todavía no agregó prompts. Espera a que termine en Antigravity y vuelve a tocar el botón")
+    prod = motor.S.guion / "produccion.json"
+    if prod.stat().st_mtime != meta.get("mtime"):
+        raise ValueError("El guion de esta sesión cambió mientras Gemini trabajaba. Vuelve a pedir los prompts para no perder esos cambios")
+    try:
+        import respaldos
+        respaldos.hacer("Antes de los prompts de Antigravity", auto=True)
+    except Exception:
+        pass
+    shutil.copyfile(copia, prod)
+    motor._prod_cache = None
+    meta_f.unlink()
+    return {"nuevos": nuevos}
