@@ -496,9 +496,24 @@ def produccion():
         if f.exists():
             m = f.stat().st_mtime
             if not _prod_cache or _prod_cache[0] != (f, m):
-                _prod_cache = ((f, m), json.loads(f.read_text(encoding="utf-8")))
+                _prod_cache = ((f, m), _arreglar_letras(json.loads(f.read_text(encoding="utf-8"))))
             return _sumar_plan(_prod_cache[1])
     return _sumar_plan({})
+
+
+def _arreglar_letras(x):
+    """Textos con tildes dañadas al pasar por otro programa («cicatrizaciÃ³n» → «cicatrización»)."""
+    if isinstance(x, dict):
+        return {_arreglar_letras(k): _arreglar_letras(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_arreglar_letras(v) for v in x]
+    if isinstance(x, str) and ("Ã" in x or "Â" in x):
+        for cod in ("cp1252", "latin-1"):
+            try:
+                return x.encode(cod).decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                continue
+    return x
 
 
 def _sumar_plan(base):
@@ -2336,6 +2351,8 @@ def _leer_guion_archivo(nombre_archivo, datos):
             texto = _texto_docx(datos) if ext == ".docx" else _texto_plano(datos)
         except Exception:
             raise ValueError("No pude abrir ese Word. Guárdalo de nuevo como .docx o pásalo a .txt")
+        if not texto.strip():
+            raise ValueError("El archivo está vacío")
         piezas_g = leer_guion_texto(texto)
         if not piezas_g:
             raise ValueError("No encontré piezas en ese guion. Cada cuerpo tiene que empezar con «C1», «C2»…, "
@@ -2375,6 +2392,17 @@ def subir_guion(nombre_archivo, datos):
             prod = _mezclar_guion(_guion_propio(), prod, time.time())
         _guardar_produccion(prod)
     return _resumen_guion(prod, ext)
+
+
+def probar_guion(nombre_archivo, datos):
+    """Lee un guion sin guardar nada: qué trae y qué piezas del guion de ahora se quitarían si se sube."""
+    ext = Path(nombre_archivo).suffix.lower()
+    prod = _leer_guion_archivo(nombre_archivo, datos)
+    base = _guion_propio() or {}
+    viejas = set((base.get("piezas") or {}))
+    nuevas = set(_mezclar_guion(base, prod, time.time())["piezas"] if ext != ".json" else prod["piezas"])
+    orden = lambda n: ({"cuerpo": 0, "hook": 1, "cta": 2}.get(tipo_de(n), 3), n)
+    return {**_resumen_guion(prod, ext), "habia": len(viejas), "se_quitan": sorted(viejas - nuevas, key=orden)}
 
 
 def _mezclar_guion(base, nuevo, cuando):
@@ -4451,7 +4479,7 @@ def id_plantilla_de(combo=None):
 # el armado. Lo que no está aquí pasa tal cual.
 LIMITES_PLANTILLA = {"tamano": (20, 260), "borde": (0, 40), "sombra": (0, 40), "desenfoque": (0, 40), "x_centro": (0, 1920),
                      "ancho_max": (200, 1900), "altura_desde_abajo": (0, 1900), "altura_hook": (0, 1900), "altura_cta": (0, 1900),
-                     "escala_activa": (0.5, 3), "palabras_max": (1, 20), "interlineado": (0.5, 3)}
+                     "escala_activa": (50, 300), "palabras_max": (1, 20), "interlineado": (0.5, 3)}
 
 
 def limpiar_plantilla(d):
@@ -4482,6 +4510,10 @@ def plantilla_sub(combo=None):
           **(ajustes_video(combo["codigo"]).get("ajustes_sub", {}) if combo else {})}
     if not float(pl.get("tamano") or 0):
         pl["tamano"] = PLANTILLA_BASE["tamano"]
+    # hasta la 1.47.8, guardar una plantilla dejaba «cuánto crece la que se dice» en 3 (un tope mal puesto): eso es
+    # la palabra activa al 3 %, invisible. Una así vuelve a la de fábrica
+    if float(pl.get("escala_activa") or 0) < 50:
+        pl["escala_activa"] = PLANTILLA_BASE["escala_activa"]
     return pl
 
 
@@ -6143,12 +6175,15 @@ def _render_final(video, portada, destino, aj):
         cuadro = 1 / fps
         ms = round(cuadro * 1000)
         cmd = [FFMPEG, "-hide_banner", "-y", "-loop", "1", "-framerate", str(fps), "-t", f"{cuadro:.4f}", "-i", str(portada), "-i", str(video),
-               "-filter_complex", f"[0:v]{escala},format=yuv420p[p];[1:v]{escala},format=yuv420p[v];[p][v]concat=n=2:v=1:a=0[vo];"
+               # la portada (JPG) es de rango completo: se pasa al rango de video (tv) para que no contagie su marca a todo el video
+               "-filter_complex", f"[0:v]{escala},scale=out_range=tv:out_color_matrix=bt709,format=yuv420p[p];[1:v]{escala},format=yuv420p[v];[p][v]concat=n=2:v=1:a=0[vo];"
                                   f"[1:a]adelay={ms}:all=1,aresample=48000[ao]",
                "-map", "[vo]", "-map", "[ao]"]
     else:
         cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(video), "-vf", f"{escala},format=yuv420p", "-af", "aresample=48000"]
-    run(cmd + [*venc, "-preset", "fast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ac", "2",
+    # colores marcados como video normal (rango tv, bt709): si no, algunos reproductores lo ven lavado o con otro contraste
+    run(cmd + [*venc, "-preset", "fast", "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709",
+               "-color_primaries", "bt709", "-color_trc", "bt709", "-c:a", "aac", "-b:a", "192k", "-ac", "2",
                "-dn", "-map_chapters", "-1", "-movflags", "+faststart", str(destino)])
 
 

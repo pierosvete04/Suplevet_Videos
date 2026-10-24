@@ -1,3 +1,17 @@
+Versión 1.47.9 (se actualiza desde la app con «Actualizar ahora»): arreglos que encontró la revisión de todas las pestañas.
+- **Plantillas (importante):** guardar una plantilla dejaba casi invisible la palabra que se está diciendo («Cuánto crece la que se dice» quedaba en 3). Ya no pasa, y las plantillas que quedaron así se arreglan solas: rearma los videos que se vieron mal.
+- **Plantillas:** «Guardar plantilla» sin cambios ya no deja los videos «por rearmar». No se puede guardar sin nombre.
+- **Exportar (importante):** con «Portada al inicio», el video final quedaba marcado con otro rango de color y en algunos reproductores se veía lavado. Ahora sale con los colores normales de video.
+- **Exportar:** «Exportar por partes» vuelve a mostrar su explicación y avisa que no usa los ajustes de calidad. Los avisos dicen «1 video», no «1 videos».
+- **Guion:** al subir un guion, la sala primero lo lee y te dice qué trae y qué piezas se quitarían, y recién ahí pregunta si reemplaza. Un archivo vacío dice «El archivo está vacío».
+- **Guion:** las tildes dañadas del guion («cicatrizaciÃ³n») se leen bien.
+- **Piezas:**
+  - Al descartar cambios, la pieza vuelve a como estaba guardada (antes seguían en pantalla).
+  - En la línea de tiempo, soltar fuera ya no deja el arrastre pegado, y el tramo elegido se acomoda al borde de las palabras (no corta una por la mitad).
+  - Las imágenes, sonidos y estilos puestos en una palabra parecida se ven en el panel.
+  - «Sin imagen ni sonido» marca «Sin guardar».
+  - Al quitar una palabra que tiene imagen, avisa para moverla.
+
 Versión 1.47.8 (se actualiza desde la app con «Actualizar ahora»):
 - **Enter o Espacio pausan o siguen el video** en Hooks, Cuerpos y CTAs, aunque hayas tocado la línea de tiempo o un botón. Solo no lo hacen mientras escribes.
 - **Galería de sonidos**: la carpeta se elige en una lista al lado de «Buscar por nombre», en vez de una fila de botones.

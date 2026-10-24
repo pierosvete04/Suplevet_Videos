@@ -186,7 +186,7 @@ def estado():
             "antigravity": bool(antigravity.exe()),
             "sin_carpeta": bool(cuenta._leer(cuenta.INFO).get("sin_carpeta")), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
-            "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
+            "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": {k: ({**v, "escala_activa": 108} if float(v.get("escala_activa") or 108) < 50 else v) for k, v in motor.plantillas().items()}, "plantilla": motor.id_plantilla(),  # las dañadas hasta la 1.47.8 (escala 3) se ven bien
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
             "portada_estilo": {"fuente": motor.CONFIG["portada"].get("fuente") or "", "mayusculas": motor.CONFIG["portada"].get("mayusculas", True)},
@@ -802,7 +802,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         motor.armar(avance=avance, codigos=[c["codigo"] for c in faltan])
                     hechos, raiz = exportar_a(extra, lambda r: motor.exportar(avance=avance, codigos=extra["codigos"],
                                                                               ajustes=extra.get("ajustes"), raiz=r), avance)
-                    avance(f"Exportados {len(hechos)} videos a {raiz}")
+                    avance(f"Exportados {len(hechos)} video{'s' if len(hechos) != 1 else ''} a {raiz}")
                 if accion == "clips_preparar":  # video largo o suelto: pasarlo a texto y proponer clips
                     clips_largos.preparar(extra["id"], avance=avance)
                 if accion == "clips_armar":
@@ -928,7 +928,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     motor.rehacer_portadas(avance=avance)
                 if accion == "exportar":  # «Armar todos los videos» (todo) solo arma: exportar es aparte, cuando se decide publicar
                     hechos = motor.exportar(avance=avance)
-                    avance(f"Exportados {len(hechos)} videos a {motor.S.listos}")
+                    avance(f"Exportados {len(hechos)} video{'s' if len(hechos) != 1 else ''} a {motor.S.listos}")
                     if drive.estado()["activo"]:
                         drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
                         avance(f"Exportados y subidos a Drive ({motor.S.listos.name}): {len(hechos)} videos")
@@ -1431,6 +1431,8 @@ class H(BaseHTTPRequestHandler):
                 n = int(self.headers.get("Content-Length") or 0)
                 if n > 20 * 1024 * 1024:
                     raise ValueError("El archivo es muy grande para ser un guion")
+                if q.get("probar"):  # solo leerlo: qué trae y qué piezas se quitarían (para preguntar antes)
+                    return self._json({"ok": True, **motor.probar_guion(q["nombre"][0], self.rfile.read(n))})
                 r = motor.subir_guion(q["nombre"][0], self.rfile.read(n))
                 drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
                 if motor.CONFIG.get("panel", {}).get("token"):
@@ -1642,8 +1644,15 @@ class H(BaseHTTPRequestHandler):
                     motor.guardar_config({"plantillas_borradas_cambio": {**(motor.CONFIG.get("plantillas_borradas_cambio") or {}), pid: time.time()}})
                     return self._json({"ok": True, "codigos": usaban})
                 if b.get("datos"):  # una de fábrica editada se guarda encima (con «Restaurar» vuelve a la original)
-                    datos = {**motor.limpiar_plantilla(b["datos"]), "editado": time.time()}  # así los videos que la usan quedan «por re-armar»
-                    motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: datos}})
+                    if not str(b["datos"].get("nombre") or "").strip():
+                        raise ValueError("Ponle un nombre a la plantilla")
+                    nueva = motor.limpiar_plantilla(b["datos"])
+                    sin_fecha = lambda d: {k: v for k, v in (d or {}).items() if k != "editado"}
+                    if sin_fecha(nueva) != sin_fecha(motor.plantillas().get(pid)):  # igual que antes: no se toca (ni pide rearmar)
+                        datos = {**nueva, "editado": time.time()}  # así los videos que la usan quedan «por re-armar»
+                        motor.guardar_config({"plantillas_propias": {**motor.CONFIG.get("plantillas_propias", {}), pid: datos}})
+                    elif not b.get("predeterminada"):
+                        return self._json({"ok": True, "codigos": [], "sin_cambios": True})
                 if b.get("predeterminada"):
                     motor.guardar_config({"plantilla_activa": pid, "plantilla_activa_cambio": time.time()})
                     motor.fijar_plantilla_sesion(pid)

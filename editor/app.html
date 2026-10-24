@@ -3418,26 +3418,37 @@ function juntar(rs) {  // tramos ordenados y sin encimarse
   });
   return out.map(([a, b]) => [Math.round(a * 1000) / 1000, Math.round(b * 1000) / 1000]);
 }
+// dónde se corta antes o después de la palabra k: toma el silencio corto pegado a ella para no dejar hueco ni comerse la de al lado
+const bordeAntes = (pl, k) => { const w = pl[k], x = pl[k - 1]; return x && w.s - x.e < .35 ? (x.e + w.s) / 2 : Math.max(0, w.s - .04); };
+const bordeDespues = (pl, k) => { const w = pl[k], x = pl[k + 1]; return x && x.s - w.e < .35 ? (w.e + x.s) / 2 : w.e + .04; };
+// un tramo arrastrado en la línea de tiempo se acomoda al borde de las palabras (no corta una palabra por la mitad)
+function ajustarTramo(p, a, b) {
+  const pl = planoPieza(p);
+  const ka = pl.findIndex(w => a > w.s && a < w.e), kb = pl.findIndex(w => b > w.s && b < w.e);
+  if (ka >= 0) a = a < (pl[ka].s + pl[ka].e) / 2 ? bordeAntes(pl, ka) : bordeDespues(pl, ka);
+  if (kb >= 0) b = b > (pl[kb].s + pl[kb].e) / 2 ? bordeDespues(pl, kb) : bordeAntes(pl, kb);
+  return b - a >= .05 ? { a, b } : null;
+}
 function quitarSeleccion() {  // corta las palabras elegidas (video y audio) o, si ya estaban quitadas, las vuelve a poner
   const p = piezaSel(), ws = seleccionW(p); if (!ws.length) return;
-  const pl = planoPieza(p), i0 = pl.findIndex(w => w.li === ws[0].li && w.wi === ws[0].wi), ult = ws[ws.length - 1];
-  const antes = pl[i0 - 1], despues = pl[i0 + ws.length];
-  // el corte toma el silencio pegado a la palabra (si es corto) para que no quede un hueco ni se coma la de al lado
-  const a = antes && ws[0].s - antes.e < .35 ? (antes.e + ws[0].s) / 2 : Math.max(0, ws[0].s - .04);
-  const b = despues && despues.s - ult.e < .35 ? (ult.e + despues.s) / 2 : ult.e + .04;
+  const pl = planoPieza(p), i0 = pl.findIndex(w => w.li === ws[0].li && w.wi === ws[0].wi);
+  const a = bordeAntes(pl, i0), b = bordeDespues(pl, i0 + ws.length - 1);
   if (ws.every(quitadaW)) {  // volver a poner: se saca ese pedazo de los tramos quitados
     quitTmp = juntar(quitTmp.flatMap(([x, y]) => y <= a || x >= b ? [[x, y]] : [[x, a], [b, y]]));
     avisar(`Vuelve «${ws.map(w => w.w).join(" ")}». Guarda para aplicarlo.`, "ok");
   } else {
     quitTmp = juntar([...quitTmp, [a, b]]);
-    avisar(`Se quita «${ws.map(w => w.w).join(" ")}» (${(b - a).toFixed(1)} s) en todos sus videos. Guarda para aplicarlo.`, "ok");
+    // una imagen puesta en una palabra quitada se queda sin lugar: se avisa para moverla
+    const conImg = ws.filter(w => marcaDe({ li: w.li, wi: w.wi })?.asset).map(w => w.w);
+    avisar(`Se quita «${ws.map(w => w.w).join(" ")}» (${(b - a).toFixed(1)} s) en todos sus videos. Guarda para aplicarlo.`
+      + (conImg.length ? ` Ojo: «${conImg.join(" ")}» tiene una imagen; ponla en otra palabra.` : ""), conImg.length ? "err" : "ok");
   }
   pintarMarcas(); pintarSucia();
 }
 // ¿Se puede dejar la pieza que está en pantalla? (pregunta si tiene cambios sin guardar)
 async function dejarPieza() {
   if (!piezaSucia()) return true;
-  if (await preguntar(`${piezaPintada} tiene cambios sin guardar (subtítulos o marcas). ¿Dejarla igual y perderlos?`)) { piezaPintada = null; return true; }
+  if (await preguntar(`${piezaPintada} tiene cambios sin guardar (cortes, subtítulos, imágenes o sonidos). ¿Dejarla igual y perderlos?`)) { pintarPieza(true); return true; }
   return false;
 }
 function pintarPieza(forzar) {
@@ -3525,7 +3536,7 @@ function nDeFrase(p, li, wi, texto) {
   }
   return 1;
 }
-function marcaDe(w) { const p = piezaSel(); return marcasTmp.find(m => { const pos = ubicar(p, m.palabra || "", m.n); return pos && pos.li === w.li && pos.wi === w.wi; }); }
+function marcaDe(w) { const p = piezaSel(); return marcasTmp.find(m => { const pos = ubicarComoVideo(p, m.palabra || "", m.n); return pos && pos.li === w.li && pos.wi === w.wi; }); }
 function pintarMarcas() {
   const p = piezaSel(); if (!p) return;
   const ws = palabrasPieza(p);
@@ -3775,17 +3786,27 @@ $("tl").addEventListener("pointermove", e => {
   if (Math.abs(e.clientX - tlArr.x0) > 4) tlArr.movio = true;
   if (!tlArr.movio) return;
   $("vPieza").currentTime = t; cabezalTl();
-  if (!tlArr.regla) { tlSel = { a: Math.min(tlArr.t0, t), b: Math.max(tlArr.t0, t) }; pintarTl(); }
+  if (!tlArr.regla) { tlSel = { a: Math.min(tlArr.t0, t), b: Math.max(tlArr.t0, t) }; pintarSelTl(); }
 });
-$("tl").addEventListener("pointerup", () => {
+function pintarSelTl() {  // solo el recuadro del tramo elegido (sin rehacer la línea de tiempo)
+  const z = $("tlZona"), p = piezaSel(); if (!z || !p) return;
+  let d = z.querySelector(".tl-sel");
+  if (!tlSel) { d?.remove(); pintarBotonesTl(); return; }
+  if (!d) { d = document.createElement("div"); d.className = "tl-sel"; z.appendChild(d); }
+  const D = durTl(p); d.style.left = (tlSel.a / D * 100) + "%"; d.style.width = ((tlSel.b - tlSel.a) / D * 100) + "%";
+  pintarBotonesTl();
+}
+function soltarTl() {
   if (!tlArr) return;
   const a = tlArr; tlArr = null;
   if (!a.movio) {  // un toque: en un clip o una línea elige ese tramo entero; en lo vacío, solo mueve el cabezal
     const q = quitTmp.find(([x, y]) => a.t0 >= x && a.t0 <= y);
     tlSel = q ? { a: q[0], b: q[1] } : a.blq ? { a: +a.blq.dataset.tlA, b: +a.blq.dataset.tlB } : null;
-  }
+  } else if (tlSel && !a.regla) tlSel = ajustarTramo(piezaSel(), tlSel.a, tlSel.b);
   pintarTl(); vivo();
-});
+}
+addEventListener("pointerup", soltarTl);
+addEventListener("pointercancel", soltarTl);
 $("tlIni").onclick = () => { const t = $("vPieza").currentTime; tlSel = { a: t, b: Math.max(t + .1, tlSel?.b ?? t + 1) }; pintarTl(); };
 $("tlFin").onclick = () => { const t = $("vPieza").currentTime; tlSel = { a: Math.min(t - .1, tlSel?.a ?? Math.max(0, t - 1)), b: t }; if (tlSel.a < 0) tlSel.a = 0; pintarTl(); };
 $("tlQuitar").onclick = () => {
@@ -4180,7 +4201,7 @@ document.addEventListener("click", async e => {
   const rb = e.target.closest("#redes button");
   if (rb) { red = rb.dataset.red; pintarTelefono(); return; }
   const br = e.target.closest("[data-borrar]");
-  if (br) { e.preventDefault(); leerMarcas(); marcasTmp.splice(Number(br.dataset.borrar), 1); pintarMarcas(); vivo(); return; }
+  if (br) { e.preventDefault(); leerMarcas(); marcasTmp.splice(Number(br.dataset.borrar), 1); pintarMarcas(); vivo(); pintarSucia(); return; }
   const as = e.target.closest("[data-asignar]");
   if (as) {
     const inp = document.querySelector(`input[data-rel="${CSS.escape(as.dataset.asignar)}"]`);
@@ -4324,7 +4345,8 @@ function pintarExport() {
     || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todos los videos».</div>`;
   $("exSel").disabled = $("exPartes").disabled = !exElegidos.size;
   $("exSel").title = exElegidos.size ? "" : "Primero marca la casilla de los videos que quieres exportar";
-  if (!exElegidos.size) $("exPartes").title = "Primero marca la casilla de los videos que quieres exportar por partes";
+  $("exPartes").title = exElegidos.size ? "Cada video en su carpeta (POR_PARTES): hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes. No usa los ajustes de calidad de este panel."
+    : "Primero marca la casilla de los videos que quieres exportar por partes";
   $("exSel").textContent = exElegidos.size ? `Exportar ${exElegidos.size} seleccionado${exElegidos.size === 1 ? "" : "s"}` : "Exportar seleccionados";
   pintarFicha();
 }
@@ -4446,7 +4468,7 @@ function preguntarDestino(n, codigos = [], partes = false) {
 async function exportarVideos(codigos) {
   const destino = await preguntarDestino(codigos.length, codigos); if (!destino) return;
   try { await post("/api/trabajo_sel", { accion: "exportar_sel", codigos, ajustes: ajustesExport(), ...destino }); vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(`Exportando ${codigos.length} videos… lo ves en Procesos (☰).`, "ok"); }
+    avisar(`Exportando ${plural(codigos.length, "video")}… lo ves en Procesos (☰).`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
 $("abrirListos").onclick = async () => { try { await post("/api/abrir_listos"); } catch (e) { avisar("No se pudo abrir la carpeta: " + e.message, "err"); } };
@@ -4473,7 +4495,7 @@ $("plantDuplicar").onclick = async () => {
   for (let n = 2; E.plantillas[id]; n++) id = `${base}_${n}`;  // antes, con un nombre repetido se pisaba la otra plantilla
   try { await guardarPlantilla(id, { ...JSON.parse(JSON.stringify(plantEdit)), nombre, descripcion: "Plantilla propia" }); avisar(`Plantilla «${nombre}» creada: es la que estás editando ahora.`, "ok"); } catch (e) { avisar("Error: " + e.message, "err"); }
 };
-$("plantGuardar").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit), "Plantilla guardada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
+$("plantGuardar").onclick = async () => { leerFormPlantilla(); try { const r = await guardarPlantilla(plantSel, plantEdit); if (r.sin_cambios) return avisar("No había cambios que guardar.", "muted"); ofrecerRearmar(r, "Plantilla guardada."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantBorrar").onclick = async () => {
   const fabrica = E.fabrica.includes(plantSel), nombre = E.plantillas[plantSel]?.nombre || plantSel;
   const enUso = plantSel === E.plantilla_predeterminada ? " Es la que usan los videos por defecto: pasan a usar la de la sala." : "";
@@ -8278,12 +8300,23 @@ $("prepLista").addEventListener("click", async e => {
   catch (err) { avisar("Error: " + err.message, "err"); }
   finally { volver(); }
 });
+// Subir un guion: primero se lee (sin guardar) para avisar qué trae y qué piezas se quitarían; recién ahí se pregunta
+async function subirGuionArchivo(f, hayGuion) {
+  const url = `/api/subir_guion?nombre=${encodeURIComponent(f.name)}`;
+  const pr = await post(url + "&probar=1", f, true);
+  if (hayGuion) {
+    const q = pr.se_quitan || [];
+    const trae = `«${f.name}» trae ${plural(pr.cuerpos, "cuerpo")}, ${plural(pr.hooks, "hook")} y ${plural(pr.ctas, "CTA", "CTA")}.`;
+    const quita = q.length ? ` Se quitarían ${plural(q.length, "pieza")} que no están en el archivo: ${q.slice(0, 12).join(", ")}${q.length > 12 ? "…" : ""}.` : " No se quita ninguna pieza.";
+    if (!await preguntar(`${trae}${quita} ¿Reemplazo el guion de la sesión? (el anterior queda guardado como copia)`)) return null;
+  }
+  return post(url, f, true);
+}
 $("prepGuion").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-  if (E.hay_produccion && !await preguntar(`Esta sesión ya tiene guion. ¿Lo cambio por «${f.name}»? (el anterior queda guardado como copia; las marcas que ya tenía se conservan)`)) return;
   avisar(`Leyendo «${f.name}»…`);
   try {
-    const r = await post(`/api/subir_guion?nombre=${encodeURIComponent(f.name)}`, f, true);
+    const r = await subirGuionArchivo(f, E.hay_produccion); if (!r) return avisar("No se cambió el guion.", "muted");
     resumenGuion = { semana: null, datos: null };
     await cargar();
     avisar(`Guion leído y ordenado: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}. Ahora: las imágenes, la música y los sonidos.`, "ok");
@@ -8651,9 +8684,8 @@ async function pintarGuion() {
 $("gSubirGuion").onchange = async e => {
   const f = e.target.files[0]; e.target.value = "";
   if (!f) return;
-  if (ultimoGuion && ultimoGuion.origen !== "grabado" && !await preguntar(`Esta sesión ya tiene guion. ¿Lo reemplazo por «${f.name}»? (el anterior queda guardado como copia)`)) return;
   try {
-    const r = await post(`/api/subir_guion?nombre=${encodeURIComponent(f.name)}`, f, true);
+    const r = await subirGuionArchivo(f, ultimoGuion && ultimoGuion.origen !== "grabado"); if (!r) return avisar("No se cambió el guion.", "muted");
     avisar(`Guion subido: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}`
       + (r.origen === "texto" ? ". Solo trae el texto: marcas, imágenes y copies se agregan con Claude." : "."), "ok");
     await cargar(); pintarGuion();
