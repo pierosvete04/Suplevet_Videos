@@ -1,3 +1,7 @@
+Versión 1.46.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Inicio → Para revisar**: los videos «editando» ya no salen con una sombra oscura encima, y en vez de «y 8 más» hay una tarjeta «+8 videos más · Ver todos».
+- **Guion para grabar en hojas**: cada cuerpo con todos sus hooks (y sus CTA) en una tarjeta. Al imprimir en **PDF** o **Word**, una hoja por cuerpo, con el título chico y el texto grande para leer al grabar.
+
 Versión 1.46.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Entrar y elegir la carpeta, paso a paso**, igual en las tres apps: entras con Google, eliges la carpeta del equipo (tuya, compartida, nueva o con su link) y te dice cómo invitar al equipo. Después la sala sigue con la marca y la primera sesión. En Configuración → Cuenta está la carpeta, con «Cambiar de carpeta…».
 - Importar marca: el nombre del logo ya no queda cortado (un logo «para fondo claro» se llama como el archivo, sin «para»).
