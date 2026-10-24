@@ -21,6 +21,7 @@ import asistente
 import cuenta
 import drive
 import motor
+import clips_largos
 import importar_marca
 import marca
 import panel
@@ -733,6 +734,14 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     hechos, raiz = exportar_a(extra, lambda r: motor.exportar(avance=avance, codigos=extra["codigos"],
                                                                               ajustes=extra.get("ajustes"), raiz=r), avance)
                     avance(f"Exportados {len(hechos)} videos a {raiz}")
+                if accion == "clips_preparar":  # video largo o suelto: pasarlo a texto y proponer clips
+                    clips_largos.preparar(extra["id"], avance=avance)
+                if accion == "clips_armar":
+                    hechos, salida = clips_largos.armar(extra["id"], extra["clips"], extra.get("opciones"), avance=avance)
+                    if drive.estado()["activo"]:
+                        avance("Subiendo los clips a Drive")
+                        drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
+                    avance(f"Listo: {len(extra['clips'])} clips armados en {salida}")
                 if accion == "conectar":
                     drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
                 if accion == "bajar":
@@ -997,6 +1006,20 @@ class H(BaseHTTPRequestHandler):
             if not f.is_file():
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/clips":
+            self._json({"ok": True, "videos": clips_largos.lista()})
+        elif u.path in ("/api/clips/uno", "/api/clips/fuente", "/api/clips/salida"):
+            q = parse_qs(u.query)
+            try:
+                i = q.get("id", [""])[0]
+                if u.path == "/api/clips/uno":
+                    return self._json({"ok": True, **clips_largos.uno(i)})
+                f = clips_largos.fuente(i) if u.path == "/api/clips/fuente" else clips_largos.carpeta_salida(i) / Path(q.get("archivo", [""])[0]).name
+            except ValueError as e:
+                return self._json({"ok": False, "error": str(e)})
+            if not f or not f.is_file():
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
         elif u.path == "/api/marca_importar/ver":  # lo subido para importar, antes de guardarlo (para verlo en la revisión)
             q = parse_qs(u.query)
             try:
@@ -1004,10 +1027,8 @@ class H(BaseHTTPRequestHandler):
             except ValueError:
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
-        elif u.path == "/api/primera/carpetas":  # asistente de primera vez: las carpetas de la cuenta
-            con_llave = "token" in cuenta._llave()
-            self._json({"ok": True, **(drive.carpetas_para_elegir() if con_llave else {"mias": [], "compartidas": []}),
-                        "cuenta": cuenta.estado(), "con_llave": con_llave})
+        elif u.path == "/api/cuenta/carpetas":  # elegir la carpeta del proyecto (cuenta.js): las carpetas de la cuenta
+            self._json({"ok": True, **cuenta.carpetas_para_elegir()})
         elif u.path == "/api/sesiones":  # la pantalla de entrada: qué sesiones hay y cómo va cada una
             self._json({"sesiones": motor.resumen_sesiones(), "actual": motor.S.semana, "ultima": motor.CONFIG.get("semana")})
         elif u.path == "/api/proyecto":  # ¿hay una versión nueva del proyecto hecha en otra PC?
@@ -1360,6 +1381,29 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("El archivo es muy grande (máximo 30 MB)")
                 nombre = marca.guardar_archivo(q["tipo"][0], q["nombre"][0], self.rfile.read(n))
                 self._json({"ok": True, "archivo": nombre, "marca": marca.datos()})
+            elif u.path == "/api/clips/subir":
+                n = int(self.headers.get("Content-Length") or 0)
+                i = clips_largos.recibir(q.get("nombre", ["video.mp4"])[0], self.rfile.read, n)
+                cola = lanzar("clips_preparar", extra={"id": i}, en_cola=True)
+                self._json({"ok": True, "id": i, "en_cola": bool(cola)})
+            elif u.path == "/api/clips/armar":
+                b = self._cuerpo()
+                clips = [{"ini": float(c["ini"]), "fin": float(c["fin"]), "titulo": str(c.get("titulo") or "")[:120],
+                          "encuadre": c.get("encuadre") if c.get("encuadre") in ("cara", "centro", "difuminado") else None,
+                          "x": None if c.get("x") in (None, "") else max(0.0, min(1.0, float(c["x"])))} for c in b.get("clips") or []]
+                if not clips:
+                    raise ValueError("Elige al menos un clip")
+                clips_largos.uno(str(b.get("id") or ""))  # que exista
+                cola = lanzar("clips_armar", extra={"id": b["id"], "clips": clips, "opciones": b.get("opciones") or {}}, en_cola=True)
+                self._json({"ok": True, "en_cola": bool(cola)})
+            elif u.path == "/api/clips/borrar":
+                clips_largos.borrar(str(self._cuerpo().get("id") or ""))
+                self._json({"ok": True})
+            elif u.path == "/api/clips/abrir":
+                d = clips_largos.carpeta_salida(str(self._cuerpo().get("id") or ""))
+                d.mkdir(parents=True, exist_ok=True)
+                os.startfile(str(d))
+                self._json({"ok": True})
             elif u.path == "/api/marca_plantilla":
                 self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
             elif u.path == "/api/marca_importar":
@@ -1383,25 +1427,11 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 marca.borrar(str(b.get("tipo") or ""), str(b.get("archivo") or ""))
                 self._json({"ok": True, "marca": marca.datos()})
-            elif u.path == "/api/primera":  # asistente de primera vez
-                b = self._cuerpo()
-                acc = b.get("accion")
-                if acc == "entrar":
-                    self._json({"ok": True, "cuenta": drive.entrar_sin_carpeta(str(b.get("client_id") or ""), str(b.get("client_secret") or ""))})
-                elif acc == "crear":
-                    cid, nombre = drive.crear_carpeta_equipo(str(b.get("nombre") or ""))
-                    r = drive.usar_carpeta(cid, nombre)
-                    drive.preparar_carpeta_nueva(str(b.get("marca") or ""))
-                    self._json({"ok": True, **r})
-                elif acc == "usar":
-                    r = drive.usar_carpeta(str(b.get("id") or ""), str(b.get("nombre") or ""))
-                    threading.Thread(target=marca.bajar, daemon=True).start()
-                    self._json({"ok": True, **r})
-                elif acc == "link":
-                    cid = drive.carpeta_id(str(b.get("link") or ""))
-                    self._json({"ok": True, **drive.usar_carpeta(cid, "")})
-                else:
-                    raise ValueError("Acción no válida")
+            elif u.path == "/api/cuenta/primera":  # entrar y elegir (o crear) la carpeta del proyecto (cuenta.js)
+                r = cuenta.primera(self._cuerpo())
+                if "editor" in r:  # ya eligió carpeta
+                    drive.tras_elegir_carpeta(r)
+                self._json({"ok": True, **r})
             elif u.path == "/api/abrir_link":  # trabajar en una carpeta pegando su link de Drive (o su ruta en esta PC)
                 sem = sesion_de_link(str(self._cuerpo().get("link") or ""))
                 abrir_sesion(sem)

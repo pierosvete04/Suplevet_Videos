@@ -563,6 +563,30 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .im-item .mk-img .im-ico { font-size: 34px; }
 .im-item.ignorar { opacity: .55; }
 @media (max-width: 1000px) { .mk-importar { grid-template-columns: 1fr; } }
+/* Clips en automático */
+.cl-lay { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.cl-lado { display: grid; gap: 12px; position: sticky; top: calc(var(--alto-header, 56px) + 60px); }
+.cl-videos { display: grid; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.cl-videos button { text-align: left; display: grid; gap: 2px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.cl-videos button[aria-current="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.cl-videos small { color: var(--muted); font-size: 11.5px; }
+.cl-vacio { display: grid; gap: 6px; place-items: center; text-align: center; padding: 60px 20px; }
+.cl-cab { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+.cl-cab video { width: 100%; max-height: 360px; background: #000; border-radius: 12px; }
+.cl-lista { display: grid; gap: 8px; margin-top: 10px; }
+.cl-clip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.cl-clip.elegido { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.cl-clip b { font-size: 14px; }
+.cl-clip p { margin: 4px 0 0; font-size: 12.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cl-tiempos { display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap; margin-top: 6px; }
+.cl-tiempos input { width: 74px; padding: 3px 6px; font: 12px var(--mono); }
+.cl-tiempos select { font-size: 12px; padding: 3px 6px; }
+.cl-ops { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.cl-opciones { display: grid; gap: 12px; }
+.cl-chk { display: flex !important; font-size: 13px; color: var(--ink) !important; }
+.cl-hechos { display: grid; gap: 4px; font-size: 12.5px; max-height: 170px; overflow-y: auto; }
+.cl-hechos a { color: var(--accent); }
+@media (max-width: 960px) { .cl-lay, .cl-cab { grid-template-columns: 1fr; } .cl-lado { position: static; } }
 /* Asistente de primera vez */
 dialog.primera { width: min(760px, 96vw); max-height: 92vh; padding: 0; border-radius: 18px; }
 .pv { padding: 24px 26px; display: grid; gap: 16px; }
@@ -571,13 +595,6 @@ dialog.primera { width: min(760px, 96vw); max-height: 92vh; padding: 0; border-r
 .pv-pasos span.hecho { color: var(--ok); border-color: var(--ok); }
 .pv-pasos span.ahora { color: var(--ink); border-color: var(--accent); background: var(--surface2); font-weight: 700; }
 .pv h2 { margin: 0; font: 800 22px var(--fd, var(--f)); }
-.pv-opciones { display: grid; gap: 10px; }
-.pv-op { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; background: var(--surface); }
-.pv-op > b { font-size: 15px; }
-.pv-lista { display: grid; gap: 6px; max-height: 32vh; overflow-y: auto; }
-.pv-lista button { text-align: left; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface2); color: var(--ink); font: inherit; cursor: pointer; }
-.pv-lista button:hover, .pv-lista button:focus-visible { border-color: var(--accent); outline: none; }
-.pv-link { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--surface2); font-size: 13px; word-break: break-all; }
 .pv ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
 /* Pantalla de entrada: elegir la sesión */
 dialog.bienvenida { width: min(980px, 96vw); max-height: 92vh; padding: 0; border-radius: 18px; }
@@ -1096,6 +1113,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <button role="tab" data-tab="faltan" aria-selected="false">Faltantes <span class="pill" id="nFaltan"></span></button>
   <button role="tab" data-tab="plantillas" aria-selected="false">Plantillas</button>
   <button role="tab" data-tab="sonidos" aria-selected="false">Sonidos</button>
+  <button role="tab" data-tab="clips" aria-selected="false">✂ Clips</button>
   <button role="tab" data-tab="publicar" aria-selected="false">Exportar</button>
   <button role="tab" data-tab="notas" aria-selected="false" hidden>Configuración</button>
 </nav>
@@ -1544,6 +1562,61 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     </div>
   </section>
 
+  <section data-panel="clips" hidden>
+    <div class="cl-lay">
+      <aside class="caja cl-lado">
+        <h2 style="margin:0">Clips en automático</h2>
+        <p class="muted" style="margin:0;font-size:12.5px">Sube un video <b>largo</b> (un YouTube, un en vivo, una entrevista) y la sala te propone los mejores clips en vertical.
+          O sube un video <b>suelto</b> y úsalo entero: sale editado solo. Todo en esta PC, sin Claude.</p>
+        <div class="mk-soltar" id="clSoltar">
+          <b>⬆ Subir un video</b><small>Arrástralo aquí (horizontal o vertical)</small>
+          <label class="btn peq" style="cursor:pointer">Elegir video<input type="file" id="clArchivo" accept="video/*,.mp4,.mov,.mkv,.webm" hidden></label>
+        </div>
+        <div id="clSubiendo" class="muted" style="font-size:12.5px" hidden></div>
+        <span class="etq">Tus videos</span>
+        <div id="clVideos" class="cl-videos"></div>
+      </aside>
+      <div class="cl-centro" id="clCentro">
+        <div class="caja cl-vacio" id="clVacio"><b>Sube un video para empezar</b><span class="muted">La sala lo pasa a texto, busca las partes que enganchan y te las muestra aquí para que elijas.</span></div>
+        <div id="clDetalle" hidden style="display:grid;gap:14px">
+          <div class="caja cl-cab">
+            <video id="clVideo" controls preload="metadata"></video>
+            <div style="display:grid;gap:8px;align-content:start;min-width:0">
+              <h2 id="clNombre" style="margin:0"></h2>
+              <span class="muted" id="clInfo" style="font-size:12.5px"></span>
+              <div class="fila"><button class="btn sec peq" type="button" id="clEntero">+ Usar el video entero</button>
+                <button class="btn sec peq" type="button" id="clAbrir">Abrir la carpeta de los clips</button>
+                <button class="btn-link peligro" type="button" id="clBorrar">Quitar este video</button></div>
+              <div id="clHechos" class="cl-hechos"></div>
+            </div>
+          </div>
+          <div class="caja">
+            <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Clips propuestos <span class="pill" id="clNProp"></span></h2>
+              <span class="muted" style="font-size:12px">Elige los que van. Mueve el inicio y el final si hace falta, y mira cada uno con ▶.</span></div>
+            <div id="clLista" class="cl-lista"></div>
+          </div>
+          <div class="caja cl-opciones form-plant">
+            <h2 style="margin:0">Cómo se editan</h2>
+            <div class="cl-ops">
+              <label>Encuadre vertical<select id="opEncuadre"><option value="cara">Seguir a la persona</option><option value="centro">Al centro</option><option value="difuminado">Video completo con fondo difuminado</option></select></label>
+              <label>Silencios<select id="opSilencios"><option value="normal">Quitar las pausas largas</option><option value="rapido">Quitar casi todas las pausas (más rápido)</option><option value="no">No cortar nada</option></select></label>
+              <label>Audio<select id="opAudio"><option value="original">Sin mejorar (tal cual se grabó)</option><option value="suave">Mejorar suave</option><option value="media">Mejorar medio</option><option value="fuerte">Mejorar fuerte (mucho ruido)</option></select></label>
+              <label>Color<select id="opColor"><option value="ninguno">Sin tocar</option><option value="natural">Natural (un poco más de vida)</option><option value="vivo">Vivo</option><option value="estilo">El del estilo de edición (LUT)</option></select></label>
+            </div>
+            <div class="fila" style="gap:16px">
+              <label class="fila cl-chk" id="opIgualarCaja"><input type="checkbox" id="opIgualar"> Igualar el volumen</label>
+              <label class="fila cl-chk"><input type="checkbox" id="opSubs"> Subtítulos (con la plantilla de la sesión)</label>
+              <label class="fila cl-chk"><input type="checkbox" id="opZoom"> Zoom frase sí, frase no</label>
+            </div>
+            <div class="fila" style="justify-content:space-between">
+              <span class="muted" style="font-size:12px">Quedan en V.FINALES de la sesión abierta, en la carpeta «CLIPS …», y se suben a Drive.</span>
+              <button class="btn" type="button" id="clArmar">Armar los clips elegidos</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section data-panel="publicar" hidden>
     <div class="export-layout">
       <div class="caja export-ajustes">
@@ -1571,7 +1644,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="ex-destino">
           <span class="muted">Los videos quedan en</span>
           <span class="ex-ruta" id="rutaListos"></span>
-          <span class="muted">con su portada (.jpg) y su copy (.txt). Aquí no se publica en redes: se publican desde el panel o a mano.</span>
+          <span class="muted">con su portada (.jpg) y su copy (.txt). Aquí no se publica en redes: se publican con el Publicador o a mano.</span>
           <button class="btn sec peq" type="button" id="abrirListos">Abrir carpeta</button>
         </div>
       </div>
@@ -1770,7 +1843,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <li>Revisa la calidad de cada video.</li>
       <li><label><input type="checkbox" id="prodExportar"> Exporta por día con los ajustes de Exportar y los sube a V.FINALES.</label>
         <label style="display:block;margin-top:4px"><input type="checkbox" id="prodSaltar" checked> No exportar los videos con problemas graves (faltan imágenes, audio muy bajo…)</label></li>
-      <li><label><input type="checkbox" id="prodPanel"> Sube los videos al panel para revisarlos.</label></li>
+      <li id="prodPanelLi"><label><input type="checkbox" id="prodPanel"> Sube los videos al panel para revisarlos.</label></li>
     </ol>
     <div class="fila"><button class="btn" id="prodEmpezar" type="button">Empezar</button><span class="muted" id="prodEstimado" style="font-size:12.5px"></span></div>
   </div>
@@ -1892,7 +1965,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="bv-cab"><div class="bv-logo" aria-hidden="true">E</div>
       <div><span class="etq">Primera vez en esta PC</span><div class="pv-pasos" id="pvPasos"></div></div></div>
     <div id="pvCuerpo" style="display:grid;gap:14px"></div>
-    <div class="fila" style="justify-content:space-between"><button class="btn-link" type="button" id="pvOmitir">Ahora no: trabajar sin Drive en esta PC</button>
+    <div class="fila" style="justify-content:space-between"><button class="btn-link" type="button" id="pvOmitir">Ahora no</button>
       <button class="btn sec peq" type="button" id="pvCerrar">Cerrar</button></div>
   </div>
 </dialog>
@@ -3292,6 +3365,7 @@ function vigilar(t) {
         clearInterval(vigilando); vigilando = null;
         await cargar();
         if (j.accion === "analizar" && !j.error) corroborado = true;
+        if (["clips_preparar", "clips_armar"].includes(j.accion)) cargarClips();
         if (["revisar", "analizar", "procesar"].includes(j.accion)) pintarGuion();
         if (j.accion === "producir" && j.resultado && !j.error) setTimeout(() => mostrarResumenProduccion(j.resultado), 300);
         const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${h0.cantidad} videos` : ""})` : "";
@@ -3342,6 +3416,7 @@ document.addEventListener("click", e => {
     if (tab.dataset.tab === "plantillas") verPlantillas(vistaPlant);
     else clearInterval(plantTimer);
     if (tab.dataset.tab === "publicar" && !$("calLista").innerHTML) pintarCalidad();
+    if (tab.dataset.tab === "clips") cargarClips();
     if (tab.dataset.tab === "sonidos") { if (dsEnVentana() && !$("dlgSonido").open) dsAlPanel(); scrollTo(0, 0); pintarSonidos(); pintarNivelSonidos(); requestAnimationFrame(ajustarAltoSonidos); }
     if (tab.dataset.tab === "guion") pintarGuion();
     return;
@@ -3430,6 +3505,7 @@ $("todo").onclick = () => trabajo("todo");
 // ---------- Producir todo ----------
 $("producir").onclick = async () => {
   $("prodPanel").disabled = !E.panel; $("prodPanel").checked = !!E.panel && $("prodPanel").checked;
+  $("prodPanelLi").hidden = !E.panel;  // sin panel web (todo en esta PC y en Drive), la opción ni aparece
   $("prodPanel").closest("label").title = E.panel ? "" : "El panel no está configurado en esta PC (tu cuenta arriba a la derecha → Conexiones)";
   // estimado con lo que tardó antes cada video en armarse y exportarse
   try {
@@ -3777,7 +3853,8 @@ async function pintarRespaldos() {
   try {
     const r = await (await fetch("/api/respaldos")).json();
     caja.innerHTML = r.respaldos.length ? r.respaldos.map((x, i) => `<div class="resp-fila ${x.auto ? "" : "nombrada"}">
-        <span><b>${esc(x.nombre || (i === 0 ? "La más reciente" : "Automática"))}</b><br><small>${esc(x.fecha)} · ${x.archivos} archivos${x.version ? " · sala " + esc(x.version) : ""}</small></span>
+        <span><b>${esc(x.nombre || (i === 0 ? "La más reciente" : "Automática"))}</b><br><small>${esc(x.fecha)} · ${x.archivos} archivos${x.version ? " · sala " + esc(x.version) : ""}</small>
+        <br><small>${x.usuario ? `👤 ${esc(x.usuario)}` : "👤 copia de antes (sin ese dato)"}${x.pc ? ` · 💻 ${esc(x.pc)}` : ""}${x.sesion ? ` · 📁 ${esc(x.sesion)}` : ""}</small></span>
         <small class="kb">${x.kb} KB</small>
         <button class="btn sec peq" type="button" data-resp="${esc(x.archivo)}" data-fecha="${esc(x.fecha)}">Volver a esta</button></div>`).join("")
       : `<p class="muted" style="margin:0">Todavía no hay copias de «${esc(r.sesion)}». La primera se guarda sola en unos minutos, o toca «Guardar copia ahora».</p>`;
@@ -6816,6 +6893,125 @@ function pintarPaletaMarca() {
   $("confPMarca").className = "punto-estado " + (m.tiene_marca ? "ok" : "warn");
 }
 
+// ---------- Clips en automático: de un video largo (o suelto) a clips verticales editados, sin Claude ----------
+let CL = { lista: [], sel: null, d: null, elegidos: new Set(), hasta: null };
+const tMin = s => { s = Math.max(0, +s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`; };
+const deMin = t => { const m = String(t).trim().match(/^(?:(\d+):)?(\d+(?:[.,]\d+)?)$/); return m ? (+(m[1] || 0)) * 60 + parseFloat(m[2].replace(",", ".")) : NaN; };
+async function cargarClips(abrir) {
+  try { CL.lista = (await (await fetch("/api/clips")).json()).videos; } catch (e) { return; }
+  if (abrir) CL.sel = abrir;
+  if (!CL.sel && CL.lista.length) CL.sel = CL.lista[0].id;
+  pintarListaClips();
+  if (CL.sel) await abrirClips(CL.sel);
+}
+function pintarListaClips() {
+  const est = v => v.estado === "listo" ? `${plural(v.propuestos, "clip propuesto", "clips propuestos")}${v.hechos ? ` · ${v.hechos} armados` : ""}`
+    : v.estado === "transcribiendo" ? "Pasándolo a texto…" : "Esperando su turno…";
+  $("clVideos").innerHTML = CL.lista.map(v => `<button type="button" data-clv="${v.id}" aria-current="${v.id === CL.sel}"><b>${esc(v.nombre)}</b>
+      <small>${v.duracion ? tMin(v.duracion).replace(/\.\d$/, "") + " · " : ""}${esc(est(v))}</small></button>`).join("") || `<p class="muted" style="margin:0;font-size:12.5px">Todavía no subiste videos.</p>`;
+}
+async function abrirClips(id) {
+  CL.sel = id; pintarListaClips();
+  let d; try { d = await (await fetch(`/api/clips/uno?id=${id}`)).json(); } catch (e) { return; }
+  if (!d.ok) { CL.sel = null; $("clDetalle").hidden = true; $("clVacio").hidden = false; return; }
+  const nuevo = !CL.d || CL.d.id !== id;
+  CL.d = d;
+  if (nuevo) { CL.elegidos = new Set(d.propuesta.slice(0, 5).map(c => c.id)); $("clVideo").src = `/api/clips/fuente?id=${id}`; pintarOpcionesClips(d.opciones); }
+  $("clVacio").hidden = true; $("clDetalle").hidden = false;
+  $("clNombre").textContent = d.nombre;
+  $("clInfo").textContent = d.estado === "listo" ? `${d.ancho}×${d.alto} · ${tMin(d.duracion)} · ${d.ancho > d.alto ? "horizontal: se reencuadra a vertical" : "vertical"}` : "La sala lo está pasando a texto (☰ para ver cómo va)…";
+  $("clHechos").innerHTML = d.hechos.length ? `<span class="etq">Ya armados (${d.hechos.length})</span>` + d.hechos.slice().reverse().map(h =>
+    `<a href="/api/clips/salida?id=${id}&archivo=${encodeURIComponent(h.archivo)}" target="_blank" rel="noopener">▶ ${esc(h.archivo)}</a>`).join("") : "";
+  pintarPropuestaClips();
+}
+function pintarPropuestaClips() {
+  const d = CL.d, lista = d.propuesta;
+  $("clNProp").textContent = lista.length;
+  $("clLista").innerHTML = lista.map((c, k) => `<div class="cl-clip ${CL.elegidos.has(c.id) ? "elegido" : ""}" data-clc="${k}">
+      <input type="checkbox" data-clsel ${CL.elegidos.has(c.id) ? "checked" : ""} aria-label="Elegir este clip" style="margin-top:3px">
+      <div style="min-width:0"><b>${esc(c.titulo)}</b>
+        <div class="fila" style="gap:4px;margin-top:4px">${c.puntaje !== undefined ? `<span class="pill azul">${c.puntaje} pts</span>` : ""}${(c.razones || []).map(r => `<span class="pill">${esc(r)}</span>`).join("")}</div>
+        <p>${esc(c.texto || "")}</p>
+        <div class="cl-tiempos">Desde <input data-clt="ini" value="${tMin(c.ini)}" aria-label="Inicio"> hasta <input data-clt="fin" value="${tMin(c.fin)}" aria-label="Final">
+          <span class="muted">${(c.fin - c.ini).toFixed(0)} s</span>
+          <select data-cle aria-label="Encuadre de este clip"><option value="">Encuadre de abajo</option><option value="cara" ${c.encuadre === "cara" ? "selected" : ""}>Seguir a la persona</option>
+            <option value="centro" ${c.encuadre === "centro" ? "selected" : ""}>Al centro</option><option value="difuminado" ${c.encuadre === "difuminado" ? "selected" : ""}>Fondo difuminado</option></select></div></div>
+      <button class="btn sec peq" type="button" data-clver title="Verlo en el video de arriba">▶ Ver</button></div>`).join("")
+    || `<p class="muted" style="margin:0">${d.estado === "listo" ? "No encontré partes con voz para proponer. Usa «+ Usar el video entero»." : "Los clips aparecen aquí cuando la sala termine de escuchar el video."}</p>`;
+  $("clArmar").textContent = CL.elegidos.size ? `Armar ${plural(CL.elegidos.size, "clip")}` : "Armar los clips elegidos";
+  $("clArmar").disabled = !CL.elegidos.size;
+}
+function pintarOpcionesClips(o) {
+  $("opEncuadre").value = o.encuadre || "cara"; $("opSilencios").value = o.silencios || "normal"; $("opAudio").value = o.audio || "suave";
+  $("opColor").value = o.color || "natural"; $("opIgualar").checked = o.igualar !== false; $("opSubs").checked = o.subtitulos !== false; $("opZoom").checked = o.zoom !== false;
+  $("opIgualarCaja").hidden = $("opAudio").value === "original";
+}
+$("opAudio").addEventListener("change", () => { $("opIgualarCaja").hidden = $("opAudio").value === "original"; });
+$("clVideos").addEventListener("click", e => { const b = e.target.closest("[data-clv]"); if (b) abrirClips(b.dataset.clv); });
+$("clLista").addEventListener("change", e => {
+  const fila = e.target.closest("[data-clc]"); if (!fila) return;
+  const c = CL.d.propuesta[+fila.dataset.clc];
+  if (e.target.matches("[data-clsel]")) { e.target.checked ? CL.elegidos.add(c.id) : CL.elegidos.delete(c.id); fila.classList.toggle("elegido", e.target.checked); pintarPropuestaClips(); }
+  if (e.target.matches("[data-clt]")) {
+    const v = deMin(e.target.value);
+    if (isNaN(v)) { e.target.value = tMin(c[e.target.dataset.clt]); return avisar("Escribe el tiempo como 1:23.5", "err"); }
+    c[e.target.dataset.clt] = Math.max(0, Math.min(CL.d.duracion, v));
+    if (c.fin - c.ini < 1) c.fin = Math.min(CL.d.duracion, c.ini + 5);
+    pintarPropuestaClips();
+  }
+  if (e.target.matches("[data-cle]")) c.encuadre = e.target.value || null;
+});
+$("clLista").addEventListener("click", e => {
+  const b = e.target.closest("[data-clver]"); if (!b) return;
+  const c = CL.d.propuesta[+b.closest("[data-clc]").dataset.clc], v = $("clVideo");
+  v.currentTime = c.ini; CL.hasta = c.fin; v.play().catch(() => {}); v.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+$("clVideo").addEventListener("timeupdate", e => { if (CL.hasta && e.target.currentTime >= CL.hasta) { e.target.pause(); CL.hasta = null; } });
+$("clEntero").onclick = () => {
+  const d = CL.d; if (!d || !d.duracion) return;
+  const ya = d.propuesta.find(c => c.id === "entero");
+  if (!ya) d.propuesta.unshift({ id: "entero", ini: 0, fin: d.duracion, titulo: d.nombre, texto: (d.texto || "").slice(0, 400), razones: ["El video entero"] });
+  CL.elegidos.add("entero"); pintarPropuestaClips();
+};
+$("clAbrir").onclick = async () => { try { await post("/api/clips/abrir", { id: CL.sel }); } catch (err) { avisar("Error: " + err.message, "err"); } };
+$("clBorrar").onclick = async () => {
+  if (!confirm(`¿Quitar «${CL.d.nombre}» de la sala? Se borra el video subido de esta PC (los clips ya armados se quedan en V.FINALES).`)) return;
+  try { await post("/api/clips/borrar", { id: CL.sel }); CL.sel = null; CL.d = null; $("clDetalle").hidden = true; $("clVacio").hidden = false; cargarClips(); } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+$("clArmar").onclick = async () => {
+  const clips = CL.d.propuesta.filter(c => CL.elegidos.has(c.id)).map(c => ({ ini: c.ini, fin: c.fin, titulo: c.titulo, encuadre: c.encuadre || null }));
+  const opciones = { encuadre: $("opEncuadre").value, silencios: $("opSilencios").value, audio: $("opAudio").value, color: $("opColor").value,
+    igualar: $("opIgualar").checked, subtitulos: $("opSubs").checked, zoom: $("opZoom").checked };
+  try {
+    const r = await post("/api/clips/armar", { id: CL.sel, clips, opciones });
+    vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(r.en_cola ? `Los ${clips.length} clips se arman cuando la sala termine lo que está haciendo (☰).` : `Armando ${plural(clips.length, "clip")}… lo ves en Procesos (☰).`, "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+async function subirVideoClips(f) {
+  if (!f) return;
+  if (!/\.(mp4|mov|m4v|mkv|webm|avi)$/i.test(f.name)) return avisar("Sube un video (.mp4, .mov, .mkv, .webm…)", "err");
+  const caja = $("clSubiendo"); caja.hidden = false;
+  try {
+    // con XHR para ver cuánto va (un video largo puede pesar varios GB)
+    const r = await new Promise((ok, mal) => {
+      const x = new XMLHttpRequest();
+      x.open("POST", `/api/clips/subir?nombre=${encodeURIComponent(f.name)}`);
+      x.upload.onprogress = e => { if (e.lengthComputable) caja.textContent = `Subiendo «${f.name}»: ${Math.round(e.loaded / e.total * 100)} %`; };
+      x.onload = () => { try { const j = JSON.parse(x.responseText); j.ok ? ok(j) : mal(new Error(j.error || "Error")); } catch (e) { mal(e); } };
+      x.onerror = () => mal(new Error("Se cortó la subida"));
+      x.send(f);
+    });
+    caja.textContent = "Listo: ahora la sala lo pasa a texto y busca los clips (☰ para ver cómo va).";
+    vigilar(await (await fetch("/api/trabajo")).json());
+    CL.d = null; await cargarClips(r.id);
+  } catch (err) { caja.textContent = ""; caja.hidden = true; avisar("Error: " + err.message, "err"); }
+}
+$("clArchivo").onchange = e => { const f = e.target.files[0]; e.target.value = ""; subirVideoClips(f); };
+["dragenter", "dragover"].forEach(t => $("clSoltar").addEventListener(t, e => { e.preventDefault(); $("clSoltar").classList.add("encima"); }));
+$("clSoltar").addEventListener("dragleave", () => $("clSoltar").classList.remove("encima"));
+$("clSoltar").addEventListener("drop", e => { e.preventDefault(); $("clSoltar").classList.remove("encima"); subirVideoClips(e.dataTransfer.files[0]); });
+
 // ---------- Importar la marca sin Claude: plantilla, subir carpeta o .zip y revisar antes de guardar ----------
 let IM = null;
 async function descargarPlantillaMarca() {
@@ -6936,101 +7132,23 @@ $("mkSoltar").addEventListener("drop", async e => {
   importarMarca(out);
 });
 
-// ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del equipo ----------
-// Para quien recién instala la sala: entra con su cuenta, elige una carpeta suya, una compartida con ella o crea la suya,
-// y después invita a su equipo, carga la marca y crea la primera sesión.
+// ---------- Primera vez: después de elegir la carpeta ----------
+// Entrar con Google, elegir (o crear) la carpeta e invitar al equipo es común a las tres apps (cuenta.js).
+// Después, la sala sigue con lo suyo: cargar la marca y crear la primera sesión.
 const PV_PASOS = [["entrar", "Entrar"], ["carpeta", "Carpeta"], ["equipo", "Equipo"], ["marca", "Marca"], ["sesion", "Primera sesión"]];
-let PV = { paso: "entrar" };
+let PV = { paso: "marca" }, PV_LUEGO = false, ARRANCO = false;
 function pintarPasosPv() {
   const i = PV_PASOS.findIndex(p => p[0] === PV.paso);
   $("pvPasos").innerHTML = PV_PASOS.map(([k, t], j) => `<span class="${j < i ? "hecho" : j === i ? "ahora" : ""}">${j < i ? "✓ " : ""}${t}</span>`).join("");
 }
-async function abrirPrimera() {
-  PV = { paso: "entrar", cargando: true };
+function abrirPrimera() {
+  PV = { paso: "marca" };
   if (!$("dlgPrimera").open) $("dlgPrimera").showModal();
   pintarPrimera();
-  try {
-    const r = await (await fetch("/api/primera/carpetas")).json();
-    Object.assign(PV, { cargando: false, carpetas: r, cuenta: r.cuenta || {} });
-    if (r.con_llave) PV.paso = "carpeta";
-  } catch (e) { PV.cargando = false; }
-  pintarPrimera();
-}
-function filaCarpetas(lista, vacio) {
-  const q = norm(($("pvBuscar")?.value || "").trim());
-  const ver = (lista || []).filter(c => !q || norm(c.nombre).includes(q));
-  return ver.map(c => `<button type="button" data-pvusar="${esc(c.id)}" data-nombre="${esc(c.nombre)}">📁 ${esc(c.nombre)}</button>`).join("")
-    || `<p class="muted" style="margin:0;font-size:13px">${q ? "Ninguna carpeta con ese nombre." : vacio}</p>`;
 }
 function pintarPrimera() {
   pintarPasosPv();
-  const c = $("pvCuerpo"), cu = PV.cuenta || {};
-  if (PV.cargando) { c.innerHTML = `<p class="muted">Revisando tu cuenta de Google…</p>`; return; }
-  if (PV.paso === "entrar") {
-    c.innerHTML = `<h2 id="pvTit">Entra con tu cuenta de Google</h2>
-      <p class="muted" style="margin:0">La sala trabaja en una carpeta de tu Google Drive: ahí guarda las sesiones, los clips y los videos, y el equipo trabaja en la misma carpeta.
-        Se abre Google en el navegador: entra con la cuenta donde vas a trabajar, acepta y vuelve aquí.</p>
-      <div class="fila"><button class="btn" type="button" id="pvEntrar">Entrar con Google</button></div>
-      <details class="conf-avanzado"><summary>Avanzado: credenciales propias de Google Cloud</summary>
-        <p class="muted" style="font-size:12px;margin:6px 0">Si tu equipo tiene su propio proyecto en Google Cloud (cliente OAuth «App de escritorio»), pega aquí su ID y secreto. Si no, déjalo vacío.</p>
-        <div class="form-plant" style="display:grid;gap:8px"><label>ID de cliente<input id="pvCid" placeholder="…apps.googleusercontent.com"></label>
-        <label>Secreto del cliente<input id="pvSecret" type="password" autocomplete="off"></label></div></details>`;
-    $("pvEntrar").onclick = async () => {
-      $("pvEntrar").textContent = "Esperando que entres en el navegador…";
-      try {
-        const r = await post("/api/primera", { accion: "entrar", client_id: $("pvCid").value, client_secret: $("pvSecret").value });
-        PV.cuenta = r.cuenta || {}; PV.cargando = true; pintarPrimera();
-        PV.carpetas = await (await fetch("/api/primera/carpetas")).json(); PV.cargando = false; PV.paso = "carpeta";
-      } catch (err) { avisar("No se pudo entrar: " + err.message, "err"); }
-      PV.cargando = false; pintarPrimera();
-    };
-    return;
-  }
-  if (PV.paso === "carpeta") {
-    const k = PV.carpetas || {};
-    c.innerHTML = `<h2 id="pvTit">¿Dónde va a trabajar el equipo?</h2>
-      <p class="muted" style="margin:0">${cu.email ? `Entraste como <b>${esc(cu.email)}</b>. ` : ""}Elige una carpeta que ya tengas, una que te compartieron, o crea una nueva.</p>
-      ${(E.drive || {}).activo ? `<p class="cal-arreglo fila" style="margin:0">Ahora la sala ya trabaja en una carpeta. Si eliges otra, esta PC pasa a trabajar en la nueva (lo de la anterior sigue en Drive).</p>` : ""}
-      <div class="pv-opciones">
-        <form class="pv-op" id="pvCrearForm"><b>✨ Crear mi carpeta</b>
-          <div class="form-plant dos"><label>Nombre de la carpeta<input id="pvNombre" value="EDICIÓN DE VIDEOS" required></label>
-            <label>Nombre de tu marca<input id="pvMarca" placeholder="Ej.: Suplevet"></label></div>
-          <span class="muted" style="font-size:12px">Se crea en tu «Mi unidad» con lo de base (la carpeta de la marca). Si ya existe una con ese nombre, se usa esa.</span>
-          <div class="fila"><button class="btn" id="pvCrear">Crear y usar esta carpeta</button></div></form>
-        <div class="pv-op"><b>📂 Usar una que ya existe</b>
-          <input id="pvBuscar" type="search" placeholder="Buscar carpeta…" aria-label="Buscar carpeta">
-          <span class="etq">Compartidas conmigo</span><div class="pv-lista" id="pvCompartidas">${filaCarpetas(k.compartidas, "Nadie te compartió carpetas todavía. Si tu equipo ya tiene una, pide que te la compartan como Editor.")}</div>
-          <span class="etq">Mi unidad</span><div class="pv-lista" id="pvMias">${filaCarpetas(k.mias, "No hay carpetas en tu «Mi unidad».")}</div></div>
-        <form class="pv-op" id="pvLinkForm"><b>🔗 Pegar el link de la carpeta</b>
-          <div class="fila"><input id="pvLink" style="flex:1" placeholder="https://drive.google.com/drive/folders/…" required><button class="btn sec">Usar este link</button></div></form>
-      </div>`;
-    $("pvBuscar").oninput = () => { $("pvCompartidas").innerHTML = filaCarpetas(k.compartidas, "—"); $("pvMias").innerHTML = filaCarpetas(k.mias, "—"); };
-    $("pvCrearForm").onsubmit = e => { e.preventDefault(); usarCarpetaPv({ accion: "crear", nombre: $("pvNombre").value.trim(), marca: $("pvMarca").value.trim() }); };
-    $("pvLinkForm").onsubmit = e => { e.preventDefault(); usarCarpetaPv({ accion: "link", link: $("pvLink").value.trim() }); };
-    return;
-  }
-  if (PV.paso === "solo_lectura") {
-    c.innerHTML = `<h2 id="pvTit">En «${esc(PV.res.nombre || "esa carpeta")}» solo puedes mirar</h2>
-      <p style="margin:0">Tu cuenta tiene permiso de <b>lector</b>: puedes abrir las sesiones, pero la sala no puede subir videos, música ni cambios.
-        Pide a quien es dueño de la carpeta que te la comparta como <b>Editor</b> (en Drive: clic derecho → Compartir → tu correo → «Editor»).</p>
-      <div class="fila"><button class="btn" type="button" id="pvOtra">Elegir otra carpeta</button><button class="btn sec" type="button" id="pvIgual">Seguir solo mirando</button></div>`;
-    $("pvOtra").onclick = () => { PV.paso = "carpeta"; pintarPrimera(); };
-    $("pvIgual").onclick = () => { PV.paso = "equipo"; pintarPrimera(); };
-    return;
-  }
-  if (PV.paso === "equipo") {
-    const link = PV.res?.link || (E.drive || {}).link || "";
-    c.innerHTML = `<h2 id="pvTit">Invita a tu equipo</h2>
-      <p class="muted" style="margin:0">Todos trabajan en la misma carpeta: quien graba, quien edita y quien publica. Compártela como <b>Editor</b> (con «Lector» la sala no puede subir nada).</p>
-      <div class="pv-link"><span style="flex:1">${esc(link)}</span><button class="btn sec peq" type="button" id="pvCopiar">Copiar link</button></div>
-      <ol><li>Toca «Abrir en Drive».</li><li>Arriba, toca <b>Compartir</b>.</li><li>Escribe el correo de cada persona, elige <b>Editor</b> y toca <b>Enviar</b>.</li>
-        <li>Cada persona instala la sala, entra con su cuenta y elige la carpeta en «Compartidas conmigo».</li></ol>
-      <div class="fila"><button class="btn sec" type="button" id="pvAbrir">Abrir en Drive</button><button class="btn" type="button" id="pvSigue">Siguiente →</button></div>`;
-    $("pvCopiar").onclick = () => { copiarTexto(link); avisar("Link copiado.", "ok"); };
-    $("pvAbrir").onclick = () => abrirAfuera(link);
-    $("pvSigue").onclick = () => { PV.paso = "marca"; pintarPrimera(); };
-    return;
-  }
+  const c = $("pvCuerpo");
   if (PV.paso === "marca") {
     const tiene = (E.marca || {}).tiene_marca;
     c.innerHTML = `<h2 id="pvTit">${tiene ? "Tu marca ya está cargada" : "Carga tu marca"}</h2>
@@ -7053,28 +7171,15 @@ function pintarPrimera() {
     $("pvSesion").onclick = () => { $("dlgPrimera").close(); abrirBienvenida(); };
   }
 }
-async function usarCarpetaPv(cuerpo) {
-  PV.cargando = true; pintarPrimera();
-  $("pvCuerpo").innerHTML = `<p class="muted">Conectando la carpeta y revisando tus permisos…</p>`;
-  try {
-    const r = await post("/api/primera", cuerpo);
-    PV.res = r; await cargar();
-    PV.paso = r.editor ? "equipo" : "solo_lectura";
-    avisar(`Listo: la sala trabaja en «${r.nombre || "la carpeta"}».`, "ok");
-  } catch (err) { avisar("Error: " + err.message, "err"); }
-  PV.cargando = false; pintarPrimera();
-}
-$("pvCuerpo").addEventListener("click", e => {
-  const b = e.target.closest("[data-pvusar]"); if (!b) return;
-  usarCarpetaPv({ accion: "usar", id: b.dataset.pvusar, nombre: b.dataset.nombre });
-});
 $("pvCerrar").onclick = () => $("dlgPrimera").close();
-$("pvOmitir").onclick = () => { try { localStorage.setItem("sala_primera_omitida", "1"); } catch (e) {} $("dlgPrimera").close(); };
-$("drivePrimera").onclick = () => abrirPrimera();
-function mostrarPrimeraSiHaceFalta() {
-  let omitida = false; try { omitida = localStorage.getItem("sala_primera_omitida") === "1"; } catch (e) {}
-  if (omitida || ((E.drive || {}).activo && !E.sin_carpeta)) return false;
-  abrirPrimera(); return true;
+$("pvOmitir").onclick = () => $("dlgPrimera").close();
+$("drivePrimera").onclick = () => Cuenta.elegirCarpeta();
+// cuenta.js avisa cuando se eligió una carpeta (al entrar por primera vez o al cambiarla): la sala recarga y sigue con la marca
+async function alElegirCarpeta() {
+  PV_LUEGO = true;
+  if (!ARRANCO) return;  // al arrancar, se abre después de cargar()
+  await cargar();
+  abrirPrimera();
 }
 
 // ---------- Pantalla de entrada: elegir la sesión (o crear una nueva) ----------
@@ -7677,7 +7782,7 @@ document.addEventListener("click", async e => {
     caja.innerHTML = `<div class="g-editar" style="display:grid;gap:6px">${frases.map((f, k) => `<label class="muted" style="font-size:12px">${frases.length > 1 ? `Frase ${k + 1}` : "Texto"}<textarea data-gfrase="${k}">${esc(f)}</textarea></label>`).join("")}
       <div class="fila"><button class="btn peq" type="button" data-gguardar="${esc(p.nombre)}">Guardar</button>
         <button class="btn sec peq" type="button" data-gcancelar>Cancelar</button>
-        <span class="muted" style="font-size:12px"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda · <kbd>Esc</kbd> cancela. Se ve en el teleprompter y en el panel.</span></div></div>`;
+        <span class="muted" style="font-size:12px"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda · <kbd>Esc</kbd> cancela. Se ve en el teleprompter.</span></div></div>`;
     ed_.hidden = true;
     caja.querySelector("textarea").focus();
     return;
@@ -7702,7 +7807,7 @@ async function guardarTextoGuion(gu) {
     await post("/api/guion_texto", { pieza: nombre, texto: frases.join(" "), partes: frases.length > 1 ? frases : null });
     const p = ultimoGuion?.piezas.find(x => x.nombre === nombre);
     if (p) { p.texto = frases.join(" "); p.partes = frases; p.diff = []; }
-    avisar(`Guion de ${nombre} guardado: ya se ve en el teleprompter. Se sube a Drive y al panel.`, "ok");
+    avisar(`Guion de ${nombre} guardado: ya se ve en el teleprompter. Se sube a Drive${E.panel ? " y al panel" : ""}.`, "ok");
     cerrarEdicionGuion(nombre);
   } catch (err) { avisar("Error: " + err.message, "err"); gu.disabled = false; }
 }
@@ -8280,6 +8385,9 @@ const marcaConexion = (id, v) => { try { if (v === undefined) return localStorag
 function pintarConexiones() {
   if (!$("listaConexiones") || !E) return;
   const drive = (E.drive || {}).activo, claude = infoClaude && infoClaude.instalado && infoClaude.sesion;
+  // Flow y Flow Music son páginas de Google sin conexión directa: la sala no puede entrar a revisarlas. Se dan por
+  // listas si ya hay imágenes o música de Flow en la sesión (entonces se están usando), o si la persona lo marcó.
+  const ch = E.checklist || {}, usaFlow = (ch.assets || []).some(a => a.listo), usaMusica = (ch.musica || []).some(m => m.listo);
   const items = [
     { id: "drive", t: "Google Drive (carpeta EDICIÓN DE VIDEOS)", d: "Baja los clips de cada sesión y sube los videos, la música y las imágenes.", ok: drive, auto: true,
       pasos: ["Abajo, en «Google Drive», pega el link de la carpeta del equipo.", "Toca «Conectar con Google» e inicia sesión con una cuenta que tenga permiso de <b>Editor</b> en esa carpeta (si solo puede ver, Drive borra lo que la sala sube).", "Toca «Actualizar sesiones» para ver las sesiones del equipo."],
@@ -8287,31 +8395,32 @@ function pintarConexiones() {
     { id: "claude", t: "Claude (app de escritorio)", d: "Escribe los guiones y revisa lo grabado, con la suscripción de Claude (sin pagar API).", ok: claude, auto: true,
       pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "En la sala, ve a Inicio → «Claude» y toca «Conectar». La sala usa esa misma cuenta.", "Si dice «sin sesión», vuelve a abrir la app de Claude y toca «Revisar de nuevo»."],
       boton: ["Ir a Claude", () => { $("dlgAjustes")?.close?.(); irTab("inicio"); }], ico: "✳" },
-    { id: "flow", t: "Google Flow (imágenes y clips con IA)", d: "Genera las imágenes y los clips de cada guion con su prompt (están en Faltantes).", ok: marcaConexion("flow"),
+    { id: "flow", t: "Google Flow (imágenes y clips con IA)", d: usaFlow ? "En uso: esta sesión ya tiene imágenes de Flow." : "Genera las imágenes y los clips de cada guion con su prompt (están en Faltantes).", ok: usaFlow || marcaConexion("flow"), manual: !usaFlow,
       pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI (Pro).", "Crea un proyecto con el nombre de la producción (por ejemplo «P01 B2B VETERINARIOS»).", "En los ajustes del asistente (ícono de deslizadores) elige <b>9:16</b> y <b>x1</b>, y guarda.", "En Faltantes copia el prompt de cada imagen y pídela con su código delante (por ejemplo «C3_IMG1: …»). Si Google rechaza un prompt, usa «Copiar plan B».", "Descarga cada imagen en <b>1K</b>. Luego, en Faltantes → «Buscar en Descargas», toca «Usar» en cada una: la sala la guarda con su nombre y la sube a Drive."],
       boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")], ico: "🖼" },
-    { id: "music", t: "Google Flow Music (música)", d: "Crea la música de cada cuerpo con el prompt del guion.", ok: marcaConexion("music"),
+    { id: "music", t: "Google Flow Music (música)", d: usaMusica ? "En uso: esta sesión ya tiene música de Flow Music." : "Crea la música de cada cuerpo con el prompt del guion.", ok: usaMusica || marcaConexion("music"), manual: !usaMusica,
       pasos: ["Abre Flow Music con la misma cuenta de Google (también se entra desde Flow, botón «Flow Music»).", "Pega el prompt de la pista (en Faltantes → Música). Empieza con «Instrumental only, no vocals, no lyrics.».", "Cada pedido trae dos versiones: escucha el inicio y quédate con la que no tenga voces.", "Menú «⋯» de la canción → Download → <b>MP3</b>. Luego Faltantes → «Buscar en Descargas» → «Usar».", "Si Flow Music no está disponible, usa Suno (modo Custom, Instrumental) con el prompt de Suno del guion."],
       boton: ["Abrir Flow Music", () => abrirAfuera("https://www.flowmusic.app/")], ico: "♫" },
     { id: "chrome", t: "Claude en Chrome (opcional)", d: "Para que Claude haga solo las imágenes y la música en Flow, en tu navegador.", ok: marcaConexion("chrome"),
       pasos: ["En Google Chrome, instala la extensión «Claude» desde la Chrome Web Store e inicia sesión con la cuenta de Claude.", "Deja abierto Chrome con la sesión de Google (Flow y Flow Music) iniciada.", "Pídele a Claude: «genera las imágenes y la música de la sesión P01». Si aparece un inicio de sesión, términos o un captcha, lo haces tú."],
       boton: ["Abrir Chrome Web Store", () => abrirAfuera("https://chromewebstore.google.com/search/claude")], ico: "◎", opcional: true },
-    { id: "panel", t: "Panel web (edicion.suplevet.pe)", d: "Ahí se revisan y aprueban los videos, y está el teleprompter que sigue la voz.", ok: !!E.panel, auto: true,
+    // sin dominio, el panel web no se usa: todo va en esta PC y en Drive (aprobar en Videos, teleprompter por WiFi)
+    E.panel ? { id: "panel", t: "Panel web (edicion.suplevet.pe)", d: "Ahí se revisan y aprueban los videos, y está el teleprompter que sigue la voz.", ok: true, auto: true,
       pasos: ["Pide el link y el código del panel a quien lo administra; se guardan en la configuración de esta PC.", "Entra a edicion.suplevet.pe con tu usuario para revisar y aprobar.", "En la tablet, abre el teleprompter del panel y en el navegador elige «Agregar a pantalla de inicio»: queda como una app."],
-      boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")], ico: "▦" },
+      boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")], ico: "▦" } : null,
     { id: "tablet", t: "Teleprompter en la tablet (por WiFi)", d: "Sin internet: la tablet lee el guion desde esta PC, con PIN.", ok: !!(E.red || {}).activa, auto: true,
       pasos: ["Conecta la tablet al mismo WiFi que esta PC.", "Abajo, en «Teleprompter en la tablet», actívalo y abre en la tablet la dirección que aparece.", "Escribe el PIN. Usa «Líneas: 2 o 3» y «Tamaño» para leer cómodo frente a la cámara."],
       boton: ["Ir al teleprompter", () => irConf("confTablet")], ico: "📱" },
-  ];
+  ].filter(Boolean);
   const abiertos = new Set([...document.querySelectorAll("#listaConexiones details[open]")].map(d => d.dataset.id));
   // primero lo que falta, luego lo listo
   const orden = [...items].sort((a, b) => (a.ok - b.ok) || ((a.opcional || 0) - (b.opcional || 0)));
   $("listaConexiones").innerHTML = orden.map(x => `<div class="conexion ${x.ok ? "listo" : ""}">
       <div class="con-cab"><span class="con-ico" aria-hidden="true">${x.ico || "•"}</span>
         <span class="que"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span></div>
-      <div class="con-estado"><span class="pill ${x.ok ? "ok" : x.opcional ? "" : "warn"}">${x.ok ? "✓ Listo" : x.opcional ? "Opcional" : x.auto ? "Falta conectar" : "Por revisar"}</span></div>
+      <div class="con-estado"><span class="pill ${x.ok ? "ok" : x.opcional ? "" : "warn"}">${x.ok ? (x.manual === false ? "✓ En uso" : "✓ Listo") : x.opcional ? "Opcional" : x.auto ? "Falta conectar" : "Márcalo cuando entres"}</span></div>
       <details data-id="${x.id}" ${abiertos.has(x.id) ? "open" : ""}><summary>Cómo se hace (${x.pasos.length} pasos)</summary><ol>${x.pasos.map(p => `<li>${p}</li>`).join("")}</ol></details>
-      <div class="con-pie">${x.auto ? `<span class="muted" style="font-size:12px">La sala lo revisa sola</span>`
+      <div class="con-pie">${x.auto || x.manual === false ? `<span class="muted" style="font-size:12px">La sala lo revisa sola</span>`
           : `<label class="marca"><input type="checkbox" data-con-marca="${x.id}" ${x.ok ? "checked" : ""}> Ya lo tengo listo</label>`}
         <button class="btn ${x.ok ? "sec" : ""} peq" type="button" data-con-abrir="${x.id}">${esc(x.boton[0])}</button></div>
     </div>`).join("");
@@ -8488,10 +8597,11 @@ document.addEventListener("play", e => {
 (async () => {
   await Cuenta.iniciar({ app: "Sala de edición", letra: "E", fondo: "linear-gradient(135deg,#1d4ed8,#3d8bff 60%,#5ee1ff)",
                          lugar: $("cuentaChip"), alVolver: () => location.reload(),
-                         alAbrirCuenta: abrirMenuCuenta });
+                         alAbrirCuenta: abrirMenuCuenta, alElegirCarpeta });
   revisarClaude();
   await cargar();
-  if (!mostrarPrimeraSiHaceFalta()) mostrarBienvenidaInicial();  // al abrir: la primera vez, el asistente; si no, ¿con qué sesión trabajas hoy?
+  ARRANCO = true;
+  if (PV_LUEGO) abrirPrimera(); else mostrarBienvenidaInicial();  // recién elegida la carpeta: marca y primera sesión; si no, ¿con qué sesión trabajas hoy?
 })();
 </script>
 </body>

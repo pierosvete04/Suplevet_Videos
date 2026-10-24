@@ -93,8 +93,20 @@ def listar(sesion=None):
         m = _leer_manifiesto(f)
         out.append({"archivo": f.name, "fecha": m.get("fecha") or f.stem[:16], "nombre": m.get("nombre") or "",
                     "auto": m.get("auto", True), "archivos": m.get("archivos", 0), "kb": round(f.stat().st_size / 1024, 1),
-                    "version": m.get("version", "")})
+                    "version": m.get("version", ""), "usuario": m.get("usuario", ""), "pc": m.get("pc", ""),
+                    "sesion": m.get("sesion", "")})
     return out
+
+
+def _quien():
+    """Quién hizo la copia y en qué PC (la cuenta de Google con la que se entró y el nombre de la PC)."""
+    try:
+        import cuenta
+        c = cuenta.estado()
+        return {"usuario": c.get("email") or "", "nombre_usuario": c.get("nombre") or "", "pc": c.get("dispositivo") or ""}
+    except Exception:  # noqa: BLE001
+        import socket
+        return {"usuario": "", "nombre_usuario": "", "pc": socket.gethostname()}
 
 
 def hacer(nombre="", auto=False, subir=True):
@@ -113,7 +125,7 @@ def hacer(nombre="", auto=False, subir=True):
         limpio = re.sub(r"[^\w\- ]", "", nombre).strip()[:40]
         archivo = c / (time.strftime("%Y-%m-%d_%H-%M-%S", ahora) + (f"_{limpio.replace(' ', '-')}" if limpio else "") + ".zip")
         manifiesto = {"fecha": time.strftime("%Y-%m-%d %H:%M", ahora), "sesion": motor.S.semana, "nombre": nombre.strip()[:60],
-                      "auto": auto, "firma": firma, "archivos": len(contenido), "version": motor.VERSION}
+                      "auto": auto, "firma": firma, "archivos": len(contenido), "version": motor.VERSION, **_quien()}
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
             z.writestr("respaldo.json", json.dumps(manifiesto, ensure_ascii=False, indent=1))
