@@ -114,8 +114,15 @@ section[hidden] { display: none; }
 .revisar-hoy { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 12px; }
 .revisar-hoy .rv { position: relative; aspect-ratio: 9/16; border-radius: 10px; overflow: hidden; background: #000 center/cover no-repeat; border: 1px solid var(--line); cursor: pointer; }
 .revisar-hoy .rv:hover, .revisar-hoy .rv:focus-visible { border-color: var(--accent); outline: none; transform: translateY(-2px); }
-.revisar-hoy .rv span { position: absolute; inset: auto 0 0 0; padding: 14px 6px 6px; font: 700 10.5px var(--mono); color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.85)); }
-.revisar-hoy .rv .pill { position: absolute; top: 6px; left: 6px; font-size: 10px; }
+.revisar-hoy .rv .rv-cod { position: absolute; inset: auto 0 0 0; padding: 14px 6px 6px; font: 700 10.5px var(--mono); color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.85)); }
+.revisar-hoy .rv .pill { position: absolute; top: 6px; left: 6px; font-size: 10px; background: rgba(8,12,22,.72); color: #fff; border-color: transparent; backdrop-filter: blur(4px); }
+.revisar-hoy .rv .pill.warn { background: var(--warn); color: #111; }
+/* el resto: una tarjeta del mismo tamaño que las miniaturas */
+.revisar-hoy .rv-mas { aspect-ratio: 9/16; border-radius: 10px; border: 1px dashed var(--line2); background: var(--surface2); color: var(--ink); font: inherit; cursor: pointer;
+  display: grid; place-content: center; gap: 4px; text-align: center; transition: border-color .15s, transform .15s; }
+.revisar-hoy .rv-mas b { font: 800 30px var(--fd, var(--f)); color: var(--accent); }
+.revisar-hoy .rv-mas small { color: var(--muted); font-size: 12px; }
+.revisar-hoy .rv-mas:hover, .revisar-hoy .rv-mas:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; }
 .det-inicio > summary { cursor: pointer; list-style: none; display: flex; gap: 8px; align-items: baseline; font-size: 15px; }
 .det-inicio > summary::-webkit-details-marker { display: none; }
 .det-inicio > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
@@ -946,7 +953,21 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .documento { max-width: 860px; font-size: 14.5px; line-height: 1.65; }
 .documento h1 { font: 700 22px var(--fd); margin: 0 0 6px; } .documento h2 { font-size: 16px; margin: 22px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .documento h3 { margin: 14px 0 4px; } .documento ul, .documento ol { margin: 4px 0 8px; padding-left: 22px; } .documento p { margin: 4px 0; }
-.documento.host { font-size: 18px; line-height: 1.8; } .documento.host h2 { font-size: 15px; color: var(--accent2); }
+.documento.host { font-size: 18px; line-height: 1.8; }
+/* Guion para grabar: una hoja por cuerpo, con sus hooks (igual en pantalla y al imprimir) */
+.hojas { display: grid; gap: 16px; max-width: 900px; }
+.hojas-tit { font: 700 14px var(--f); color: var(--muted); margin: 0; }
+.hoja { border: 1px solid var(--line); border-radius: 16px; background: var(--tarjeta, var(--surface)); padding: 18px 22px; display: grid; gap: 14px; }
+.hoja-cab { display: flex; gap: 12px; align-items: center; }
+.hoja-cab .cod { font: 800 15px var(--mono); padding: 6px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
+.hoja-cab b { font-size: 16px; } .hoja-cab small { color: var(--muted); font-size: 12.5px; display: block; }
+.hoja h4 { margin: 0 0 6px; font: 700 11.5px var(--f); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hoja-hooks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hoja-hooks li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 10px 12px; border-radius: 12px; background: var(--hondo, var(--surface2)); font-size: 17px; line-height: 1.5; }
+.hoja-hooks .hk { font: 800 12px var(--mono); color: var(--accent2, var(--accent)); white-space: nowrap; }
+.hoja-hooks .tipo { display: block; font-size: 11.5px; color: var(--muted); }
+.hoja-cuerpo { margin: 0; padding-left: 24px; display: grid; gap: 6px; font-size: 17px; line-height: 1.55; }
+.hoja-ctas { display: grid; gap: 6px; font-size: 15.5px; } .documento.host h2 { font-size: 15px; color: var(--accent2); }
 .informe { white-space: pre-wrap; font-size: 13px; line-height: 1.6; max-height: 420px; overflow: auto; margin: 0; }
 /* Plantillas */
 .plant-layout { display: grid; gap: 14px; }
@@ -1278,7 +1299,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <span><b id="gArmarTit">Armar el guion con los clips</b><small id="gArmarTxt">Escucha los clips, saca los subtítulos y arma el guion con lo que se dijo. En esta PC, sin Claude.</small></span></button>
       <div class="g-accion imprimir">
         <span class="g-ico" aria-hidden="true">🖨</span>
-        <span><b>Guion para imprimir</b><small>Para grabar: en letra grande, video por video.</small>
+        <span><b>Guion para imprimir</b><small>Una hoja por cuerpo, con todos sus hooks. En letra grande, para leer al grabar.</small>
           <span class="fila" style="margin-top:8px;gap:6px"><button class="btn peq" type="button" id="gWord">Word (.docx)</button>
             <button class="btn sec peq" type="button" id="gPdf">PDF / imprimir</button></span></span></div>
     </div>
@@ -1317,7 +1338,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       </div>
       <div class="fila" id="gDocBotones" hidden>
         <div class="segmento" id="gHostVista" role="group" aria-label="Qué ver del guion del host">
-          <button data-hvista="combinacion" aria-pressed="true">Hook + cuerpo</button>
+          <button data-hvista="combinacion" aria-pressed="true">Por cuerpo (hojas)</button>
           <button data-hvista="hooks" aria-pressed="false">Solo hooks</button>
           <button data-hvista="cuerpos" aria-pressed="false">Solo cuerpos</button>
         </div>
@@ -2525,9 +2546,9 @@ document.addEventListener("click", async e => {
 function pintarRevisar() {
   const lista = E.salidas.filter(s => s.existe && s.estado !== "listo").sort((a, b) => (b.desactualizado - a.desactualizado) || (a.estado === "editando" ? -1 : 0));
   $("inNRevisar").textContent = lista.length || "";
-  $("inRevisar").innerHTML = lista.slice(0, 12).map(s => `<div class="rv" role="button" tabindex="0" data-cod="${esc(s.codigo)}" title="Abrir ${esc(s.archivo)}" style="${s.portada ? `background-image:url('${s.portada}')` : ""}">
-      ${s.desactualizado ? `<span class="pill warn">⟳ rearmar</span>` : s.estado === "editando" ? `<span class="pill azul">editando</span>` : ""}<span>${esc(s.codigo)}</span></div>`).join("")
-    + (lista.length > 12 ? `<button class="btn sec" type="button" data-ir="videos" style="align-self:center">y ${lista.length - 12} más</button>` : "")
+  $("inRevisar").innerHTML = lista.slice(0, lista.length > 12 ? 11 : 12).map(s => `<div class="rv" role="button" tabindex="0" data-cod="${esc(s.codigo)}" title="Abrir ${esc(s.archivo)}" style="${s.portada ? `background-image:url('${s.portada}')` : ""}">
+      ${s.desactualizado ? `<span class="pill warn">⟳ rearmar</span>` : s.estado === "editando" ? `<span class="pill azul">editando</span>` : ""}<span class="rv-cod">${esc(s.codigo)}</span></div>`).join("")
+    + (lista.length > 12 ? `<button class="rv-mas" type="button" data-ir="videos" aria-label="Ver los otros ${lista.length - 11} videos"><b>+${lista.length - 11}</b><small>videos más</small><small>Ver todos →</small></button>` : "")
     || `<p class="muted" style="margin:0;grid-column:1/-1">${E.salidas.some(s => s.existe) ? "✓ No hay videos por revisar: todos los armados están aprobados." : "Todavía no hay videos armados."}</p>`;
 }
 document.addEventListener("click", e => {  // botones del siguiente paso que aprietan otro botón de la sala
@@ -6994,9 +7015,9 @@ async function guionEnWord(version, vista) {
 $("gWord").onclick = () => guionEnWord("host", "combinacion");
 $("gDocWord").onclick = () => guionEnWord(gVersion === "produccion" ? "produccion" : "host", gHostVista);
 $("gPdf").onclick = async () => {
-  const r = await (await fetch("/api/guion_doc?version=host&vista=combinacion")).json();
-  if (!r.texto) return avisar("Esta sesión todavía no tiene guion.", "err");
-  gDocTexto = r.texto; gVersion = "host"; $("gDocImprimir").click(); pintarVersionGuion();
+  const h = await (await fetch("/api/guion_hojas")).json();
+  if (!h.hojas.length) return avisar("Esta sesión todavía no tiene guion.", "err");
+  imprimirHojas(h);
 };
 ["dragenter", "dragover"].forEach(t => $("gSubirZona").addEventListener(t, e => { e.preventDefault(); $("gSubirZona").classList.add("encima"); }));
 $("gSubirZona").addEventListener("dragleave", () => $("gSubirZona").classList.remove("encima"));
@@ -8051,14 +8072,51 @@ async function pintarVersionGuion() {
   document.querySelectorAll("[data-hvista]").forEach(b => b.setAttribute("aria-pressed", b.dataset.hvista === gHostVista));
   const r = await (await fetch(`/api/guion_doc?version=${gVersion}&vista=${gHostVista}&guardar`)).json();
   gDocTexto = r.texto || "";
+  if (gVersion === "host" && gHostVista === "combinacion" && gDocTexto) {  // hojas: un cuerpo con sus hooks
+    gHojas = await (await fetch("/api/guion_hojas")).json();
+    $("gDoc").className = "documento"; $("gDoc").innerHTML = htmlHojas(gHojas);
+    return;
+  }
   $("gDoc").innerHTML = gDocTexto ? mdAHtml(gDocTexto) : `<p class="muted">Esta sesión todavía no tiene guion.</p>`;
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-gver]"); if (b) { gVersion = b.dataset.gver; pintarVersionGuion(); }
   const h = e.target.closest("[data-hvista]"); if (h) { gHostVista = h.dataset.hvista; pintarVersionGuion(); }
 });
+// Las hojas del guion: en pantalla y para imprimir (una hoja por cuerpo, con todos sus hooks)
+let gHojas = null;
+function htmlHojas(h) {
+  const hoja = x => `<article class="hoja">
+      <div class="hoja-cab"><span class="cod">${esc(x.cuerpo)}</span><div><b>Cuerpo ${esc(x.cuerpo.replace(/^C/, ""))}</b>
+        <small>${plural(x.hooks.length, "hook")} · graba los hooks seguidos y después el cuerpo</small></div></div>
+      <div><h4>Hooks</h4><ol class="hoja-hooks">${x.hooks.map(k => `<li><span class="hk">☐ ${esc(k.nombre.split("_").pop())}</span>
+        <span>${esc(k.texto)}${k.tipo ? `<span class="tipo">${esc(k.tipo)}</span>` : ""}</span></li>`).join("") || "<li>Sin hooks</li>"}</ol></div>
+      <div><h4>Cuerpo</h4><ol class="hoja-cuerpo">${x.partes.map(p => `<li>${esc(p)}</li>`).join("")}</ol></div>
+      ${x.ctas.length ? `<div class="hoja-ctas"><h4>CTA</h4>${x.ctas.map(c => `<span>☐ <b>${esc(c.nombre)}:</b> ${esc(c.texto)}</span>`).join("")}</div>` : ""}
+    </article>`;
+  return `<div class="hojas"><p class="hojas-tit">${esc(h.titulo)} · guion para grabar · ${plural(h.hojas.length, "cuerpo")}</p>${h.hojas.map(hoja).join("")}
+    ${h.ctas.length ? `<article class="hoja"><div class="hoja-cab"><span class="cod">CTA</span><div><b>Van al final de cada video</b></div></div>
+      <div class="hoja-ctas">${h.ctas.map(c => `<span>☐ <b>${esc(c.nombre)}:</b> ${esc(c.texto)}</span>`).join("")}</div></article>` : ""}</div>`;
+}
+function imprimirHojas(h) {
+  const marco = document.createElement("iframe");
+  marco.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0";
+  marco.srcdoc = `<!doctype html><meta charset="utf-8"><title>${esc(h.titulo)} — guion para grabar</title>
+    <style>@page{size:A4;margin:14mm}body{font:15px/1.5 "Segoe UI",sans-serif;color:#111;margin:0}
+    .hojas-tit{font-size:11px;color:#777;margin:0 0 6px}.hoja{page-break-after:always;break-after:page;display:grid;gap:12px}
+    .hoja:last-child{page-break-after:auto;break-after:auto}.hoja-cab{display:flex;gap:10px;align-items:center;border-bottom:1px solid #ccc;padding-bottom:8px}
+    .cod{font:800 13px Consolas,monospace;border:1px solid #999;border-radius:6px;padding:3px 7px}.hoja-cab b{font-size:14px}.hoja-cab small{display:block;color:#777;font-size:11px}
+    h4{margin:0 0 4px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#777}
+    .hoja-hooks{list-style:none;margin:0;padding:0;display:grid;gap:7px}.hoja-hooks li{display:grid;grid-template-columns:auto 1fr;gap:10px;font-size:16px;line-height:1.45;break-inside:avoid}
+    .hk{font:800 12px Consolas,monospace;padding-top:3px}.tipo{display:block;font-size:10.5px;color:#888}
+    .hoja-cuerpo{margin:0;padding-left:22px;display:grid;gap:5px;font-size:16px;line-height:1.5}.hoja-ctas{display:grid;gap:5px;font-size:14px}</style>
+    ${htmlHojas(h)}`;
+  marco.onload = () => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 60000); };
+  document.body.appendChild(marco);
+}
 $("gDocCopiar").onclick = () => { navigator.clipboard.writeText(gDocTexto); avisar("Guion copiado.", "ok"); };
 $("gDocImprimir").onclick = () => {
+  if (gVersion === "host" && gHostVista === "combinacion" && gHojas) return imprimirHojas(gHojas);
   // en un marco oculto: funciona igual en la ventana de la sala (que no abre ventanas nuevas) y en un navegador
   const marco = document.createElement("iframe");
   marco.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0";

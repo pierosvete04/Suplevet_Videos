@@ -1175,6 +1175,8 @@ class H(BaseHTTPRequestHandler):
             self._json(motor.onda_archivo(f) if f else {"por_seg": 50, "picos": [], "dur": 0})
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
+        elif u.path == "/api/guion_hojas":
+            self._json(motor.hojas_guion())
         elif u.path == "/api/guion_doc":
             version = (parse_qs(u.query).get("version") or ["host"])[0]
             vista = (parse_qs(u.query).get("vista") or ["combinacion"])[0]

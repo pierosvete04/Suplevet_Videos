@@ -34,14 +34,17 @@ def _p(texto, tam, antes=0, despues=120, sangria=0, color=None, borde=False):
 
 
 def docx_de_markdown(md, grande=False):
-    base = 30 if grande else 22  # medios puntos: 15 pt para leer de pie, 11 pt para el detalle
+    base = 26 if grande else 22  # medios puntos: 13 pt para leer al grabar (cada cuerpo con sus hooks entra en una hoja), 11 pt para el detalle
     cuerpo, num = [], 0
     for l in md.splitlines():
         m = re.match(r"^(#{1,3}) (.*)", l)
-        if m:
+        if l.strip() == "<<<SALTO>>>":  # una hoja por cuerpo
+            cuerpo.append('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+        elif m:
             n = len(m.group(1))
-            cuerpo.append(_p(f"**{m.group(2)}**", {1: base + 16, 2: base + 6, 3: base + 2}[n], antes=240 if n > 1 else 0,
-                             despues=120, borde=n == 2))
+            # el título va chico: lo que importa en la hoja es lo que se lee
+            cuerpo.append(_p(f"**{m.group(2)}**", {1: base, 2: base + 4, 3: base - 4}[n], antes=0 if n < 3 else 160,
+                             despues=80, color="7A8699" if n == 3 else None))
             num = 0
         elif (m := re.match(r"^\s*- \[ \] (.*)", l)):
             cuerpo.append(_p(f"☐ {m.group(1)}", base - 4, color="666666"))

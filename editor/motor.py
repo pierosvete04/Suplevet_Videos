@@ -1965,6 +1965,28 @@ def _orden_piezas(prod):
     return sorted(prod.get("piezas", {}), key=clave)
 
 
+def hojas_guion():
+    """El guion para grabar en hojas: cada cuerpo con todos sus hooks (como se combinan en los videos) y sus CTA.
+    Así se imprime: una hoja por cuerpo. Los CTA que van con todos los cuerpos salen en una hoja al final."""
+    prod = produccion()
+    piezas_g = {g["nombre"]: g for g in guion_para_grabar_actual()}
+    cuerpos = [n for n, g in piezas_g.items() if g["tipo"] == "cuerpo"]
+    hojas = []
+    for c in cuerpos:
+        g = piezas_g[c]
+        hooks = sorted((h for n, h in piezas_g.items() if h["tipo"] == "hook" and n.split("_")[0] == c), key=lambda h: h["nombre"])
+        ctas = [x for n, x in piezas_g.items() if x["tipo"] == "cta" and "_" in n and n.split("_")[0] == c]
+        hojas.append({"cuerpo": c, "partes": g["partes"] if len(g["partes"]) > 1 else [g["texto"]],
+                      "hooks": [{"nombre": h["nombre"], "texto": h["texto"], "tipo": h.get("tipo_hook") or ""} for h in hooks],
+                      "ctas": [{"nombre": x["nombre"], "texto": x["texto"]} for x in ctas]})
+    generales = [{"nombre": x["nombre"], "texto": x["texto"]} for n, x in piezas_g.items()
+                 if x["tipo"] == "cta" and not ("_" in n and n.split("_")[0] in cuerpos)]
+    return {"titulo": prod.get("semana") or S.semana, "hojas": hojas, "ctas": generales}
+
+
+SALTO_DE_HOJA = "<<<SALTO>>>"  # en el Word, aquí empieza una hoja nueva
+
+
 def documento_guion(version="host", vista="combinacion"):
     """Markdown del guion. «host»: solo lo que se dice, en orden de grabación, para leer y grabarse.
     «produccion»: pieza por pieza, todo lo que va en el video (estilos, imágenes con su prompt, música, sonidos, portada, copy)."""
@@ -1995,20 +2017,20 @@ def documento_guion(version="host", vista="combinacion"):
                     out += ["## CTAs", ""]
                     out += [f"**{g['nombre']}:** {g['texto']}\n\n- [ ] grabado\n" for g in ctas]
             return "\n".join(out)
-        out = [f"# {titulo} — guion para el host · hook + cuerpo", "",
-               "Cada video tal como se va a ver: primero el hook y después el cuerpo. Lee tal cual.", ""]
-        for cuerpo in cuerpos:
-            c = piezas_g[cuerpo]
-            hooks = sorted((g for n, g in piezas_g.items() if g["tipo"] == "hook" and n.split("_")[0] == cuerpo),
-                           key=lambda g: g["nombre"])
-            ctas = [g for n, g in piezas_g.items() if g["tipo"] == "cta" and ("_" not in n or n.split("_")[0] == cuerpo)]
-            for h in hooks:
-                out += [f"## Video {h['nombre']} + {cuerpo}" + (f" · {h['tipo_hook']}" if h.get("tipo_hook") else ""), "",
-                        f"**Hook:** {h['texto']}", "", "**Cuerpo:**"]
-                out += [f"{k}. {f}" for k, f in enumerate(c["partes"], 1)] if len(c["partes"]) > 1 else [c["texto"]]
-                if ctas:
-                    out += ["", "**CTA:** " + " / ".join(g["texto"] for g in ctas)]
-                out += ["", "- [ ] grabado", ""]
+        h = hojas_guion()
+        out = [f"# {titulo} · guion para grabar", "", "Una hoja por cuerpo: graba sus hooks seguidos y después el cuerpo. Lee tal cual.", ""]
+        for k, hoja in enumerate(h["hojas"]):
+            if k:
+                out.append(SALTO_DE_HOJA)
+            out += [f"## {hoja['cuerpo']} · cuerpo con {len(hoja['hooks'])} hook{'s' if len(hoja['hooks']) != 1 else ''}", "", "### Hooks", ""]
+            out += [f"☐ **{x['nombre']}**" + (f" · {x['tipo']}" if x["tipo"] else "") + f": {x['texto']}" for x in hoja["hooks"]] or ["(sin hooks)"]
+            out += ["", "### Cuerpo", ""]
+            out += [f"{n}. {p}" for n, p in enumerate(hoja["partes"], 1)] if len(hoja["partes"]) > 1 else [hoja["partes"][0]]
+            out += ["", "☐ cuerpo grabado", ""]
+            if hoja["ctas"]:
+                out += ["### CTA", ""] + [f"☐ **{x['nombre']}:** {x['texto']}" for x in hoja["ctas"]] + [""]
+        if h["ctas"]:
+            out += [SALTO_DE_HOJA, "## CTA (van al final de cada video)", ""] + [f"☐ **{x['nombre']}:** {x['texto']}" for x in h["ctas"]]
         return "\n".join(out)
     assets = {a["id"]: a for a in prod.get("assets", [])}
     musica = {m["id"]: m for m in prod.get("musica", [])}
