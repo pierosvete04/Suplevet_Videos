@@ -4797,6 +4797,13 @@ def ruta_sonido(sid):
     return f if base.resolve() in f.parents and f.is_file() and f.suffix.lower() in EXT_AUDIO else None
 
 
+def categoria_de_sonido(sid):
+    """La categoría donde está un sonido exacto (para que siga las reglas de esa categoría), o «marca»."""
+    f = ruta_sonido(sid)
+    cats = list(CONFIG.get("sfx_mapa", {})) + [d.name for d in (BIBLIO_BASE / "sfx").iterdir() if d.is_dir()]
+    return next((c for c in cats if f in sfx_de(c)), "marca")
+
+
 def biblioteca_sonidos():
     """Las categorías de sonido con sus archivos: [{cat, nombre, archivos: [{id, nombre}]}]."""
     cats = list(CONFIG.get("sfx_mapa", {})) + [d.name for d in (BIBLIO_BASE / "sfx").iterdir() if d.is_dir()]
@@ -5097,7 +5104,9 @@ def planear_sonidos(combo, offs, total, subs, marcas):
 
     def add(cat, t, prio, motivo, pegar=False):
         # pegar: si ese segundo se corta (el silencio antes de la voz), suena donde sigue el video en vez de perderse
-        cand.append({"cat": cat, "t": max(0.0, t), "prio": prio, "motivo": motivo, **({"pegar": True} if pegar else {})})
+        # cat también puede ser un sonido exacto («b:…» o «p:…», elegido en la galería): suena ese archivo
+        exacto = ruta_sonido(cat) and {"archivo": cat, "cat": categoria_de_sonido(cat)}
+        cand.append({"cat": cat, "t": max(0.0, t), "prio": prio, "motivo": motivo, **({"pegar": True} if pegar else {}), **(exacto or {})})
 
     # Arranque del hook según su tipo (Promesa, Pregunta, Número, Contra, Producto): un solo golpe, justo donde
     # entra la voz (si el hook arranca con silencio, ese pedazo se corta y el golpe cae en la primera sílaba)
@@ -5270,7 +5279,7 @@ def videos_que_usan(aid, tipo):
 
 def buscar_musica(mid):
     """Pista de Suno por id: carpeta Musica de la sesión, luego la carpeta de música general."""
-    for d in (S.musica, CONFIG.get("carpeta_musica"), BIBLIO / "musica"):
+    for d in (S.musica, CONFIG.get("carpeta_musica"), BIBLIO / "musica", BIBLIO_BASE / "musica"):
         if d and Path(d).is_dir():
             for f in Path(d).iterdir():
                 if f.stem.lower() == str(mid).lower() and f.suffix.lower() in EXT_AUDIO:

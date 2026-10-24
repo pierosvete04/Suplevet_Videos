@@ -988,7 +988,65 @@ dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color:
 .tr-corr { grid-column: 2 / -1; font-size: 12px; line-height: 1.4; color: var(--warn); }
 .tr-edita { grid-column: 2 / -1; display: flex; gap: 6px; } .tr-edita input { flex: 1; min-width: 0; }
 .marca-acciones { display: flex; flex-wrap: wrap; gap: 6px; } .marca-acciones .btn { max-width: 100%; white-space: normal; }
-.marca-acciones .peligro { color: var(--err); }
+.marca-acciones .btn.peligro:not(.sec) { background: var(--err); border-color: var(--err); color: #fff; }
+.marca-acciones .btn.sec.peligro { color: var(--err); }
+/* Galería para elegir imagen, sonido o música, con vista previa */
+.gal-elegido { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gal-elegido .mini { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; flex: none; background: #000; }
+.gal-elegido .nom { flex: 1; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+dialog.galeria { width: min(900px, 96vw); }
+.gal-cab { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--flotante); z-index: 2; }
+.gal-cab h2 { margin: 0; flex: 1; font-size: 17px; } .gal-cab input { width: min(240px, 100%); }
+.gal-chips { padding: 10px 16px 0; }
+.gal-lista { padding: 12px 16px 16px; }
+.gal-lista.imagenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.gal-img { display: grid; gap: 4px; padding: 6px; border: 2px solid var(--line); border-radius: 12px; background: var(--bg2); cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.gal-img:hover, .gal-img:focus-visible { border-color: var(--accent); outline: none; }
+.gal-img[aria-pressed="true"] { border-color: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 25%, transparent); }
+.gal-img .foto { aspect-ratio: 9/16; width: 100%; object-fit: cover; border-radius: 8px; background: #000; display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.gal-img span { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gal-fila { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; border: 1px solid transparent; }
+.gal-fila:hover { background: var(--bg2); }
+.gal-fila[aria-current="true"] { border-color: var(--accent2); background: color-mix(in srgb, var(--accent2) 10%, transparent); }
+.gal-fila .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.gal-fila small { color: var(--muted); font-size: 11.5px; }
+.gal-play { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 1px solid var(--line2); background: var(--surface); cursor: pointer; font-size: 13px; color: inherit; }
+.gal-play.sonando { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gal-play:disabled { opacity: .4; cursor: not-allowed; }
+#visor { cursor: pointer; }
+/* Línea de tiempo de Piezas: clips, texto, imágenes y sonidos de la pieza, con lo quitado y el cabezal */
+.pz-tl { margin-top: 14px; }
+.tl-cab { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; justify-content: space-between; margin-bottom: 10px; }
+.tl-cab small { display: block; font-size: 12.5px; margin-top: 2px; }
+.tl-botones { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-quitar { background: var(--err); border-color: var(--err); color: #fff; }
+.tl-quitar.volver { background: var(--accent); border-color: var(--accent); }
+.tl { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 0 8px; user-select: none; }
+.tl-noms { display: grid; grid-template-rows: 22px 40px 34px 46px 30px; gap: 4px; font: 600 11.5px var(--mono); color: var(--muted); }
+.tl-noms span { display: flex; align-items: center; }
+.tl-zona { position: relative; display: grid; grid-template-rows: 22px 40px 34px 46px 30px; gap: 4px; cursor: text; touch-action: none; }
+.tl-carril { position: relative; border-radius: 8px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
+.tl-regla { position: relative; border-bottom: 1px solid var(--line2); cursor: ew-resize; }
+.tl-regla i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--line2); }
+.tl-regla i.mayor { height: 11px; background: var(--muted); }
+.tl-regla b { position: absolute; top: 0; transform: translateX(-50%); font: 500 10.5px var(--mono); color: var(--muted); }
+.tl-blq { position: absolute; top: 3px; bottom: 3px; border-radius: 6px; padding: 2px 6px; font-size: 11.5px; line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; border: 1px solid transparent; }
+.tl-blq.clip { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.tl-blq.clip b { display: block; font-size: 11px; }
+.tl-blq.linea { background: var(--surface); border-color: var(--line2); color: var(--ink); }
+.tl-blq.img { padding: 0; background: #000 center/cover; border: 2px solid var(--accent2); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.tl-blq.img span { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 4px; background: rgba(0,0,0,.65); color: #fff; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; }
+.tl-blq.img.sel, .tl-pin.sel { outline: 2px solid #ffd23f; outline-offset: 1px; }
+.tl-pin { position: absolute; top: 3px; bottom: 3px; transform: translateX(-50%); min-width: 26px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; font-size: 12px; cursor: pointer;
+  background: color-mix(in srgb, var(--accent2) 22%, var(--surface)); border: 1px solid var(--accent2); white-space: nowrap; }
+.tl-pin.musica { background: color-mix(in srgb, #a855f7 22%, var(--surface)); border-color: #a855f7; }
+.tl-vacio { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11.5px; color: var(--muted); pointer-events: none; }
+.tl-quit { position: absolute; top: 22px; bottom: 0; pointer-events: none; border-radius: 4px; z-index: 2;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--err) 30%, transparent) 0 6px, color-mix(in srgb, var(--err) 12%, transparent) 6px 12px); border: 1px solid var(--err); }
+.tl-sel { position: absolute; top: 22px; bottom: 0; z-index: 3; pointer-events: none; border-radius: 4px; background: color-mix(in srgb, var(--accent2) 18%, transparent); border: 2px solid var(--accent2); }
+.tl-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ef4444; z-index: 4; pointer-events: none; }
+.tl-cabezal::before { content: ""; position: absolute; top: 0; left: -5px; border: 6px solid transparent; border-top: 8px solid #ef4444; }
+@media (max-width: 640px) { .tl { grid-template-columns: minmax(0, 1fr); } .tl-noms { display: none; } }
 .pieza small { display: block; font: 500 11px var(--sans, inherit); color: var(--muted); margin-top: 2px; text-align: left; }
 .pieza small.cambio { color: var(--accent2); }
 .transcripcion { display: grid; gap: 4px; max-height: 420px; overflow: hidden auto; overflow-wrap: break-word; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--hondo); line-height: 2.1; font-size: 14.5px; }
@@ -1585,7 +1643,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         </div>
         <div class="fila" style="margin-top:8px">
           <button class="btn sec peq" id="play">▶ Reproducir</button>
-          <span class="muted" style="font-size:12px">Vista previa en vivo: los cambios se ven sin renderizar.</span>
+          <span class="muted" style="font-size:12px">Toca el video o pulsa <kbd>Enter</kbd> para reproducir o pausar. Los cambios se ven sin renderizar.</span>
         </div>
       </div>
       <div class="caja pz-texto">
@@ -1598,6 +1656,17 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn sec" id="guardar">Guardar sin rearmar</button>
         </div>
       </div>
+    </div>
+    <div class="caja pz-tl" id="pzTl">
+      <div class="tl-cab">
+        <div><h2 style="margin:0">Línea de tiempo</h2><small class="muted" id="tlInfo">Arrastra sobre los clips o el texto para elegir un tramo y quitarlo. Toca una imagen o un sonido para cambiarlo.</small></div>
+        <div class="tl-botones">
+          <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
+          <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
+          <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
+        </div>
+      </div>
+      <div class="tl" id="tl"></div>
     </div>
   </section>
 
@@ -2134,6 +2203,12 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 <dialog id="dlgVer" class="visor" aria-labelledby="verTit">
   <div class="visor-cab"><button class="btn sec peq" type="button" id="verVolver">← Volver</button><b id="verTit" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b></div>
   <div class="visor-cuerpo" id="verCuerpo"></div>
+</dialog>
+<dialog id="dlgGaleria" class="galeria" aria-labelledby="galTit">
+  <div class="gal-cab"><h2 id="galTit">Elegir</h2><input type="search" id="galBuscar" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
+    <button class="btn sec peq" type="button" id="galCerrar" aria-label="Cerrar">✕</button></div>
+  <div class="gal-chips son-chips" id="galChips"></div>
+  <div class="gal-lista" id="galLista"></div>
 </dialog>
 <dialog id="dlgPregunta" class="pregunta" aria-labelledby="pqTexto">
   <div class="pq"><p id="pqTexto"></p><input id="pqCampo" hidden autocomplete="off">
@@ -3375,7 +3450,7 @@ function pintarPieza(forzar) {
   const v = $("vPieza");
   const [ruta, ver] = p.video.split("?");  // también si se volvió a preparar (otra versión: p. ej. al cambiar el formato)
   if (!v.src.includes(ruta) || (ver && !v.src.includes(ver))) v.src = p.video;
-  lineasTmp = p.lineas.map(l => l.texto); quitTmp = juntar(p.quitados || []); editLinea = null; marcaFin = null;
+  lineasTmp = p.lineas.map(l => l.texto); quitTmp = juntar(p.quitados || []); editLinea = null; marcaFin = null; tlSel = null;
   const nv = p.n_videos || 0;
   $("guardarArmar").textContent = nv ? `Guardar y rearmar ${nv === 1 ? "su video" : `sus ${nv} videos`}` : "Guardar y rearmar sus videos";
   marcasTmp = JSON.parse(JSON.stringify(p.marcas)); marcaSel = null;
@@ -3526,24 +3601,197 @@ function pintarMarcas() {
           ${m.palabra ? `<button class="btn sec peq peligro" type="button" data-borrar="${marcasTmp.indexOf(m)}" title="Quita la imagen, el sonido, el estilo y la música de esta palabra">Sin imagen ni sonido</button>` : ""}</div>
         <div class="marca-campos">
           <fieldset><legend>🖼 Imagen o clip encima</legend>
-            <div class="fila">${a ? (a.es_video ? "🎬" : `<img src="${esc(a.url)}" alt="" class="mini">`) : ""}<select data-mk="asset" style="flex:1">${opt([["", "Ninguna"], ...assets.map(x => [x, x])], m.asset)}</select></div>
+            <div class="gal-elegido">${a ? (a.es_video ? `<video class="mini" src="${esc(a.url)}" muted preload="metadata"></video>` : `<img src="${esc(a.url)}" alt="" class="mini">`) : ""}
+              <span class="nom">${m.asset ? esc(m.asset) : '<span class="muted">Sin imagen</span>'}</span>
+              <button class="btn sec peq" type="button" data-gal-abrir="imagen">${m.asset ? "Cambiar" : "Elegir imagen…"}</button></div>
             ${m.asset ? `<div class="dos"><label>Dura (s)<input data-mk="dur" type="number" min="0.5" max="6" step="0.1" value="${m.dur ?? 1.5}"></label>
               <label>Cómo<select data-mk="modo">${opt([["completa", "Pantalla completa"], ["ventana", "En ventana"]], m.modo || "completa")}</select></label>
               <label>Movimiento<select data-mk="mov">${opt([["zoom_in", "Acercar despacio"], ["zoom_out", "Alejar despacio"], ["fijo", "Fijo"]], m.mov || "zoom_in")}</select></label></div>` : ""}</fieldset>
-          <fieldset><legend>♪ Sonido en esta palabra</legend><select data-mk="sfx">${opt([["", "Automático (lo elige la sala)"], ["corte_silencio", "Corte de silencio (música en pausa)"], ...E.sfx.map(x => [x, cap(x.replace(/_/g, " "))])], m.sfx)}</select></fieldset>
+          <fieldset><legend>♪ Sonido en esta palabra</legend>
+            <div class="gal-elegido">${/^[bp]:/.test(m.sfx || "") ? `<button class="gal-play" type="button" data-gal-play="${esc("/sfx?id=" + encodeURIComponent(m.sfx))}" aria-label="Escuchar">▶</button>` : ""}
+              <span class="nom">${esc(nombreSonido(m.sfx))}</span>
+              <button class="btn sec peq" type="button" data-gal-abrir="sonido">Elegir sonido…</button></div></fieldset>
           <fieldset><legend>Aa Cómo se ve el subtítulo</legend><select data-mk="sub">${opt([["", "Normal"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
-          <fieldset><legend>🎵 Música desde aquí</legend><select data-mk="musica">${opt([["", "Sigue la misma"], ...(E.musica_ids || []).map(x => [x, x])], m.musica)}</select></fieldset>
+          <fieldset><legend>🎵 Cambiar la música desde aquí</legend>
+            <div class="gal-elegido">${m.musica && urlMusica(m.musica) ? `<button class="gal-play" type="button" data-gal-play="${esc(urlMusica(m.musica))}" aria-label="Escuchar">▶</button>` : ""}
+              <span class="nom">${m.musica ? esc(m.musica) : '<span class="muted">Sigue la misma</span>'}</span>
+              <button class="btn sec peq" type="button" data-gal-abrir="musica">Elegir música…</button></div></fieldset>
         </div></div>`;
     }
   }
-  // todas las marcas en orden de tiempo
-  const orden = conPos.filter(x => x.pos && pasa(x.m)).sort((a, b) => a.pos.t - b.pos.t);
-  if (orden.length) html += `<details class="lista-marcas"><summary>Lista de imágenes y sonidos (${orden.length})</summary>${orden.map(x =>
-    `<div data-w="${x.pos.li}-${x.pos.wi}"><span class="muted">${x.pos.t.toFixed(1)} s</span><b>${esc(x.m.palabra)}</b><span>${[
-      x.m.asset && `🖼 ${esc(x.m.asset)} · ${x.m.dur ?? 1.5} s`, x.m.sfx && `♪ ${esc(x.m.sfx.replace(/_/g, " "))}`,
-      x.m.sub && `Aa ${esc(x.m.sub.replace(/_/g, " "))}`, x.m.musica && `🎵 ${esc(x.m.musica)}`].filter(Boolean).join(" · ")}</span></div>`).join("")}</details>`;
   $("marcas").innerHTML = html;
+  pintarTl();
 }
+// Nombre para mostrar de un sonido de marca: un archivo exacto, una categoría que rota o el corte de silencio
+function nombreSonido(v) {
+  if (!v) return "Automático (lo elige la sala)";
+  if (v === "corte_silencio") return "Corte de silencio (la música se calla)";
+  if (/^[bp]:/.test(v)) return v.split("/").pop().replace(/\.[^.]+$/, "");
+  return `Cualquiera de «${cap(v.replace(/_/g, " "))}» (va rotando)`;
+}
+// Para escuchar una pista: las de la sesión (Flow Music) si ya están, y las de la carpeta general por su nombre
+function urlMusica(id) {
+  const s = (E.checklist?.musica || []).find(x => x.id === id);
+  if (s) return s.url || null;
+  return "/musica?id=" + encodeURIComponent(id);
+}
+const galAudio = new Audio();
+let gal = null;  // {tipo: imagen|sonido|musica, cat, q}
+galAudio.addEventListener("ended", () => document.querySelectorAll(".gal-play.sonando").forEach(b => { b.classList.remove("sonando"); b.textContent = "▶"; }));
+function escucharGal(btn) {
+  const sonando = btn.classList.contains("sonando");
+  galAudio.pause(); document.querySelectorAll(".gal-play.sonando").forEach(b => { b.classList.remove("sonando"); b.textContent = "▶"; });
+  if (sonando) return;
+  galAudio.src = btn.dataset.galPlay; galAudio.currentTime = 0;
+  galAudio.play().then(() => { btn.classList.add("sonando"); btn.textContent = "❚❚"; }).catch(() => avisar("No se pudo reproducir ese archivo.", "err"));
+}
+async function abrirGaleria(tipo) {
+  gal = { tipo, cat: "", q: "" };
+  $("galBuscar").value = "";
+  $("galTit").textContent = { imagen: "Elegir imagen o clip", sonido: "Elegir sonido", musica: "Elegir música" }[tipo];
+  if (tipo === "sonido") await cargarBiblioteca();
+  pintarGaleria();
+  $("dlgGaleria").showModal();
+}
+function pintarGaleria() {
+  if (!gal) return;
+  const p = piezaSel(), w = marcaSel && palabrasPieza(p).find(x => x.li === marcaSel.li && x.wi === marcaSel.wi);
+  const m = (w && marcaDe(w)) || {}, q = norm(gal.q || ""), pasa = t => !q || norm(t).includes(q);
+  const lista = $("galLista"), chips = $("galChips");
+  lista.className = "gal-lista" + (gal.tipo === "imagen" ? " imagenes" : "");
+  chips.innerHTML = "";
+  if (gal.tipo === "imagen") {
+    const pre = `_${p.nombre.split("~")[0].split("_")[0]}_`.toUpperCase();  // las de este cuerpo, primero
+    const ids = [...new Set([...E.assets.map(x => x.id), ...E.checklist.assets.map(x => x.id)])]
+      .sort((x, y) => (y.toUpperCase().includes(pre) - x.toUpperCase().includes(pre)) || x.localeCompare(y)).filter(pasa);
+    lista.innerHTML = `<button class="gal-img" type="button" data-gal="" aria-pressed="${!m.asset}"><span class="foto">Sin imagen</span><span>Ninguna</span></button>`
+      + ids.map(id => { const x = urlAsset(id);
+        return `<button class="gal-img" type="button" data-gal="${esc(id)}" aria-pressed="${m.asset === id}" title="${esc(id)}">${x
+          ? (x.es_video ? `<video class="foto" src="${esc(x.url)}" muted loop preload="metadata"></video>` : `<img class="foto" src="${esc(x.url)}" alt="" loading="lazy">`)
+          : `<span class="foto">Falta generarla</span>`}<span>${x?.es_video ? "🎬 " : ""}${esc(id)}</span></button>`; }).join("");
+    return;
+  }
+  const fila = (v, nombre, url, sub) => `<div class="gal-fila" ${String(m[gal.tipo === "sonido" ? "sfx" : "musica"] || "") === v ? 'aria-current="true"' : ""}>
+      ${url !== undefined ? `<button class="gal-play" type="button" ${url ? `data-gal-play="${esc(url)}"` : "disabled title=\"Todavía no está el archivo\""} aria-label="Escuchar ${esc(nombre)}">▶</button>` : `<span class="gal-play" style="visibility:hidden"></span>`}
+      <span class="nom">${esc(nombre)}${sub ? `<br><small>${esc(sub)}</small>` : ""}</span>
+      <button class="btn sec peq" type="button" data-gal="${esc(v)}">Elegir</button></div>`;
+  if (gal.tipo === "sonido") {
+    const cats = biblioteca || [];
+    chips.innerHTML = [["", "Todos"], ...cats.map(c => [c.cat, c.nombre])].map(([k, t]) => `<button type="button" data-gal-cat="${esc(k)}" aria-pressed="${gal.cat === k}">${esc(t)}</button>`).join("");
+    let html = fila("", "Automático (lo elige la sala)") + fila("corte_silencio", "Corte de silencio", undefined, "La música se calla un momento y vuelve con un golpe");
+    if (gal.cat) html += fila(gal.cat, nombreSonido(gal.cat), undefined, "Cada video usa uno distinto de esta carpeta");
+    cats.filter(c => !gal.cat || c.cat === gal.cat).forEach(c => c.archivos.filter(f => pasa(f.nombre)).forEach(f => {
+      html += fila(f.id, f.nombre.trim(), "/sfx?id=" + encodeURIComponent(f.id), gal.cat ? "" : c.nombre);
+    }));
+    lista.innerHTML = html;
+    return;
+  }
+  const sesion = (E.checklist?.musica || []).map(x => x.id), general = (E.pistas_musica || []).map(f => f.replace(/\.[^.]+$/, ""));
+  lista.innerHTML = fila("", "Sigue la misma") + [...sesion.map(id => [id, "De esta sesión"]), ...general.filter(g => !sesion.includes(g)).map(id => [id, "De la carpeta de música"])]
+    .filter(([id]) => pasa(id)).map(([id, de]) => fila(id, id, urlMusica(id), de)).join("");
+}
+$("galBuscar").addEventListener("input", e => { gal.q = e.target.value; pintarGaleria(); });
+$("galCerrar").onclick = () => $("dlgGaleria").close();
+$("dlgGaleria").addEventListener("close", () => { galAudio.pause(); gal = null; });
+$("dlgGaleria").addEventListener("click", e => {
+  if (e.target === $("dlgGaleria")) return $("dlgGaleria").close();
+  const c = e.target.closest("[data-gal-cat]"); if (c) { gal.cat = c.dataset.galCat; pintarGaleria(); return; }
+  const pl = e.target.closest("[data-gal-play]"); if (pl) return escucharGal(pl);
+  const el = e.target.closest("[data-gal]");
+  if (el) { const campo = { imagen: "asset", sonido: "sfx", musica: "musica" }[gal.tipo]; $("dlgGaleria").close(); cambiarMarca(campo, el.dataset.gal); }
+});
+// los clips se mueven al pasar el mouse (así se ve qué son sin abrirlos)
+$("dlgGaleria").addEventListener("mouseover", e => { const v = e.target.closest(".gal-img")?.querySelector("video"); if (v) v.play().catch(() => {}); });
+$("dlgGaleria").addEventListener("mouseout", e => { const v = e.target.closest(".gal-img")?.querySelector("video"); if (v && !e.target.closest(".gal-img").contains(e.relatedTarget)) v.pause(); });
+// ---------- Línea de tiempo de la pieza ----------
+let tlPartes = { pieza: null, partes: [], clips: false }, tlSel = null, tlArr = null;
+async function cargarPartes(p) {
+  if (tlPartes.pieza === p.nombre) return;
+  tlPartes = { pieza: p.nombre, partes: [], clips: false };
+  try { const r = await (await fetch("/api/partes?pieza=" + encodeURIComponent(p.nombre))).json(); if (tlPartes.pieza === p.nombre) tlPartes = { pieza: p.nombre, ...r }; } catch (e) {}
+  pintarTl();
+}
+const durTl = p => $("vPieza").duration || (p.lineas.length ? p.lineas[p.lineas.length - 1].e + .3 : 1);
+function pintarTl() {
+  const p = piezaSel(), caja = $("tl"); if (!caja) return;
+  if (!p) { caja.innerHTML = ""; return; }
+  if (tlPartes.pieza !== p.nombre) { cargarPartes(p); }
+  const D = durTl(p), pc = t => (Math.max(0, Math.min(D, t)) / D * 100).toFixed(3) + "%", ancho = (a, b) => ((b - a) / D * 100).toFixed(3) + "%";
+  const paso = D > 40 ? 5 : D > 15 ? 2 : 1;
+  let regla = "";
+  for (let t = 0; t <= D; t += paso / 2) { const mayor = Math.abs(t / paso - Math.round(t / paso)) < 1e-6;
+    regla += `<i class="${mayor ? "mayor" : ""}" style="left:${pc(t)}"></i>${mayor ? `<b style="left:${pc(t)}">${Math.round(t)}s</b>` : ""}`; }
+  const nombres = (p.tomas || []).map(x => x.nombre);
+  const clips = tlPartes.partes.map((c, i) => `<div class="tl-blq clip" data-tl-a="${c.ini}" data-tl-b="${c.fin}" style="left:${pc(c.ini)};width:${ancho(c.ini, c.fin)}" title="${esc(c.texto)}">
+      <b>${tlPartes.clips ? `Clip ${i + 1}` : `Frase ${i + 1}`}</b>${esc(c.texto)}</div>`).join("") || `<span class="tl-vacio">${p.procesada ? "Un solo clip" : "Sin preparar"}</span>`;
+  const lineas = p.lineas.map((l, i) => `<div class="tl-blq linea" data-tl-a="${l.s}" data-tl-b="${l.e}" style="left:${pc(l.s)};width:${ancho(l.s, l.e)}" title="${esc(lineasTmp[i] ?? l.texto)}">${esc(lineasTmp[i] ?? l.texto)}</div>`).join("");
+  const conPos = marcasTmp.map(m => ({ m, pos: ubicarComoVideo(p, m.palabra || "", m.n) })).filter(x => x.pos);
+  const esSel = pos => marcaSel && pos.li === marcaSel.li && pos.wi === marcaSel.wi;
+  const imgs = conPos.filter(x => x.m.asset).map(({ m, pos }) => { const a = urlAsset(m.asset), d = m.dur || 1.5;
+    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${ancho(pos.t, Math.min(D, pos.t + d))};${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s"><span>${a?.es_video ? "🎬 " : ""}${esc(m.asset)}</span></div>`; }).join("")
+    || `<span class="tl-vacio">Sin imágenes: toca una palabra del texto y elige una</span>`;
+  const sons = conPos.filter(x => x.m.sfx || x.m.musica).map(({ m, pos }) =>
+    `${m.sfx ? `<div class="tl-pin ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)}" title="♪ ${esc(nombreSonido(m.sfx))} en «${esc(m.palabra)}»">♪</div>` : ""}
+     ${m.musica ? `<div class="tl-pin musica ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)}" title="🎵 ${esc(m.musica)} desde «${esc(m.palabra)}»">🎵</div>` : ""}`).join("")
+    || `<span class="tl-vacio">Los sonidos automáticos los pone la sala al armar</span>`;
+  const quit = quitTmp.map(([a, b]) => `<div class="tl-quit" style="left:${pc(a)};width:${ancho(a, b)}"></div>`).join("");
+  const sel = tlSel ? `<div class="tl-sel" style="left:${pc(tlSel.a)};width:${ancho(tlSel.a, tlSel.b)}"></div>` : "";
+  caja.innerHTML = `<div class="tl-noms"><span>Tiempo</span><span>${tlPartes.clips ? "Clips" : "Frases"}</span><span>Texto</span><span>Imágenes</span><span>Sonidos</span></div>
+    <div class="tl-zona" id="tlZona"><div class="tl-regla">${regla}</div><div class="tl-carril">${clips}</div><div class="tl-carril">${lineas}</div>
+      <div class="tl-carril">${imgs}</div><div class="tl-carril">${sons}</div>${quit}${sel}<div class="tl-cabezal" id="tlCabezal" style="left:${pc($("vPieza").currentTime || 0)}"></div></div>`;
+  pintarBotonesTl();
+}
+function pintarBotonesTl() {
+  const b = $("tlQuitar"); if (!b) return;
+  const dentro = tlSel && quitTmp.some(([a, c]) => tlSel.a >= a - .02 && tlSel.b <= c + .02);
+  b.disabled = !tlSel || tlSel.b - tlSel.a < .05;
+  b.classList.toggle("volver", !!dentro);
+  b.textContent = !tlSel ? "✂ Quitar el tramo" : dentro ? `↩ Volver a poner (${(tlSel.b - tlSel.a).toFixed(1)} s)` : `✂ Quitar el tramo (${(tlSel.b - tlSel.a).toFixed(1)} s)`;
+  b.title = b.disabled ? "Primero arrastra sobre los clips o el texto para elegir un tramo" : "";
+}
+function cabezalTl() { const p = piezaSel(), c = $("tlCabezal"); if (p && c) c.style.left = (Math.min(1, ($("vPieza").currentTime || 0) / durTl(p)) * 100) + "%"; }
+const tiempoTl = e => { const z = $("tlZona").getBoundingClientRect(), p = piezaSel(); return Math.max(0, Math.min(1, (e.clientX - z.left) / z.width)) * durTl(p); };
+$("tl").addEventListener("pointerdown", e => {
+  if (!e.target.closest("#tlZona") || e.button) return;
+  const w = e.target.closest("[data-tl-w]");
+  if (w) {  // una imagen o un sonido: se elige su palabra y se abre su panel en «Texto»
+    const [li, wi] = w.dataset.tlW.split("-").map(Number), p = piezaSel();
+    marcaSel = { li, wi }; marcaFin = null; $("vPieza").currentTime = p.lineas[li].palabras[wi].s;
+    pintarMarcas(); vivo(); document.querySelector(".marca-insp")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    return;
+  }
+  e.preventDefault(); $("tlZona").setPointerCapture(e.pointerId);
+  const t = tiempoTl(e);
+  tlArr = { t0: t, x0: e.clientX, regla: !!e.target.closest(".tl-regla"), blq: e.target.closest("[data-tl-a]"), movio: false };
+  $("vPieza").currentTime = t; cabezalTl(); vivo();
+});
+$("tl").addEventListener("pointermove", e => {
+  if (!tlArr) return;
+  const t = tiempoTl(e);
+  if (Math.abs(e.clientX - tlArr.x0) > 4) tlArr.movio = true;
+  if (!tlArr.movio) return;
+  $("vPieza").currentTime = t; cabezalTl();
+  if (!tlArr.regla) { tlSel = { a: Math.min(tlArr.t0, t), b: Math.max(tlArr.t0, t) }; pintarTl(); }
+});
+$("tl").addEventListener("pointerup", () => {
+  if (!tlArr) return;
+  const a = tlArr; tlArr = null;
+  if (!a.movio) {  // un toque: en un clip o una línea elige ese tramo entero; en lo vacío, solo mueve el cabezal
+    const q = quitTmp.find(([x, y]) => a.t0 >= x && a.t0 <= y);
+    tlSel = q ? { a: q[0], b: q[1] } : a.blq ? { a: +a.blq.dataset.tlA, b: +a.blq.dataset.tlB } : null;
+  }
+  pintarTl(); vivo();
+});
+$("tlIni").onclick = () => { const t = $("vPieza").currentTime; tlSel = { a: t, b: Math.max(t + .1, tlSel?.b ?? t + 1) }; pintarTl(); };
+$("tlFin").onclick = () => { const t = $("vPieza").currentTime; tlSel = { a: Math.min(t - .1, tlSel?.a ?? Math.max(0, t - 1)), b: t }; if (tlSel.a < 0) tlSel.a = 0; pintarTl(); };
+$("tlQuitar").onclick = () => {
+  if (!tlSel) return;
+  const { a, b } = tlSel, dentro = quitTmp.some(([x, y]) => a >= x - .02 && b <= y + .02);
+  quitTmp = dentro ? juntar(quitTmp.flatMap(([x, y]) => y <= a || x >= b ? [[x, y]] : [[x, a], [b, y]])) : juntar([...quitTmp, [a, b]]);
+  avisar(dentro ? `Vuelve el tramo de ${a.toFixed(1)} a ${b.toFixed(1)} s. Guarda para aplicarlo.` : `Se quita de ${a.toFixed(1)} a ${b.toFixed(1)} s en todos sus videos. Guarda para aplicarlo.`, "ok");
+  tlSel = null; pintarMarcas(); pintarSucia();
+};
+$("vPieza").addEventListener("loadedmetadata", pintarTl);
 function leerMarcas() {}  // las marcas se editan directo en marcasTmp (se deja por compatibilidad con guardar)
 function cambiarMarca(campo, valor) {
   const p = piezaSel(), w = palabrasPieza(p).find(x => x.li === marcaSel.li && x.wi === marcaSel.wi); if (!w) return;
@@ -3572,6 +3820,8 @@ $("marcas").addEventListener("click", e => {
     return avisar(n ? `${n} marca${n === 1 ? "" : "s"} puesta${n === 1 ? "" : "s"} en la palabra más parecida. Revisa y guarda.` : "No encontré palabras bastante parecidas: elígelas tocando el texto.", n ? "ok" : "muted");
   }
   if (e.target.closest("[data-quitar-sel]")) return quitarSeleccion();
+  const ga = e.target.closest("[data-gal-abrir]"); if (ga) return abrirGaleria(ga.dataset.galAbrir);
+  const gp = e.target.closest("[data-gal-play]"); if (gp) return escucharGal(gp);
   const el = e.target.closest("[data-editar-linea]");
   if (el) { editLinea = Number(el.dataset.editarLinea); pintarMarcas(); const i = $("trEdita"); if (i) { i.focus(); i.select(); } return; }
   if (e.target.closest("[data-linea-listo]")) { editLinea = null; pintarMarcas(); pintarSucia(); return; }
@@ -3606,9 +3856,6 @@ function vivo() {
   const v0 = $("vPieza"), salto = !v0.paused && quitTmp.find(([a, b]) => v0.currentTime >= a && v0.currentTime < b - .02);
   if (salto) v0.currentTime = salto[1];
   const t = v0.currentTime;
-  document.querySelectorAll(".linea").forEach(d => {
-    const l = p.lineas[d.dataset.i]; d.classList.toggle("activa", t >= l.s && t < l.e + 0.05);
-  });
   document.querySelectorAll(".transcripcion [data-w]").forEach(d => {  // la palabra que suena, resaltada
     const [li, wi] = d.dataset.w.split("-").map(Number), w = p.lineas[li]?.palabras[wi];
     d.classList.toggle("ahora", !!w && t >= w.s && t < w.e + .03);
@@ -3629,7 +3876,7 @@ function vivo() {
   // subtítulo
   const li = p.lineas.findIndex((l, i) => t >= l.s && t < (p.lineas[i + 1]?.s - l.e < .4 ? p.lineas[i + 1].s : l.e + .05));
   const sub = $("subVivo");
-  if (li < 0) { sub.innerHTML = ""; return; }
+  if (li < 0) { sub.innerHTML = ""; sub.dataset.clave = ""; return; }
   const l = p.lineas[li];
   let wi = l.palabras.findIndex((w, i) => t >= (i ? w.s : l.s) && t < (l.palabras[i + 1]?.s ?? 99));
   if (wi < 0) wi = l.palabras.length - 1;
@@ -3644,6 +3891,9 @@ function vivo() {
   const pl = plVista(E.plantillas[E.plantilla]);
   const ancho = $("visor").clientWidth || 300;
   const claves = new Set(l.palabras.map((w, i) => (res2.has(i) || (E.claves || []).includes(norm(w.w))) ? i : -1).filter(i => i >= 0));
+  const clave = [li, wi, estilo, solas.has(wi), [...claves].join(","), ancho, p.nombre, JSON.stringify(pl)].join("|");
+  if (sub.dataset.clave === clave) return;
+  sub.dataset.clave = clave;
   if (solas.has(wi)) { sub.className = "sub palabra_sola sublinea"; pintarLinea(sub, [l.palabras[wi].w], 0, new Set(), { ...pl, tamano: pl.tamano * 2 }, ancho); return; }
   sub.className = "sub sublinea " + estilo;
   // a la altura de la plantilla (la del hook o la del CTA si la tienen), como en el video armado
@@ -3652,7 +3902,7 @@ function vivo() {
   const escala = { centro_grande: 1.35, sobre_imagen: 1.2 }[estilo] || 1;
   pintarLinea(sub, l.palabras.map(w => w.w), wi, claves, { ...pl, tamano: pl.tamano * escala }, ancho);
 }
-function bucle() { vivo(); if (!$("vPieza").paused) requestAnimationFrame(bucle); }
+function bucle() { vivo(); cabezalTl(); if (!$("vPieza").paused) requestAnimationFrame(bucle); }
 
 function lineasEditadas() {
   const p = piezaSel();
@@ -3977,6 +4227,12 @@ $("vPieza").addEventListener("timeupdate", vivo);
 $("vPieza").addEventListener("play", bucle);
 $("vPieza").addEventListener("seeked", vivo);
 $("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play() : v.pause(); };
+$("visor").addEventListener("click", () => $("play").click());  // tocar el video lo reproduce o lo pausa
+document.addEventListener("keydown", e => {  // Enter también (en Hooks, Cuerpos y CTAs), salvo escribiendo o en un botón
+  if (e.key !== "Enter" || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
+  if (e.target.closest?.("input, textarea, select, button, a, [contenteditable], [role=button]")) return;
+  e.preventDefault(); $("play").click();
+});
 $("vPieza").addEventListener("play", () => $("play").textContent = "❚❚ Pausa");
 $("vPieza").addEventListener("pause", () => $("play").textContent = "▶ Reproducir");
 $("nuevaMarca").onclick = () => {  // la palabra que suena en el segundo actual del video
@@ -8867,7 +9123,7 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
   const k = ancho / (pl._ancho_ref || 1080), res = pl.resaltador || {}, modo = res.modo || "", l2 = pl.linea2 || {};
   el.style.fontFamily = `"F_${pl.fuente}", "Arial Black", sans-serif`;
   el.style.fontSize = (pl.tamano * k) + "px";
-  const span = (w, j, segunda) => {
+  const span = (w, j, segunda, activa) => {
     const caja = (modo === "activa" || modo === "ambas") && j === activa || (modo === "clave" || modo === "ambas") && claves.has(j);
     const base = segunda && l2.color ? l2.color : pl.color_texto;
     const color = caja ? res.texto : j === activa ? pl.color_activo : claves.has(j) ? (pl.color_resaltado || "#99D3DA") : base;
@@ -8879,10 +9135,13 @@ function pintarLinea(el, palabras, activa, claves, pl, ancho) {
     const fuente = segunda && l2.fuente ? `font-family:'F_${l2.fuente}','Arial Black',sans-serif;` : "";
     return `<span class="${caja ? "caja" : ""}" style="${fuente}${extra}color:${color};font-size:${escala}em;-webkit-text-stroke:${borde}px ${pl.color_borde};text-shadow:${sombra};${caja ? `background:${res.color};border-radius:${(res.radio ?? .22)}em` : ""}">${esc(pl.mayusculas === false ? w : w.toUpperCase())}</span>`;
   };
-  el.innerHTML = partirRenglones(palabras, pl).map((idx, r) => `<div class="renglon">${idx.map(j => span(palabras[j], j, r === 1)).join("")}</div>`).join("");
-  // igual que en el video: si la línea no entra, se achica entera
+  const html = act => partirRenglones(palabras, pl).map((idx, r) => `<div class="renglon">${idx.map(j => span(palabras[j], j, r === 1, act)).join("")}</div>`).join("");
+  // igual que en el video: si la línea no entra, se achica entera. Se mide sin la palabra activa agrandada, así la
+  // línea mantiene su tamaño mientras avanza la palabra que suena (antes cambiaba un poco en cada una y temblaba)
+  el.innerHTML = html(-1);
   const disponible = el.clientWidth;
   for (let n = 0; n < 4 && disponible && el.scrollWidth > disponible + 1; n++) el.style.fontSize = (parseFloat(el.style.fontSize) * disponible / el.scrollWidth * 0.99) + "px";
+  if (activa >= 0) el.innerHTML = html(activa);
 }
 function pintarPlantillas() {
   if (!E) return;  // se abrió la pestaña antes de que la sala termine de cargar: se pinta al llegar los datos

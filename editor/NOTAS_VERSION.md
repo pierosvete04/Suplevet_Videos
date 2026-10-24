@@ -1,3 +1,19 @@
+Versión 1.47.7 (se actualiza desde la app con «Actualizar ahora»):
+- **Línea de tiempo en Piezas y subtítulos** (hooks, cuerpos y CTAs), debajo del video. Muestra:
+  - Los **clips** de la pieza (o sus frases, si se grabó de corrido), el **texto**, las **imágenes** con su miniatura y los **sonidos y la música**.
+  - Una **línea roja** que sigue al video. Tocas o arrastras en la regla para moverte.
+  - **Arrastra sobre los clips o el texto** para elegir un tramo y **✂ Quitarlo**. Tocar un clip elige el clip entero. «⇤ Inicio aquí» y «Fin aquí ⇥» marcan el tramo justo donde está la línea roja.
+  - Lo quitado se ve **rayado en rojo**: lo tocas y aparece «↩ Volver a poner».
+  - Tocar una imagen o un sonido abre su palabra para cambiarlo. Reemplaza a la lista plegable «Lista de imágenes y sonidos».
+- **Galería con vista previa**:
+  - **Imágenes:** miniaturas, y los clips se mueven al pasar el mouse.
+  - **Sonidos:** ▶ para escuchar cada uno, por carpeta y con buscador.
+  - **Música:** ▶ para escuchar cada pista.
+  - Ahora puedes elegir **un sonido exacto** y suena ese en el video, no uno al azar de su carpeta.
+- **Tocar el video lo reproduce o lo pausa**, y **Enter** también, en hooks, cuerpos y CTAs.
+- **El subtítulo de la vista previa ya no tiembla**: antes se redibujaba y cambiaba de tamaño en cada cuadro; ahora mantiene su tamaño en toda la línea.
+- **«Quitar del video»**: botón rojo con letra blanca.
+
 Versión 1.47.6 (se actualiza desde la app con «Actualizar ahora»):
 - **Piezas y subtítulos, en una sola vista «Texto»**: ya no hay dos pestañas (Subtítulos y Marcas). Ves lo que se dijo y **tocas una palabra** para:
   - **✂ Quitar del video**: se corta esa palabra o frase (imagen y voz) en todos los videos que usan la pieza. Queda tachada y con «↩ Volver a poner» regresa. Con Shift eliges varias seguidas y con Supr las quitas. Al reproducir, lo quitado se salta, así escuchas cómo va a quedar. Los cortes también se ven en «Editar video».

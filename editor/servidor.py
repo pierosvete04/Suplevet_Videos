@@ -1212,6 +1212,11 @@ class H(BaseHTTPRequestHandler):
                 except Exception:  # noqa: BLE001
                     pass
             self._archivo(f.parent, f.name)
+        elif u.path == "/musica":  # una pista por su nombre, para escucharla en la galería de Piezas
+            f = motor.buscar_musica(parse_qs(u.query).get("id", [""])[0])
+            if not f:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
         elif u.path == "/pista":  # la música de un video, para escucharla en la vista previa del editor
             q = parse_qs(u.query)
             try:
@@ -1245,6 +1250,14 @@ class H(BaseHTTPRequestHandler):
                 except Exception:  # noqa: BLE001
                     pass
             self._json(motor.onda_archivo(f) if f else {"por_seg": 50, "picos": [], "dur": 0})
+        elif u.path == "/api/partes":  # los clips (o frases) de una pieza, para la línea de tiempo de Piezas
+            n = parse_qs(u.query)["pieza"][0]
+            firma = motor.S.proc / f"{n}.partes.json"
+            try:
+                clips = len(json.loads(firma.read_text(encoding="utf-8")).get("duraciones") or []) > 1
+            except (FileNotFoundError, ValueError, AttributeError):
+                clips = False
+            self._json({"partes": motor.partes_de(n), "clips": clips})
         elif u.path == "/api/onda":
             self._json(motor.onda(parse_qs(u.query)["pieza"][0]))
         elif u.path == "/api/apoyo_visual":
