@@ -1,3 +1,12 @@
+Versión 1.47.6 (se actualiza desde la app con «Actualizar ahora»):
+- **Piezas y subtítulos, en una sola vista «Texto»**: ya no hay dos pestañas (Subtítulos y Marcas). Ves lo que se dijo y **tocas una palabra** para:
+  - **✂ Quitar del video**: se corta esa palabra o frase (imagen y voz) en todos los videos que usan la pieza. Queda tachada y con «↩ Volver a poner» regresa. Con Shift eliges varias seguidas y con Supr las quitas. Al reproducir, lo quitado se salta, así escuchas cómo va a quedar. Los cortes también se ven en «Editar video».
+  - **✎ Corregir el subtítulo** de esa línea («Como se dijo» lo devuelve).
+  - **Poner una imagen o clip encima, un sonido, cómo se ve el subtítulo o un cambio de música** (lo que antes se llamaba «Marcas»).
+- **La lista de piezas dice en palabras lo que tiene**: cuánto dura, «✂ con cortes» o «✂ editada», cuántas imágenes y sonidos. Antes era una tijera y un número sueltos.
+- **«Guardar y rearmar sus 5 videos»**: el botón dice a cuántos videos afecta. El otro ahora es «Guardar sin rearmar».
+- **Guion**: «Subir guion» queda centrado en su tarjeta.
+
 Versión 1.47.5 (se actualiza desde la app con «Actualizar ahora»):
 - **Exportar revisado a fondo** (exportar todo, seleccionados y por partes):
   - «Exportar todo» ahora saca **todos** los videos armados. Antes se saltaba los que no estaban en ningún día del calendario.

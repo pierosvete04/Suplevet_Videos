@@ -118,6 +118,7 @@ def estado():
     S = motor.S
     prod = motor.produccion()
     ps = []
+    ajp, combos = motor.ajustes_piezas(), list(motor.combinaciones())
     for p in motor.piezas():
         d = motor.leer_subs(p["nombre"])
         proc = S.proc / f"{p['nombre']}.mp4"
@@ -125,6 +126,9 @@ def estado():
                    "video": url_media(proc if proc.exists() else p["original"]),
                    "lineas": d["lineas"], "marcas": motor.marcas_de(p["nombre"]),
                    "marcas_editadas": "marcas" in d, "info": motor.info_pieza(p["nombre"]),
+                   # lo quitado de la pieza (desde el texto o desde «Editar video») y cuántos videos la usan
+                   "quitados": motor.ajustes_de_pieza(p["nombre"], "A", ajp).get("quitar_rangos") or [],
+                   "n_videos": sum(1 for c in combos if not c.get("version") and p["nombre"] in (c["hook"], c["cuerpo"], c["cta"])),
                    # sus tomas (para «Cambiar la toma» en el editor): el clip y con qué nombre entra cada una
                    "tomas": [{"rel": r, "nombre": n, "video": url_media(ruta)} for r, n, ruta in zip(p["rels"], p.get("nombres_partes") or [p["nombre"]] * len(p["rels"]), p["partes"])]})
     salidas = []
@@ -1933,6 +1937,8 @@ class H(BaseHTTPRequestHandler):
                 n = motor.aceptar_sugerencias(minimo)
                 subir_asignaciones()
                 self._json({"ok": True, "asignadas": n})
+            elif u.path == "/api/quitar_texto":
+                self._json({"ok": True, "codigos": motor.guardar_quitados(q["pieza"][0], self._cuerpo().get("rangos") or [])})
             elif u.path == "/api/marcas":
                 motor.guardar_marcas(q["pieza"][0], self._cuerpo()["marcas"])
                 self._json({"ok": True})

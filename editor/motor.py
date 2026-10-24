@@ -3179,6 +3179,29 @@ def guardar_edicion_piezas(datos):
             and {c["hook"], c["cuerpo"], c["cta"]} & set(cambiadas)]
 
 
+def guardar_quitados(pieza, rangos):
+    """«Quitar» en el texto de Piezas: los tramos que se cortan de la pieza (video y audio), en segundos de la pieza.
+    Se guardan igual que los cortes de «Editar video» (un corte en cada borde y el pedazo quitado), así que se ven y
+    se pueden volver a poner desde las dos partes. Devuelve los códigos de los videos que hay que rearmar."""
+    todo = ajustes_piezas()
+    actual = dict(ajustes_de_pieza(pieza, "A", todo))
+    nuevos = _limpiar_rangos({"cuerpo": rangos}).get("cuerpo", [])
+    viejos = actual.get("quitar_rangos") or []
+    if nuevos == viejos:
+        return []
+    bordes = lambda rs: {round(x, 3) for r in rs for x in r}
+    # los cortes de los tramos que se volvieron a poner se van (si ningún tramo que queda los usa); los nuevos se suman
+    cortes = (set(actual.get("cortes") or []) - (bordes(viejos) - bordes(nuevos))) | bordes(nuevos)
+    actual["cortes"] = sorted(t for t in cortes if t > 0)
+    actual["quitar_rangos"] = nuevos
+    actual = {k: v for k, v in actual.items() if v not in (None, {}, [])}
+    todo[clave_pieza(pieza, "A")] = {**actual, "editado": time.time()}
+    S.subs.mkdir(parents=True, exist_ok=True)
+    _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
+    return [c["codigo"] for c in combinaciones() if not c.get("version") and letra_edicion(c) == "A"
+            and pieza in (c["hook"], c["cuerpo"], c["cta"])]
+
+
 def ajustes_silencios():
     return {"auto": True, "margen": 0.08, **CONFIG.get("silencios", {})}
 

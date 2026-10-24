@@ -739,6 +739,7 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
   background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
 .g-accion.principal { background: linear-gradient(135deg, var(--prim-2), var(--prim-1) 70%, #3b7bf0); border-color: transparent; color: #fff; box-shadow: 0 10px 28px rgba(29,78,216,.35); }
 .g-accion.principal small { color: rgba(255,255,255,.88); }
+.g-accion.principal { align-items: center; }  /* «Subir guion»: centrado de arriba a abajo en su tarjeta */
 .g-accion.principal .g-ico { background: rgba(255,255,255,.2); color: #fff; }
 .g-accion.principal.encima { outline: 3px dashed #fff; outline-offset: -8px; }
 .g-accion.imprimir { cursor: default; }
@@ -977,8 +978,21 @@ dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color:
 .barra-res > span:last-child { grid-column: 1 / -1; }
 .barra { height: 8px; background: var(--hondo); border-radius: 99px; overflow: hidden; } .barra i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 .marcas-perdidas { border: 1px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: color-mix(in srgb, var(--warn) 8%, transparent); }
-.transcripcion { display: grid; gap: 4px; max-height: 300px; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--hondo); line-height: 2.1; font-size: 14.5px; }
-.tr-linea { display: grid; grid-template-columns: 44px 1fr; gap: 8px; align-items: baseline; }
+.pz-cab { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.pz-ayuda { margin: 6px 0 10px; font-size: 12.5px; line-height: 1.5; }
+.pz-ayuda kbd, .marca-insp kbd { font: 600 11px var(--mono); padding: 1px 5px; border: 1px solid var(--line2); border-radius: 4px; background: var(--bg2); }
+.pz-guardar { margin-top: 12px; }
+.transcripcion .w.quitada { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--muted); background: color-mix(in srgb, var(--err) 10%, transparent); }
+.tr-linea .tr-lapiz { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 4px; border-radius: 6px; }
+.tr-linea .tr-lapiz:hover { color: var(--accent2); background: var(--bg2); }
+.tr-corr { grid-column: 2 / -1; font-size: 12px; line-height: 1.4; color: var(--warn); }
+.tr-edita { grid-column: 2 / -1; display: flex; gap: 6px; } .tr-edita input { flex: 1; min-width: 0; }
+.marca-acciones { display: flex; flex-wrap: wrap; gap: 6px; } .marca-acciones .btn { max-width: 100%; white-space: normal; }
+.marca-acciones .peligro { color: var(--err); }
+.pieza small { display: block; font: 500 11px var(--sans, inherit); color: var(--muted); margin-top: 2px; text-align: left; }
+.pieza small.cambio { color: var(--accent2); }
+.transcripcion { display: grid; gap: 4px; max-height: 420px; overflow: hidden auto; overflow-wrap: break-word; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--hondo); line-height: 2.1; font-size: 14.5px; }
+.tr-linea { display: grid; grid-template-columns: 44px minmax(0, 1fr) 26px; gap: 2px 8px; align-items: baseline; }
 .tr-t { font: 600 11px var(--mono); color: var(--muted); cursor: pointer; }
 .transcripcion .w { position: relative; cursor: pointer; padding: 2px 3px; border-radius: 5px; }
 .transcripcion .w:hover { background: var(--bg2); }
@@ -1574,23 +1588,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <span class="muted" style="font-size:12px">Vista previa en vivo: los cambios se ven sin renderizar.</span>
         </div>
       </div>
-      <div class="caja">
-        <div class="tabs-mini redes">
-          <button aria-pressed="true" data-sub="lineas">Subtítulos</button>
-          <button aria-pressed="false" data-sub="marcas">Marcas (imágenes, estilo, sonido)</button>
-        </div>
-        <div id="panelLineas">
-          <p class="muted" style="margin:0 0 6px">Toca el tiempo para escuchar. Escribe la corrección.</p>
-          <div class="editor" id="lineas"></div>
-        </div>
-        <div id="panelMarcas" hidden>
-          <p class="muted" style="margin:0 0 8px;font-size:12.5px">Lo que se dijo, palabra por palabra y con su segundo. <b>Toca una palabra</b> para ponerle una imagen o clip, un sonido, un estilo de subtítulo o el cambio de música. Las palabras con algo llevan su ícono encima.</p>
-          <div id="marcas"></div>
-          <button class="btn sec peq" id="nuevaMarca" style="margin-top:8px" title="Elige la palabra que suena en este momento del video">+ Marca en el segundo actual</button>
-        </div>
-        <div class="fila" style="margin-top:12px">
+      <div class="caja pz-texto">
+        <div class="pz-cab"><h2 style="margin:0">Texto</h2>
+          <button class="btn sec peq" id="nuevaMarca" type="button" title="Elige la palabra que suena en este momento del video">◎ Palabra que suena ahora</button></div>
+        <p class="muted pz-ayuda"><b>Toca una palabra</b> para quitarla del video, corregir el subtítulo o ponerle una imagen o un sonido. Con <kbd>Shift</kbd> eliges varias seguidas; <kbd>Supr</kbd> las quita.</p>
+        <div id="marcas"></div>
+        <div class="fila pz-guardar">
           <button class="btn" id="guardarArmar">Guardar y rearmar sus videos</button>
-          <button class="btn sec" id="guardar">Solo guardar</button>
+          <button class="btn sec" id="guardar">Guardar sin rearmar</button>
         </div>
       </div>
     </div>
@@ -3297,21 +3302,63 @@ function pintarPiezas() {
   const grupos = new Map();
   ps.forEach(p => { const g = tipoPieza === "hook" ? p.nombre.split("_")[0] : nombres[tipoPieza]; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(p); });
   $("piezas").innerHTML = [...grupos].map(([g, lista]) => `<div class="grupo"><h3>${esc(tipoPieza === "hook" ? "Hooks de " + g : g)} (${lista.length})</h3>${lista.map(p =>
-      `<button class="pieza t-${tipoPieza}" data-p="${esc(p.nombre)}" aria-pressed="${p.nombre === sel}">${esc(verPieza(p.nombre))}
-        <span>${p.editada ? '<span class="pill azul" title="Tiene recortes o zoom">✂</span>' : ""}${p.marcas.length ? `<span class="pill">${p.marcas.length}</span>` : ""}</span></button>`).join("")}</div>`).join("")
+      `<button class="pieza t-${tipoPieza}" data-p="${esc(p.nombre)}" aria-pressed="${p.nombre === sel}"><span>${esc(verPieza(p.nombre))}${estadoPieza(p)}</span></button>`).join("")}</div>`).join("")
     || `<p class="muted">No hay ${nombres[tipoPieza].toLowerCase()} en esta sesión.</p>`;
 }
 
 function piezaSel() { return E.piezas.find(x => x.nombre === sel); }
+// Debajo del nombre, en palabras: cuánto dura y qué tiene (antes era una tijera y un número sueltos)
+function estadoPieza(p) {
+  const dur = p.lineas.length ? p.lineas[p.lineas.length - 1].e : 0;
+  const imgs = p.marcas.filter(m => m.asset).length, sons = p.marcas.filter(m => m.sfx).length;
+  const cosas = [p.quitados?.length ? "✂ con cortes" : p.editada ? "✂ editada" : "", imgs ? `🖼 ${imgs}` : "", sons ? `♪ ${sons}` : ""].filter(Boolean);
+  return `<small>${dur ? Math.round(dur) + " s" : p.procesada ? "sin voz" : "sin preparar"}</small>${cosas.length
+    ? `<small class="cambio" title="${p.editada ? "Tiene cortes, recortes o zoom (de aquí o de «Editar video»): valen para todos sus videos" : ""}">${cosas.join(" · ")}</small>` : ""}`;
+}
 
 let piezaPintada = null;  // la pieza que está en pantalla (con sus cambios sin guardar)
 function piezaSucia() {
   if (!piezaPintada) return false;
   const p = E.piezas.find(x => x.nombre === piezaPintada); if (!p) return false;
-  const lineas = [...document.querySelectorAll("#lineas input[data-orig]")].some(i => i.value !== i.dataset.orig);
-  return lineas || JSON.stringify(marcasTmp) !== JSON.stringify(p.marcas);
+  const lineas = lineasTmp.some((t, i) => t !== p.lineas[i]?.texto);
+  return lineas || JSON.stringify(marcasTmp) !== JSON.stringify(p.marcas) || JSON.stringify(quitTmp) !== JSON.stringify(juntar(p.quitados || []));
 }
 function pintarSucia() { $("piezaSucia").hidden = !piezaSucia(); }
+let lineasTmp = [], quitTmp = [], marcaFin = null, editLinea = null;
+// todas las palabras de la pieza en orden, con su lugar (línea, palabra) y su tiempo
+const planoPieza = p => p.lineas.flatMap((l, li) => l.palabras.map((w, wi) => ({ li, wi, w: w.w, s: w.s, e: w.e })));
+const quitadaW = w => quitTmp.some(([a, b]) => (w.s + w.e) / 2 >= a && (w.s + w.e) / 2 <= b);
+function seleccionW(p) {  // las palabras elegidas (una, o de la primera a la última con Shift)
+  if (!marcaSel) return [];
+  const pl = planoPieza(p), idx = x => pl.findIndex(w => w.li === x.li && w.wi === x.wi);
+  let i = idx(marcaSel), j = marcaFin ? idx(marcaFin) : i;
+  if (i < 0) return []; if (j < 0) j = i; if (j < i) [i, j] = [j, i];
+  return pl.slice(i, j + 1);
+}
+function juntar(rs) {  // tramos ordenados y sin encimarse
+  const out = [];
+  rs.map(r => [+r[0], +r[1]]).filter(([a, b]) => b - a >= .03).sort((x, y) => x[0] - y[0]).forEach(([a, b]) => {
+    const u = out[out.length - 1];
+    if (u && a <= u[1] + .02) u[1] = Math.max(u[1], b); else out.push([a, b]);
+  });
+  return out.map(([a, b]) => [Math.round(a * 1000) / 1000, Math.round(b * 1000) / 1000]);
+}
+function quitarSeleccion() {  // corta las palabras elegidas (video y audio) o, si ya estaban quitadas, las vuelve a poner
+  const p = piezaSel(), ws = seleccionW(p); if (!ws.length) return;
+  const pl = planoPieza(p), i0 = pl.findIndex(w => w.li === ws[0].li && w.wi === ws[0].wi), ult = ws[ws.length - 1];
+  const antes = pl[i0 - 1], despues = pl[i0 + ws.length];
+  // el corte toma el silencio pegado a la palabra (si es corto) para que no quede un hueco ni se coma la de al lado
+  const a = antes && ws[0].s - antes.e < .35 ? (antes.e + ws[0].s) / 2 : Math.max(0, ws[0].s - .04);
+  const b = despues && despues.s - ult.e < .35 ? (ult.e + despues.s) / 2 : ult.e + .04;
+  if (ws.every(quitadaW)) {  // volver a poner: se saca ese pedazo de los tramos quitados
+    quitTmp = juntar(quitTmp.flatMap(([x, y]) => y <= a || x >= b ? [[x, y]] : [[x, a], [b, y]]));
+    avisar(`Vuelve «${ws.map(w => w.w).join(" ")}». Guarda para aplicarlo.`, "ok");
+  } else {
+    quitTmp = juntar([...quitTmp, [a, b]]);
+    avisar(`Se quita «${ws.map(w => w.w).join(" ")}» (${(b - a).toFixed(1)} s) en todos sus videos. Guarda para aplicarlo.`, "ok");
+  }
+  pintarMarcas(); pintarSucia();
+}
 // ¿Se puede dejar la pieza que está en pantalla? (pregunta si tiene cambios sin guardar)
 async function dejarPieza() {
   if (!piezaSucia()) return true;
@@ -3323,19 +3370,17 @@ function pintarPieza(forzar) {
   // la misma pieza con cambios sin guardar no se repinta sola: se quedan los cambios
   if (!forzar && p && p.nombre === piezaPintada && piezaSucia()) { pintarSucia(); return; }
   piezaPintada = p ? p.nombre : null;
-  if (!p) { $("tituloPieza").textContent = "Pieza"; $("lineas").innerHTML = ""; $("marcas").innerHTML = ""; pintarSucia(); return; }
+  if (!p) { $("tituloPieza").textContent = "Pieza"; $("marcas").innerHTML = ""; pintarSucia(); return; }
   $("tituloPieza").textContent = `${verPieza(p.nombre)} · ${p.tipo}${p.info.tipo && p.tipo === "hook" ? " · " + p.info.tipo : ""}`;
   const v = $("vPieza");
   const [ruta, ver] = p.video.split("?");  // también si se volvió a preparar (otra versión: p. ej. al cambiar el formato)
   if (!v.src.includes(ruta) || (ver && !v.src.includes(ver))) v.src = p.video;
-  $("lineas").innerHTML = p.lineas.map((l, i) =>
-    `<div class="linea" data-i="${i}"><button type="button" data-t="${l.s}">${fmt(l.s)}</button>
-     <input id="ln-${i}" value="${esc(l.texto)}" data-orig="${esc(l.texto)}" aria-label="Subtítulo de ${fmt(l.s)} a ${fmt(l.e)}"></div>`).join("")
-    || `<p class="muted">${p.procesada ? "Sin subtítulos." : "Esta pieza aún no se procesa. Usa «Armar todos los videos» (arriba)."}</p>`;
+  lineasTmp = p.lineas.map(l => l.texto); quitTmp = juntar(p.quitados || []); editLinea = null; marcaFin = null;
+  const nv = p.n_videos || 0;
+  $("guardarArmar").textContent = nv ? `Guardar y rearmar ${nv === 1 ? "su video" : `sus ${nv} videos`}` : "Guardar y rearmar sus videos";
   marcasTmp = JSON.parse(JSON.stringify(p.marcas)); marcaSel = null;
   pintarMarcas(); pintarSucia();
 }
-document.addEventListener("input", e => { if (e.target.closest?.("#lineas")) pintarSucia(); });
 
 function palabrasDe(p) {
   // [{clave, palabra, n, t}] para el selector de palabra de una marca
@@ -3423,10 +3468,11 @@ function pintarMarcas() {
   const aprox = conPos.filter(x => !x.pos && x.m.palabra).map(x => ({ ...x, cerca: ubicarComoVideo(p, x.m.palabra, x.m.n) })).filter(x => x.cerca);
   const perdidas = conPos.filter(x => !x.pos && x.m.palabra && !aprox.some(y => y.m === x.m));
   const deWord = new Map(conPos.filter(x => x.pos).map(x => [`${x.pos.li}-${x.pos.wi}`, x.m]));
-  const pasa = m => !filtroMarcas || m[filtroMarcas];
+  const pasa = m => !filtroMarcas || (filtroMarcas !== "quitado" && m[filtroMarcas]);
   const cuenta = k => marcasTmp.filter(m => m[k]).length;
-  const filtros = [["", `Todas · ${marcasTmp.length}`], ["asset", `🖼 Imágenes · ${cuenta("asset")}`], ["sfx", `♪ Sonidos · ${cuenta("sfx")}`],
-                   ["sub", `Aa Estilo · ${cuenta("sub")}`], ["musica", `🎵 Música · ${cuenta("musica")}`]];
+  const nQuit = planoPieza(p).filter(quitadaW).length;
+  const filtros = [["", "Todo"], ["asset", `🖼 Imágenes · ${cuenta("asset")}`], ["sfx", `♪ Sonidos · ${cuenta("sfx")}`],
+                   ["sub", `Aa Subtítulo · ${cuenta("sub")}`], ["musica", `🎵 Música · ${cuenta("musica")}`], ["quitado", `✂ Quitado · ${nQuit}`]];
   const iconos = m => Object.entries(ICONO_MARCA).filter(([k]) => m[k]).map(([, i]) => i).join("");
   let html = `<div class="son-chips" style="margin:0 0 10px">${filtros.map(([k, t]) => `<button type="button" data-fmarca="${k}" aria-pressed="${filtroMarcas === k}">${t}</button>`).join("")}</div>`;
   if (aprox.length) html += `<p class="muted" style="font-size:12px;margin:0 0 8px">≈ ${aprox.map(x => `«${esc(x.m.palabra)}» se usa en «${esc(x.cerca.aprox)}»`).join(" · ")} (se dijo un poco distinto: el video la ubica sola).</p>`;
@@ -3438,14 +3484,32 @@ function pintarMarcas() {
           ${sug.length ? sug.map(sg => `<button class="btn sec peq" type="button" data-mover-marca="${i}" data-a="${sg.w.li}-${sg.w.wi}" data-texto="${esc(sg.texto)}">Usar «${esc(sg.texto)}» (${sg.w.t.toFixed(1)} s)</button>`).join("") : `<span class="muted">Sin palabras parecidas: elígela tocando el texto.</span>`}
           <button class="btn sec peq" type="button" data-borrar="${i}" style="color:var(--err)">Quitar</button></div>`; }).join("")}</div>`;
   }
-  // el texto dicho, línea por línea
-  html += `<div class="transcripcion">${p.lineas.map((l, li) => `<div class="tr-linea"><span class="tr-t" data-ir-t="${l.s}">${l.s.toFixed(1)}s</span><span>${l.palabras.map((w, wi) => {
-      const m = deWord.get(`${li}-${wi}`), sel = marcaSel && marcaSel.li === li && marcaSel.wi === wi;
+  // el texto dicho, línea por línea: cada palabra se toca; ✎ corrige el subtítulo de esa línea
+  const elegidas = new Set(seleccionW(p).map(w => `${w.li}-${w.wi}`));
+  if (!p.lineas.length) html += `<p class="muted">${p.procesada ? "Esta pieza no tiene voz." : "Esta pieza aún no se prepara. Usa «Armar todos los videos» (arriba)."}</p>`;
+  else html += `<div class="transcripcion">${p.lineas.map((l, li) => {
+    const corr = lineasTmp[li] !== l.texto;
+    const palabras = l.palabras.map((w, wi) => {
+      const m = deWord.get(`${li}-${wi}`), sel = elegidas.has(`${li}-${wi}`), q = quitadaW(w);
       const oculto = m && !pasa(m);
-      return `<span class="w ${m && !oculto ? "con" : ""} ${sel ? "sel" : ""}" data-w="${li}-${wi}" title="${w.s.toFixed(2)} s">${m && !oculto ? `<i>${iconos(m)}</i>` : ""}${esc(w.w)}</span>`;
-    }).join(" ")}</span></div>`).join("")}</div>`;
+      return `<span class="w ${m && !oculto ? "con" : ""} ${sel ? "sel" : ""} ${q ? "quitada" : ""}" data-w="${li}-${wi}" title="${w.s.toFixed(2)} s${q ? " · quitada" : ""}">${m && !oculto ? `<i>${iconos(m)}</i>` : ""}${esc(w.w)}</span>`;
+    }).join(" ");
+    return `<div class="tr-linea"><span class="tr-t" data-ir-t="${l.s}" title="Escuchar desde aquí">${l.s.toFixed(1)}s</span><span>${palabras}</span>
+      <button class="tr-lapiz" type="button" data-editar-linea="${li}" title="Corregir el subtítulo de esta línea" aria-label="Corregir el subtítulo de esta línea">✎</button>
+      ${editLinea === li ? `<div class="tr-edita"><input id="trEdita" value="${esc(lineasTmp[li])}" aria-label="Subtítulo de esta línea"><button class="btn peq" type="button" data-linea-listo>Listo</button>
+        ${corr ? `<button class="btn sec peq" type="button" data-linea-original="${li}">Como se dijo</button>` : ""}</div>`
+        : corr ? `<div class="tr-corr">Subtítulo: «${esc(lineasTmp[li])}»</div>` : ""}</div>`;
+  }).join("")}</div>`;
   // la palabra elegida
-  if (marcaSel) {
+  const selW = seleccionW(p);
+  if (selW.length > 1) {
+    const q = selW.every(quitadaW);
+    html += `<div class="marca-insp"><b>«${esc(selW.map(x => x.w).join(" "))}» · ${selW[0].s.toFixed(2)} a ${selW[selW.length - 1].e.toFixed(2)} s</b>
+      <div class="marca-acciones"><button class="btn peq ${q ? "" : "peligro"}" type="button" data-quitar-sel>${q ? "↩ Volver a poner" : `✂ Quitar estas ${selW.length} palabras`}</button>
+        <button class="btn sec peq" type="button" data-ir-t="${selW[0].s}">▶ Escuchar</button>
+        <button class="btn sec peq" type="button" data-editar-linea="${selW[0].li}">✎ Corregir el subtítulo</button></div>
+      <small class="muted">Para ponerles una imagen o un sonido, toca una sola palabra.</small></div>`;
+  } else if (marcaSel) {
     const w = ws.find(x => x.li === marcaSel.li && x.wi === marcaSel.wi);
     if (w) {
       const pre = `_${p.nombre.split("~")[0].split("_")[0]}_`.toUpperCase();  // las imágenes de este cuerpo, primero (también en otro ángulo)
@@ -3453,25 +3517,28 @@ function pintarMarcas() {
         .sort((x, y) => (y.toUpperCase().includes(pre) - x.toUpperCase().includes(pre)) || x.localeCompare(y));
       const opt = (vals, v) => vals.map(([val, txt]) => `<option value="${esc(val)}" ${String(v ?? "") === String(val) ? "selected" : ""}>${esc(txt)}</option>`).join("");
       const a = m.asset && urlAsset(m.asset);
+      const q = quitadaW(p.lineas[w.li].palabras[w.wi]);
       html += `<div class="marca-insp">
-        <div class="fila" style="justify-content:space-between"><b>«${esc(w.palabra)}» · ${w.t.toFixed(2)} s</b>
-          <span class="fila"><button class="btn sec peq" type="button" data-ir-t="${w.t}">▶ Escuchar desde aquí</button>
-          ${m.palabra ? `<button class="btn sec peq" type="button" data-borrar="${marcasTmp.indexOf(m)}" style="color:var(--err)">Quitar todo</button>` : ""}</span></div>
+        <b>«${esc(w.palabra)}» · ${w.t.toFixed(2)} s${q ? ' <span class="pill warn">quitada</span>' : ""}</b>
+        <div class="marca-acciones"><button class="btn peq ${q ? "" : "peligro"}" type="button" data-quitar-sel title="Corta esta palabra del video (imagen y voz) en todos sus videos">${q ? "↩ Volver a poner" : "✂ Quitar del video"}</button>
+          <button class="btn sec peq" type="button" data-editar-linea="${w.li}">✎ Corregir el subtítulo</button>
+          <button class="btn sec peq" type="button" data-ir-t="${w.t}">▶ Escuchar</button>
+          ${m.palabra ? `<button class="btn sec peq peligro" type="button" data-borrar="${marcasTmp.indexOf(m)}" title="Quita la imagen, el sonido, el estilo y la música de esta palabra">Sin imagen ni sonido</button>` : ""}</div>
         <div class="marca-campos">
-          <fieldset><legend>🖼 Imagen o clip</legend>
+          <fieldset><legend>🖼 Imagen o clip encima</legend>
             <div class="fila">${a ? (a.es_video ? "🎬" : `<img src="${esc(a.url)}" alt="" class="mini">`) : ""}<select data-mk="asset" style="flex:1">${opt([["", "Ninguna"], ...assets.map(x => [x, x])], m.asset)}</select></div>
             ${m.asset ? `<div class="dos"><label>Dura (s)<input data-mk="dur" type="number" min="0.5" max="6" step="0.1" value="${m.dur ?? 1.5}"></label>
               <label>Cómo<select data-mk="modo">${opt([["completa", "Pantalla completa"], ["ventana", "En ventana"]], m.modo || "completa")}</select></label>
               <label>Movimiento<select data-mk="mov">${opt([["zoom_in", "Acercar despacio"], ["zoom_out", "Alejar despacio"], ["fijo", "Fijo"]], m.mov || "zoom_in")}</select></label></div>` : ""}</fieldset>
-          <fieldset><legend>♪ Sonido</legend><select data-mk="sfx">${opt([["", "Automático (lo elige la sala)"], ["corte_silencio", "Corte de silencio (música en pausa)"], ...E.sfx.map(x => [x, cap(x.replace(/_/g, " "))])], m.sfx)}</select></fieldset>
-          <fieldset><legend>Aa Subtítulo</legend><select data-mk="sub">${opt([["", "Normal"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
+          <fieldset><legend>♪ Sonido en esta palabra</legend><select data-mk="sfx">${opt([["", "Automático (lo elige la sala)"], ["corte_silencio", "Corte de silencio (música en pausa)"], ...E.sfx.map(x => [x, cap(x.replace(/_/g, " "))])], m.sfx)}</select></fieldset>
+          <fieldset><legend>Aa Cómo se ve el subtítulo</legend><select data-mk="sub">${opt([["", "Normal"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
           <fieldset><legend>🎵 Música desde aquí</legend><select data-mk="musica">${opt([["", "Sigue la misma"], ...(E.musica_ids || []).map(x => [x, x])], m.musica)}</select></fieldset>
         </div></div>`;
     }
-  } else html += `<p class="muted" style="font-size:12.5px;margin:8px 0 0">Toca una palabra del texto para editar lo que pasa ahí.</p>`;
+  }
   // todas las marcas en orden de tiempo
   const orden = conPos.filter(x => x.pos && pasa(x.m)).sort((a, b) => a.pos.t - b.pos.t);
-  if (orden.length) html += `<details class="lista-marcas" open><summary>Marcas en orden (${orden.length})</summary>${orden.map(x =>
+  if (orden.length) html += `<details class="lista-marcas"><summary>Lista de imágenes y sonidos (${orden.length})</summary>${orden.map(x =>
     `<div data-w="${x.pos.li}-${x.pos.wi}"><span class="muted">${x.pos.t.toFixed(1)} s</span><b>${esc(x.m.palabra)}</b><span>${[
       x.m.asset && `🖼 ${esc(x.m.asset)} · ${x.m.dur ?? 1.5} s`, x.m.sfx && `♪ ${esc(x.m.sfx.replace(/_/g, " "))}`,
       x.m.sub && `Aa ${esc(x.m.sub.replace(/_/g, " "))}`, x.m.musica && `🎵 ${esc(x.m.musica)}`].filter(Boolean).join(" · ")}</span></div>`).join("")}</details>`;
@@ -3504,8 +3571,31 @@ $("marcas").addEventListener("click", e => {
     pintarMarcas(); vivo(); pintarSucia();
     return avisar(n ? `${n} marca${n === 1 ? "" : "s"} puesta${n === 1 ? "" : "s"} en la palabra más parecida. Revisa y guarda.` : "No encontré palabras bastante parecidas: elígelas tocando el texto.", n ? "ok" : "muted");
   }
+  if (e.target.closest("[data-quitar-sel]")) return quitarSeleccion();
+  const el = e.target.closest("[data-editar-linea]");
+  if (el) { editLinea = Number(el.dataset.editarLinea); pintarMarcas(); const i = $("trEdita"); if (i) { i.focus(); i.select(); } return; }
+  if (e.target.closest("[data-linea-listo]")) { editLinea = null; pintarMarcas(); pintarSucia(); return; }
+  const lo = e.target.closest("[data-linea-original]");
+  if (lo) { const i = Number(lo.dataset.lineaOriginal); lineasTmp[i] = piezaSel().lineas[i].texto; editLinea = null; pintarMarcas(); pintarSucia(); return; }
   const w = e.target.closest("[data-w]");
-  if (w) { const [li, wi] = w.dataset.w.split("-").map(Number); marcaSel = { li, wi }; const p = piezaSel(); $("vPieza").currentTime = p.lineas[li].palabras[wi].s; pintarMarcas(); vivo(); }
+  if (w) {
+    const [li, wi] = w.dataset.w.split("-").map(Number), p = piezaSel();
+    if (e.shiftKey && marcaSel) marcaFin = { li, wi };
+    else { marcaSel = { li, wi }; marcaFin = null; $("vPieza").currentTime = p.lineas[li].palabras[wi].s; }
+    pintarMarcas(); vivo();
+  }
+});
+$("marcas").addEventListener("input", e => { if (e.target.id === "trEdita" && editLinea != null) { lineasTmp[editLinea] = e.target.value; pintarSucia(); } });
+$("marcas").addEventListener("keydown", e => {
+  if (e.target.id !== "trEdita") return;
+  if (e.key === "Enter") { e.preventDefault(); editLinea = null; pintarMarcas(); pintarSucia(); }
+  if (e.key === "Escape") { e.preventDefault(); lineasTmp[editLinea] = piezaSel().lineas[editLinea].texto; editLinea = null; pintarMarcas(); pintarSucia(); }
+});
+// Supr o Retroceso: quita (o vuelve a poner) las palabras elegidas
+document.addEventListener("keydown", e => {
+  if (!["Delete", "Backspace"].includes(e.key) || !marcaSel || document.querySelector('[data-panel="piezas"]')?.hidden) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
+  e.preventDefault(); quitarSeleccion();
 });
 $("marcas").addEventListener("change", e => { const el = e.target.closest("[data-mk]"); if (el) cambiarMarca(el.dataset.mk, el.value); });
 
@@ -3513,7 +3603,9 @@ $("marcas").addEventListener("change", e => { const el = e.target.closest("[data
 const urlAsset = id => E.assets.find(a => a.id.toLowerCase() === String(id).toLowerCase());
 function vivo() {
   const p = piezaSel(); if (!p) return;
-  const t = $("vPieza").currentTime;
+  const v0 = $("vPieza"), salto = !v0.paused && quitTmp.find(([a, b]) => v0.currentTime >= a && v0.currentTime < b - .02);
+  if (salto) v0.currentTime = salto[1];
+  const t = v0.currentTime;
   document.querySelectorAll(".linea").forEach(d => {
     const l = p.lineas[d.dataset.i]; d.classList.toggle("activa", t >= l.s && t < l.e + 0.05);
   });
@@ -3564,15 +3656,16 @@ function bucle() { vivo(); if (!$("vPieza").paused) requestAnimationFrame(bucle)
 
 function lineasEditadas() {
   const p = piezaSel();
-  return p.lineas.map((l, i) => ({ texto: $(`ln-${i}`).value, s: l.s, e: l.e }));
+  return p.lineas.map((l, i) => ({ texto: lineasTmp[i] ?? l.texto, s: l.s, e: l.e }));
 }
 
 async function guardar(armar) {
   const p = piezaSel(); if (!p) return;
   try {
     avisar("Guardando…");
-    const cambiaron = [...document.querySelectorAll("#lineas input[data-orig]")].some(i => i.value !== i.dataset.orig);
+    const cambiaron = lineasTmp.some((t, i) => t !== p.lineas[i]?.texto);
     if (p.lineas.length && cambiaron) await post(`/api/subtitulos?pieza=${encodeURIComponent(sel)}`, { lineas: lineasEditadas() });
+    if (JSON.stringify(quitTmp) !== JSON.stringify(juntar(p.quitados || []))) await post(`/api/quitar_texto?pieza=${encodeURIComponent(sel)}`, { rangos: quitTmp });
     if (JSON.stringify(marcasTmp) !== JSON.stringify(p.marcas)) await post(`/api/marcas?pieza=${encodeURIComponent(sel)}`, { marcas: marcasTmp });
     if (armar) {
       if (E.trabajo?.activo) avisar(`Guardado. La sala está ocupada: rearma los videos de ${sel} cuando termine (☰).`, "ok");
@@ -3830,18 +3923,8 @@ document.addEventListener("click", async e => {
   if (card) return abrirVideo(card.dataset.cod);
   const pz = e.target.closest(".pieza");
   if (pz) { if (pz.dataset.p !== sel && !await dejarPieza()) return; sel = pz.dataset.p; pintarPiezas(); pintarPieza(true); return; }
-  const t = e.target.closest(".linea button");
-  if (t) { const v = $("vPieza"); v.currentTime = Number(t.dataset.t); v.play(); bucle(); return; }
   const rb = e.target.closest("#redes button");
   if (rb) { red = rb.dataset.red; pintarTelefono(); return; }
-  const st = e.target.closest(".tabs-mini [data-sub]");
-  if (st) {
-    if (subTab === "marcas") leerMarcas();
-    subTab = st.dataset.sub;
-    document.querySelectorAll("[data-sub]").forEach(b => b.setAttribute("aria-pressed", b === st));
-    $("panelLineas").hidden = subTab !== "lineas"; $("panelMarcas").hidden = subTab !== "marcas";
-    return;
-  }
   const br = e.target.closest("[data-borrar]");
   if (br) { e.preventDefault(); leerMarcas(); marcasTmp.splice(Number(br.dataset.borrar), 1); pintarMarcas(); vivo(); return; }
   const as = e.target.closest("[data-asignar]");
@@ -3899,7 +3982,7 @@ $("vPieza").addEventListener("pause", () => $("play").textContent = "▶ Reprodu
 $("nuevaMarca").onclick = () => {  // la palabra que suena en el segundo actual del video
   const p0 = piezaSel(); if (!p0) return;
   const t0 = $("vPieza").currentTime, w0 = palabrasPieza(p0).find(x => t0 >= x.t - .05 && t0 < x.e + .05) || palabrasPieza(p0).find(x => x.t >= t0);
-  if (w0) { marcaSel = { li: w0.li, wi: w0.wi }; pintarMarcas(); return; }
+  if (w0) { marcaSel = { li: w0.li, wi: w0.wi }; marcaFin = null; pintarMarcas(); return; }
   leerMarcas();
   const p = piezaSel(); const w = p ? palabrasDe(p)[0] : null;
   marcasTmp.push({ palabra: w?.palabra || "", n: 1, sub: "centro_grande" }); pintarMarcas();
