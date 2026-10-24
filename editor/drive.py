@@ -372,6 +372,108 @@ def crear_sesion(nombre):
     actualizar_lista()
 
 
+# ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del equipo ----------
+# Para quien instala la sala sin tener todavía la carpeta: entra con su cuenta, ve sus carpetas y las compartidas con
+# ella, y elige una o crea la suya. Mientras no elige, las apps no usan la cuenta (sin carpeta no hay dónde trabajar).
+# Las otras dos salas comparten esta sesión de Google (cuenta.py), y con la carpeta elegida quedan conectadas también.
+
+def entrar_sin_carpeta(client_id="", client_secret=""):
+    """Abre Google en el navegador para entrar. client_id/secret: las del proyecto de Google Cloud del equipo (opcional)."""
+    with cuenta._candado:
+        info = cuenta._leer(cuenta.INFO)
+        if client_id.strip():
+            info["cliente"] = {"id": client_id.strip(), "secreto": client_secret.strip()}
+        if cuenta.CONF.exists():
+            try:
+                cuenta.rc("config", "delete", REMOTO)
+            except RuntimeError:
+                pass
+        cliente = info.get("cliente") or {}
+        extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
+        cuenta.rc("config", "create", REMOTO, "drive", "scope=drive", *extra, timeout=600)
+        info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", entro=time.strftime("%Y-%m-%d %H:%M:%S"))
+        cuenta._guardar(cuenta.INFO, info)
+    cuenta._quien()
+    return cuenta._leer(cuenta.INFO)
+
+
+_SIN_RAIZ = f"{REMOTO},root_folder_id='':"  # «Mi unidad» entera, aunque la conexión ya apunte a una carpeta
+
+
+def carpetas_para_elegir():
+    """{mias: [...], compartidas: [...]}: las carpetas de «Mi unidad» y las compartidas con esta cuenta (nombre e id)."""
+    def lista(*extra):
+        try:
+            return [{"nombre": x["Name"], "id": x.get("ID", "")} for x in json.loads(cuenta.rc("lsjson", _SIN_RAIZ, "--dirs-only", "--max-depth", "1", *extra, timeout=120) or "[]")
+                    if x.get("ID") and not x["Name"].startswith(".")]
+        except RuntimeError:
+            return []
+    return {"mias": sorted(lista(), key=lambda x: x["nombre"].lower()), "compartidas": sorted(lista("--drive-shared-with-me"), key=lambda x: x["nombre"].lower())}
+
+
+def crear_carpeta_equipo(nombre="EDICIÓN DE VIDEOS"):
+    """Crea la carpeta del equipo en «Mi unidad» (si ya existe una con ese nombre, la usa). Devuelve su id."""
+    nombre = " ".join(str(nombre or "").split())[:80] or "EDICIÓN DE VIDEOS"
+    if any(c in nombre for c in '\\/:*?"<>|'):
+        raise ValueError('El nombre de la carpeta no puede llevar / \\ : * ? " < > |')
+    cuenta.rc("mkdir", f"{_SIN_RAIZ}{nombre}", timeout=120)
+    d = next((x for x in carpetas_para_elegir()["mias"] if x["nombre"] == nombre), None)
+    if not d:
+        raise RuntimeError("Se creó la carpeta pero Drive no la muestra todavía: vuelve a intentar en un momento")
+    return d["id"], nombre
+
+
+def usar_carpeta(cid, nombre=""):
+    """Deja la conexión trabajando dentro de esa carpeta (la de las sesiones) y revisa que se pueda escribir en ella.
+    Devuelve {editor: bool, link}."""
+    if not re.fullmatch(r"[\w-]{10,}", cid or ""):
+        raise ValueError("Esa carpeta no es válida")
+    with cuenta._candado:
+        # se cambia solo la línea root_folder_id de la conexión (sin librerías que el .exe podría no traer)
+        texto = cuenta.CONF.read_text(encoding="utf-8")
+        m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
+        if not m:
+            raise RuntimeError("Primero entra con tu cuenta de Google")
+        seccion = m.group(1)
+        if re.search(r"^root_folder_id\s*=.*$", seccion, re.M):
+            seccion = re.sub(r"^root_folder_id\s*=.*$", f"root_folder_id = {cid}", seccion, flags=re.M)
+        else:
+            seccion = f"root_folder_id = {cid}\n" + seccion
+        cuenta.CONF.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
+    # ¿se puede escribir? (con permiso de solo lectura, Drive borra en silencio lo que la sala sube)
+    editor = True
+    prueba = f"_SALA/.prueba_{int(time.time())}.txt"
+    try:
+        cuenta.rc("rcat", f"{REMOTO}:{prueba}", timeout=60, entrada="prueba de la sala")
+        cuenta.rc("deletefile", f"{REMOTO}:{prueba}", timeout=60)
+    except RuntimeError:
+        editor = False
+    link = f"https://drive.google.com/drive/folders/{cid}"
+    info = cuenta._leer(cuenta.INFO)
+    info.update(activo=True, link=link, carpeta_id=cid, carpeta_nombre=nombre)
+    info.pop("sin_carpeta", None)
+    cuenta._guardar(cuenta.INFO, info)
+    motor.guardar_config({"drive": {**motor.CONFIG.get("drive", {}), "activo": True, "link": link, "carpeta_id": cid}})
+    asegurar_config(forzar=True)
+    try:
+        actualizar_lista()
+    except Exception:  # noqa: BLE001
+        pass
+    return {"editor": editor, "link": link, "nombre": nombre}
+
+
+def preparar_carpeta_nueva(nombre_marca=""):
+    """En una carpeta recién creada deja lo de base: _MARCA (con la marca neutra) y _SALA."""
+    import marca
+    marca.raiz().mkdir(parents=True, exist_ok=True)
+    if not (marca.raiz() / "marca.json").exists():
+        marca.guardar({**marca.NEUTRA, "nombre": nombre_marca})
+    try:
+        cuenta.rc("mkdir", f"{REMOTO}:_SALA", timeout=60)
+    except RuntimeError:
+        pass
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     if len(sys.argv) >= 2 and sys.argv[1] == "sesiones":

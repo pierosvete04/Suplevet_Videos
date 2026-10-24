@@ -21,6 +21,7 @@ import asistente
 import cuenta
 import drive
 import motor
+import marca
 import panel
 import proyecto
 import respaldos
@@ -173,7 +174,8 @@ def estado():
     ajustes_p = motor.ajustes_piezas()
     for p in ps:
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
-    return {"version": motor.VERSION, "red": red(), "drive": dr, "drive_pendientes": drive.pendientes(), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
+    return {"version": motor.VERSION, "red": red(), "drive": dr, "drive_pendientes": drive.pendientes(), "marca": marca.resumen(),
+            "sin_carpeta": bool(cuenta._leer(cuenta.INFO).get("sin_carpeta")), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
             "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
@@ -984,6 +986,20 @@ class H(BaseHTTPRequestHandler):
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
+        elif u.path == "/api/marca":
+            self._json(marca.datos())
+        elif u.path.startswith("/marca/"):  # logos, productos y tipografías de la marca (para verlos en la sala)
+            try:
+                f = marca.ruta_archivo(unquote(u.path[len("/marca/"):]))
+            except ValueError:
+                return self.send_error(404)
+            if not f.is_file():
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
+        elif u.path == "/api/primera/carpetas":  # asistente de primera vez: las carpetas de la cuenta
+            con_llave = "token" in cuenta._llave()
+            self._json({"ok": True, **(drive.carpetas_para_elegir() if con_llave else {"mias": [], "compartidas": []}),
+                        "cuenta": cuenta.estado(), "con_llave": con_llave})
         elif u.path == "/api/sesiones":  # la pantalla de entrada: qué sesiones hay y cómo va cada una
             self._json({"sesiones": motor.resumen_sesiones(), "actual": motor.S.semana, "ultima": motor.CONFIG.get("semana")})
         elif u.path == "/api/proyecto":  # ¿hay una versión nueva del proyecto hecha en otra PC?
@@ -1328,6 +1344,37 @@ class H(BaseHTTPRequestHandler):
                 codigos = motor.subir_subtitulos()
                 cola = bool(codigos and self._cuerpo().get("armar") and lanzar("armar_sel", extra={"codigos": codigos}, en_cola=True))
                 self._json({"ok": True, "codigos": codigos, "en_cola": cola})
+            elif u.path == "/api/marca":
+                self._json({"ok": True, "marca": marca.guardar(self._cuerpo().get("marca") or {})})
+            elif u.path == "/api/marca_archivo":
+                n = int(self.headers.get("Content-Length") or 0)
+                if n > 30 * 1024 * 1024:
+                    raise ValueError("El archivo es muy grande (máximo 30 MB)")
+                nombre = marca.guardar_archivo(q["tipo"][0], q["nombre"][0], self.rfile.read(n))
+                self._json({"ok": True, "archivo": nombre, "marca": marca.datos()})
+            elif u.path == "/api/marca_borrar":
+                b = self._cuerpo()
+                marca.borrar(str(b.get("tipo") or ""), str(b.get("archivo") or ""))
+                self._json({"ok": True, "marca": marca.datos()})
+            elif u.path == "/api/primera":  # asistente de primera vez
+                b = self._cuerpo()
+                acc = b.get("accion")
+                if acc == "entrar":
+                    self._json({"ok": True, "cuenta": drive.entrar_sin_carpeta(str(b.get("client_id") or ""), str(b.get("client_secret") or ""))})
+                elif acc == "crear":
+                    cid, nombre = drive.crear_carpeta_equipo(str(b.get("nombre") or ""))
+                    r = drive.usar_carpeta(cid, nombre)
+                    drive.preparar_carpeta_nueva(str(b.get("marca") or ""))
+                    self._json({"ok": True, **r})
+                elif acc == "usar":
+                    r = drive.usar_carpeta(str(b.get("id") or ""), str(b.get("nombre") or ""))
+                    threading.Thread(target=marca.bajar, daemon=True).start()
+                    self._json({"ok": True, **r})
+                elif acc == "link":
+                    cid = drive.carpeta_id(str(b.get("link") or ""))
+                    self._json({"ok": True, **drive.usar_carpeta(cid, "")})
+                else:
+                    raise ValueError("Acción no válida")
             elif u.path == "/api/abrir_link":  # trabajar en una carpeta pegando su link de Drive (o su ruta en esta PC)
                 sem = sesion_de_link(str(self._cuerpo().get("link") or ""))
                 abrir_sesion(sem)
@@ -1750,6 +1797,7 @@ if __name__ == "__main__":
     cuenta.iniciar("Sala de edición", motor.VERSION)
     # (asegurar_config no recibe «avance»: con _sin_error fallaba siempre y no se revisaba la conexión al abrir)
     threading.Thread(target=lambda: _sin_falla(drive.asegurar_config), daemon=True).start()
+    threading.Thread(target=lambda: _sin_falla(marca.bajar), daemon=True).start()  # la marca del equipo (_MARCA en Drive)
     respaldos.vigilar()  # copia de los cambios cada pocos minutos, solo si algo cambió
     if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba en otro puerto no sube nada al proyecto del equipo
         proyecto.vigilar(lambda: TRABAJO["activo"])  # la edición se comparte con las otras PCs por Drive (Actualizar proyecto)

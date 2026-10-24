@@ -504,6 +504,52 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .py-lista .v { font: 700 11px var(--mono); color: var(--muted); }
 .esperando { opacity: .6; cursor: progress !important; pointer-events: auto; }
 .cal-arreglo { justify-content: space-between; gap: 10px; padding: 10px 12px; margin: 0 0 10px; border-radius: 10px; border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); font-size: 13px; }
+/* Marca del equipo (Configuración → Marca) */
+.mk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.mk-form { display: grid; gap: 14px; }
+.mk-form fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; display: grid; gap: 10px; margin: 0; }
+.mk-form legend { font-weight: 700; padding: 0 6px; }
+.mk-ayuda { font-size: 12px; margin: 0; }
+.mk-colores { display: grid; gap: 6px; }
+.mk-color { display: grid; grid-template-columns: 46px minmax(0, 1fr) 130px 30px; gap: 6px; align-items: center; }
+.mk-color input[type=color] { height: 34px; padding: 2px; width: 100%; }
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.mk-item { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 12px; }
+.mk-item .mk-img { height: 96px; border-radius: 8px; display: grid; place-items: center; overflow: hidden;
+  background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 50% / 14px 14px; }
+.mk-item .mk-img.oscuro { background: #111827; } .mk-item .mk-img.claro { background: #f4f4f5; }
+.mk-item img { max-width: 92%; max-height: 86px; object-fit: contain; }
+.mk-item input, .mk-item select { font-size: 12px; padding: 4px 6px; }
+.mk-quitar { justify-self: end; }
+.mk-subir { cursor: pointer; justify-self: start; }
+.mk-fuente { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.mk-fuente span { font-size: 22px; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mk-vista-caja { position: sticky; top: calc(var(--alto-header, 56px) + 60px); display: grid; gap: 8px; }
+.mk-vista { aspect-ratio: 9 / 16; border-radius: 16px; overflow: hidden; position: relative; display: grid; align-content: space-between; padding: 22px 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.mk-vista img { max-height: 46px; max-width: 70%; justify-self: center; object-fit: contain; }
+.mk-vista h3 { margin: 0; font-size: 30px; line-height: 1.05; text-transform: uppercase; }
+.mk-vista p { margin: 8px 0 0; font-size: 14px; line-height: 1.35; opacity: .9; }
+.mk-vista .mk-cta { justify-self: center; padding: 10px 18px; border-radius: 999px; font-weight: 800; font-size: 14px; }
+.mk-tiras { display: flex; gap: 4px; } .mk-tiras i { flex: 1; height: 18px; border-radius: 5px; border: 1px solid #0002; }
+.mk-sucia { font-size: 12px; }
+@media (max-width: 1100px) { .mk { grid-template-columns: 1fr; } .mk-vista-caja { position: static; max-width: 300px; } }
+/* Asistente de primera vez */
+dialog.primera { width: min(760px, 96vw); max-height: 92vh; padding: 0; border-radius: 18px; }
+.pv { padding: 24px 26px; display: grid; gap: 16px; }
+.pv-pasos { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.pv-pasos span { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pv-pasos span.hecho { color: var(--ok); border-color: var(--ok); }
+.pv-pasos span.ahora { color: var(--ink); border-color: var(--accent); background: var(--surface2); font-weight: 700; }
+.pv h2 { margin: 0; font: 800 22px var(--fd, var(--f)); }
+.pv-opciones { display: grid; gap: 10px; }
+.pv-op { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; background: var(--surface); }
+.pv-op > b { font-size: 15px; }
+.pv-lista { display: grid; gap: 6px; max-height: 32vh; overflow-y: auto; }
+.pv-lista button { text-align: left; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface2); color: var(--ink); font: inherit; cursor: pointer; }
+.pv-lista button:hover, .pv-lista button:focus-visible { border-color: var(--accent); outline: none; }
+.pv-link { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--surface2); font-size: 13px; word-break: break-all; }
+.pv ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
 /* Pantalla de entrada: elegir la sesión */
 dialog.bienvenida { width: min(980px, 96vw); max-height: 92vh; padding: 0; border-radius: 18px; }
 .bv { padding: 24px 26px; display: grid; gap: 16px; }
@@ -1505,6 +1551,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <aside class="conf-menu" aria-label="Secciones de configuración">
         <div class="conf-tit"><span class="conf-ico">⚙</span><div><b>Configuración</b><small>De esta PC</small></div></div>
         <a href="#confCuenta">👤 Cuenta y dispositivos <span class="punto-estado ok"></span></a>
+        <a href="#confMarca">🎨 Marca <span class="punto-estado" id="confPMarca"></span></a>
         <a href="#confConexiones" class="activo">🔌 Conexiones <span class="pill" id="confNCon"></span></a>
         <a href="#confDrive">☁ Google Drive <span class="punto-estado" id="confPDrive"></span></a>
         <a href="#confTablet">📱 Teleprompter <span class="punto-estado" id="confPRed"></span></a>
@@ -1519,6 +1566,51 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
               <p class="muted">Con qué cuenta de Google entraste, en qué PCs se abrió y cerrar sesión. Es la misma sesión de las tres apps.</p></div>
           </div>
           <div id="cfgCuenta"></div>
+        </section>
+
+        <section class="caja conf-sec" id="confMarca">
+          <div class="conf-cab">
+            <div><h2>Marca</h2>
+              <p class="muted">Los colores, logos, tipografías y productos de tu marca. Se guardan en la carpeta <code>_MARCA</code> del Drive del equipo:
+                los usan las portadas, las plantillas de subtítulos y las otras dos salas. Se carga una vez y sirve para todo el equipo.</p></div>
+            <div class="fila"><span class="pill warn mk-sucia" id="mkSucia" hidden>Sin guardar</span><button class="btn" id="mkGuardar" type="button">Guardar marca</button></div>
+          </div>
+          <div class="mk">
+            <div class="mk-form form-plant" id="mkForm">
+              <label>Nombre de la marca<input id="mkNombre" placeholder="Ej.: Suplevet"></label>
+              <fieldset><legend>Colores</legend>
+                <p class="muted mk-ayuda">Ponle a cada color para qué sirve: el <b>principal</b> y el <b>acento</b> salen primero al elegir colores en las portadas y las plantillas.</p>
+                <div id="mkColores" class="mk-colores"></div>
+                <button class="btn sec peq mk-subir" id="mkColorMas" type="button">+ Agregar color</button></fieldset>
+              <fieldset><legend>Logos</legend>
+                <p class="muted mk-ayuda">Sube todos los que usen: el principal, el horizontal, el ícono… mejor en PNG con fondo transparente.
+                  Marca sobre qué fondo se ve bien cada uno: la portada usa el principal que va sobre fondo oscuro, o el que elijas en cada video.</p>
+                <div id="mkLogos" class="mk-grid"></div>
+                <label class="btn sec peq mk-subir">Subir logos<input type="file" id="mkLogoArchivo" accept=".png,.webp,.jpg,.jpeg" multiple hidden></label></fieldset>
+              <fieldset><legend>Tipografías</legend>
+                <p class="muted mk-ayuda">Sube las de tu marca (.ttf u .otf) y elige cuál va en cada lugar. Quedan también en la lista de fuentes de las plantillas y las portadas.</p>
+                <div class="dos"><label>Títulos<select id="mkFTitulo"></select></label><label>Texto<select id="mkFCuerpo"></select></label></div>
+                <label>Subtítulos de los videos<select id="mkFSubs"></select></label>
+                <div id="mkFuentes" style="display:grid;gap:6px"></div>
+                <label class="btn sec peq mk-subir">Subir tipografía<input type="file" id="mkFuenteArchivo" accept=".ttf,.otf" multiple hidden></label></fieldset>
+              <fieldset><legend>Productos</legend>
+                <p class="muted mk-ayuda">Fotos reales del producto, sin fondo (PNG). Las usan la Sala de diseño y Claude para los carruseles.</p>
+                <div id="mkProductos" class="mk-grid"></div>
+                <label class="btn sec peq mk-subir">Subir fotos<input type="file" id="mkProductoArchivo" accept=".png,.webp,.jpg,.jpeg" multiple hidden></label></fieldset>
+              <fieldset><legend>Cómo habla la marca</legend>
+                <p class="muted mk-ayuda">Claude lo lee al escribir guiones, copies y carruseles. Una idea por línea.</p>
+                <label>Palabras o frases que nunca se usan<textarea id="mkEvitar" rows="3" placeholder="Ej.: barato&#10;milagroso"></textarea></label>
+                <label>Lo que siempre tiene que ir<textarea id="mkObligatorio" rows="3" placeholder="Ej.: Consulta con tu veterinario"></textarea></label>
+                <label>Frases de cierre<textarea id="mkCierres" rows="3" placeholder="Ej.: Suplevet: salud que se nota"></textarea></label>
+                <div class="dos"><label>Llamado a la acción: título<input id="mkCtaTit" placeholder="Ej.: Pide el tuyo"></label><label>Texto del botón<input id="mkCtaBoton" placeholder="Ej.: Escríbenos"></label></div>
+                <label>Llamado a la acción: texto<input id="mkCtaTxt" placeholder="Ej.: Envíos a todo el Perú"></label>
+                <label>Notas para Claude sobre la marca<textarea id="mkNotas" rows="4" placeholder="Tono, público, lo que la hace distinta…"></textarea></label></fieldset>
+            </div>
+            <aside class="mk-vista-caja"><b>Así se ve</b>
+              <div class="mk-vista" id="mkVista"></div>
+              <div class="mk-tiras" id="mkTiras"></div>
+              <small class="muted">Una muestra con tu logo, tus colores y tus tipografías. Cambia en vivo.</small></aside>
+          </div>
         </section>
 
         <section class="caja conf-sec" id="confConexiones">
@@ -1544,7 +1636,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
               <label>ID de cliente<input id="driveCid" placeholder="…apps.googleusercontent.com"></label>
               <label>Secreto del cliente<input id="driveSecret" type="password" autocomplete="off"></label>
             </details>
-            <div class="fila"><button class="btn" id="driveConectar">Conectar con Google</button></div>
+            <div class="fila"><button class="btn" id="driveConectar">Conectar con Google</button>
+              <button class="btn sec" id="drivePrimera" type="button" title="Entrar con Google y elegir o crear la carpeta del equipo, paso a paso">Elegir o crear la carpeta…</button></div>
           </div>
           <div class="conf-acciones" id="driveAcciones">
             <button class="accion" id="driveLista"><b>⟳ Actualizar sesiones</b><small>Trae la lista de sesiones del equipo</small></button>
@@ -1714,6 +1807,15 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="fila"><button class="btn peq" id="edGuardarTop" type="button">💾 Guardar</button><kbd class="ed-kbd" title="Guardar con el teclado">Ctrl+S</kbd><button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
   <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
+</dialog>
+<dialog id="dlgPrimera" class="primera" aria-labelledby="pvTit">
+  <div class="pv">
+    <div class="bv-cab"><div class="bv-logo" aria-hidden="true">E</div>
+      <div><span class="etq">Primera vez en esta PC</span><div class="pv-pasos" id="pvPasos"></div></div></div>
+    <div id="pvCuerpo" style="display:grid;gap:14px"></div>
+    <div class="fila" style="justify-content:space-between"><button class="btn-link" type="button" id="pvOmitir">Ahora no: trabajar sin Drive en esta PC</button>
+      <button class="btn sec peq" type="button" id="pvCerrar">Cerrar</button></div>
+  </div>
 </dialog>
 <dialog id="dlgBienvenida" class="bienvenida" aria-labelledby="bvTit">
   <div class="bv">
@@ -1888,7 +1990,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <label>Altura del título: <b id="porYTxt"></b><input type="range" id="porY" min="150" max="1780" step="10"></label>
           </fieldset>
           <fieldset><legend>Logo e imágenes encima</legend>
-            <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porLogo"> Logo de Suplevet</label>
+            <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porLogo"> Logo de la marca</label>
+            <label>Qué logo<select id="porLogoArchivo"></select></label>
             <div id="porElems" style="display:grid;gap:6px"></div>
             <div class="fila"><select id="porElemSel" style="flex:1"></select><button class="btn sec peq" id="porElemAgregar" type="button">Agregar</button>
               <label class="btn sec peq" style="cursor:pointer">Subir imagen<input type="file" id="porElemSubir" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
@@ -3576,6 +3679,7 @@ $("procActual").addEventListener("click", async e => {
 let confActual = "confCuenta";
 function irConf(id) {
   confActual = id; irTab("notas");
+  if (id === "confMarca" && !mkSucia) cargarMarca();
   document.querySelectorAll(".conf-sec").forEach(x => x.hidden = x.id !== id);
   marcarMenuConf(id); scrollTo({ top: 0 });
   if (id === "confCuenta") Cuenta.pintarEn($("cfgCuenta"));
@@ -3719,6 +3823,7 @@ function pintarDrive() {
   $("driveConectar").className = d.activo ? "btn sec" : "btn";
   $("driveAcciones").hidden = $("driveDesconectar").closest(".conf-pie").hidden = !d.activo;
   $("confPDrive").className = "punto-estado " + (d.activo ? "ok" : "warn");
+  pintarPaletaMarca();
 }
 // El guion se trae solo de Drive cuando cambia allá (lo actualizó Claude, el panel u otra PC) y se lee solo
 // el que el equipo deja en la carpeta Guion/Guiones: al abrir la sesión, cada 90 s y al volver a la ventana.
@@ -3807,6 +3912,11 @@ function abrirPortada() {
   $("porY").value = a.y ?? ((E.posiciones_titulo || { arriba: 560, centro: 960, abajo: 1380 })[a.posicion || "centro"]);
   $("porYTxt").textContent = $("porY").value + " px desde arriba";
   $("porLogo").checked = a.logo !== false;
+  const logos = (E.marca || {}).logos || [];
+  $("porLogoArchivo").innerHTML = `<option value="">El principal (para fondo oscuro)</option>` +
+    logos.map(l => `<option value="${esc(l.archivo)}">${esc(l.nombre)} · ${esc(l.uso)}${l.fondo !== "cualquiera" ? " · fondo " + esc(l.fondo) : ""}</option>`).join("");
+  $("porLogoArchivo").value = logos.some(l => l.archivo === a.logo_archivo) ? a.logo_archivo : "";
+  $("porLogoArchivo").closest("label").hidden = logos.length < 2;
   $("porSolo").checked = !!a.solo_imagen;
   $("porElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("");
   pintarFondoPortada(); pintarElemsPortada();
@@ -3817,7 +3927,7 @@ function leerPortada() {
   return { ...porDiseno, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
     tamano: Number($("porTam").value), color_texto: $("porColor").value, color_acento: $("porAcento").value, borde: Number($("porBorde").value),
     color_borde: $("porColorBorde").value, caja: $("porCaja").checked, color_caja: $("porColorCaja").value, y: Number($("porY").value),
-    logo: $("porLogo").checked, solo_imagen: $("porSolo").checked };
+    logo: $("porLogo").checked, logo_archivo: $("porLogoArchivo").value, solo_imagen: $("porSolo").checked };
 }
 function pintarFondoPortada() {
   $("porFondoTxt").textContent = porDiseno.fondo ? "Fondo: " + porDiseno.fondo : "Fondo: el cuadro del video";
@@ -6473,6 +6583,297 @@ $("dlgProyecto").addEventListener("click", e => {
 setInterval(() => { if (E && !document.hidden) revisarProyecto(); }, 60000);
 setTimeout(() => revisarProyecto(true), 6000);
 
+// ---------- Marca del equipo: colores, logos, tipografías, productos y cómo habla (en _MARCA del Drive) ----------
+let MK = null, mkSucia = false;
+const MK_USOS_COLOR = [["principal", "Principal"], ["secundario", "Secundario"], ["acento", "Acento"], ["fondo", "Fondo"], ["texto", "Texto"], ["otro", "Otro"]];
+const MK_USOS_LOGO = [["principal", "Principal"], ["horizontal", "Horizontal"], ["icono", "Ícono"], ["otro", "Otro"]];
+const MK_FONDOS = [["oscuro", "Va sobre fondo oscuro"], ["claro", "Va sobre fondo claro"], ["cualquiera", "Va sobre cualquier fondo"]];
+const mkOpc = (lista, v) => lista.map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("");
+const mkLineas = id => $(id).value.split("\n").map(x => x.trim()).filter(Boolean);
+function mkMarcarSucia(si = true) { mkSucia = si; $("mkSucia").hidden = !si; }
+async function cargarMarca() {
+  try { MK = await (await fetch("/api/marca")).json(); } catch (e) { return avisar("No se pudo leer la marca.", "err"); }
+  mkMarcarSucia(false); pintarMarca();
+}
+function pintarMarca() {
+  if (!MK) return;
+  $("mkNombre").value = MK.nombre || "";
+  $("mkEvitar").value = (MK.evitar || []).join("\n");
+  $("mkObligatorio").value = (MK.obligatorio || []).join("\n");
+  $("mkCierres").value = (MK.cierres || []).join("\n");
+  const cta = MK.cta || {};
+  $("mkCtaTit").value = cta.titulo || ""; $("mkCtaTxt").value = cta.texto || ""; $("mkCtaBoton").value = cta.boton || "";
+  $("mkNotas").value = MK.notas_para_claude || "";
+  pintarColoresMarca(); pintarArchivosMarca(); pintarVistaMarca();
+}
+function pintarColoresMarca() {
+  $("mkColores").innerHTML = (MK.colores || []).map((c, i) => `<div class="mk-color" data-i="${i}">
+      <input type="color" data-c="hex" value="${esc(c.hex)}" aria-label="Color">
+      <input data-c="nombre" value="${esc(c.nombre)}" placeholder="Nombre del color" aria-label="Nombre del color">
+      <select data-c="uso" aria-label="Para qué sirve">${mkOpc(MK_USOS_COLOR, c.uso)}</select>
+      <button class="btn sec peq" type="button" data-cquitar="${i}" title="Quitar este color" aria-label="Quitar este color">×</button></div>`).join("")
+    || `<p class="muted mk-ayuda">Todavía no hay colores.</p>`;
+}
+function pintarArchivosMarca() {
+  const v = MK.cambio || Date.now();
+  $("mkLogos").innerHTML = (MK.logos || []).map((l, i) => `<div class="mk-item" data-l="${i}">
+      <div class="mk-img ${esc(l.fondo)}"><img src="/marca/logos/${encodeURIComponent(l.archivo)}?v=${v}" alt="${esc(l.nombre)}"></div>
+      <input data-lc="nombre" value="${esc(l.nombre)}" aria-label="Nombre del logo">
+      <select data-lc="uso" aria-label="Qué logo es">${mkOpc(MK_USOS_LOGO, l.uso)}</select>
+      <select data-lc="fondo" aria-label="Sobre qué fondo va">${mkOpc(MK_FONDOS, l.fondo)}</select>
+      <button class="btn-link peligro mk-quitar" type="button" data-mkquitar="logos" data-archivo="${esc(l.archivo)}">Quitar</button></div>`).join("")
+    || `<p class="muted mk-ayuda">Todavía no hay logos.</p>`;
+  $("mkProductos").innerHTML = (MK.productos || []).map(p => `<div class="mk-item">
+      <div class="mk-img"><img src="/marca/productos/${encodeURIComponent(p)}?v=${v}" alt="${esc(p)}"></div>
+      <span>${esc(p)}</span>
+      <button class="btn-link peligro mk-quitar" type="button" data-mkquitar="productos" data-archivo="${esc(p)}">Quitar</button></div>`).join("")
+    || `<p class="muted mk-ayuda">Todavía no hay fotos del producto.</p>`;
+  $("mkFuentes").innerHTML = (MK.fuentes_archivos || []).map(f => `<div class="mk-fuente">
+      <span style="font-family:'F_${esc(f)}', sans-serif">Aa Bb 123 · ${esc(f)}</span>
+      <button class="btn-link peligro" type="button" data-mkquitar="fuentes" data-archivo="${esc(f)}">Quitar</button></div>`).join("");
+  const fu = MK.fuentes || {};
+  // la Sala de diseño guarda el nombre de la familia («Bebas»), no el archivo: se conserva tal cual
+  const opcFuentes = v => `<option value="">— La de la sala —</option>` +
+    (v && !(E.fuentes || []).some(f => f.archivo === v) ? `<option value="${esc(v)}" selected>${esc(v)} (de la Sala de diseño)</option>` : "") + (E.fuentes || []).map(f =>
+    `<option value="${esc(f.archivo)}"${f.archivo === v ? " selected" : ""}>${esc(f.nombre || f.archivo)}${(MK.fuentes_archivos || []).includes(f.archivo) ? " (de la marca)" : ""}</option>`).join("");
+  $("mkFTitulo").innerHTML = opcFuentes(fu.titulo); $("mkFCuerpo").innerHTML = opcFuentes(fu.cuerpo); $("mkFSubs").innerHTML = opcFuentes(fu.subtitulos);
+}
+function mkFamilia(v, sino) {
+  const f = v && (E.fuentes || []).find(x => x.archivo === v || norm(x.nombre || "").startsWith(norm(v)) || norm(x.archivo).startsWith(norm(v).replace(/\s+/g, "")));
+  return (f ? `'F_${esc(f.archivo)}', ` : "") + sino;
+}
+function mkColor(uso, sino) { const c = (MK.colores || []).find(x => x.uso === uso); return c ? c.hex : sino; }
+function mkOscuro(hex) {
+  const h = String(hex || "#000").replace("#", "").padEnd(6, "0");
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  return .2126 * r + .7152 * g + .0722 * b < .5;
+}
+function pintarVistaMarca() {
+  if (!MK) return;
+  const fondo = mkColor("principal", mkColor("fondo", "#1F2933")), acento = mkColor("acento", mkColor("secundario", "#2563EB"));
+  const oscuro = mkOscuro(fondo), texto = oscuro ? "#FFFFFF" : mkColor("texto", "#1F2933");
+  const logos = MK.logos || [], quiero = oscuro ? "oscuro" : "claro";
+  const logo = [...logos].sort((a, b) => ((a.fondo !== quiero && a.fondo !== "cualquiera") - (b.fondo !== quiero && b.fondo !== "cualquiera")) || ((a.uso !== "principal") - (b.uso !== "principal")))[0];
+  const fu = { titulo: $("mkFTitulo").value, cuerpo: $("mkFCuerpo").value };
+  const cta = { titulo: $("mkCtaTit").value.trim(), texto: $("mkCtaTxt").value.trim(), boton: $("mkCtaBoton").value.trim() };
+  const v = $("mkVista");
+  v.style.background = `linear-gradient(160deg, ${fondo}, ${rgba(fondo, .82)} 60%, ${rgba(acento, .55)})`;
+  v.style.color = texto;
+  v.innerHTML = `${logo ? `<img src="/marca/logos/${encodeURIComponent(logo.archivo)}?v=${MK.cambio || 0}" alt="">` : `<b style="text-align:center;opacity:.8">${esc($("mkNombre").value || "Tu logo")}</b>`}
+    <div><h3 style="font-family:${mkFamilia(fu.titulo, "'Arial Black', sans-serif")}">${esc(cta.titulo || "Así se ve") } <span style="color:${esc(acento)}">tu marca</span></h3>
+      <p style="font-family:${mkFamilia(fu.cuerpo, "sans-serif")}">${esc(cta.texto || "Un texto de muestra con tu tipografía y tus colores.")}</p></div>
+    <span class="mk-cta" style="background:${esc(acento)};color:${mkOscuro(acento) ? "#fff" : "#111"}">${esc(cta.boton || "Escríbenos")}</span>`;
+  $("mkTiras").innerHTML = (MK.colores || []).map(c => `<i style="background:${esc(c.hex)}" title="${esc(c.nombre)} · ${esc(c.uso)}"></i>`).join("");
+}
+function leerMarca() {
+  return { nombre: $("mkNombre").value.trim(), colores: MK.colores || [], logos: MK.logos || [],
+    texto_oscuro: MK.texto_oscuro, texto_claro: MK.texto_claro,
+    fuentes: { titulo: $("mkFTitulo").value, cuerpo: $("mkFCuerpo").value, subtitulos: $("mkFSubs").value },
+    evitar: mkLineas("mkEvitar"), obligatorio: mkLineas("mkObligatorio"), cierres: mkLineas("mkCierres"),
+    cta: { titulo: $("mkCtaTit").value.trim(), texto: $("mkCtaTxt").value.trim(), boton: $("mkCtaBoton").value.trim() },
+    notas_para_claude: $("mkNotas").value.trim() };
+}
+// lo que llega del servidor tras subir o quitar un archivo: se toman las listas sin perder lo que se está editando
+function mkTraerListas(nueva) {
+  const antes = Object.fromEntries((MK.logos || []).map(l => [l.archivo, l]));
+  MK.logos = nueva.logos.map(l => antes[l.archivo] || l);
+  MK.productos = nueva.productos; MK.fuentes_archivos = nueva.fuentes_archivos; MK.cambio = Date.now();
+  pintarArchivosMarca(); pintarVistaMarca();
+}
+$("mkForm").addEventListener("input", e => {
+  const fila = e.target.closest(".mk-color"), item = e.target.closest("[data-l]");
+  if (fila && e.target.dataset.c) MK.colores[+fila.dataset.i][e.target.dataset.c] = e.target.value;
+  if (item && e.target.dataset.lc) MK.logos[+item.dataset.l][e.target.dataset.lc] = e.target.value;
+  if (item && e.target.dataset.lc === "fondo") item.querySelector(".mk-img").className = "mk-img " + e.target.value;
+  if (e.target.type === "file") return;
+  mkMarcarSucia(); pintarVistaMarca();
+});
+$("mkForm").addEventListener("click", async e => {
+  const q = e.target.closest("[data-cquitar]");
+  if (q) { MK.colores.splice(+q.dataset.cquitar, 1); pintarColoresMarca(); mkMarcarSucia(); pintarVistaMarca(); return; }
+  const b = e.target.closest("[data-mkquitar]"); if (!b) return;
+  if (!confirm(`¿Quitar «${b.dataset.archivo}» de la marca? Se aparta a _MARCA/_BORRADOS (no se borra del todo).`)) return;
+  try { const r = await post("/api/marca_borrar", { tipo: b.dataset.mkquitar, archivo: b.dataset.archivo }); mkTraerListas(r.marca); avisar("Listo: lo aparté.", "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
+$("mkColorMas").onclick = () => {
+  MK.colores = MK.colores || [];
+  MK.colores.push({ nombre: "", hex: "#2563EB", uso: MK.colores.some(c => c.uso === "principal") ? "otro" : "principal" });
+  pintarColoresMarca(); mkMarcarSucia(); pintarVistaMarca();
+  $("mkColores").lastElementChild.querySelector('[data-c="nombre"]').focus();
+};
+async function subirArchivosMarca(tipo, input) {
+  const archivos = [...input.files]; input.value = "";
+  let ultima = null;
+  for (const f of archivos) {
+    try { ultima = await post(`/api/marca_archivo?tipo=${tipo}&nombre=${encodeURIComponent(f.name)}`, f, true); }
+    catch (err) { avisar(`«${f.name}»: ${err.message}`, "err"); }
+  }
+  if (!ultima) return;
+  if (tipo === "fuentes") { await cargar(); cargarFuentesCSS(); }
+  mkTraerListas(ultima.marca);
+  avisar(archivos.length > 1 ? `Subí ${archivos.length} archivos a la marca.` : `«${ultima.archivo}» quedó en la marca.`, "ok");
+}
+$("mkLogoArchivo").onchange = e => subirArchivosMarca("logos", e.target);
+$("mkProductoArchivo").onchange = e => subirArchivosMarca("productos", e.target);
+$("mkFuenteArchivo").onchange = e => subirArchivosMarca("fuentes", e.target);
+$("mkGuardar").onclick = async () => {
+  if (!MK) return;
+  try {
+    const r = await post("/api/marca", { marca: leerMarca() });
+    MK = r.marca; mkMarcarSucia(false); pintarMarca();
+    E.marca = { nombre: MK.nombre, colores: MK.colores, logos: MK.logos, fuentes: MK.fuentes, tiene_marca: MK.tiene_marca };
+    pintarPaletaMarca();
+    avisar((E.drive || {}).activo ? "Marca guardada: ya está en el Drive del equipo." : "Marca guardada en esta PC.", "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+// Los colores de la marca salen primero al elegir cualquier color de la sala (portadas, plantillas…)
+function pintarPaletaMarca() {
+  const m = E.marca || {};
+  let dl = $("paletaMarca");
+  if (!dl) { dl = document.createElement("datalist"); dl.id = "paletaMarca"; document.body.appendChild(dl); }
+  dl.innerHTML = (m.colores || []).map(c => `<option value="${esc(String(c.hex).toLowerCase())}">${esc(c.nombre)}</option>`).join("");
+  document.querySelectorAll('input[type=color]').forEach(i => { if (m.colores?.length) i.setAttribute("list", "paletaMarca"); else i.removeAttribute("list"); });
+  $("confPMarca").className = "punto-estado " + (m.tiene_marca ? "ok" : "warn");
+}
+
+// ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del equipo ----------
+// Para quien recién instala la sala: entra con su cuenta, elige una carpeta suya, una compartida con ella o crea la suya,
+// y después invita a su equipo, carga la marca y crea la primera sesión.
+const PV_PASOS = [["entrar", "Entrar"], ["carpeta", "Carpeta"], ["equipo", "Equipo"], ["marca", "Marca"], ["sesion", "Primera sesión"]];
+let PV = { paso: "entrar" };
+function pintarPasosPv() {
+  const i = PV_PASOS.findIndex(p => p[0] === PV.paso);
+  $("pvPasos").innerHTML = PV_PASOS.map(([k, t], j) => `<span class="${j < i ? "hecho" : j === i ? "ahora" : ""}">${j < i ? "✓ " : ""}${t}</span>`).join("");
+}
+async function abrirPrimera() {
+  PV = { paso: "entrar", cargando: true };
+  if (!$("dlgPrimera").open) $("dlgPrimera").showModal();
+  pintarPrimera();
+  try {
+    const r = await (await fetch("/api/primera/carpetas")).json();
+    Object.assign(PV, { cargando: false, carpetas: r, cuenta: r.cuenta || {} });
+    if (r.con_llave) PV.paso = "carpeta";
+  } catch (e) { PV.cargando = false; }
+  pintarPrimera();
+}
+function filaCarpetas(lista, vacio) {
+  const q = norm(($("pvBuscar")?.value || "").trim());
+  const ver = (lista || []).filter(c => !q || norm(c.nombre).includes(q));
+  return ver.map(c => `<button type="button" data-pvusar="${esc(c.id)}" data-nombre="${esc(c.nombre)}">📁 ${esc(c.nombre)}</button>`).join("")
+    || `<p class="muted" style="margin:0;font-size:13px">${q ? "Ninguna carpeta con ese nombre." : vacio}</p>`;
+}
+function pintarPrimera() {
+  pintarPasosPv();
+  const c = $("pvCuerpo"), cu = PV.cuenta || {};
+  if (PV.cargando) { c.innerHTML = `<p class="muted">Revisando tu cuenta de Google…</p>`; return; }
+  if (PV.paso === "entrar") {
+    c.innerHTML = `<h2 id="pvTit">Entra con tu cuenta de Google</h2>
+      <p class="muted" style="margin:0">La sala trabaja en una carpeta de tu Google Drive: ahí guarda las sesiones, los clips y los videos, y el equipo trabaja en la misma carpeta.
+        Se abre Google en el navegador: entra con la cuenta donde vas a trabajar, acepta y vuelve aquí.</p>
+      <div class="fila"><button class="btn" type="button" id="pvEntrar">Entrar con Google</button></div>
+      <details class="conf-avanzado"><summary>Avanzado: credenciales propias de Google Cloud</summary>
+        <p class="muted" style="font-size:12px;margin:6px 0">Si tu equipo tiene su propio proyecto en Google Cloud (cliente OAuth «App de escritorio»), pega aquí su ID y secreto. Si no, déjalo vacío.</p>
+        <div class="form-plant" style="display:grid;gap:8px"><label>ID de cliente<input id="pvCid" placeholder="…apps.googleusercontent.com"></label>
+        <label>Secreto del cliente<input id="pvSecret" type="password" autocomplete="off"></label></div></details>`;
+    $("pvEntrar").onclick = async () => {
+      $("pvEntrar").textContent = "Esperando que entres en el navegador…";
+      try {
+        const r = await post("/api/primera", { accion: "entrar", client_id: $("pvCid").value, client_secret: $("pvSecret").value });
+        PV.cuenta = r.cuenta || {}; PV.cargando = true; pintarPrimera();
+        PV.carpetas = await (await fetch("/api/primera/carpetas")).json(); PV.cargando = false; PV.paso = "carpeta";
+      } catch (err) { avisar("No se pudo entrar: " + err.message, "err"); }
+      PV.cargando = false; pintarPrimera();
+    };
+    return;
+  }
+  if (PV.paso === "carpeta") {
+    const k = PV.carpetas || {};
+    c.innerHTML = `<h2 id="pvTit">¿Dónde va a trabajar el equipo?</h2>
+      <p class="muted" style="margin:0">${cu.email ? `Entraste como <b>${esc(cu.email)}</b>. ` : ""}Elige una carpeta que ya tengas, una que te compartieron, o crea una nueva.</p>
+      ${(E.drive || {}).activo ? `<p class="cal-arreglo fila" style="margin:0">Ahora la sala ya trabaja en una carpeta. Si eliges otra, esta PC pasa a trabajar en la nueva (lo de la anterior sigue en Drive).</p>` : ""}
+      <div class="pv-opciones">
+        <form class="pv-op" id="pvCrearForm"><b>✨ Crear mi carpeta</b>
+          <div class="form-plant dos"><label>Nombre de la carpeta<input id="pvNombre" value="EDICIÓN DE VIDEOS" required></label>
+            <label>Nombre de tu marca<input id="pvMarca" placeholder="Ej.: Suplevet"></label></div>
+          <span class="muted" style="font-size:12px">Se crea en tu «Mi unidad» con lo de base (la carpeta de la marca). Si ya existe una con ese nombre, se usa esa.</span>
+          <div class="fila"><button class="btn" id="pvCrear">Crear y usar esta carpeta</button></div></form>
+        <div class="pv-op"><b>📂 Usar una que ya existe</b>
+          <input id="pvBuscar" type="search" placeholder="Buscar carpeta…" aria-label="Buscar carpeta">
+          <span class="etq">Compartidas conmigo</span><div class="pv-lista" id="pvCompartidas">${filaCarpetas(k.compartidas, "Nadie te compartió carpetas todavía. Si tu equipo ya tiene una, pide que te la compartan como Editor.")}</div>
+          <span class="etq">Mi unidad</span><div class="pv-lista" id="pvMias">${filaCarpetas(k.mias, "No hay carpetas en tu «Mi unidad».")}</div></div>
+        <form class="pv-op" id="pvLinkForm"><b>🔗 Pegar el link de la carpeta</b>
+          <div class="fila"><input id="pvLink" style="flex:1" placeholder="https://drive.google.com/drive/folders/…" required><button class="btn sec">Usar este link</button></div></form>
+      </div>`;
+    $("pvBuscar").oninput = () => { $("pvCompartidas").innerHTML = filaCarpetas(k.compartidas, "—"); $("pvMias").innerHTML = filaCarpetas(k.mias, "—"); };
+    $("pvCrearForm").onsubmit = e => { e.preventDefault(); usarCarpetaPv({ accion: "crear", nombre: $("pvNombre").value.trim(), marca: $("pvMarca").value.trim() }); };
+    $("pvLinkForm").onsubmit = e => { e.preventDefault(); usarCarpetaPv({ accion: "link", link: $("pvLink").value.trim() }); };
+    return;
+  }
+  if (PV.paso === "solo_lectura") {
+    c.innerHTML = `<h2 id="pvTit">En «${esc(PV.res.nombre || "esa carpeta")}» solo puedes mirar</h2>
+      <p style="margin:0">Tu cuenta tiene permiso de <b>lector</b>: puedes abrir las sesiones, pero la sala no puede subir videos, música ni cambios.
+        Pide a quien es dueño de la carpeta que te la comparta como <b>Editor</b> (en Drive: clic derecho → Compartir → tu correo → «Editor»).</p>
+      <div class="fila"><button class="btn" type="button" id="pvOtra">Elegir otra carpeta</button><button class="btn sec" type="button" id="pvIgual">Seguir solo mirando</button></div>`;
+    $("pvOtra").onclick = () => { PV.paso = "carpeta"; pintarPrimera(); };
+    $("pvIgual").onclick = () => { PV.paso = "equipo"; pintarPrimera(); };
+    return;
+  }
+  if (PV.paso === "equipo") {
+    const link = PV.res?.link || (E.drive || {}).link || "";
+    c.innerHTML = `<h2 id="pvTit">Invita a tu equipo</h2>
+      <p class="muted" style="margin:0">Todos trabajan en la misma carpeta: quien graba, quien edita y quien publica. Compártela como <b>Editor</b> (con «Lector» la sala no puede subir nada).</p>
+      <div class="pv-link"><span style="flex:1">${esc(link)}</span><button class="btn sec peq" type="button" id="pvCopiar">Copiar link</button></div>
+      <ol><li>Toca «Abrir en Drive».</li><li>Arriba, toca <b>Compartir</b>.</li><li>Escribe el correo de cada persona, elige <b>Editor</b> y toca <b>Enviar</b>.</li>
+        <li>Cada persona instala la sala, entra con su cuenta y elige la carpeta en «Compartidas conmigo».</li></ol>
+      <div class="fila"><button class="btn sec" type="button" id="pvAbrir">Abrir en Drive</button><button class="btn" type="button" id="pvSigue">Siguiente →</button></div>`;
+    $("pvCopiar").onclick = () => { copiarTexto(link); avisar("Link copiado.", "ok"); };
+    $("pvAbrir").onclick = () => abrirAfuera(link);
+    $("pvSigue").onclick = () => { PV.paso = "marca"; pintarPrimera(); };
+    return;
+  }
+  if (PV.paso === "marca") {
+    const tiene = (E.marca || {}).tiene_marca;
+    c.innerHTML = `<h2 id="pvTit">${tiene ? "Tu marca ya está cargada" : "Carga tu marca"}</h2>
+      <p class="muted" style="margin:0">${tiene ? `La carpeta ya tiene la marca${E.marca.nombre ? ` de <b>${esc(E.marca.nombre)}</b>` : ""}: ${plural((E.marca.colores || []).length, "color", "colores")} y ${plural((E.marca.logos || []).length, "logo")}. Puedes revisarla cuando quieras en Configuración → Marca.`
+        : "Tus colores, logos y tipografías: así las portadas y los subtítulos salen con tu marca. Toma unos minutos y se hace una sola vez para todo el equipo."}</p>
+      <div class="fila"><button class="btn${tiene ? " sec" : ""}" type="button" id="pvMarcaYa">${tiene ? "Revisar la marca" : "Cargar mi marca ahora"}</button>
+        <button class="btn${tiene ? "" : " sec"}" type="button" id="pvMarcaLuego">${tiene ? "Siguiente →" : "Después"}</button></div>`;
+    $("pvMarcaYa").onclick = () => { $("dlgPrimera").close(); irConf("confMarca"); };
+    $("pvMarcaLuego").onclick = () => { PV.paso = "sesion"; pintarPrimera(); };
+    return;
+  }
+  if (PV.paso === "sesion") {
+    c.innerHTML = `<h2 id="pvTit">Todo listo: crea tu primera sesión</h2>
+      <p class="muted" style="margin:0">Una sesión es un día de grabación (o una producción): una carpeta con su guion, sus clips y sus videos. La sala te va diciendo qué falta.</p>
+      <div class="fila"><button class="btn" type="button" id="pvSesion">Elegir o crear la sesión →</button></div>`;
+    $("pvSesion").onclick = () => { $("dlgPrimera").close(); abrirBienvenida(); };
+  }
+}
+async function usarCarpetaPv(cuerpo) {
+  PV.cargando = true; pintarPrimera();
+  $("pvCuerpo").innerHTML = `<p class="muted">Conectando la carpeta y revisando tus permisos…</p>`;
+  try {
+    const r = await post("/api/primera", cuerpo);
+    PV.res = r; await cargar();
+    PV.paso = r.editor ? "equipo" : "solo_lectura";
+    avisar(`Listo: la sala trabaja en «${r.nombre || "la carpeta"}».`, "ok");
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+  PV.cargando = false; pintarPrimera();
+}
+$("pvCuerpo").addEventListener("click", e => {
+  const b = e.target.closest("[data-pvusar]"); if (!b) return;
+  usarCarpetaPv({ accion: "usar", id: b.dataset.pvusar, nombre: b.dataset.nombre });
+});
+$("pvCerrar").onclick = () => $("dlgPrimera").close();
+$("pvOmitir").onclick = () => { try { localStorage.setItem("sala_primera_omitida", "1"); } catch (e) {} $("dlgPrimera").close(); };
+$("drivePrimera").onclick = () => abrirPrimera();
+function mostrarPrimeraSiHaceFalta() {
+  let omitida = false; try { omitida = localStorage.getItem("sala_primera_omitida") === "1"; } catch (e) {}
+  if (omitida || ((E.drive || {}).activo && !E.sin_carpeta)) return false;
+  abrirPrimera(); return true;
+}
+
 // ---------- Pantalla de entrada: elegir la sesión (o crear una nueva) ----------
 // Sale al abrir la sala (una vez por ventana) y desde la lista de arriba («Ver todas las sesiones…»).
 let sesionesBv = null;
@@ -6631,6 +7032,7 @@ function guardarConTeclado() {
   if (tab === "piezas") return piezaSucia() ? $("guardar").click() : avisar("No hay cambios sin guardar en esta pieza.", "muted");
   if (tab === "guion") { const b = document.querySelector("#guionLista .g-editar [data-gguardar]"); return b ? guardarTextoGuion(b) : avisar("No estás editando el texto de ninguna pieza.", "muted"); }
   if (tab === "plantillas") return $("plantGuardar").click();
+  if (tab === "notas" && confActual === "confMarca") return $("mkGuardar").click();
   if (tab === "notas" && document.activeElement === $("notas")) return $("guardarNotas").click();
   avisar("Aquí no hay nada que guardar con Ctrl+S.", "muted");
 }
@@ -7881,7 +8283,7 @@ document.addEventListener("play", e => {
                          alAbrirCuenta: abrirMenuCuenta });
   revisarClaude();
   await cargar();
-  mostrarBienvenidaInicial();  // al abrir la sala: ¿con qué sesión trabajas hoy?
+  if (!mostrarPrimeraSiHaceFalta()) mostrarBienvenidaInicial();  // al abrir: la primera vez, el asistente; si no, ¿con qué sesión trabajas hoy?
 })();
 </script>
 </body>

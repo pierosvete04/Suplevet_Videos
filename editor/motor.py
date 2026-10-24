@@ -5387,7 +5387,7 @@ def cuadro(combo, segundo, destino, ancho=540):
     return destino
 
 
-CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "logo", "oscurecer", "fuente", "tamano", "color_texto", "color_acento",
+CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "logo", "logo_archivo", "oscurecer", "fuente", "tamano", "color_texto", "color_acento",
                   "borde", "color_borde", "caja", "color_caja", "fondo", "solo_imagen", "elementos")
 
 
@@ -5459,7 +5459,9 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
         previo, k = f"p{k}", k + 1
     f.append(f"[{previo}]subtitles=portada.ass:fontsdir=fuentes[t]")
     previo = "t"
-    logo = BIBLIO_BASE / "marca" / "logo-blanco.png"
+    # el logo de la marca del equipo (_MARCA): el elegido para esta portada o el principal para fondo oscuro
+    import marca as _marca
+    logo = _marca.logo_para("oscuro", aj.get("logo_archivo")) or (BIBLIO_BASE / "marca" / "logo-blanco.png")
     if aj.get("logo", True) and logo.exists() and not aj.get("solo_imagen"):
         # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
         ylogo = (1490 if y < 900 else 330) if H > W else (H - 190 if y < H / 2 else 70)
