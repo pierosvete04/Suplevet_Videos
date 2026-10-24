@@ -627,6 +627,31 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .g-accion:hover, .bv-ses:hover, .cl-clip:hover, .revisar-hoy .rv:hover { box-shadow: var(--sombra-alta); }
 .fl-num { box-shadow: var(--prim-sombra); background: linear-gradient(180deg, var(--prim-1), var(--prim-2)); }
 @media (prefers-reduced-motion: reduce) { .btn:hover { transform: none; } }
+/* Detalle del video: estado en lista y lo que usa el video en tarjetas */
+.est-sel { display: inline-flex; align-items: center; gap: 8px; padding: 3px 4px 3px 12px; border-radius: 10px; border: 1px solid var(--line2); background: var(--surface2); font-size: 12.5px; color: var(--muted); }
+.est-sel select { border: 0; background: transparent; font-weight: 600; padding: 5px 6px; }
+.est-sel[data-est="pendiente"] { border-color: color-mix(in srgb, var(--warn) 55%, var(--line2)); }
+.est-sel[data-est="editando"] { border-color: color-mix(in srgb, var(--accent) 55%, var(--line2)); }
+.est-sel[data-est="listo"] { border-color: color-mix(in srgb, var(--ok) 60%, var(--line2)); background: color-mix(in srgb, var(--ok) 8%, var(--surface2)); }
+.usa-caja { display: grid; gap: 6px; }
+.usa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.usa-t { display: flex; gap: 8px; align-items: center; padding: 7px 9px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--sombra-caja); min-width: 0; }
+.usa-t small { display: block; font-size: 10.5px; color: var(--muted); } .usa-t b { display: block; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usa-t > span:last-child { min-width: 0; }
+.usa-t.warn { border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+.usa-ico { width: 28px; height: 28px; flex: none; border-radius: 8px; display: grid; place-items: center; font: 700 12px var(--fd); background: var(--surface2); color: var(--accent); }
+/* Portada: la vista grande a la izquierda (se arrastran el título, el logo y las imágenes), los controles a la derecha */
+.por-lay { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 18px; margin-top: 10px; align-items: start; }
+.por-lienzo { position: relative; width: 100%; aspect-ratio: 9/16; border-radius: 12px; overflow: hidden; background: #000; box-shadow: var(--sombra-alta); user-select: none; touch-action: none; }
+.por-lienzo img.por-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.por-cosa { position: absolute; border: 2px dashed rgba(255,255,255,.85); border-radius: 6px; cursor: grab; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.por-cosa:hover, .por-cosa.activa { border-style: solid; border-color: #ffd23f; }
+.por-cosa > em { position: absolute; left: -2px; top: -20px; font: 700 10.5px var(--f); font-style: normal; color: #111; background: #ffd23f; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.por-cosa > i { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; border-radius: 4px; background: #ffd23f; border: 2px solid #111; cursor: nwse-resize; }
+.form-plant.por-ctrl { display: block; columns: 2 250px; column-gap: 12px; }  /* los grupos se acomodan sin dejar huecos */
+.por-ctrl > fieldset { break-inside: avoid; margin: 0 0 12px; }
+.por-ayuda { font-size: 12px; margin: 0; }
+@media (max-width: 860px) { .por-lay { grid-template-columns: minmax(0, 1fr); } .por-lienzo { max-width: 320px; } }
 /* Faltantes: los tres pasos de Flow en columnas */
 .fl-caja { display: grid; gap: 14px; margin-bottom: 14px; }
 .fl-cab { display: grid; gap: 2px; }
@@ -2297,17 +2322,16 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 <dialog id="dlg" aria-labelledby="dlgTitulo">
   <div class="dlg-cab"><div class="fila"><h2 id="dlgTitulo" style="margin:0"></h2><span id="dlgAviso"></span></div>
     <div class="fila">
-      <div class="segmento" id="dlgEstado" role="group" aria-label="Estado del video">
-        <button data-est="pendiente" aria-pressed="false">Por revisar</button>
-        <button data-est="editando" aria-pressed="false">Editando</button>
-        <button data-est="listo" aria-pressed="false">Aprobado</button>
-      </div>
-      <button class="btn sec peq" id="irEditor">Editar ↓</button>
-      <button class="btn sec peq" id="rearmarUno">Rearmar este video</button>
+      <label class="est-sel" id="dlgEstadoCaja"><span>Estado</span>
+        <select id="dlgEstadoSel" aria-label="Estado del video">
+          <option value="pendiente">🟡 Por revisar</option><option value="editando">🔵 Editando</option><option value="listo">🟢 Aprobado</option></select></label>
+      <button class="btn" id="irEditor" title="Abre el editor de este video: cortes, zoom, imágenes, sonidos y subtítulos">✎ Editar video</button>
+      <button class="btn sec" id="rearmarUno" title="Vuelve a armar el video con los cambios guardados">⟳ Rearmar</button>
       <button class="btn sec peq" id="cerrar" aria-label="Cerrar">✕</button></div></div>
   <div class="dlg-cuerpo">
-    <div><video id="dlgVideo" controls playsinline preload="metadata"></video>
-      <a id="dlgPortada" class="muted" style="font-size:12px" target="_blank">Abrir portada</a></div>
+    <div style="display:grid;gap:10px;align-content:start"><video id="dlgVideo" controls playsinline preload="metadata"></video>
+      <div class="usa-caja"><span class="etq">Este video usa</span><div class="usa-grid" id="dlgUsa"></div></div>
+      <a id="dlgPortada" class="muted" style="font-size:12px" target="_blank">Abrir portada en grande</a></div>
     <div>
       <div class="redes fila" id="redes">
         <button data-red="instagram" aria-pressed="true">Instagram</button>
@@ -2328,16 +2352,19 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     </div>
     <div class="caja" style="grid-column:1/-1" id="editorPortada">
       <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Portada</h2>
-        <span class="muted" style="font-size:12px">Elige el momento, escribe el título (*palabra* sale en color) y su lugar. Se rehace al instante.</span></div>
-      <div style="display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:14px;margin-top:8px;align-items:start">
-        <div style="display:grid;gap:6px">
-          <img id="porVista" alt="Vista de la portada" style="width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:10px;background:#000">
-          <span class="muted" style="font-size:11px;text-align:center" id="porEstado">Portada actual</span>
+        <span class="muted" style="font-size:12px">Arrastra el título, el logo y las imágenes sobre la portada; la esquina amarilla cambia su tamaño. Se rehace al instante.</span></div>
+      <div class="por-lay">
+        <div style="display:grid;gap:8px">
+          <div class="por-lienzo" id="porLienzo"><img id="porVista" class="por-img" alt="Vista de la portada"><div id="porCosas"></div></div>
+          <span class="muted" style="font-size:11.5px;text-align:center" id="porEstado">Portada actual</span>
+          <div class="fila" style="justify-content:center"><button class="btn" id="porGuardar">Guardar portada</button>
+            <button class="btn sec peq" id="porVolver">Deshacer cambios</button></div>
         </div>
-        <div class="form-plant por-form" id="porForm">
+        <div class="form-plant por-form por-ctrl" id="porForm">
           <fieldset><legend>Imagen de fondo</legend>
             <label>Momento del hook: <b id="porSeg"></b><input type="range" id="porT" min="0" max="5" step="0.1"></label>
-            <div class="fila"><label class="btn sec peq" style="cursor:pointer">Subir una imagen propia<input type="file" id="porSubir" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <p class="muted por-ayuda">O usa una imagen tuya como portada (una foto, un diseño de Canva…).</p>
+            <div class="fila"><label class="btn sec peq" style="cursor:pointer">⬆ Usar una imagen mía<input type="file" id="porSubir" accept="image/png,image/jpeg,image/webp" hidden></label>
               <span class="muted" id="porFondoTxt" style="font-size:12px"></span><button class="btn sec peq" id="porFondoQuitar" type="button" hidden>Volver al cuadro del video</button></div>
             <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porSolo"> Usar la imagen tal cual (sin título ni logo)</label>
           </fieldset>
@@ -2348,16 +2375,15 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <div class="dos"><label>Borde<input type="number" id="porBorde" min="0" max="30"></label><label>Color del borde<input type="color" id="porColorBorde"></label></div>
             <div class="dos"><label class="fila" style="display:flex;color:var(--ink);font-size:12.5px;margin-top:18px"><input type="checkbox" id="porCaja"> Caja de color detrás</label><label>Color de la caja<input type="color" id="porColorCaja"></label></div>
             <label>Altura del título: <b id="porYTxt"></b><input type="range" id="porY" min="150" max="1780" step="10"></label>
+            <button class="btn-link" type="button" id="porCentrar" style="justify-self:start;font-size:12px">Centrar el título de lado a lado</button>
           </fieldset>
-          <fieldset><legend>Logo e imágenes encima</legend>
+          <fieldset><legend>Logo, stickers e imágenes encima</legend>
             <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porLogo"> Logo de la marca</label>
             <label>Qué logo<select id="porLogoArchivo"></select></label>
             <div id="porElems" style="display:grid;gap:6px"></div>
             <div class="fila"><select id="porElemSel" style="flex:1"></select><button class="btn sec peq" id="porElemAgregar" type="button">Agregar</button>
               <label class="btn sec peq" style="cursor:pointer">Subir imagen<input type="file" id="porElemSubir" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
           </fieldset>
-          <div class="fila"><button class="btn" id="porGuardar">Guardar portada</button>
-            <button class="btn sec peq" id="porVolver">Ver portada actual</button></div>
         </div>
       </div>
     </div>
@@ -3046,10 +3072,26 @@ function usaDe(s) {
     (r.faltan_assets || []).length ? `<span class="pill warn" title="${esc(r.faltan_assets.join(", "))}">Faltan ${r.faltan_assets.length} imágenes</span>` : ""].join(" ");
 }
 function pintarEstadoDlg() {
-  document.querySelectorAll("#dlgEstado [data-est]").forEach(b => b.setAttribute("aria-pressed", b.dataset.est === actual.estado));
-  $("dlgAviso").innerHTML = (actual.desactualizado ? `<span class="pill warn">⟳ Hay cambios sin armar</span> ` : !actual.existe ? `<span class="pill">Sin armar</span> ` : "")
-    + `<span class="usa">Usa: ${usaDe(actual)}</span>`;
+  $("dlgEstadoSel").value = actual.estado || "pendiente";
+  $("dlgEstadoCaja").dataset.est = actual.estado || "pendiente";
+  $("dlgAviso").innerHTML = actual.desactualizado ? `<span class="pill warn">⟳ Hay cambios sin armar</span>` : !actual.existe ? `<span class="pill">Sin armar</span>` : "";
+  $("dlgUsa").innerHTML = usaTarjetas(actual);
 }
+// Lo que usa el video, en tarjetas chicas (antes eran etiquetas sueltas junto al título)
+function usaTarjetas(s) {
+  const pl = plantillaDe(s), r = s.receta || {};
+  const mus = (r.musica || "").replace(/\s*\([\d.]+ s\)/g, "");
+  const t = (ico, que, val, cls = "") => `<div class="usa-t ${cls}"><span class="usa-ico" aria-hidden="true">${ico}</span><span><small>${que}</small><b>${esc(val)}</b></span></div>`;
+  return [t("Aa", "Subtítulos", pl.nombre + (pl.propia ? " · propia" : "")),
+    mus ? t("♪", "Música", mus) : r.duracion ? t("♪", "Música", "Sin música", "warn") : "",
+    t("▣", "Imágenes", String((r.imagenes || []).length) + ((r.faltan_assets || []).length ? ` · faltan ${r.faltan_assets.length}` : ""), (r.faltan_assets || []).length ? "warn" : ""),
+    t("🔊", "Sonidos", String((r.efectos || []).length))].join("");
+}
+$("dlgEstadoSel").addEventListener("change", async e => {
+  if (!actual) return;
+  try { await post("/api/estado_video", { codigo: actual.codigo, estado: e.target.value }); actual.estado = e.target.value; pintarEstadoDlg(); cargar(); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
 
 function abrirVideo(cod, editar) {
   sonPend = [];
@@ -4321,12 +4363,12 @@ function abrirPortada() {
   $("porLogoArchivo").closest("label").hidden = logos.length < 2;
   $("porSolo").checked = !!a.solo_imagen;
   $("porElemSel").innerHTML = (E.elementos || []).map(e => `<option value="${esc(e.archivo)}">${esc(e.archivo)}${e.propio ? "" : " (marca)"}</option>`).join("");
-  pintarFondoPortada(); pintarElemsPortada();
+  pintarFondoPortada(); pintarElemsPortada(); pintarCosasPortada();
   $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; porSucia = false;
 }
 let porSucia = false;  // hay cambios de portada que se ven en vivo pero no se guardaron
 function leerPortada() {
-  return { ...porDiseno, segundo: Number($("porT").value), titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
+  return { ...porDiseno, segundo: Number($("porT").value), x: porDiseno.x, logo_x: porDiseno.logo_x, logo_y: porDiseno.logo_y, logo_ancho: porDiseno.logo_ancho, titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
     tamano: Number($("porTam").value), color_texto: $("porColor").value, color_acento: $("porAcento").value, borde: Number($("porBorde").value),
     color_borde: $("porColorBorde").value, caja: $("porCaja").checked, color_caja: $("porColorCaja").value, y: Number($("porY").value),
     logo: $("porLogo").checked, logo_archivo: $("porLogoArchivo").value, solo_imagen: $("porSolo").checked };
@@ -4344,6 +4386,7 @@ function pintarElemsPortada() {
 }
 // Vista en vivo: cada cambio rehace la portada al instante, sin guardarla
 function verPortadaEnVivo(espera = 250) {
+  pintarCosasPortada();
   clearTimeout(porTimer);
   porTimer = setTimeout(() => {
     const q = new URLSearchParams({ codigo: actual.codigo, d: JSON.stringify(leerPortada()), _: Date.now() });
@@ -4380,6 +4423,78 @@ $("porSubir").onchange = async e => {
   e.target.value = "";
 };
 $("porFondoQuitar").onclick = () => { delete porDiseno.fondo; porDiseno.fondo = ""; pintarFondoPortada(); verPortadaEnVivo(0); };
+// ---------- Arrastrar en la portada: el título, el logo y cada imagen (y su tamaño, con la esquina amarilla) ----------
+const tamImg = {};  // ancho/alto de cada imagen, para dibujar su recuadro con la forma real
+function proporcion(url) {
+  if (!url) return 1;
+  if (tamImg[url]) return tamImg[url];
+  const im = new Image(); im.onload = () => { tamImg[url] = im.naturalHeight / Math.max(1, im.naturalWidth); pintarCosasPortada(); }; im.src = url;
+  return 0.4;
+}
+function logoPortadaUrl() {
+  const logos = (E.marca || {}).logos || [];
+  if (!$("porLogo").checked || $("porSolo").checked) return null;
+  const elegido = logos.find(l => l.archivo === $("porLogoArchivo").value)
+    || [...logos].sort((a, b) => ((a.fondo !== "oscuro" && a.fondo !== "cualquiera") - (b.fondo !== "oscuro" && b.fondo !== "cualquiera")) || ((a.uso !== "principal") - (b.uso !== "principal")))[0];
+  return elegido ? `/marca/logos/${encodeURIComponent(elegido.archivo)}` : "";
+}
+function pintarCosasPortada() {
+  const caja = $("porCosas"); if (!caja || !actual) return;
+  const [W, H] = E.lienzo || [1080, 1920], k = $("porLienzo").clientWidth / W;
+  if (!k) return;
+  const cosas = [];
+  if (!$("porSolo").checked) {
+    const tam = Number($("porTam").value) || 128, txt = ($("porTitulo").value || "").replace(/\*/g, "") || "Título";
+    const ancho = Math.min(W - 180, txt.length * tam * 0.56), lineas = Math.max(1, Math.ceil(txt.length * tam * 0.56 / (W - 180)));
+    const alto = lineas * tam * 1.12, cx = porDiseno.x ?? W / 2, cy = Number($("porY").value) || H / 2;
+    cosas.push({ id: "titulo", nombre: "Título", x: cx - ancho / 2, y: cy - alto / 2, w: ancho, h: alto });
+  }
+  const lu = logoPortadaUrl();
+  if (lu !== null && lu !== undefined) {
+    const lw = Number(porDiseno.logo_ancho) || 380, lh = lw * proporcion(lu);
+    const ty = Number($("porY").value) || H / 2, ly = porDiseno.logo_y ?? (H > W ? (ty < 900 ? 1490 : 330) : (ty < H / 2 ? H - 190 : 70));
+    cosas.push({ id: "logo", nombre: "Logo", x: porDiseno.logo_x ?? (W - lw) / 2, y: ly, w: lw, h: lh });
+  }
+  porDiseno.elementos.forEach((el, i) => {
+    const url = (E.elementos || []).find(e => e.archivo === el.archivo)?.url || "";
+    const w = Number(el.ancho) || 300;
+    cosas.push({ id: "el" + i, nombre: el.archivo.replace(/\.[^.]+$/, ""), x: Number(el.x) || 0, y: Number(el.y) || 0, w, h: w * proporcion(url) });
+  });
+  caja.innerHTML = cosas.map(c => `<div class="por-cosa" data-cosa="${c.id}" style="left:${c.x * k}px;top:${c.y * k}px;width:${c.w * k}px;height:${c.h * k}px">
+      <em>${esc(c.nombre)}</em><i data-tam="${c.id}" title="Arrastra para cambiar el tamaño"></i></div>`).join("");
+}
+let arrPor = null;
+$("porLienzo").addEventListener("pointerdown", e => {
+  const c = e.target.closest("[data-cosa]"); if (!c) return;
+  e.preventDefault(); $("porLienzo").setPointerCapture(e.pointerId);
+  const [W] = E.lienzo || [1080, 1920], k = $("porLienzo").clientWidth / W, id = c.dataset.cosa;
+  const el = id.startsWith("el") ? porDiseno.elementos[Number(id.slice(2))] : null;
+  arrPor = { id, tam: !!e.target.closest("[data-tam]"), x0: e.clientX, y0: e.clientY, k, caja: c,
+    ini: id === "titulo" ? { x: porDiseno.x ?? W / 2, y: Number($("porY").value), tam: Number($("porTam").value) }
+      : id === "logo" ? { x: c.offsetLeft / k, y: c.offsetTop / k, w: Number(porDiseno.logo_ancho) || 380 }
+      : { x: Number(el.x) || 0, y: Number(el.y) || 0, w: Number(el.ancho) || 300 } };
+  c.classList.add("activa");
+});
+$("porLienzo").addEventListener("pointermove", e => {
+  const a = arrPor; if (!a) return;
+  const dx = (e.clientX - a.x0) / a.k, dy = (e.clientY - a.y0) / a.k, r = v => Math.round(v);
+  if (a.id === "titulo") {
+    if (a.tam) { $("porTam").value = Math.max(50, Math.min(220, r(a.ini.tam + dx / 4))); }
+    else { porDiseno.x = r(a.ini.x + dx); $("porY").value = Math.max(150, Math.min(Number($("porY").max), r(a.ini.y + dy))); $("porYTxt").textContent = $("porY").value + " px desde arriba"; }
+  } else if (a.id === "logo") {
+    if (a.tam) porDiseno.logo_ancho = Math.max(60, r(a.ini.w + dx));
+    else { porDiseno.logo_x = r(a.ini.x + dx); porDiseno.logo_y = r(a.ini.y + dy); }
+  } else {
+    const el = porDiseno.elementos[Number(a.id.slice(2))];
+    if (a.tam) el.ancho = Math.max(20, r(a.ini.w + dx)); else { el.x = r(a.ini.x + dx); el.y = r(a.ini.y + dy); }
+    pintarElemsPortada();
+  }
+  pintarCosasPortada();
+  $("porCosas").querySelector(`[data-cosa="${a.id}"]`)?.classList.add("activa");
+});
+["pointerup", "pointercancel"].forEach(t => $("porLienzo").addEventListener(t, () => { if (arrPor) { arrPor = null; verPortadaEnVivo(0); } }));
+$("porCentrar").onclick = () => { delete porDiseno.x; verPortadaEnVivo(0); };
+new ResizeObserver(() => pintarCosasPortada()).observe($("porLienzo"));
 // «Ver portada actual» deja el formulario como está guardado (antes solo cambiaba la imagen y los cambios seguían en el formulario)
 $("porVolver").onclick = abrirPortada;
 $("porGuardar").onclick = async () => {

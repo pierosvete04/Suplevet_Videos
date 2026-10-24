@@ -1,3 +1,7 @@
+Versión 1.46.8 (se actualiza desde la app con «Actualizar ahora»):
+- **Detalle del video**: el estado se elige en una lista («Estado: 🟡 Por revisar / 🔵 Editando / 🟢 Aprobado»). Los botones dicen «✎ Editar video» y «⟳ Rearmar». Lo que usa el video (subtítulos, música, imágenes y sonidos) va en tarjetas debajo del video.
+- **Portada editable**: la vista es más grande y sobre ella **arrastras el título, el logo y las imágenes**. La esquina amarilla cambia su tamaño, y el título también se mueve de lado. Sigues pudiendo cambiar la letra, los colores y la caja, agregar stickers o imágenes, y «⬆ Usar una imagen mía» como portada. «Deshacer cambios» vuelve a la portada guardada.
+
 Versión 1.47.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Exportar, fijo y completo**: los ajustes quedan fijos a la izquierda y se ven enteros sin bajar; solo bajan los videos de la sesión. El panel es más ancho y los ajustes van en dos columnas.
 - **Vista previa antes de exportar**: toca la imagen de un video para verlo. Desde ahí lo eliges para exportar y pasas al anterior o al siguiente (también con las flechas ← →).

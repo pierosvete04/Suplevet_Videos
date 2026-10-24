@@ -5438,8 +5438,8 @@ def cuadro(combo, segundo, destino, ancho=540):
     return destino
 
 
-CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "logo", "logo_archivo", "oscurecer", "fuente", "tamano", "color_texto", "color_acento",
-                  "borde", "color_borde", "caja", "color_caja", "fondo", "solo_imagen", "elementos")
+CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "x", "logo", "logo_archivo", "logo_x", "logo_y", "logo_ancho", "oscurecer", "fuente",
+                  "tamano", "color_texto", "color_acento", "borde", "color_borde", "caja", "color_caja", "fondo", "solo_imagen", "elementos")
 
 
 def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
@@ -5466,6 +5466,7 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     titulo = re.sub(r"\*(.+?)\*", lambda m: f"{{\\c{acento}}}{limpiar(m.group(1))}{{\\c{blanco}}}", limpiar(titulo.replace("{", "")))
     W, H = lienzo()
     y = int(float(aj["y"])) if aj.get("y") not in (None, "") else POSICIONES_TITULO[formato()].get(aj.get("posicion", "centro"), H // 2)
+    x = int(float(aj["x"])) if aj.get("x") not in (None, "") else W // 2  # el centro del título (se arrastra en la vista)
     tam = int(float(aj.get("tamano") or cfg["tamano"]))
     borde = float(aj["borde"]) if aj.get("borde") not in (None, "") else 12
     if aj.get("caja"):  # caja de color detrás del título (estilo de borde 3: el borde se vuelve caja)
@@ -5480,7 +5481,7 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: T,{fuente},{tam},{blanco},&H00FFFFFF&,{contorno},&H90000000&,0,0,0,0,100,100,0,0,{estilo},{borde},{sombra},5,90,90,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos({W // 2},{y})}}{titulo}",
+        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos({x},{y})}}{titulo}",
     ])
     (trabajo / "portada.ass").write_text(cab + "\n", encoding="utf-8")
     salida = destino or S.portadas / f"{combo['archivo']}.jpg"
@@ -5516,9 +5517,13 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     if aj.get("logo", True) and logo.exists() and not aj.get("solo_imagen"):
         # el logo va arriba si el título está abajo o al centro, y abajo si el título está arriba
         ylogo = (1490 if y < 900 else 330) if H > W else (H - 190 if y < H / 2 else 70)
+        if aj.get("logo_y") not in (None, ""):  # lo puso la persona (arrastrándolo en la vista)
+            ylogo = int(float(aj["logo_y"]))
+        ancho_logo = max(40, int(float(aj.get("logo_ancho") or 380)))
+        xlogo = f"{int(float(aj['logo_x']))}" if aj.get("logo_x") not in (None, "") else "(W-w)/2"
         cmd += ["-i", str(logo)]
-        f.append(f"[{k}:v]scale=380:-1,split[l][s];[s]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.6,boxblur=8[sombra];"  # sombra suave
-                 f"[t][sombra]overlay=(W-w)/2+3:{ylogo}+4[t2];[t2][l]overlay=(W-w)/2:{ylogo}[v]")
+        f.append(f"[{k}:v]scale={ancho_logo}:-1,split[l][s];[s]colorchannelmixer=rr=0:gg=0:bb=0:aa=0.6,boxblur=8[sombra];"  # sombra suave
+                 f"[t][sombra]overlay={xlogo}+3:{ylogo}+4[t2];[t2][l]overlay={xlogo}:{ylogo}[v]")
         previo = "v"
     run(cmd + ["-filter_complex", ";".join(f), "-map", f"[{previo}]", "-frames:v", "1", "-q:v", "2", str(salida)], cwd=trabajo)
     return salida
