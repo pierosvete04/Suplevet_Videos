@@ -446,7 +446,7 @@ def _datos_logo(nombre, vista):
     if not fondo:
         fondo = "oscuro" if vista["luz"] > .72 else "claro" if vista["luz"] < .38 else "cualquiera"
     uso = "principal" if "principal" in n else marca._adivinar(nombre, marca.USO_POR_NOMBRE, "principal")
-    limpio = re.sub(r"\b(fondo|para) (oscuro|claro)\b", "", n).strip() or n
+    limpio = " ".join(re.sub(r"\b(para )?(fondo|para) (oscuro|claro)\b", "", n).split()) or n
     return {"uso": uso, "fondo": fondo, "nombre_logo": limpio.capitalize()[:40]}
 
 

@@ -1,3 +1,7 @@
+Versión 1.46.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Entrar y elegir la carpeta, paso a paso**, igual en las tres apps: entras con Google, eliges la carpeta del equipo (tuya, compartida, nueva o con su link) y te dice cómo invitar al equipo. Después la sala sigue con la marca y la primera sesión. En Configuración → Cuenta está la carpeta, con «Cambiar de carpeta…».
+- Importar marca: el nombre del logo ya no queda cortado (un logo «para fondo claro» se llama como el archivo, sin «para»).
+
 Versión 1.46.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Nueva pestaña ✂ Clips** (sin Claude): sube un video largo (YouTube, en vivo, entrevista) y la sala te propone los mejores clips de 18 a 60 s, con por qué los eligió. Eliges, ajustas el inicio y el final, y salen en vertical: siguiendo a la persona, al centro o con fondo difuminado; sin las pausas largas; con color, subtítulos y zoom frase sí, frase no. El audio se puede mejorar (suave, medio o fuerte) o dejar **tal cual se grabó**. Con «Usar el video entero», un video suelto sale editado solo. Quedan en V.FINALES → «CLIPS …» y se suben a Drive.
 - **Guion**: arriba, tres botones grandes: **Subir guion** (también arrastrando el archivo), **Armar el guion con los clips** (escucha los clips, saca los subtítulos y arma el guion, sin Claude) y **Guion para imprimir** en **Word (.docx)** o PDF.
