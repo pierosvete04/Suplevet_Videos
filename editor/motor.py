@@ -5438,7 +5438,7 @@ def cuadro(combo, segundo, destino, ancho=540):
     return destino
 
 
-CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "x", "logo", "logo_archivo", "logo_x", "logo_y", "logo_ancho", "oscurecer", "fuente",
+CAMPOS_PORTADA = ("segundo", "titulo", "posicion", "y", "x", "ancho_titulo", "logo", "logo_archivo", "logo_x", "logo_y", "logo_ancho", "oscurecer", "fuente",
                   "tamano", "color_texto", "color_acento", "borde", "color_borde", "caja", "color_caja", "fondo", "solo_imagen", "elementos")
 
 
@@ -5467,6 +5467,9 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     W, H = lienzo()
     y = int(float(aj["y"])) if aj.get("y") not in (None, "") else POSICIONES_TITULO[formato()].get(aj.get("posicion", "centro"), H // 2)
     x = int(float(aj["x"])) if aj.get("x") not in (None, "") else W // 2  # el centro del título (se arrastra en la vista)
+    # el ancho de la caja del título (se estira de los costados): el texto se acomoda en más o menos filas
+    ancho_t = max(160, min(W, int(float(aj.get("ancho_titulo") or (W - 180)))))
+    margen = max(0, (W - ancho_t) // 2)
     tam = int(float(aj.get("tamano") or cfg["tamano"]))
     borde = float(aj["borde"]) if aj.get("borde") not in (None, "") else 12
     if aj.get("caja"):  # caja de color detrás del título (estilo de borde 3: el borde se vuelve caja)
@@ -5481,7 +5484,7 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: T,{fuente},{tam},{blanco},&H00FFFFFF&,{contorno},&H90000000&,0,0,0,0,100,100,0,0,{estilo},{borde},{sombra},5,90,90,0,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,0,0,0,,{{\\an5\\pos({x},{y})}}{titulo}",
+        "" if aj.get("solo_imagen") else f"Dialogue: 0,0:00:00.00,0:00:10.00,T,,{margen},{margen},0,,{{\\an5\\pos({x},{y})}}{titulo}",
     ])
     (trabajo / "portada.ass").write_text(cab + "\n", encoding="utf-8")
     salida = destino or S.portadas / f"{combo['archivo']}.jpg"

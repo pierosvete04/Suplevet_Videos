@@ -1038,9 +1038,12 @@ class H(BaseHTTPRequestHandler):
             self._json(TRABAJO)
         elif u.path == "/api/marca":
             self._json(marca.datos())
-        elif u.path.startswith("/marca/"):  # logos, productos y tipografías de la marca (para verlos en la sala)
+        elif u.path.startswith("/marca/"):  # logos, productos y tipografías de la marca del equipo (_MARCA)
+            rel = unquote(u.path[len("/marca/"):])
+            if rel.split("/")[0] not in marca.TIPOS:  # los logos que trae la sala (biblioteca/marca), los de siempre
+                return self._archivo(motor.BIBLIO_BASE / "marca", rel)
             try:
-                f = marca.ruta_archivo(unquote(u.path[len("/marca/"):]))
+                f = marca.ruta_archivo(rel)
             except ValueError:
                 return self.send_error(404)
             if not f.is_file():

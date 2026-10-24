@@ -1,3 +1,8 @@
+Versión 1.47.1 (se actualiza desde la app con «Actualizar ahora»; trae también todo lo de la 1.46.8 y la 1.46.9):
+- **Portada como en CapCut**: el título tiene dos agarraderas amarillas a los costados. Si lo estiras, el texto se acomoda en menos filas; si lo encoges, en más. La esquina sigue agrandando la letra.
+- **Exportar**: los ajustes (resolución, cuadros por segundo, codec…) van fijos en la página, sin barra propia. Solo crece la lista de videos de la sesión.
+- **Arreglo**: los logos que trae la sala (logo blanco, logo vertical) volvieron a verse en las plantillas y en la portada. No cargaban desde la 1.45.
+
 Versión 1.46.9 (se actualiza desde la app con «Actualizar ahora»):
 - **La ✕ del video ya cierra**: las preguntas («¿Cerrar sin guardar?», «¿Borrar…?», etc.) no se veían en la ventana del programa y la sala quedaba esperando. Ahora son ventanas de la sala, con «Sí» y «Cancelar», y cada decisión queda en Notificaciones.
 - **«Armar todos los videos» pregunta antes** cuántos videos va a armar.

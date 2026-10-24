@@ -651,6 +651,8 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .por-cosa.titulo { display: grid; place-items: center; }
 .por-cosa.titulo > .contenido { text-align: center; line-height: 1.12; paint-order: stroke fill; white-space: pre-wrap; overflow-wrap: anywhere; }
 .por-cosa.editando { cursor: text; border-color: #ffd23f; border-style: solid; }
+.por-cosa > .lado { position: absolute; top: 50%; width: 10px; height: 34px; margin-top: -17px; border-radius: 5px; background: #ffd23f; border: 2px solid #111; cursor: ew-resize; }
+.por-cosa > .lado.izq { left: -7px; } .por-cosa > .lado.der { right: -7px; }
 .por-cosa.editando > .contenido { pointer-events: auto; outline: none; }
 .por-cosa { position: absolute; border: 2px dashed rgba(255,255,255,.85); border-radius: 6px; cursor: grab; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .por-cosa:hover, .por-cosa.activa { border-style: solid; border-color: #ffd23f; }
@@ -1186,7 +1188,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 /* Publicar */
 /* Exportar: los ajustes quedan fijos a la izquierda (se ven completos sin bajar); solo baja la lista de videos */
 .export-layout { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 18px; align-items: start; }
-.export-ajustes { position: sticky; top: calc(var(--alto-header, 56px) + 56px); max-height: calc(100vh - var(--alto-header, 56px) - 72px); overflow-y: auto;
+.export-ajustes { position: static;
   display: grid; gap: 12px; align-content: start; }
 .export-ajustes h2 { margin: 0; }
 .export-ajustes .form-plant { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
@@ -2391,7 +2393,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     </div>
     <div class="caja" style="grid-column:1/-1" id="editorPortada">
       <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Portada</h2>
-        <span class="muted" style="font-size:12px">Arrastra el título, el logo y las imágenes sobre la portada; la esquina amarilla cambia su tamaño. Se rehace al instante.</span></div>
+        <span class="muted" style="font-size:12px">Arrastra el título, el logo y las imágenes. La esquina amarilla cambia el tamaño; los costados del título lo estiran y el texto se acomoda en filas.</span></div>
       <div class="por-lay">
         <div style="display:grid;gap:8px">
           <div class="por-lienzo" id="porLienzo"><img id="porBase" class="por-img" alt=""><img id="porVista" class="por-img" alt="Vista de la portada"><div id="porCosas"></div></div>
@@ -4464,7 +4466,7 @@ function abrirPortada() {
 }
 let porSucia = false;  // hay cambios de portada que se ven en vivo pero no se guardaron
 function leerPortada() {
-  return { ...porDiseno, segundo: Number($("porT").value), x: porDiseno.x, logo_x: porDiseno.logo_x, logo_y: porDiseno.logo_y, logo_ancho: porDiseno.logo_ancho, titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
+  return { ...porDiseno, segundo: Number($("porT").value), x: porDiseno.x, ancho_titulo: porDiseno.ancho_titulo, logo_x: porDiseno.logo_x, logo_y: porDiseno.logo_y, logo_ancho: porDiseno.logo_ancho, titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
     tamano: Number($("porTam").value), color_texto: $("porColor").value, color_acento: $("porAcento").value, borde: Number($("porBorde").value),
     color_borde: $("porColorBorde").value, caja: $("porCaja").checked, color_caja: $("porColorCaja").value, y: Number($("porY").value),
     logo: $("porLogo").checked, logo_archivo: $("porLogoArchivo").value, solo_imagen: $("porSolo").checked };
@@ -4555,11 +4557,13 @@ function pintarCosasPortada() {
   if (!$("porSolo").checked) {
     const tam = Number($("porTam").value) || 128, fuente = $("porFuente").value || (E.portada_estilo || {}).fuente || plantillaFuente();
     const borde = Number($("porBorde").value) || 0, caja2 = $("porCaja").checked;
-    const cx = porDiseno.x ?? W / 2, cy = Number($("porY").value) || H / 2;
+    const cx = porDiseno.x ?? W / 2, cy = Number($("porY").value) || H / 2, aw = Number(porDiseno.ancho_titulo) || (W - 180);
     const estilo = `font-family:'F_${esc(fuente)}','Arial Black',sans-serif;font-size:${tam * k}px;color:${$("porColor").value};`
       + (caja2 ? `background:${$("porColorCaja").value};padding:${Math.max(borde, 18) * k}px;border-radius:${6 * k}px;` : `-webkit-text-stroke:${borde * 2 * k}px ${$("porColorBorde").value};text-shadow:0 ${4 * k}px ${10 * k}px rgba(0,0,0,.45);`);
-    html.push(`<div class="por-cosa titulo" data-cosa="titulo" style="left:${(cx - (W - 180) / 2) * k}px;top:${cy * k}px;width:${(W - 180) * k}px;transform:translateY(-50%)">
-      <em>Título</em><span class="contenido" style="${estilo}">${htmlTitulo()}</span><i data-tam="titulo" title="Arrastra para cambiar el tamaño"></i></div>`);
+    html.push(`<div class="por-cosa titulo" data-cosa="titulo" style="left:${(cx - aw / 2) * k}px;top:${cy * k}px;width:${aw * k}px;transform:translateY(-50%)">
+      <em>Título</em><span class="contenido" style="${estilo}">${htmlTitulo()}</span>
+      <b class="lado izq" data-lado="izq" title="Estira o encoge: el texto se acomoda en filas"></b><b class="lado der" data-lado="der" title="Estira o encoge: el texto se acomoda en filas"></b>
+      <i data-tam="titulo" title="Arrastra para agrandar la letra"></i></div>`);
   }
   const lg = logoPortada();
   if (lg) {
@@ -4593,8 +4597,8 @@ $("porLienzo").addEventListener("pointerdown", e => {
   $("porLienzo").classList.add("vivo"); clearTimeout(porTimer);
   const [W] = E.lienzo || [1080, 1920], k = $("porLienzo").clientWidth / W, id = c.dataset.cosa;
   const el = id.startsWith("el") ? porDiseno.elementos[Number(id.slice(2))] : null;
-  arrPor = { id, tam: !!e.target.closest("[data-tam]"), x0: e.clientX, y0: e.clientY, k, caja: c,
-    ini: id === "titulo" ? { x: porDiseno.x ?? W / 2, y: Number($("porY").value), tam: Number($("porTam").value) }
+  arrPor = { id, tam: !!e.target.closest("[data-tam]"), lado: e.target.closest("[data-lado]")?.dataset.lado, x0: e.clientX, y0: e.clientY, k, caja: c,
+    ini: id === "titulo" ? { x: porDiseno.x ?? W / 2, y: Number($("porY").value), tam: Number($("porTam").value), w: Number(porDiseno.ancho_titulo) || (W - 180) }
       : id === "logo" ? { x: c.offsetLeft / k, y: c.offsetTop / k, w: c.offsetWidth / k }
       : { x: Number(el.x) || 0, y: Number(el.y) || 0, w: Number(el.ancho) || 300 } };
   c.classList.add("activa");
@@ -4603,10 +4607,13 @@ $("porLienzo").addEventListener("pointerdown", e => {
 $("porLienzo").addEventListener("pointermove", e => {
   const a = arrPor; if (!a) return;
   const dx = (e.clientX - a.x0) / a.k, dy = (e.clientY - a.y0) / a.k, r = v => Math.round(v), [W] = E.lienzo || [1080, 1920], c = a.caja;
-  if (a.id === "titulo") {
+  if (a.id === "titulo" && a.lado) {  // estirar de un costado: crece igual de los dos lados y el texto se reacomoda solo
+    const w = Math.max(160, Math.min(W, r(a.ini.w + (a.lado === "der" ? 2 : -2) * dx)));
+    porDiseno.ancho_titulo = w; c.style.width = w * a.k + "px"; c.style.left = ((porDiseno.x ?? W / 2) - w / 2) * a.k + "px";
+  } else if (a.id === "titulo") {
     if (a.tam) { const tam = Math.max(50, Math.min(220, r(a.ini.tam + dx / 4))); $("porTam").value = tam; c.querySelector(".contenido").style.fontSize = tam * a.k + "px"; }
     else { porDiseno.x = r(a.ini.x + dx); const y = Math.max(150, Math.min(Number($("porY").max), r(a.ini.y + dy))); $("porY").value = y;
-      $("porYTxt").textContent = y + " px desde arriba"; c.style.left = (porDiseno.x - (W - 180) / 2) * a.k + "px"; c.style.top = y * a.k + "px"; }
+      $("porYTxt").textContent = y + " px desde arriba"; c.style.left = (porDiseno.x - a.ini.w / 2) * a.k + "px"; c.style.top = y * a.k + "px"; }
   } else if (a.id === "logo") {
     if (a.tam) { porDiseno.logo_ancho = Math.max(60, r(a.ini.w + dx)); c.style.width = porDiseno.logo_ancho * a.k + "px"; }
     else { porDiseno.logo_x = r(a.ini.x + dx); porDiseno.logo_y = r(a.ini.y + dy); c.style.left = porDiseno.logo_x * a.k + "px"; c.style.top = porDiseno.logo_y * a.k + "px"; }
