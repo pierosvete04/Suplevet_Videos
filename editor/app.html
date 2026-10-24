@@ -157,7 +157,7 @@ section[hidden] { display: none; }
 .revisar-hoy .rv:hover, .revisar-hoy .rv:focus-visible { border-color: var(--accent); outline: none; transform: translateY(-2px); }
 .revisar-hoy .rv .rv-cod { position: absolute; inset: auto 0 0 0; padding: 14px 6px 6px; font: 700 10.5px var(--mono); color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.85)); }
 .revisar-hoy .rv .pill { position: absolute; top: 6px; left: 6px; font-size: 10px; background: rgba(8,12,22,.72); color: #fff; border-color: transparent; backdrop-filter: blur(4px); }
-.revisar-hoy .rv .pill.warn { background: var(--warn); color: #111; }
+.revisar-hoy .rv .pill.warn { background: #bae6fd; color: #0c4a6e; }
 /* el resto: una tarjeta del mismo tamaño que las miniaturas */
 .revisar-hoy .rv-mas { aspect-ratio: 9/16; border-radius: 10px; border: 1px dashed var(--line2); background: var(--surface2); color: var(--ink); font: inherit; cursor: pointer;
   display: grid; place-content: center; gap: 4px; text-align: center; transition: border-color .15s, transform .15s; }
@@ -996,7 +996,7 @@ dialog .toast.err { border-color: var(--err); } dialog .toast.ok { border-color:
 .gal-elegido .nom { flex: 1; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 dialog.galeria { width: min(900px, 96vw); }
 .gal-cab { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--flotante); z-index: 2; }
-.gal-cab h2 { margin: 0; flex: 1; font-size: 17px; } .gal-cab input { width: min(240px, 100%); }
+.gal-cab h2 { margin: 0; flex: 1; font-size: 17px; } .gal-cab input { width: min(240px, 100%); } .gal-cab select { width: min(200px, 100%); }
 .gal-chips { padding: 10px 16px 0; }
 .gal-lista { padding: 12px 16px 16px; }
 .gal-lista.imagenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
@@ -2205,7 +2205,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div class="visor-cuerpo" id="verCuerpo"></div>
 </dialog>
 <dialog id="dlgGaleria" class="galeria" aria-labelledby="galTit">
-  <div class="gal-cab"><h2 id="galTit">Elegir</h2><input type="search" id="galBuscar" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
+  <div class="gal-cab"><h2 id="galTit">Elegir</h2><select id="galCat" aria-label="Carpeta de sonidos" hidden></select><input type="search" id="galBuscar" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
     <button class="btn sec peq" type="button" id="galCerrar" aria-label="Cerrar">✕</button></div>
   <div class="gal-chips son-chips" id="galChips"></div>
   <div class="gal-lista" id="galLista"></div>
@@ -3614,7 +3614,7 @@ function pintarMarcas() {
           <fieldset><legend>Aa Cómo se ve el subtítulo</legend><select data-mk="sub">${opt([["", "Normal"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
           <fieldset><legend>🎵 Cambiar la música desde aquí</legend>
             <div class="gal-elegido">${m.musica && urlMusica(m.musica) ? `<button class="gal-play" type="button" data-gal-play="${esc(urlMusica(m.musica))}" aria-label="Escuchar">▶</button>` : ""}
-              <span class="nom">${m.musica ? esc(m.musica) : '<span class="muted">Sigue la misma</span>'}</span>
+              <span class="nom">${m.musica ? esc(m.musica) : '<span class="muted">Sin cambio (la misma pista del video)</span>'}</span>
               <button class="btn sec peq" type="button" data-gal-abrir="musica">Elegir música…</button></div></fieldset>
         </div></div>`;
     }
@@ -3659,7 +3659,7 @@ function pintarGaleria() {
   const m = (w && marcaDe(w)) || {}, q = norm(gal.q || ""), pasa = t => !q || norm(t).includes(q);
   const lista = $("galLista"), chips = $("galChips");
   lista.className = "gal-lista" + (gal.tipo === "imagen" ? " imagenes" : "");
-  chips.innerHTML = "";
+  chips.innerHTML = ""; chips.hidden = true; $("galCat").hidden = true;
   if (gal.tipo === "imagen") {
     const pre = `_${p.nombre.split("~")[0].split("_")[0]}_`.toUpperCase();  // las de este cuerpo, primero
     const ids = [...new Set([...E.assets.map(x => x.id), ...E.checklist.assets.map(x => x.id)])]
@@ -3677,7 +3677,8 @@ function pintarGaleria() {
       <button class="btn sec peq" type="button" data-gal="${esc(v)}">Elegir</button></div>`;
   if (gal.tipo === "sonido") {
     const cats = biblioteca || [];
-    chips.innerHTML = [["", "Todos"], ...cats.map(c => [c.cat, c.nombre])].map(([k, t]) => `<button type="button" data-gal-cat="${esc(k)}" aria-pressed="${gal.cat === k}">${esc(t)}</button>`).join("");
+    $("galCat").hidden = false;
+    $("galCat").innerHTML = [["", "Todas las carpetas"], ...cats.map(c => [c.cat, `${c.nombre} (${c.archivos.length})`])].map(([k, t]) => `<option value="${esc(k)}" ${gal.cat === k ? "selected" : ""}>${esc(t)}</option>`).join("");
     let html = fila("", "Automático (lo elige la sala)") + fila("corte_silencio", "Corte de silencio", undefined, "La música se calla un momento y vuelve con un golpe");
     if (gal.cat) html += fila(gal.cat, nombreSonido(gal.cat), undefined, "Cada video usa uno distinto de esta carpeta");
     cats.filter(c => !gal.cat || c.cat === gal.cat).forEach(c => c.archivos.filter(f => pasa(f.nombre)).forEach(f => {
@@ -3687,10 +3688,13 @@ function pintarGaleria() {
     return;
   }
   const sesion = (E.checklist?.musica || []).map(x => x.id), general = (E.pistas_musica || []).map(f => f.replace(/\.[^.]+$/, ""));
-  lista.innerHTML = fila("", "Sigue la misma") + [...sesion.map(id => [id, "De esta sesión"]), ...general.filter(g => !sesion.includes(g)).map(id => [id, "De la carpeta de música"])]
+  lista.innerHTML = fila("", "No cambiar la música aquí", undefined, "El video sigue con su misma pista. Elige otra solo si quieres que la música cambie desde esta palabra.")
+    + [...sesion.map(id => [id, urlMusica(id) ? "De esta sesión" : "De esta sesión · todavía no está: genérala en Flow Music o súbela en Faltantes"]),
+       ...general.filter(g => !sesion.includes(g)).map(id => [id, "De la carpeta de música"])]
     .filter(([id]) => pasa(id)).map(([id, de]) => fila(id, id, urlMusica(id), de)).join("");
 }
 $("galBuscar").addEventListener("input", e => { gal.q = e.target.value; pintarGaleria(); });
+$("galCat").addEventListener("change", e => { gal.cat = e.target.value; pintarGaleria(); });
 $("galCerrar").onclick = () => $("dlgGaleria").close();
 $("dlgGaleria").addEventListener("close", () => { galAudio.pause(); gal = null; });
 $("dlgGaleria").addEventListener("click", e => {
@@ -4228,9 +4232,9 @@ $("vPieza").addEventListener("play", bucle);
 $("vPieza").addEventListener("seeked", vivo);
 $("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play() : v.pause(); };
 $("visor").addEventListener("click", () => $("play").click());  // tocar el video lo reproduce o lo pausa
-document.addEventListener("keydown", e => {  // Enter también (en Hooks, Cuerpos y CTAs), salvo escribiendo o en un botón
-  if (e.key !== "Enter" || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
-  if (e.target.closest?.("input, textarea, select, button, a, [contenteditable], [role=button]")) return;
+document.addEventListener("keydown", e => {  // Enter o Espacio (en Hooks, Cuerpos y CTAs), salvo mientras se escribe
+  if (!["Enter", " "].includes(e.key) || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
   e.preventDefault(); $("play").click();
 });
 $("vPieza").addEventListener("play", () => $("play").textContent = "❚❚ Pausa");

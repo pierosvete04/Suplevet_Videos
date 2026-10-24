@@ -1,3 +1,9 @@
+Versión 1.47.8 (se actualiza desde la app con «Actualizar ahora»):
+- **Enter o Espacio pausan o siguen el video** en Hooks, Cuerpos y CTAs, aunque hayas tocado la línea de tiempo o un botón. Solo no lo hacen mientras escribes.
+- **Galería de sonidos**: la carpeta se elige en una lista al lado de «Buscar por nombre», en vez de una fila de botones.
+- **Música**: «Sigue la misma» ahora dice «No cambiar la música aquí» y explica qué hace. Una pista de la sesión que todavía no se generó lo avisa.
+- **Para revisar (Inicio)**: la etiqueta «⟳ rearmar» es celeste, no naranja.
+
 Versión 1.47.7 (se actualiza desde la app con «Actualizar ahora»):
 - **Línea de tiempo en Piezas y subtítulos** (hooks, cuerpos y CTAs), debajo del video. Muestra:
   - Los **clips** de la pieza (o sus frases, si se grabó de corrido), el **texto**, las **imágenes** con su miniatura y los **sonidos y la música**.
