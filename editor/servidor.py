@@ -742,7 +742,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
                     motor.escuchar_clips(avance=avance)
-                if accion == "analizar":
+                if accion in ("analizar", "todo_por_mi"):
                     # Paso 1: traer de Drive todos los clips, pasar su audio a texto (en esta PC, gratis), compararlo con
                     # el guion, identificar solos los clips que se parecen claramente a una pieza y procesarlos.
                     if drive.estado()["activo"]:
@@ -759,6 +759,25 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     falta = len(motor.clips_sin_asignar())
                     avance(f"Clips analizados y comparados con el guion: {n} identificados solos"
                            + (f", {falta} por revisar a mano" if falta else "") + ".")
+                if accion == "todo_por_mi":
+                    # «Lo analizo y ordeno todo por ti»: sin guion, la sala ya armó uno con lo que se dijo en cada clip;
+                    # ahora renombra los clips en Drive con el código de su pieza y Claude propone imágenes y música
+                    avance("Renombrando los clips con el código de su pieza (también en Drive)")
+                    hechos = renombrar_todo()
+                    claude = asistente.estado()
+                    if claude.get("instalado") and claude.get("sesion"):
+                        if motor.faltan_prompts_flow():
+                            avance("Claude elige las imágenes y los clips de apoyo…")
+                            asistente.generar_prompts_flow(avance=avance)
+                        if not motor.produccion().get("musica"):
+                            avance("Claude propone la música…")
+                            asistente.generar_prompts_musica(avance=avance)
+                        motor._prod_cache = None
+                        if drive.estado()["activo"]:
+                            drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    falta = sum(1 for a in motor.checklist()["assets"] if not a["listo"])
+                    avance(f"Listo: guion armado con lo grabado, {hechos} clips renombrados"
+                           + (f", {falta} imágenes o clips por generar en Flow (Faltantes)" if falta else "") + ".")
                 if accion == "guion":
                     sesion = extra["sesion"]
                     texto = asistente.generar_guion(sesion, extra.get("pedido", ""), avance=avance)
@@ -777,6 +796,13 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     TRABAJO["resultado"] = texto
                     falta = sum(1 for a in motor.checklist()["assets"] if not a["listo"])
                     avance(f"Listo: Claude agregó apoyo visual. Faltan {falta} imágenes o clips por generar en Flow (Faltantes → «Generar lo que falta»).")
+                if accion == "prompts_musica":  # preparar la sesión: Claude propone la música del guion
+                    asistente.generar_prompts_musica(avance=avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    n = len(motor.checklist().get("musica") or [])
+                    avance(f"Listo: Claude propuso {n} pista{'s' if n != 1 else ''} de música. Genéralas en Faltantes → «Generar lo que falta».")
                 if accion == "prompts_flow":
                     texto = asistente.generar_prompts_flow(avance=avance)
                     motor._prod_cache = None
@@ -958,6 +984,8 @@ class H(BaseHTTPRequestHandler):
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
+        elif u.path == "/api/sesiones":  # la pantalla de entrada: qué sesiones hay y cómo va cada una
+            self._json({"sesiones": motor.resumen_sesiones(), "actual": motor.S.semana, "ultima": motor.CONFIG.get("semana")})
         elif u.path == "/api/proyecto":  # ¿hay una versión nueva del proyecto hecha en otra PC?
             e = proyecto.ESTADO.get(motor.S.semana)
             if e is None or "forzar" in u.query:

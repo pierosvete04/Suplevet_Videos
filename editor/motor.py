@@ -377,6 +377,29 @@ def heredar_de_sesiones():
                     shutil.copy2(f, S.transcripciones / (pre + f.name))
 
 
+def resumen_sesiones():
+    """Para la pantalla de entrada: cada sesión con lo que ya tiene en esta PC (sin abrirla ni bajar nada):
+    si tiene guion, cuántos videos hay armados, cuándo se trabajó por última vez aquí y si ya está en esta PC."""
+    arch, grs = set(archivadas()), grupos()
+    out = []
+    for n in semanas_disponibles():
+        subs, sal = DATOS / "subtitulos" / n, DATOS / "salidas" / n
+        tiempos = [f.stat().st_mtime for d in (subs, sal) if d.is_dir() for f in d.iterdir() if f.is_file()]
+        carpetas = [S.base / n] + ([S.base / g["carpeta"]] if (g := grs.get(n)) and g.get("carpeta") else [])
+        if grs.get(n):  # los días de grabación de un grupo (sueltos, o dentro de la carpeta de la producción)
+            raiz = S.base / grs[n]["carpeta"] if grs[n].get("carpeta") else S.base
+            carpetas += [raiz / x for x in grs[n].get("sesiones", [])]
+        en_pc = any(c.is_dir() for c in carpetas)
+        guion = any((c / x / "produccion.json").exists() or ((c / x).is_dir() and any((c / x).glob("*.docx")))
+                    for c in carpetas for x in CARPETAS_GUION)
+        m_ = re.match(r"^P\d+\s+(ADS|ORG)\b", n, re.I)
+        out.append({"nombre": n, "archivada": n in arch, "grupo": bool(grs.get(n)), "en_pc": en_pc, "guion": guion,
+                    "tipo": ("ads" if m_.group(1).upper() == "ADS" else "organico") if m_ else None,
+                    "videos": len(list(sal.glob("*.mp4"))) if sal.is_dir() else 0,
+                    "ultima": max(tiempos) if tiempos else None})
+    return out
+
+
 def semanas_disponibles():
     def es_sesion(d):
         return d.is_dir() and (es_nombre_sesion(d.name) or (d / "Clips").is_dir())
