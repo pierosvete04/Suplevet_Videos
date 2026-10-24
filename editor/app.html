@@ -122,6 +122,18 @@ section[hidden] { display: none; }
 .in-izq { grid-area: izq; position: sticky; top: calc(var(--alto-header, 56px) + 60px); }
 .in-centro { grid-area: centro; } .in-der { grid-area: der; }
 .in-izq .hero h2 { font-size: 22px; }
+@media (min-width: 1281px) {
+  main:has(> section[data-panel="inicio"]:not([hidden])) { padding-top: 12px; padding-bottom: 12px; }
+  .in-der { position: sticky; top: calc(var(--alto-header, 56px) + 56px); }
+  .in-izq { top: calc(var(--alto-header, 56px) + 56px); }
+  .inicio2 .caja { padding: 13px 14px; }
+  .in-izq .stats { gap: 8px; margin-top: 10px; } .in-izq .stat { padding: 7px 10px; } .in-izq .stat b { font-size: 20px; }
+  .in-centro .siguiente .sig { padding: 12px 14px; gap: 4px; } .in-centro .siguiente .sig > b { font-size: 17px; }
+  .in-der .pasos { gap: 4px; } .in-der .pasos li { padding: 5px 8px; font-size: 12.5px; grid-template-columns: 22px 1fr auto; gap: 8px; }
+  .in-der .pasos li::before { width: 20px; height: 20px; font-size: 10px; }
+  .in-der .pasos li .btn { padding: 3px 9px; font-size: 11.5px; }
+  .inicio2 .revisar-hoy { margin-top: 8px; }
+}
 .in-izq .stats { grid-template-columns: 1fr 1fr; }
 .in-izq .stat:first-child { grid-column: 1 / -1; }
 .in-centro .siguiente { margin-top: 0; }
@@ -2814,14 +2826,26 @@ document.addEventListener("click", async e => {
   catch (err) { avisar("Error: " + err.message, "err"); }
   finally { volver(); }
 });
+// cuántas miniaturas entran sin que la página de Inicio se desplace (en pantalla ancha, con las tres columnas)
+function revisarQueCaben() {
+  const g = $("inRevisar"); if (!g || innerWidth <= 1280 || !g.clientWidth) return 12;
+  const cols = getComputedStyle(g).gridTemplateColumns.split(" ").filter(Boolean).length || 4;
+  const anchoT = (g.clientWidth - (cols - 1) * 10) / cols, altoT = anchoT * 16 / 9 + 10;
+  const libre = innerHeight - g.getBoundingClientRect().top - 30;  // hasta el borde de abajo de la ventana
+  return Math.max(1, Math.floor((libre + 10) / altoT)) * cols;
+}
+let revisarCaben = 12;
 function pintarRevisar() {
   const lista = E.salidas.filter(s => s.existe && s.estado !== "listo").sort((a, b) => (b.desactualizado - a.desactualizado) || (a.estado === "editando" ? -1 : 0));
   $("inNRevisar").textContent = lista.length || "";
-  $("inRevisar").innerHTML = lista.slice(0, lista.length > 12 ? 11 : 12).map(s => `<div class="rv" role="button" tabindex="0" data-cod="${esc(s.codigo)}" title="Abrir ${esc(s.archivo)}" style="${s.portada ? `background-image:url('${s.portada}')` : ""}">
+  const caben = revisarCaben = revisarQueCaben();
+  $("inRevisar").innerHTML = lista.slice(0, lista.length > caben ? caben - 1 : caben).map(s => `<div class="rv" role="button" tabindex="0" data-cod="${esc(s.codigo)}" title="Abrir ${esc(s.archivo)}" style="${s.portada ? `background-image:url('${s.portada}')` : ""}">
       ${s.desactualizado ? `<span class="pill warn">⟳ rearmar</span>` : s.estado === "editando" ? `<span class="pill azul">editando</span>` : ""}<span class="rv-cod">${esc(s.codigo)}</span></div>`).join("")
-    + (lista.length > 12 ? `<button class="rv-mas" type="button" data-ir="videos" aria-label="Ver los otros ${lista.length - 11} videos"><b>+${lista.length - 11}</b><small>videos más</small><small>Ver todos →</small></button>` : "")
+    + (lista.length > caben ? `<button class="rv-mas" type="button" data-ir="videos" aria-label="Ver los otros ${lista.length - caben + 1} videos"><b>+${lista.length - caben + 1}</b><small>videos más</small><small>Ver todos →</small></button>` : "")
     || `<p class="muted" style="margin:0;grid-column:1/-1">${E.salidas.some(s => s.existe) ? "✓ No hay videos por revisar: todos los armados están aprobados." : "Todavía no hay videos armados."}</p>`;
 }
+let revisarTimer = null;
+addEventListener("resize", () => { clearTimeout(revisarTimer); revisarTimer = setTimeout(() => { if (E && revisarQueCaben() !== revisarCaben) pintarRevisar(); }, 200); });
 document.addEventListener("click", e => {  // botones del siguiente paso que aprietan otro botón de la sala
   const b = e.target.closest("[data-clic]"); if (b) $(b.dataset.clic)?.click();
 });

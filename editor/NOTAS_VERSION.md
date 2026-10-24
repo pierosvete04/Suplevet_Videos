@@ -1,3 +1,6 @@
+Versión 1.47.4 (se actualiza desde la app con «Actualizar ahora»):
+- **Inicio en una sola pantalla**: en una pantalla ancha, Inicio entra completo sin desplazarse. Las tarjetas son más compactas, «Sesión abierta» y «Cómo va esta sesión» quedan fijas a los costados, y «Para revisar» muestra las miniaturas que entran en tu pantalla, más una tarjeta «+N» con el resto (se ajusta sola si cambias el tamaño de la ventana).
+
 Versión 1.47.3 (se actualiza desde la app con «Actualizar ahora»):
 - **El puntero ya no se queda en «cargando»** sobre los botones que todavía no se pueden usar (Exportar seleccionados, Exportar por partes, las flechas en el primer y el último video). Ahora muestra que no se puede tocar y dice por qué: «Primero marca la casilla de los videos…».
 - **Vista previa de Exportar**: flechas grandes a los costados del video para pasar al anterior o al siguiente (también con ← →). En el primer y el último video desaparece la que no lleva a ningún lado.
