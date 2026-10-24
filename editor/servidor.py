@@ -179,6 +179,7 @@ def estado():
     for p in ps:
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
     return {"version": motor.VERSION, "red": red(), "drive": dr, "drive_pendientes": drive.pendientes(), "marca": marca.resumen(),
+            "antigravity": bool(antigravity.exe()),
             "sin_carpeta": bool(cuenta._leer(cuenta.INFO).get("sin_carpeta")), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": motor.plantillas(), "plantilla": motor.id_plantilla(),
@@ -1473,7 +1474,8 @@ class H(BaseHTTPRequestHandler):
                 os.startfile(str(d))
                 self._json({"ok": True})
             elif u.path == "/api/paquete_antigravity":
-                self._json({"ok": True, **antigravity.armar(bool(self._cuerpo().get("todas")))})
+                b = self._cuerpo()
+                self._json({"ok": True, **antigravity.armar(bool(b.get("todas")), bool(b.get("abrir")))})
             elif u.path == "/api/marca_plantilla":
                 self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
             elif u.path == "/api/marca_importar":

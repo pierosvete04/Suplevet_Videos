@@ -63,6 +63,16 @@ async () => {
 """
 
 
+def exe():
+    """Antigravity.exe si está instalado en esta PC."""
+    import os
+    for base in (os.environ.get("LOCALAPPDATA", ""), os.environ.get("ProgramFiles", ""), os.environ.get("ProgramFiles(x86)", "")):
+        f = Path(base) / ("Programs" if base == os.environ.get("LOCALAPPDATA") else "") / "Antigravity" / "Antigravity.exe"
+        if base and f.exists():
+            return f
+    return None
+
+
 def _una_linea(t):
     return " ".join(str(t or "").split())
 
@@ -117,7 +127,7 @@ Después, en la Sala de edición: Faltantes → «Buscar en Descargas» las pone
 """
 
 
-def armar(todas=False):
+def armar(todas=False, abrir=False):
     items = pendientes(todas)
     if not items:
         raise ValueError("No falta ninguna imagen ni clip de Flow en esta sesión")
@@ -131,12 +141,21 @@ def armar(todas=False):
     (carpeta / "prompts.json").write_text(json.dumps(orden, ensure_ascii=False, indent=1), encoding="utf-8")
     nombres = [x["codigo"] for x in orden if x["tipo"] == "imagen"]
     (carpeta / "bajar_flow.js").write_text(BAJAR.replace("__NOMBRES__", json.dumps(nombres)), encoding="utf-8")
-    (carpeta / "INSTRUCCIONES.md").write_text(instrucciones(sesion, carpeta, orden), encoding="utf-8")
+    texto = instrucciones(sesion, carpeta, orden)
+    (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
+    (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
+    abierto = False
+    ag = exe() if abrir else None
     try:
-        subprocess.Popen(["explorer", str(carpeta)])
+        if ag:  # Antigravity abre la carpeta como espacio de trabajo
+            subprocess.Popen([str(ag), str(carpeta)])
+            abierto = True
+        else:
+            subprocess.Popen(["explorer", str(carpeta)])
     except OSError:
         pass
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual, con el navegador. "
                f"Son {len(nombres)} imágenes" + (f" y {len(orden) - len(nombres)} clips" if len(orden) > len(nombres) else "")
                + " de Google Flow. Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
-    return {"carpeta": str(carpeta), "imagenes": len(nombres), "clips": len(orden) - len(nombres), "mensaje": mensaje}
+    return {"carpeta": str(carpeta), "imagenes": len(nombres), "clips": len(orden) - len(nombres), "mensaje": mensaje,
+            "abierto": abierto, "instalado": bool(exe())}
