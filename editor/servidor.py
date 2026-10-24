@@ -605,6 +605,44 @@ def sesion_de_carpeta_local(p):
     return nombre
 
 
+_VENTANA_MAXIMIZADA = []
+
+
+def maximizar_ventana():
+    """La sala se abre en pantalla completa (maximizada). La ventana la crea el .exe; se maximiza desde aquí con Windows
+    para no tener que bajar el instalador completo. Solo la primera vez que la página pide el estado, y solo en ventanas
+    de esta PC cuyo título empieza con «Sala de edición» (la propia o la de Edge en modo aplicación)."""
+    if _VENTANA_MAXIMIZADA or os.name != "nt" or motor.CONFIG.get("ventana_maximizada") is False:
+        return
+    _VENTANA_MAXIMIZADA.append(True)
+
+    def tarea():
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        encontradas = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def cada(hwnd, _):
+            n = user32.GetWindowTextLengthW(hwnd)
+            if n and user32.IsWindowVisible(hwnd):
+                b = ctypes.create_unicode_buffer(n + 1)
+                user32.GetWindowTextW(hwnd, b, n + 1)
+                if b.value.startswith("Sala de edición"):
+                    encontradas.append(hwnd)
+            return True
+        for _ in range(10):  # la ventana puede tardar un poco en aparecer
+            encontradas.clear()
+            user32.EnumWindows(cada, 0)
+            if encontradas:
+                for h in encontradas:
+                    if not user32.IsZoomed(h) and not user32.IsIconic(h):
+                        user32.ShowWindow(h, 3)  # SW_MAXIMIZE
+                return
+            time.sleep(0.5)
+    threading.Thread(target=lambda: _sin_falla(tarea), daemon=True).start()
+
+
 def lanzar(accion, pieza=None, extra=None, en_cola=False):
     """Corre procesar/armar/exportar en segundo plano para que la app no se congele. Con en_cola, si ya hay un
     trabajo corriendo, queda en la cola y se corre solo al terminar. Devuelve True si quedó en la cola."""
@@ -996,6 +1034,7 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b)
         elif u.path == "/api/estado":
+            maximizar_ventana()
             self._json(estado())
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
