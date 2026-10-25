@@ -1,3 +1,7 @@
+Versión 1.51.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Piezas: Espacio y Enter reproducen y pausan** aunque acabes de tocar una pieza, una palabra o un botón.
+- **Al tocar una palabra, su panel queda a la vista** (abajo del texto): imagen o clip encima, sonido en esa palabra, música desde ahí, cómo se ve el subtítulo, quitar o corregir. Se cierra con ✕ o Esc.
+
 Versión 1.51.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Piezas: los botones de guardar arriba**, en la fila de Hooks / Cuerpos / CTAs, siempre a la vista.
 - **Barrita entre el texto y la línea de tiempo:** arrástrala para achicar el texto y agrandar la línea de tiempo (doble clic: como antes).

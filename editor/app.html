@@ -1149,6 +1149,9 @@ dialog.galeria { width: min(900px, 96vw); }
 .transcripcion .w.ahora { color: var(--accent2); font-weight: 700; }
 .transcripcion .w i { position: absolute; left: 50%; top: -1.05em; transform: translateX(-50%); font-style: normal; font-size: 11px; white-space: nowrap; line-height: 1; }
 .marca-insp { margin-top: 10px; border: 1px solid var(--accent2); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
+/* en Piezas, lo de la palabra elegida (imagen, sonido, música, subtítulo) queda pegado abajo del cuadro de texto, siempre a la vista */
+.pz-pagina .pz-texto .marca-insp { position: sticky; bottom: 0; z-index: 3; background: var(--surface); max-height: 62%; overflow: auto;
+  box-shadow: 0 -10px 24px -12px rgba(0,0,0,.35); }
 .marca-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 8px; }
 .marca-campos fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px 10px; margin: 0; display: grid; gap: 6px; }
 .marca-campos legend { font-size: 12.5px; font-weight: 600; padding: 0 4px; }
@@ -3868,7 +3871,8 @@ function pintarMarcas() {
   const selW = seleccionW(p);
   if (selW.length > 1) {
     const q = selW.every(quitadaW);
-    html += `<div class="marca-insp"><b>«${esc(selW.map(x => x.w).join(" "))}» · ${selW[0].s.toFixed(2)} a ${selW[selW.length - 1].e.toFixed(2)} s</b>
+    html += `<div class="marca-insp"><div class="fila" style="justify-content:space-between"><b>«${esc(selW.map(x => x.w).join(" "))}» · ${selW[0].s.toFixed(2)} a ${selW[selW.length - 1].e.toFixed(2)} s</b>
+      <button class="btn sec peq" type="button" data-soltar-sel title="Cerrar (Esc)" aria-label="Cerrar">✕</button></div>
       <div class="marca-acciones"><button class="btn peq ${q ? "" : "peligro"}" type="button" data-quitar-sel>${q ? "↩ Volver a poner" : `✂ Quitar estas ${selW.length} palabras`}</button>
         <button class="btn sec peq" type="button" data-ir-t="${selW[0].s}">▶ Escuchar</button>
         <button class="btn sec peq" type="button" data-editar-linea="${selW[0].li}">✎ Corregir el subtítulo</button></div>
@@ -3883,7 +3887,8 @@ function pintarMarcas() {
       const a = m.asset && urlAsset(m.asset);
       const q = quitadaW(p.lineas[w.li].palabras[w.wi]);
       html += `<div class="marca-insp">
-        <b>«${esc(w.palabra)}» · ${w.t.toFixed(2)} s${q ? ' <span class="pill warn">quitada</span>' : ""}</b>
+        <div class="fila" style="justify-content:space-between"><b>«${esc(w.palabra)}» · ${w.t.toFixed(2)} s${q ? ' <span class="pill warn">quitada</span>' : ""}</b>
+          <button class="btn sec peq" type="button" data-soltar-sel title="Cerrar (Esc)" aria-label="Cerrar">✕</button></div>
         <div class="marca-acciones"><button class="btn peq ${q ? "" : "peligro"}" type="button" data-quitar-sel title="Corta esta palabra del video (imagen y voz) en todos sus videos">${q ? "↩ Volver a poner" : "✂ Quitar del video"}</button>
           <button class="btn sec peq" type="button" data-editar-linea="${w.li}">✎ Corregir el subtítulo</button>
           <button class="btn sec peq" type="button" data-ir-t="${w.t}">▶ Escuchar</button>
@@ -4179,6 +4184,12 @@ function cambiarMarca(campo, valor) {
   if (!m.asset && !m.sfx && !m.sub && !m.musica) marcasTmp.splice(marcasTmp.indexOf(m), 1);
   pintarMarcas(); vivo(); pintarSucia();
 }
+$("marcas").addEventListener("click", e => { if (e.target.closest("[data-soltar-sel]")) { marcaSel = null; marcaFin = null; pintarMarcas(); } });
+document.addEventListener("keydown", e => {  // Esc cierra lo de la palabra elegida
+  if (e.key !== "Escape" || !marcaSel || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
+  if (e.target.closest?.("input, textarea, select")) return;
+  marcaSel = null; marcaFin = null; pintarMarcas();
+});
 $("marcas").addEventListener("click", e => {
   const f = e.target.closest("[data-fmarca]"); if (f) { filtroMarcas = f.dataset.fmarca; pintarMarcas(); return; }
   const t = e.target.closest("[data-ir-t]"); if (t) { const v = $("vPieza"); v.currentTime = Number(t.dataset.irT); v.play().catch(() => {}); return; }
@@ -4717,6 +4728,12 @@ $("vPieza").addEventListener("play", bucle);
 $("vPieza").addEventListener("seeked", vivo);
 $("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play().catch(() => {}) : v.pause(); };  // sin AbortError en la consola
 $("visor").addEventListener("click", () => $("play").click());  // tocar el video lo reproduce o lo pausa
+// En Piezas, después de un clic con el mouse no queda nada con el foco (una pieza, una palabra, un botón): así Espacio y
+// Enter siempre reproducen o pausan. Con el teclado (Tab) el foco se queda y Enter aprieta lo que está elegido.
+document.querySelector('[data-panel="piezas"]').addEventListener("click", e => {
+  if (!e.detail) return;
+  setTimeout(() => { const a = document.activeElement; if (a && a !== document.body && !a.closest("input, textarea, select, [contenteditable]") && a.closest('[data-panel="piezas"]')) a.blur(); }, 0);
+});
 document.addEventListener("keydown", e => {  // Enter o Espacio (en Hooks, Cuerpos y CTAs), salvo mientras se escribe
   if (!["Enter", " "].includes(e.key) || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
   if (e.target.closest?.("input, textarea, select, [contenteditable], .transcripcion [data-w]")) return;
