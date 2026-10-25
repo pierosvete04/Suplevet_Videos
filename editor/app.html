@@ -262,6 +262,29 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 
 /* Piezas */
 .piezas-layout { display: grid; grid-template-columns: 210px minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+/* Piezas como el editor: todo en una pantalla. Izquierda la lista; al centro el texto arriba y la línea de tiempo abajo;
+   a la derecha el video en su panel oscuro, a toda la altura */
+.piezas-layout.pz-pagina { grid-template-columns: 180px minmax(0, 1fr) clamp(280px, 28vw, 540px); grid-template-rows: minmax(0, 1fr) minmax(260px, 46%);
+  grid-template-areas: "lista texto video" "lista linea video"; align-items: stretch; gap: 12px;
+  min-height: 520px; }
+main:has(> section[data-panel="piezas"]:not([hidden])) { padding-bottom: 12px; }  /* en Piezas todo entra en la pantalla */
+.pz-pagina > #piezas { grid-area: lista; overflow: auto; min-height: 0; margin: 0; }
+.pz-pagina > .pz-texto { grid-area: texto; overflow: auto; min-height: 0; margin: 0; }
+.pz-pagina > #pzTl { grid-area: linea; overflow: auto; min-height: 0; margin: 0; }
+.pz-pagina > .pz-video { grid-area: video; min-height: 0; margin: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px;
+  background: #0b0f17; border-color: var(--line); color: #e8eefc; }
+.pz-video h2 { color: #e8eefc; }
+.pz-video .pz-pantalla { min-height: 0; container-type: size; display: grid; place-items: center; }
+.pz-video .visor { width: min(100cqw, 100cqh * 9 / 16); max-width: none; max-height: none; margin: 0; }
+body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
+.pz-video .fila { justify-content: center; }
+.pz-video .muted { color: #9fb0cf; }
+.pz-video .btn.sec { background: #151d2c; border-color: #26324a; color: #e8eefc; }
+@media (max-width: 1100px) {
+  .piezas-layout.pz-pagina { height: auto; grid-template-columns: 180px minmax(0, 1fr); grid-template-rows: auto auto auto;
+    grid-template-areas: "lista video" "texto texto" "linea linea"; }
+  .pz-video .pz-pantalla { height: 60vh; }
+}
 .grupo { margin-bottom: 12px; }
 .grupo h3 { font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); }
 .pieza { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 5px; border-radius: 9px;
@@ -1082,6 +1105,7 @@ dialog.galeria { width: min(900px, 96vw); }
 .tl-noms { display: grid; grid-template-rows: 22px 40px 34px 46px 30px; gap: 4px; font: 600 11.5px var(--mono); color: var(--muted); }
 .tl-noms span { display: flex; align-items: center; }
 .tl-zona { position: relative; display: grid; grid-template-rows: 22px 40px 34px 46px 30px; gap: 4px; cursor: text; touch-action: none; }
+.tl.sin-frases .tl-noms, .tl.sin-frases .tl-zona { grid-template-rows: 22px 34px 46px 30px; }
 .tl-carril { position: relative; border-radius: 8px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
 .tl-regla { position: relative; border-bottom: 1px solid var(--line2); cursor: ew-resize; }
 .tl-regla i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--line2); }
@@ -1100,6 +1124,9 @@ dialog.galeria { width: min(900px, 96vw); }
 .tl-vacio { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11.5px; color: var(--muted); pointer-events: none; }
 .tl-quit { position: absolute; top: 22px; bottom: 0; pointer-events: none; border-radius: 4px; z-index: 2;
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--err) 30%, transparent) 0 6px, color-mix(in srgb, var(--err) 12%, transparent) 6px 12px); border: 1px solid var(--err); }
+.tl-corte { position: absolute; top: 22px; bottom: 0; width: 10px; margin-left: -5px; z-index: 3; cursor: pointer; }
+.tl-corte::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; border-radius: 2px; background: var(--muted); opacity: .55; }
+.tl-corte:hover::after, .tl-corte.sel::after { background: var(--accent2); opacity: 1; }
 .tl-sel { position: absolute; top: 22px; bottom: 0; z-index: 3; pointer-events: none; border-radius: 4px; background: color-mix(in srgb, var(--accent2) 18%, transparent); border: 2px solid var(--accent2); }
 .tl-cabezal { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ef4444; z-index: 4; pointer-events: none; }
 .tl-cabezal::before { content: ""; position: absolute; top: 0; left: -5px; border: 6px solid transparent; border-top: 8px solid #ef4444; }
@@ -1786,7 +1813,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         </div>
         <div class="fila" style="margin-top:8px">
           <button class="btn sec peq" id="play">▶ Reproducir</button>
-          <span class="muted" style="font-size:12px">Toca el video o pulsa <kbd>Enter</kbd> para reproducir o pausar. Los cambios se ven sin renderizar.</span>
+          <span class="muted" style="font-size:12px">Toca el video o pulsa <kbd>Enter</kbd> para reproducir o pausar. Aquí ves los cambios al instante; el video final se actualiza al guardar y rearmar.</span>
         </div>
       </div>
       <div class="caja pz-texto">
@@ -1804,6 +1831,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div class="tl-cab">
         <div><h2 style="margin:0">Línea de tiempo</h2><small class="muted" id="tlInfo">Arrastra sobre los clips o el texto para elegir un tramo y quitarlo. Toca una imagen o un sonido para cambiarlo.</small></div>
         <div class="tl-botones">
+          <div class="segmento" id="tlVista" role="group" aria-label="Ver la pieza con o sin los cortes" title="«Sin cortes» muestra y hace sonar todo lo grabado, con lo que se quita rayado">
+            <button type="button" data-tlv="con" aria-pressed="true">Con cortes</button><button type="button" data-tlv="sin" aria-pressed="false">Sin cortes</button></div>
           <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
           <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
           <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
@@ -3958,6 +3987,20 @@ $("dlgGaleria").addEventListener("click", e => {
 // los clips se mueven al pasar el mouse (así se ve qué son sin abrirlos)
 $("dlgGaleria").addEventListener("mouseover", e => { const v = e.target.closest(".gal-img")?.querySelector("video"); if (v) v.play().catch(() => {}); });
 $("dlgGaleria").addEventListener("mouseout", e => { const v = e.target.closest(".gal-img")?.querySelector("video"); if (v && !e.target.closest(".gal-img").contains(e.relatedTarget)) v.pause(); });
+// Piezas en una pantalla, como el editor: la línea de tiempo entra en la grilla y el video va en su panel oscuro
+{
+  const lay = document.querySelector('[data-panel="piezas"] .piezas-layout'), vcaja = $("visor").closest(".caja");
+  lay.classList.add("pz-pagina"); vcaja.classList.add("pz-video");
+  const pantalla = document.createElement("div"); pantalla.className = "pz-pantalla";
+  $("visor").before(pantalla); pantalla.append($("visor"));
+  lay.append($("pzTl"));
+  // el alto justo para que entre en la pantalla sin bajar (debajo de la cabecera y de Hooks/Cuerpos/CTAs)
+  const ajustar = () => { if (lay.offsetParent === null || innerWidth <= 1100) { lay.style.height = ""; return; }
+    lay.style.height = Math.max(520, innerHeight - (lay.getBoundingClientRect().top + scrollY) - 16) + "px"; };
+  addEventListener("resize", ajustar);
+  document.addEventListener("click", e => { if (e.target.closest('nav button[data-tab="piezas"]')) setTimeout(ajustar, 30); });
+  new ResizeObserver(ajustar).observe(document.documentElement);
+}
 // ---------- Línea de tiempo de la pieza ----------
 let tlPartes = { pieza: null, partes: [], clips: false }, tlSel = null, tlArr = null;
 async function cargarPartes(p) {
@@ -3971,31 +4014,58 @@ function pintarTl() {
   const p = piezaSel(), caja = $("tl"); if (!caja) return;
   if (!p) { caja.innerHTML = ""; return; }
   if (tlPartes.pieza !== p.nombre) { cargarPartes(p); }
-  const D = durTl(p), pc = t => (Math.max(0, Math.min(D, t)) / D * 100).toFixed(3) + "%", ancho = (a, b) => ((b - a) / D * 100).toFixed(3) + "%";
+  const D0 = durTl(p), D = Math.max(.1, conCortesTl() ? tlComprimido(D0) : D0);
+  const pc = t => (Math.max(0, Math.min(D, tlVer(t))) / D * 100).toFixed(3) + "%", ancho = (a, b) => (Math.max(0, tlVer(b) - tlVer(a)) / D * 100).toFixed(3) + "%";
   const paso = D > 40 ? 5 : D > 15 ? 2 : 1;
   let regla = "";
+  const enRegla = t => (t / D * 100).toFixed(3) + "%";  // la regla cuenta el tiempo que se ve (con cortes, el del video)
   for (let t = 0; t <= D; t += paso / 2) { const mayor = Math.abs(t / paso - Math.round(t / paso)) < 1e-6;
-    regla += `<i class="${mayor ? "mayor" : ""}" style="left:${pc(t)}"></i>${mayor ? `<b style="left:${pc(t)}">${Math.round(t)}s</b>` : ""}`; }
+    regla += `<i class="${mayor ? "mayor" : ""}" style="left:${enRegla(t)}"></i>${mayor ? `<b style="left:${enRegla(t)}">${Math.round(t)}s</b>` : ""}`; }
   const nombres = (p.tomas || []).map(x => x.nombre);
-  const clips = tlPartes.partes.map((c, i) => `<div class="tl-blq clip" data-tl-a="${c.ini}" data-tl-b="${c.fin}" style="left:${pc(c.ini)};width:${ancho(c.ini, c.fin)}" title="${esc(c.texto)}">
+  const clips = tlPartes.partes.map((c, i) => [c, i]).filter(([c]) => !conCortesTl() || tlVer(c.fin) - tlVer(c.ini) > .02).map(([c, i]) => `<div class="tl-blq clip" data-tl-a="${c.ini}" data-tl-b="${c.fin}" style="left:${pc(c.ini)};width:${ancho(c.ini, c.fin)}" title="${esc(c.texto)}">
       <b>${tlPartes.clips ? `Clip ${i + 1}` : `Frase ${i + 1}`}</b>${esc(c.texto)}</div>`).join("") || `<span class="tl-vacio">${p.procesada ? "Un solo clip" : "Sin preparar"}</span>`;
-  const lineas = p.lineas.map((l, i) => `<div class="tl-blq linea" data-tl-a="${l.s}" data-tl-b="${l.e}" style="left:${pc(l.s)};width:${ancho(l.s, l.e)}" title="${esc(lineasTmp[i] ?? l.texto)}">${esc(lineasTmp[i] ?? l.texto)}</div>`).join("");
+  const queda = (l, i) => {  // con cortes, solo las palabras que siguen sonando (si el texto no se corrigió a mano)
+    const txt = lineasTmp[i] ?? l.texto;
+    return conCortesTl() && txt === l.texto && l.palabras?.length ? l.palabras.filter(w => !quitadaW(w)).map(w => w.w).join(" ") : txt;
+  };
+  const lineas = p.lineas.filter(l => !conCortesTl() || tlVer(l.e) - tlVer(l.s) > .02).map((l) => [l, p.lineas.indexOf(l)]).map(([l, i]) => `<div class="tl-blq linea" data-tl-a="${l.s}" data-tl-b="${l.e}" style="left:${pc(l.s)};width:${ancho(l.s, l.e)}" title="${esc(queda(l, i))}">${esc(queda(l, i))}</div>`).join("");
   const conPos = marcasTmp.map(m => ({ m, pos: ubicarComoVideo(p, m.palabra || "", m.n) })).filter(x => x.pos);
   const esSel = pos => marcaSel && pos.li === marcaSel.li && pos.wi === marcaSel.wi;
   const imgs = conPos.filter(x => x.m.asset).map(({ m, pos }) => { const a = urlAsset(m.asset), d = m.dur || 1.5;
-    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${ancho(pos.t, Math.min(D, pos.t + d))};${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s"><span>${a ? (a.es_video ? "🎬 " : "") : "⚠ Falta · "}${esc(m.asset)}</span></div>`; }).join("")
+    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${Math.max(.6, parseFloat(ancho(pos.t, Math.min(D0, pos.t + d))))}%;${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s"><span>${a ? (a.es_video ? "🎬 " : "") : "⚠ Falta · "}${esc(m.asset)}</span></div>`; }).join("")
     || `<span class="tl-vacio">Sin imágenes: toca una palabra del texto y elige una</span>`;
   const sons = conPos.filter(x => x.m.sfx || x.m.musica).map(({ m, pos }) =>
     `${m.sfx ? `<div class="tl-pin ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)}" title="♪ ${esc(nombreSonido(m.sfx))} en «${esc(m.palabra)}»">♪</div>` : ""}
-     ${m.musica ? `<div class="tl-pin musica ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)}" title="🎵 ${esc(m.musica)} desde «${esc(m.palabra)}»">🎵</div>` : ""}`).join("")
+     ${m.musica ? `<div class="tl-pin musica ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:calc(${pc(pos.t)} + ${m.sfx ? 30 : 0}px)" title="🎵 ${esc(m.musica)} desde «${esc(m.palabra)}»">🎵</div>` : ""}`).join("")
     || `<span class="tl-vacio">Los sonidos automáticos los pone la sala al armar</span>`;
-  const quit = quitTmp.map(([a, b]) => `<div class="tl-quit" style="left:${pc(a)};width:${ancho(a, b)}"></div>`).join("");
+  const quit = conCortesTl()
+    ? quitTmp.map(([a, b]) => `<div class="tl-corte ${tlSel && Math.abs(tlSel.a - a) < .02 && Math.abs(tlSel.b - b) < .02 ? "sel" : ""}" data-tl-corte="${a}|${b}" style="left:${pc(a)}" title="Se quitó de ${a.toFixed(1)} a ${b.toFixed(1)} s · tócalo y pulsa «↩ Volver a poner»"></div>`).join("")
+    : quitTmp.map(([a, b]) => `<div class="tl-quit" style="left:${pc(a)};width:${ancho(a, b)}"></div>`).join("");
   const sel = tlSel ? `<div class="tl-sel" style="left:${pc(tlSel.a)};width:${ancho(tlSel.a, tlSel.b)}"></div>` : "";
-  caja.innerHTML = `<div class="tl-noms"><span>Tiempo</span><span>${tlPartes.clips ? "Clips" : "Frases"}</span><span>Texto</span><span>Imágenes</span><span>Sonidos</span></div>
-    <div class="tl-zona" id="tlZona"><div class="tl-regla">${regla}</div><div class="tl-carril">${clips}</div><div class="tl-carril">${lineas}</div>
+  document.querySelectorAll("#tlVista [data-tlv]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tlv === (conCortesTl() ? "con" : "sin"))));
+  const conFrases = tlPartes.partes.length > 1;
+  caja.classList.toggle("sin-frases", !conFrases);
+  caja.innerHTML = `<div class="tl-noms"><span>Tiempo</span>${conFrases ? `<span>${tlPartes.clips ? "Clips" : "Frases"}</span>` : ""}<span>Texto</span><span>Imágenes</span><span>Sonidos</span></div>
+    <div class="tl-zona" id="tlZona"><div class="tl-regla">${regla}</div>${conFrases ? `<div class="tl-carril">${clips}</div>` : ""}<div class="tl-carril">${lineas}</div>
       <div class="tl-carril">${imgs}</div><div class="tl-carril">${sons}</div>${quit}${sel}<div class="tl-cabezal" id="tlCabezal" style="left:${pc($("vPieza").currentTime || 0)}"></div></div>`;
   pintarBotonesTl();
 }
+// «Con cortes» (lo de siempre): lo quitado no ocupa lugar y no suena. «Sin cortes»: todo lo grabado, lo quitado rayado
+let vistaTl = "con";
+const conCortesTl = () => vistaTl !== "sin";
+function tlVer(t) { if (!conCortesTl()) return t; let q = 0; for (const [a, b] of quitTmp) q += Math.max(0, Math.min(t, b) - a); return t - q; }  // segundo grabado → segundo en pantalla
+function tlComprimido(D) { return tlVer(D); }
+function tlGrabado(v) {  // segundo en pantalla → segundo grabado (lo inverso de tlVer)
+  if (!conCortesTl()) return v;
+  let t = v;
+  for (const [a, b] of [...quitTmp].sort((x, y) => x[0] - y[0])) { if (t >= a) t += b - a; else break; }
+  return t;
+}
+$("tlVista").addEventListener("click", e => {
+  const b = e.target.closest("[data-tlv]"); if (!b) return;
+  vistaTl = b.dataset.tlv;
+  tlSel = null; pintarTl();
+});
 function pintarBotonesTl() {
   const b = $("tlQuitar"); if (!b) return;
   const dentro = tlSel && quitTmp.some(([a, c]) => tlSel.a >= a - .02 && tlSel.b <= c + .02);
@@ -4004,10 +4074,14 @@ function pintarBotonesTl() {
   b.textContent = !tlSel ? "✂ Quitar el tramo" : dentro ? `↩ Volver a poner (${(tlSel.b - tlSel.a).toFixed(1)} s)` : `✂ Quitar el tramo (${(tlSel.b - tlSel.a).toFixed(1)} s)`;
   b.title = b.disabled ? "Primero arrastra sobre los clips o el texto para elegir un tramo" : "";
 }
-function cabezalTl() { const p = piezaSel(), c = $("tlCabezal"); if (p && c) c.style.left = (Math.min(1, ($("vPieza").currentTime || 0) / durTl(p)) * 100) + "%"; }
-const tiempoTl = e => { const z = $("tlZona").getBoundingClientRect(), p = piezaSel(); return Math.max(0, Math.min(1, (e.clientX - z.left) / z.width)) * durTl(p); };
+function cabezalTl() { const p = piezaSel(), c = $("tlCabezal"); if (!p || !c) return; const D0 = durTl(p), D = conCortesTl() ? tlComprimido(D0) : D0;
+  c.style.left = (Math.min(1, tlVer($("vPieza").currentTime || 0) / D) * 100) + "%"; }
+const tiempoTl = e => { const z = $("tlZona").getBoundingClientRect(), p = piezaSel(), D0 = durTl(p);
+  return tlGrabado(Math.max(0, Math.min(1, (e.clientX - z.left) / z.width)) * (conCortesTl() ? tlComprimido(D0) : D0)); };
 $("tl").addEventListener("pointerdown", e => {
   if (!e.target.closest("#tlZona") || e.button) return;
+  const ct = e.target.closest("[data-tl-corte]");
+  if (ct) { const [a, b] = ct.dataset.tlCorte.split("|").map(Number); tlSel = { a, b }; pintarTl(); return; }
   const w = e.target.closest("[data-tl-w]");
   if (w) {  // una imagen o un sonido: se elige su palabra y se abre su panel en «Texto»
     const [li, wi] = w.dataset.tlW.split("-").map(Number), p = piezaSel();
@@ -4033,7 +4107,8 @@ function pintarSelTl() {  // solo el recuadro del tramo elegido (sin rehacer la 
   let d = z.querySelector(".tl-sel");
   if (!tlSel) { d?.remove(); pintarBotonesTl(); return; }
   if (!d) { d = document.createElement("div"); d.className = "tl-sel"; z.appendChild(d); }
-  const D = durTl(p); d.style.left = (tlSel.a / D * 100) + "%"; d.style.width = ((tlSel.b - tlSel.a) / D * 100) + "%";
+  const D0 = durTl(p), D = conCortesTl() ? tlComprimido(D0) : D0;
+  d.style.left = (tlVer(tlSel.a) / D * 100) + "%"; d.style.width = (Math.max(0, tlVer(tlSel.b) - tlVer(tlSel.a)) / D * 100) + "%";
   pintarBotonesTl();
 }
 function soltarTl() {
@@ -4047,10 +4122,20 @@ function soltarTl() {
 }
 addEventListener("pointerup", soltarTl);
 addEventListener("pointercancel", soltarTl);
-$("tlIni").onclick = () => { const t = $("vPieza").currentTime; tlSel = { a: t, b: Math.max(t + .1, tlSel?.b ?? t + 1) }; pintarTl(); };
-$("tlFin").onclick = () => { const t = $("vPieza").currentTime; tlSel = { a: Math.min(t - .1, tlSel?.a ?? Math.max(0, t - 1)), b: t }; if (tlSel.a < 0) tlSel.a = 0; pintarTl(); };
-$("tlQuitar").onclick = () => {
+function marcarTramo(a, b) {  // el tramo elegido, dentro del video, en orden y ajustado al borde de las palabras
+  const p = piezaSel(), D = durTl(p);
+  [a, b] = [Math.max(0, Math.min(a, b)), Math.min(D, Math.max(a, b))];
+  if (b - a < .1) b = Math.min(D, a + .1);
+  tlSel = ajustarTramo(p, a, b); pintarTl();
+}
+$("tlIni").onclick = () => { const t = $("vPieza").currentTime; marcarTramo(t, tlSel && tlSel.b > t ? tlSel.b : t + 1); };
+$("tlFin").onclick = () => { const t = $("vPieza").currentTime; marcarTramo(tlSel && tlSel.a < t ? tlSel.a : t - 1, t); };
+$("tlQuitar").onclick = async () => {
   if (!tlSel) return;
+  const pz = piezaSel(), D = durTl(pz), yaQuitado = quitTmp.some(([x, y]) => tlSel.a >= x - .02 && tlSel.b <= y + .02);
+  if (!yaQuitado && (tlSel.b - tlSel.a) > D * .8 && !await preguntar(`Vas a quitar ${(tlSel.b - tlSel.a).toFixed(1)} s de ${D.toFixed(1)} s: casi toda la pieza. ¿Quitarlo igual?`)) return;
+  if (!yaQuitado && marcasTmp.some(m => m.asset && (() => { const q = ubicarComoVideo(pz, m.palabra || "", m.n); return q && q.t >= tlSel.a && q.t <= tlSel.b; })()))
+    avisar("Ojo: en ese tramo hay una imagen puesta; al quitarlo, la imagen ya no se ve. Muévela a otra palabra.", "warn");
   const { a, b } = tlSel, dentro = quitTmp.some(([x, y]) => a >= x - .02 && b <= y + .02);
   quitTmp = dentro ? juntar(quitTmp.flatMap(([x, y]) => y <= a || x >= b ? [[x, y]] : [[x, a], [b, y]])) : juntar([...quitTmp, [a, b]]);
   avisar(dentro ? `Vuelve el tramo de ${a.toFixed(1)} a ${b.toFixed(1)} s. Guarda para aplicarlo.` : `Se quita de ${a.toFixed(1)} a ${b.toFixed(1)} s en todos sus videos. Guarda para aplicarlo.`, "ok");
@@ -4062,7 +4147,7 @@ function cambiarMarca(campo, valor) {
   const p = piezaSel(), w = palabrasPieza(p).find(x => x.li === marcaSel.li && x.wi === marcaSel.wi); if (!w) return;
   let m = marcaDe(w);
   if (!m) { m = { palabra: w.palabra, n: w.n }; marcasTmp.push(m); }
-  if (valor === "" || valor == null) delete m[campo]; else m[campo] = campo === "dur" ? Number(valor) : valor;
+  if (valor === "" || valor == null) delete m[campo]; else m[campo] = campo === "dur" ? Math.max(.5, Math.min(6, Number(valor) || 1.5)) : valor;
   if (!m.asset) ["dur", "modo", "mov"].forEach(k => delete m[k]);
   if (!m.asset && !m.sfx && !m.sub && !m.musica) marcasTmp.splice(marcasTmp.indexOf(m), 1);
   pintarMarcas(); vivo(); pintarSucia();
@@ -4115,8 +4200,10 @@ $("marcas").addEventListener("keydown", e => {
 });
 // Supr o Retroceso: quita (o vuelve a poner) las palabras elegidas
 document.addEventListener("keydown", e => {
-  if (!["Delete", "Backspace"].includes(e.key) || !marcaSel || document.querySelector('[data-panel="piezas"]')?.hidden) return;
+  if (!["Delete", "Backspace"].includes(e.key) || document.querySelector('[data-panel="piezas"]')?.hidden) return;
   if (e.target.closest?.("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
+  if (tlSel && !$("tlQuitar").disabled) { e.preventDefault(); return $("tlQuitar").click(); }  // un tramo de la línea de tiempo
+  if (!marcaSel) return;
   e.preventDefault(); quitarSeleccion();
 });
 $("marcas").addEventListener("change", e => { const el = e.target.closest("[data-mk]"); if (el) cambiarMarca(el.dataset.mk, el.value); });
@@ -4125,7 +4212,7 @@ $("marcas").addEventListener("change", e => { const el = e.target.closest("[data
 const urlAsset = id => E.assets.find(a => a.id.toLowerCase() === String(id).toLowerCase());
 function vivo() {
   const p = piezaSel(); if (!p) return;
-  const v0 = $("vPieza"), salto = !v0.paused && quitTmp.find(([a, b]) => v0.currentTime >= a && v0.currentTime < b - .02);
+  const v0 = $("vPieza"), salto = conCortesTl() && !v0.paused && quitTmp.find(([a, b]) => v0.currentTime >= a && v0.currentTime < b - .02);
   if (salto) v0.currentTime = salto[1];
   const t = v0.currentTime;
   document.querySelectorAll(".transcripcion [data-w]").forEach(d => {  // la palabra que suena, resaltada
@@ -4197,7 +4284,7 @@ async function guardar(armar) {
       if (E.trabajo?.activo) avisar(`Guardado. La sala está ocupada: rearma los videos de ${sel} cuando termine (☰).`, "ok");
       else { await post("/api/trabajo", { accion: "armar", pieza: sel }); avisar("Rearmando los videos que usan " + sel + "…"); }
     }
-    else avisar("Guardado.", "ok");
+    else avisar("Guardado. Para verlo en el video, toca «Guardar y rearmar».", "ok");
     piezaPintada = null;  // ya no hay nada sin guardar: se repinta con lo nuevo
     await cargar();
   } catch (e) { avisar("Error: " + e.message, "err"); }
@@ -4606,10 +4693,13 @@ $("visor").addEventListener("click", () => $("play").click());  // tocar el vide
 document.addEventListener("keydown", e => {  // Enter o Espacio (en Hooks, Cuerpos y CTAs), salvo mientras se escribe
   if (!["Enter", " "].includes(e.key) || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
   if (e.target.closest?.("input, textarea, select, [contenteditable], .transcripcion [data-w]")) return;
+  if (e.target.closest?.("button, a, [role=button], summary") && e.target.id !== "play") return;  // un botón con el foco: se aprieta ese botón
   e.preventDefault(); $("play").click();
 });
 $("vPieza").addEventListener("play", () => $("play").textContent = "❚❚ Pausa");
 $("vPieza").addEventListener("pause", () => $("play").textContent = "▶ Reproducir");
+["emptied", "loadstart"].forEach(ev => $("vPieza").addEventListener(ev, () => { $("play").textContent = "▶ Reproducir"; }));
+["timeupdate", "seeked"].forEach(ev => $("vPieza").addEventListener(ev, () => cabezalTl()));
 $("nuevaMarca").onclick = () => {  // la palabra que suena en el segundo actual del video
   const p0 = piezaSel(); if (!p0) return;
   const t0 = $("vPieza").currentTime, w0 = palabrasPieza(p0).find(x => t0 >= x.t - .05 && t0 < x.e + .05) || palabrasPieza(p0).find(x => x.t >= t0);

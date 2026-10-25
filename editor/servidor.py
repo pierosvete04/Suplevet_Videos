@@ -131,7 +131,7 @@ def estado():
                    "marcas_editadas": "marcas" in d, "info": motor.info_pieza(p["nombre"]),
                    # lo quitado de la pieza (desde el texto o desde «Editar video») y cuántos videos la usan
                    "quitados": motor.ajustes_de_pieza(p["nombre"], "A", ajp).get("quitar_rangos") or [],
-                   "n_videos": sum(1 for c in combos if not c.get("version") and p["nombre"] in (c["hook"], c["cuerpo"], c["cta"])),
+                   "n_videos": sum(1 for c in combos if p["nombre"] in (c["hook"], c["cuerpo"], c["cta"])),
                    # sus tomas (para «Cambiar la toma» en el editor): el clip y con qué nombre entra cada una
                    "tomas": [{"rel": r, "nombre": n, "video": url_media(ruta)} for r, n, ruta in zip(p["rels"], p.get("nombres_partes") or [p["nombre"]] * len(p["rels"]), p["partes"])]})
     salidas = []

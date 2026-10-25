@@ -1,3 +1,8 @@
+Versión 1.51.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Piezas y subtítulos, igual que el editor:** todo en una pantalla. A la izquierda las piezas, al centro el texto y la línea de tiempo, y a la derecha el video en su panel oscuro, fijo.
+- **Con cortes / Sin cortes en la línea de tiempo:** con cortes, lo quitado desaparece y queda una rayita donde hubo un corte (tócala y «↩ Volver a poner»); sin cortes, se ve y se escucha todo, con lo quitado rayado.
+- **Arreglos de Piezas:** Enter y Espacio sobre un botón aprietan ese botón; «Guardar y rearmar» dice cuántos videos se rearman de verdad; pregunta antes de quitar casi toda la pieza y avisa si el tramo tiene una imagen; «Inicio aquí» y «Fin aquí» marcan tramos válidos; Supr quita el tramo elegido; el cabezal sigue al video; las imágenes ya no desaparecen con cortes; textos más claros.
+
 Versión 1.50.4 (se actualiza desde la app con «Actualizar ahora»):
 - **La ventana de cada video es más simple:** el video, qué usa (subtítulos, imágenes, música, sonidos) y la portada en miniatura. Arriba: «✎ Editar video», «🖼 Editar portada» y «🕘 Historial».
 - **Editar portada** se abre en su propia ventana, encima. **Historial** muestra lo que hizo el editor automático; tocar un segundo lleva el video ahí.
