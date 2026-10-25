@@ -1,3 +1,10 @@
+Versión 1.50.2 (se actualiza desde la app con «Actualizar ahora»):
+- **El video a toda la altura, como CapCut:** ocupa toda la columna derecha, de arriba abajo, con Reproducir y el tiempo debajo. La línea de tiempo queda a la izquierda.
+- **Tamaños que se arrastran:** una barrita entre los ajustes y la línea de tiempo, y otra antes del video. Se recuerda en esta PC; doble clic vuelve al tamaño de siempre.
+- **«Texto» es la primera pestaña** y la que se abre al entrar al editor.
+- **Mejor diseño** de listas, campos y barras: Hook, Cuerpo y CTA en tres columnas; los subtítulos en tarjetas (plantilla y cada altura).
+- **Pestaña Sonidos nueva:** arriba, agregar un sonido en el cabezal; abajo, la lista de los sonidos del video (tocar uno lleva el cabezal ahí y lo abre para editarlo).
+
 Versión 1.50.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Reproductor como el de CapCut:** el video va en un panel oscuro más grande, con Inicio, Reproducir y el tiempo justo debajo. Todo queda fijo; solo cambian las pestañas de la izquierda.
 - **«ⓘ C1 va en N videos ▾»:** el aviso de a qué videos llega lo que cambias ahora es un botón chico junto al título; abre una ventana con el detalle, «Cambiar la toma» y «Nueva versión».
