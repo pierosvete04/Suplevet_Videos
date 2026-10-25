@@ -1,3 +1,6 @@
+Versión 1.50.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Enter y Espacio siempre pausan y reanudan** en el editor. Antes, después de tocar «Inicio», Enter volvía a empezar desde el principio en vez de pausar.
+
 Versión 1.50.2 (se actualiza desde la app con «Actualizar ahora»):
 - **El video a toda la altura, como CapCut:** ocupa toda la columna derecha, de arriba abajo, con Reproducir y el tiempo debajo. La línea de tiempo queda a la izquierda.
 - **Tamaños que se arrastran:** una barrita entre los ajustes y la línea de tiempo, y otra antes del video. Se recuerda en esta PC; doble clic vuelve al tamaño de siempre.

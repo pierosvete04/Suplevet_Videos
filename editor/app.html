@@ -7581,6 +7581,10 @@ function marcarPalabraAhora(pz, ct) {
   if (el) { el.classList.add("ahora"); if (evReproduciendo) el.scrollIntoView({ block: "nearest" }); }
 }
 // Teclado del editor (como en CapCut): no actúa mientras se escribe en un campo
+// los botones de reproducir y de la barra no se quedan con el foco: así Enter y espacio pausan o reanudan siempre
+$("dlgEditor").addEventListener("click", e => {
+  const b = e.target.closest(".ev-reproducir button, .ev-barra button"); if (b && e.detail) b.blur();
+});
 $("dlgEditor").addEventListener("keydown", e => {
   if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.target.closest("input, textarea, select, [contenteditable]")) {
     e.preventDefault(); moverFrase(e.key === "ArrowLeft" ? -1 : 1); return;
@@ -7595,8 +7599,11 @@ $("dlgEditor").addEventListener("keydown", e => {
   }
   if (e.target.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
   const tecla = e.key.toLowerCase();
-  // con el foco en un botón o en el menú, Enter y espacio aprietan ese botón (antes reproducían el video)
-  if ((e.key === "Enter" || e.key === " ") && e.target.closest("button, a, [role=menuitem], [role=button], label.ev-btn")) return;
+  // con el foco en un botón o en el menú, Enter y espacio aprietan ese botón (antes reproducían el video). Menos en los
+  // controles de reproducir y la barra de herramientas: ahí siempre pausan y reanudan (si no, después de tocar «Inicio»,
+  // Enter volvía a empezar desde el inicio en vez de pausar)
+  if ((e.key === "Enter" || e.key === " ") && e.target.closest("button, a, [role=menuitem], [role=button], label.ev-btn")
+      && !e.target.closest(".ev-reproducir, .ev-barra, .ed-lado, .ev-tl")) return;
   if (e.key === "?") { e.preventDefault(); $("dlgAtajos").showModal(); return; }
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("evPlay").click(); }
   else if (e.key === "Home") { e.preventDefault(); $("evInicio").click(); }
