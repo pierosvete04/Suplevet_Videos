@@ -1121,8 +1121,17 @@ dialog#dlgEditor::backdrop { background: var(--bg); }
 #dlgEditor .cuerpo-editor { padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
 #dlgEditor .ed-trabajo { display: grid; gap: 14px; min-width: 0; }
 #dlgEditor .ed-lado { position: sticky; top: calc(var(--alto-cab-ed, 52px) + 14px); height: calc(100vh - var(--alto-cab-ed, 52px) - 28px);
-  display: grid; place-items: start center; }
+  display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: 8px; }
 #dlgEditor .ed-lado .ev-visor { height: 100%; width: auto; max-width: 34vw; }
+#dlgEditor .ed-lado .ev-reproducir { justify-content: center; width: 100%; }
+/* arriba, en dos columnas: a la izquierda la pieza elegida y los cortes por voz; a la derecha los subtítulos */
+#dlgEditor .ev-arriba > .ev-panel { align-content: start; }
+.ev-voz-caja { border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); }
+.ev-voz-caja > summary { cursor: pointer; padding: 9px 12px; font-weight: 650; display: flex; gap: 8px; align-items: baseline; list-style: none; }
+.ev-voz-caja > summary::-webkit-details-marker { display: none; }
+.ev-voz-caja > summary::before { content: "▸"; color: var(--muted); } .ev-voz-caja[open] > summary::before { content: "▾"; }
+.ev-voz-caja .ev-voz { border: 0; margin: 0; padding-top: 0; max-height: 46vh; overflow: auto; }
+#dlgEditor .ev-guia { margin: 0; }
 body.horizontal #dlgEditor .ed-lado { height: auto; }
 body.horizontal #dlgEditor .ed-lado .ev-visor { height: auto; width: min(42vw, 760px); max-width: none; }
 #dlgEditor .ev-arriba { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
@@ -1130,7 +1139,7 @@ body.horizontal #dlgEditor .ed-lado .ev-visor { height: auto; width: min(42vw, 7
 @media (max-width: 1100px) { #dlgEditor .ev-arriba { grid-template-columns: 1fr; } }
 @media (max-width: 860px) {
   #dlgEditor .cuerpo-editor { grid-template-columns: 1fr; }
-  #dlgEditor .ed-lado { position: static; height: auto; order: -1; }
+  #dlgEditor .ed-lado { position: static; height: auto; order: -1; grid-template-rows: auto auto; }
   #dlgEditor .ed-lado .ev-visor { height: auto; width: min(260px, 70vw); max-width: none; }
 }
 .ev-a { position: absolute; top: 3px; bottom: 3px; border-radius: 6px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
@@ -1167,6 +1176,7 @@ body.horizontal #dlgEditor .ed-lado .ev-visor { height: auto; width: min(42vw, 7
 .ev-img .ev-asa { background: color-mix(in srgb, var(--ok) 45%, transparent); }
 #evCarrilI.encima { outline: 2px dashed var(--ok); outline-offset: -2px; }
 .ev-capa-vista { position: absolute; z-index: 1; overflow: hidden; pointer-events: none; }
+.ev-visor .sub { z-index: 3; }
 .ev-capa-vista.ventana { border: 2px solid #fff; border-radius: 4px; pointer-events: auto; cursor: move; touch-action: none; }
 .ev-capa-vista img, .ev-capa-vista video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ev-k { position: absolute; top: 7px; width: 18px; height: 18px; margin-left: -9px; transform: rotate(45deg); border-radius: 3px; cursor: grab; touch-action: none;
@@ -2645,7 +2655,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         </div>
       </div>
       <div class="ev-barra" role="toolbar" aria-label="Herramientas del editor">
-        <div class="ev-grupo" role="group" aria-label="Reproducir">
+        <div class="ev-grupo ev-reproducir" id="evReproducir" role="group" aria-label="Reproducir">
           <button class="ev-btn" id="evInicio" type="button" title="Vuelve al inicio del video y reproduce desde ahí"><span aria-hidden="true">⏮</span><b>Inicio</b><kbd>Inicio</kbd></button>
           <button class="ev-btn prim" id="evPlay" type="button" aria-pressed="false" title="Reproducir o pausar"><span aria-hidden="true">▶</span><b>Reproducir</b><kbd>Espacio</kbd></button>
           <span id="evTiempo" class="ev-tiempo" title="Segundo y cuadro del cabezal">0.00 s</span>
@@ -2681,10 +2691,11 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="ev-btn" id="evAjustar" type="button" title="Que todo el video entre en el ancho de la pantalla"><b>Ajustar</b></button>
         </div>
         <button class="ev-btn" id="evAtajos" type="button" aria-haspopup="dialog" title="Todas las teclas del editor"><span aria-hidden="true">⌨</span><b>Teclas</b><kbd>?</kbd></button>
+        <button class="ev-btn mini" id="evGuiaBtn" type="button" aria-expanded="false" aria-controls="evGuia" title="¿Cómo se usa el editor?" aria-label="¿Cómo se usa el editor?">⚙</button>
       </div>
       <div class="ev-voz" id="evVoz"></div>
-      <details class="ev-guia" id="evGuia">
-        <summary>¿Cómo se usa el editor? <span class="muted">(toca para ver la guía)</span></summary>
+      <details class="ev-guia" id="evGuia" open hidden>
+        <summary>¿Cómo se usa el editor?</summary>
         <div class="ev-guia-pasos">
           <div><b>1 · Video</b><span>Cada bloque es un clip: el hook, cada frase del cuerpo y el CTA. Estira sus bordes para recortar. <b>S</b> corta en el cabezal y <b>Supr</b> quita el pedazo elegido y <b>Shift + Supr</b>, la frase entera.</span></div>
           <div><b>2 · Imágenes</b><span>Las imágenes o escenas que van encima. Arrástralas para moverlas y estira sus bordes para que duren más o menos.</span></div>
@@ -7226,6 +7237,8 @@ function pintarVoz() {
   const caja = $("evVoz");
   if (!est || est.error || !ed) { caja.innerHTML = ""; return; }
   let leer = "abierto"; try { leer = localStorage.getItem("sala_voz") || "abierto"; } catch (e) {}
+  const plegable = $("evVozCaja");
+  if (plegable && plegable.open !== (leer !== "cerrado")) plegable.open = leer !== "cerrado";
   caja.hidden = leer === "cerrado"; $("evVozBtn").setAttribute("aria-pressed", String(!caja.hidden));
   if (caja.hidden) return;
   let nCortes = 0, seg = 0, pend = 0, html = "";
@@ -7250,9 +7263,7 @@ function pintarVoz() {
     html += `<div class="ev-voz-pieza"><b>${etq.toUpperCase()} · ${esc(p.nombre)}</b>${t || `<span class="muted">Sin texto (todavía no se transcribió).</span>`}</div>`;
   }
   const aj = (E && E.cortes_voz) || { auto: true, pausa: .3, acelerar: true };
-  caja.innerHTML = `<div class="ev-voz-cab"><h3>🎙 Cortes por voz</h3>
-      <span class="ev-voz-res">${nCortes ? `Se ${nCortes === 1 ? "corta" : "cortan"} <b>${plural(nCortes, "pedazo")}</b> (−${seg.toFixed(1)} s)` : "Sin cortes en medio"}${pend ? ` · <b>${pend}</b> ${pend === 1 ? "sugerencia" : "sugerencias"} por revisar` : ""}</span>
-      <span style="flex:1"></span>
+  caja.innerHTML = `<div class="ev-voz-cab">
       <button class="btn sec peq" type="button" id="vozAplicar" ${pend ? "" : "disabled"} title="Corta todo lo que la sala propone (también lo dudoso: revísalo con «Sin cortes»)">✂ Aplicar las sugerencias</button>
       <button class="btn sec peq" type="button" id="vozQuitar" ${nCortes ? "" : "disabled"} title="Vuelve a poner todo lo que se cortó en medio (lo propuesto por la sala y lo cortado a mano)">↩ Volver a poner todo</button></div>
     <div class="ev-voz-sel" id="vozSel">${pintarVozSel()}</div>
@@ -7262,6 +7273,8 @@ function pintarVoz() {
     <div class="ev-voz-ajustes"><label>Cortar silencios desde <select id="vozPausa">${[.25, .3, .4, .5, .7, 1].map(v => `<option value="${v}" ${Math.abs(aj.pausa - v) < .001 ? "selected" : ""}>${String(v).replace(".", ",")} s${v === .3 ? " (ritmo rápido, recomendado)" : ""}</option>`).join("")}</select></label>
       <label class="fila" style="gap:6px" title="Las frases que se dicen lento (menos de 6 sílabas por segundo) se aceleran un poco, hasta 12 %, sin cambiar el tono. Donde pongas una velocidad a mano, manda la tuya."><input type="checkbox" id="vozAcelerar" ${aj.acelerar !== false ? "checked" : ""}> Acelerar un poco las frases lentas</label>
       <label class="fila" style="gap:6px"><input type="checkbox" id="vozAuto" ${aj.auto ? "checked" : ""}> Cortar solo lo seguro en las piezas que nadie revisó todavía</label></div>`;
+  $("evVozResumen").textContent = (nCortes ? `· se ${nCortes === 1 ? "corta" : "cortan"} ${plural(nCortes, "pedazo")} (−${seg.toFixed(1).replace(".", ",")} s)` : "· sin cortes en medio")
+    + (pend ? ` · ${plural(pend, "sugerencia")} por revisar` : "");
 }
 function selVoz() {  // lo elegido en el texto: [a, b] en segundos del clip y si ya está cortado
   const s = ed.vozSel, p = piezaEd(s.pz), ws = palabrasEd(p);
@@ -7619,11 +7632,27 @@ function vistaEd() {
   vistaCapa(s.pz, ct);
   $("evCorteAviso").hidden = !s.cortado; marcarPalabraAhora(s.pz, ct);
   // mientras se arrastra el subtítulo, se muestra la frase más cercana aunque en ese segundo no se hable
-  const l = s.pieza.lineas.find(x => ct >= x.s && ct < x.e + .05) || (arrSub ? s.pieza.lineas[0] : null);
-  const pl = plantillaEd();
+  const pl = plantillaEd(), lineas = pl?.frase_completa ? frasesSub(s.pieza.lineas) : s.pieza.lineas;
+  const l = lineas.find(x => ct >= x.s && ct < x.e + .05) || (arrSub ? lineas[0] : null);
   const sub = $("evSub");
   evPzSub = s.pz;
-  if (l && pl) { sub.hidden = false; pintarLinea(sub, l.texto.split(" "), -1, new Set(), plVista(pl), $("evVisor").clientWidth || 220); colocarSub(); } else sub.hidden = true;
+  if (l && pl) {
+    const pals = l.texto.split(" "), ws = l.palabras || [];
+    const activa = ws.length === pals.length ? ws.findIndex(w => ct >= w.s && ct < w.e) : -1;  // si se corrigió el texto, sin palabra activa
+    sub.hidden = false; pintarLinea(sub, pals, activa, new Set(), plVista(pl), $("evVisor").clientWidth || 220); colocarSub();
+  } else sub.hidden = true;
+}
+// Junta las líneas en frases completas, igual que el video armado (motor._frases): hasta un punto, una pausa de 0,6 s,
+// 8 palabras o 44 letras. Así la vista del editor muestra lo mismo que el video (antes, entre dos líneas no se veía nada)
+function frasesSub(lineas) {
+  const out = [];
+  for (const ln of lineas || []) {
+    const act = out.at(-1), texto = act ? act.texto + " " + ln.texto : ln.texto;
+    if (act && act.palabras.length && !/[.?!…]$/.test(act.texto.trim()) && ln.s - act.e < .6 && texto.split(" ").length <= 8 && texto.length <= 44)
+      Object.assign(act, { texto, e: ln.e, palabras: [...act.palabras, ...(ln.palabras || [])] });
+    else out.push({ ...ln, palabras: [...(ln.palabras || [])] });
+  }
+  return out;
 }
 function plantillaEd() {
   const pls = (E && E.plantillas) || {};
@@ -8863,13 +8892,27 @@ $("evAlcance").addEventListener("click", async e => {
 {
   const trabajo = document.createElement("div"), lado = document.createElement("aside");
   trabajo.className = "ed-trabajo"; lado.className = "ed-lado"; lado.setAttribute("aria-label", "Vista del video");
-  lado.append($("evVisor"));
+  lado.append($("evVisor"), $("evReproducir"));
   document.querySelector("#editorVideo .ev-arriba").append($("editorSubs"));
   $("editorSubs").style.gridColumn = "auto";
   $("evVoz").before($("evTL"), document.querySelector("#editorVideo .ev-sonido-barra"));
+  const voz = document.createElement("details");
+  voz.className = "ev-voz-caja"; voz.id = "evVozCaja";
+  voz.innerHTML = `<summary>🎙 Cortes por voz <span class="muted" id="evVozResumen" style="font-weight:400;font-size:12px"></span></summary>`;
+  voz.append($("evVoz"));
+  document.querySelector("#editorVideo .ev-panel").append(voz);
+  voz.addEventListener("toggle", () => {  // abierto o cerrado se recuerda, igual que el botón «Texto»
+    try { localStorage.setItem("sala_voz", voz.open ? "abierto" : "cerrado"); } catch (e) {}
+    if (voz.open) pintarVoz(); else $("evVozBtn").setAttribute("aria-pressed", "false");
+  });
   trabajo.append($("editorVideo"));
   $("edCuerpo").append(trabajo, lado);
 }
+$("evGuiaBtn").onclick = () => {
+  const g = $("evGuia"); g.hidden = !g.hidden; g.open = true;
+  $("evGuiaBtn").setAttribute("aria-expanded", String(!g.hidden)); $("evGuiaBtn").setAttribute("aria-pressed", String(!g.hidden));
+  if (!g.hidden) g.scrollIntoView({ block: "nearest", behavior: "smooth" });
+};
 // Estado del video al editarlo: «Por revisar» pasa a «Editando» al abrir el editor; «Aprobado» vuelve a «Editando» al cambiarlo
 function marcarEditando(desde) {
   const a = actual;

@@ -1,3 +1,8 @@
+Versión 1.49.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Subtítulos en el editor, igual que en el video:** ya no los tapa una imagen de Flow, y con «La frase completa» se ve la frase entera con la palabra que suena (antes, entre dos líneas, no se veía nada).
+- **Editor más ordenado:** Inicio, Reproducir y el tiempo van debajo del video, como en CapCut. Arriba, en dos columnas: la pieza elegida y los «🎙 Cortes por voz» (ahora plegables, con cuánto se corta en el título) y, al lado, los subtítulos del video.
+- **«¿Cómo se usa el editor?»** se abre con la tuerca ⚙ de la barra.
+
 Versión 1.49.1 (se actualiza desde la app con «Actualizar ahora»):
 - **El editor del video es una página entera, como CapCut:** a la derecha el video completo y fijo (se queda a la vista aunque bajes); a la izquierda, arriba los ajustes (hook, cuerpo y CTA, el pedazo elegido, la versión y los subtítulos) y abajo las herramientas y la línea de tiempo.
 - **Lo que cortas desaparece de la línea de tiempo:** ya no quedan los cuadros rayados con ⊘ ni la raya roja al lado; el video se ve seguido. Para volver a ponerlo: Ctrl+Z, o «Sin cortes» (C), donde lo cortado se ve rayado en rojo y se puede tocar.
