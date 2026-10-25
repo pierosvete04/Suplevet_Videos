@@ -1,3 +1,15 @@
+Versión 1.49.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Antigravity sin pegar nada:** en Faltantes, «Hacerlo con Antigravity» y «Agregar los prompts» con Gemini abren Antigravity y le pasan el mensaje a Gemini solos (Flash para Flow, el que piensa más para los prompts). Si no se puede, copian el mensaje como antes.
+- **Exportar deja la semana para el Publicador:** cada carpeta del exporte lleva un `paquete.json` con la semana (S03), el cuerpo, el hook, el CTA, el día y el copy de cada video. Así el Publicador pone cada video en su semana sin adivinar.
+- **Cabecera y menú de la cuenta iguales en las tres apps**, ahora con Marca y Equipo.
+- **«Volver a esta» y restaurar una copia** se guardan como una versión nueva del proyecto, para todo el equipo. No se borra nada.
+- **Música:** «⟳ Regenerar prompt» en cada pista.
+- **Estilo de edición en columnas:** guarda bien y recuerda lo elegido al cerrar y volver a abrir.
+- **Guion:** el Word que exporta la sala se puede volver a subir, y «Subir guion» pregunta antes de reemplazar.
+- «Producir todo» vuelve a abrir. «Cancelar» se queda en «Cancelando…» y al terminar avisa «Cancelado».
+- Los avisos se borran solos, y «Copiado» sale solo si de verdad se copió.
+- Unos 90 arreglos en todas las pestañas (LUT, portada, plantillas, Faltantes y más).
+
 Versión 1.48.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Faltantes, nuevo diseño:**
   - **Arriba, un resumen** con lo que falta y su barra de avance (música, imágenes y clips, piezas grabadas, clips por identificar), y una franja **«Ahora sigue»** con lo primero que hay que hacer y su botón.

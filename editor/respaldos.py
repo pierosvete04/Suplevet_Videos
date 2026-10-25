@@ -162,16 +162,20 @@ def restaurar(nombre_archivo):
     m = _leer_manifiesto(f)
     if m.get("sesion") and m["sesion"] != motor.S.semana:
         raise ValueError(f"Esa copia es de la sesión «{m['sesion']}»: ábrela primero")
+    import proyecto
     antes = hacer(nombre=f"Antes de restaurar {m.get('fecha', '')}", auto=False)
     S = motor.S
-    with _cerrojo, zipfile.ZipFile(f) as z:
-        nombres = [n for n in z.namelist() if n != "respaldo.json" and ".." not in n]
+    # con el cerrojo del proyecto: que no se suba a Drive una sesión a medio restaurar.
+    # De qué versión del proyecto parte esta PC no se restaura: así lo restaurado cuenta como un cambio de aquí y se
+    # sube como versión nueva (si volviera también ese dato, la sala creería estar atrasada y ofrecería «Actualizar»).
+    with proyecto._cerrojo, _cerrojo, zipfile.ZipFile(f) as z:
+        nombres = [n for n in z.namelist() if n != "respaldo.json" and ".." not in n and Path(n).name != proyecto.LOCAL]
         sesion = {n[len("sesion/"):] for n in nombres if n.startswith("sesion/")}
         # lo que no estaba en la copia (una versión o un ajuste creado después) se quita: la sesión queda igual que entonces
         if S.subs.exists():
             for g in S.subs.rglob("*.json"):
                 rel = g.relative_to(S.subs)
-                if rel.as_posix() not in sesion and not any(p.startswith("_respaldo") for p in rel.parts[:-1]):
+                if rel.as_posix() not in sesion and rel.name != proyecto.LOCAL and not any(p.startswith("_respaldo") for p in rel.parts[:-1]):
                     g.unlink()
         for n in nombres:
             datos = z.read(n)
@@ -192,7 +196,7 @@ def restaurar(nombre_archivo):
             destino.write_bytes(datos)
     # todo lo que usa la sesión cambió: los videos quedan por rearmar
     motor.guardar_config({"estilo_cambio": time.time()})
-    return {"restaurada": f.name, "antes": antes["archivo"] if antes else None}
+    return {"restaurada": f.name, "fecha": m.get("fecha", ""), "antes": antes["archivo"] if antes else None}
 
 
 def vigilar():

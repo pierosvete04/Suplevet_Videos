@@ -361,6 +361,46 @@ Al final responde SOLO con JSON, sin texto antes ni después:
     return datos
 
 
+def rehacer_musica(mus_id, nota="", avance=print):
+    """«⟳ Regenerar prompt» de una pista (MUS_A…): Claude reescribe su prompt de Flow Music con la regla de la marca
+    (adrenalina) y, si hay, la nota del equipo. El prompt anterior queda en las notas de la pista."""
+    actualizar_conocimiento(avance)
+    motor.usar_semana(motor.S.semana)
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise RuntimeError("Esta sesión no tiene guion")
+    datos = json.loads(prod.read_text(encoding="utf-8"))
+    m = next((x for x in datos.get("musica", []) if str(x.get("id", "")).lower() == mus_id.lower()), None)
+    if not m:
+        raise RuntimeError(f"No encuentro {mus_id} en el guion")
+    pr = m.setdefault("prompt", {})
+    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    prompt = f"""Hay que reescribir el prompt de Google Flow Music de la pista «{m['id']}» de unos videos de Suplevet.
+Para qué se usa: {m.get('uso', '')}
+Prompt actual: {pr.get('prompt') or '(no hay: escríbelo desde cero)'}
+{('Lo que pide el equipo: ' + nota.strip()) if nota.strip() else ''}
+
+Las reglas de la música están en la sección «Música» de {reglas}. Léela antes de escribir. Además:
+- REGLA DE LA MARCA: SIEMPRE con adrenalina: enérgica, de 120 a 150 BPM, percusión marcada, bajo fuerte y tensión que empuja
+  (trap, EDM, phonk, drum & bass, hip-hop enérgico). NUNCA suave, acústica, cálida, relajada, lo-fi, ambiental, de piano suave
+  ni «corporate»: no uses esas palabras en el prompt (soft, gentle, calm, acoustic, warm, chill, mellow, ambient, lo-fi, plucked…).
+- En inglés, instrumental, sin voces, sin nombres de artistas ni canciones, que sirva de fondo para la voz.
+- En «evitar» pon siempre: soft, acoustic, calm, gentle, warm, lo-fi, ambient (y lo que ya estaba que siga valiendo).
+No edites ningún archivo. Responde SOLO con JSON, sin texto antes ni después:
+{{"prompt": "…", "evitar": "…", "duracion": "{pr.get('duracion') or '60 s'}", "cambio": "qué cambiaste, en una frase en español"}}"""
+    respuesta = correr(prompt, [], avance=avance, max_turnos=10)
+    inicio, fin = respuesta.find("{"), respuesta.rfind("}")
+    nuevo = json.loads(respuesta[inicio:fin + 1]) if 0 <= inicio < fin else {}
+    if not str(nuevo.get("prompt", "")).strip():
+        raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
+    m.setdefault("notas", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "nota": nota.strip() or "regenerar con adrenalina",
+                                      "prompt_anterior": pr.get("prompt", "")})
+    pr.setdefault("herramienta", "Google Flow Music")
+    pr.update({k: nuevo[k] for k in ("prompt", "evitar", "duracion") if nuevo.get(k)})
+    prod.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
+    return nuevo
+
+
 def rehacer_imagen(asset_id, nota, avance=print):
     """La nota del equipo sobre una imagen o clip de Flow («tiene arándanos, que se vea el polvo») -> Claude reescribe su prompt.
     El prompt nuevo y la nota quedan en produccion.json; la imagen se vuelve a generar en Flow con ese prompt."""
@@ -398,6 +438,8 @@ No edites ningún archivo. Responde SOLO con JSON, sin texto antes ni después:
         raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
     a.setdefault("notas", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "nota": nota.strip(), "prompt_anterior": flow.get("prompt", "")})
     flow.update({k: nuevo[k] for k in ("prompt", "plan_b", "que_muestra") if nuevo.get(k)})
+    # la imagen que ya estaba es la del prompt viejo: queda «por regenerar» hasta que llegue una más nueva que esto
+    a["prompt_nuevo_t"] = time.time()
     prod.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
     return nuevo
 

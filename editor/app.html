@@ -50,9 +50,6 @@ body { margin: 0; color: var(--ink); font: 14px/1.5 var(--f); min-height: 100vh;
 ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 10px; border: 2px solid var(--bg); } ::-webkit-scrollbar-track { background: transparent; }
 /* Encabezado en dos filas: arriba la app y el proyecto (con avisos, menú y cuenta), abajo la sesión y las acciones de trabajo */
 header { display: grid; gap: 8px; padding: 10px 20px 9px; background: var(--vidrio); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
-.marca-app { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.logo-app { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none;
-  background: linear-gradient(135deg, #1d4ed8, #3d8bff 55%, #5ee1ff); box-shadow: 0 0 18px rgba(61,139,255,.45); font: 800 15px var(--fd); color: #fff; }
 h1 { font: 700 16px var(--fd); margin: 0; letter-spacing: .01em; }
 h1 .muted { font-weight: 600; }
 h2 { font: 650 15px var(--fd); margin: 0 0 10px; letter-spacing: .01em; }
@@ -112,7 +109,7 @@ section[hidden] { display: none; }
 .caja.brilla { box-shadow: var(--glow); border-color: rgba(61,139,255,.35); }
 #trabajo { font-size: 13px; max-width: 460px; }
 #aviso { min-height: 1.4em; }
-#aviso.err, .err { color: var(--err); } #aviso.ok, .ok { color: var(--ok); }
+#aviso.err, .err { color: var(--err); } #aviso.ok, .ok { color: var(--ok); } #aviso.warn { color: var(--warn); }
 
 /* Inicio */
 .inicio { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -301,8 +298,6 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
   padding: 10px 16px; border-radius: 999px; background: var(--flotante); border: 1px solid rgba(61,139,255,.45); color: var(--ink); font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.6), 0 0 20px rgba(61,139,255,.2); }
 #estadoTrabajo[hidden] { display: none; }
 #estadoTrabajo { cursor: pointer; }
-.btn.icono { padding: 7px 11px; font-size: 16px; line-height: 1; position: relative; }
-.btn.icono .punto { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
 #estadoTrabajo #trabajo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rueda { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 3px solid rgba(61,139,255,.22); border-top-color: var(--accent2); animation: girar .8s linear infinite; }
 @keyframes girar { to { transform: rotate(360deg); } }
@@ -743,8 +738,11 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
 .pf-fichas { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
 .pf-ficha.soltar { place-items: start; text-align: left; padding: 10px 12px; border-width: 2px; }
 .pf-ficha.soltar code { font-size: 13px; font-weight: 700; color: var(--ink); } .pf-ficha.soltar small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
-.mus-suave { padding: 8px 10px; border-radius: 10px; font-size: 12.5px; background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px solid var(--warn); }
-.prompt-corto { font-size: 12.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mus-suave { display: grid; gap: 8px; justify-items: start; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px solid var(--warn); }
+.prompt-legible { display: grid; gap: 4px; font-size: 12.5px; line-height: 1.45; margin: 6px 0; overflow-wrap: anywhere; }
+/* 3 renglones justos: dentro de un grid/flex la caja se estiraba y el corte caía a media línea */
+.prompt-corto { font-size: 12.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  align-self: start; max-height: calc(1.45em * 3); margin: 0; }
 @media (max-width: 900px) { .fl-pasos { grid-template-columns: minmax(0, 1fr); } .fl-btn-tira { width: 100%; } }
 .fl-paso { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--hondo, var(--surface2)); min-width: 0; }
 .fl-tit { display: flex; align-items: center; gap: 10px; font-size: 15px; }
@@ -897,13 +895,8 @@ dialog.bienvenida { width: min(980px, 96vw); max-height: 92vh; padding: 0; borde
 .conexion .marca { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 /* Cabecera en tres bloques: marca · sesión · acciones. Se acomoda sola al ancho de la ventana */
 #avisoVersion { order: 4; }
-.cab-fila1, .cab-fila2 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; min-width: 0; }
+.cab-fila2 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; min-width: 0; }
 .cab-fila2 { border-top: 1px solid var(--line); padding-top: 8px; }
-.marca-app { flex: 1 1 auto; }
-.cab-tit { display: grid; gap: 1px; min-width: 0; line-height: 1.15; }
-.cab-app { font: 700 10.5px var(--mono); letter-spacing: .14em; color: var(--muted); }
-.cab-tit h1 { font: 750 19px var(--fd); letter-spacing: -.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cab-iconos { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: none; }
 .cab-sesion { display: flex; align-items: center; gap: 8px; flex: 1 1 320px; min-width: 0; }
 .cab-sesion label { font-size: 12px; flex: none; }
 .cab-sesion #semana { flex: 0 1 340px; min-width: 120px; text-overflow: ellipsis; padding: 6px 10px; font-size: 13.5px; }
@@ -911,10 +904,8 @@ dialog.bienvenida { width: min(980px, 96vw); max-height: 92vh; padding: 0; borde
 .cab-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; margin-left: auto; }
 .txt-corto { display: none; }
 @media (max-width: 1200px) { .txt-largo { display: none; } .txt-corto { display: inline; } }
-@media (max-width: 1050px) { #cuentaChip .cta-chip { padding: 3px; } #cuentaChip .cta-chip span { display: none; } }
 @media (max-width: 640px) {
   header { padding: 8px 12px; }
-  .cab-tit h1 { font-size: 16px; }
   .cab-sesion { flex-basis: 100%; } .cab-sesion #semana { flex: 1 1 auto; }
   .cab-acciones { flex: 1 1 100%; justify-content: stretch; } .cab-acciones > * { flex: 1 1 auto; text-align: center; }
   .cab-acciones > a[href="/teleprompter"] { flex: 0 0 auto; }
@@ -989,7 +980,6 @@ dialog .toast, .toast-pag { position: fixed; left: 50%; bottom: 22px; transform:
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; color: var(--ink); }
 dialog .toast.ver, .toast-pag.ver { opacity: 1; transform: translate(-50%, 0); }
 dialog .toast.err, .toast-pag.err { border-color: var(--err); } dialog .toast.ok, .toast-pag.ok { border-color: var(--ok); }
-.btn.icono .punto.num { width: auto; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font: 700 10px/16px var(--f); color: #fff; background: var(--err); top: -5px; right: -5px; }
 .pasos-prod { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
 .pasos-prod label { color: var(--ink); }
 .res-prod { display: grid; gap: 2px; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--hondo); border-left: 3px solid var(--line2); }
@@ -1242,10 +1232,14 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .ex-destino { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); font-size: 12px; line-height: 1.45; min-width: 0; }
 .ex-ruta { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
 .ex-destino .btn { justify-self: start; }
-/* Estilo de edición: dos opciones con interruptor, una al lado de la otra */
+/* Estilo de edición: los grupos en columnas (Cámara · Imagen · Cortes y Sonido), cada opción con su interruptor */
 .es-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 12px; }
 .es-cab h2 { margin: 0; } .es-cab p { margin: 0; font-size: 12.5px; }
-.es-grupos { display: grid; gap: 22px; max-width: 880px; }
+.es-grupos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.es-col { display: grid; gap: 18px; min-width: 0; }
+.es-grupo { min-width: 0; }
+@media (max-width: 1250px) { .es-grupos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .es-col { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+@media (max-width: 780px) { .es-grupos, .es-col { grid-template-columns: 1fr; } }
 .es-grupo > header { all: unset; display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px 2px; }
 .es-grupo > header h3 { margin: 0; font: 700 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent2); }
 .es-grupo > header span { font-size: 12px; color: var(--muted); }
@@ -1253,9 +1247,9 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .es-opcion { display: grid; gap: 0; min-width: 0; padding: 14px 16px; border-top: 1px solid var(--line); transition: background .15s; }
 .es-opcion:first-child { border-top: 0; }
 .es-fila { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 14px; cursor: pointer; }
-.es-ajustes { display: grid; gap: 10px; margin: 12px 0 2px 54px; padding: 12px 14px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); }
+.es-ajustes { display: grid; gap: 10px; margin: 12px 0 2px; padding: 12px 14px; border-radius: 10px; background: var(--hondo); border: 1px solid var(--line); }
 .es-ajustes[hidden] { display: none; }
-.es-ajuste { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.es-ajuste { display: grid; grid-template-columns: 78px minmax(0, 1fr); align-items: center; gap: 6px 12px; font-size: 12px; color: var(--muted); }
 .es-ajuste > :last-child { justify-self: start; }
 .es-ajuste .ds-seg { flex-wrap: wrap; max-width: 100%; width: auto; }  /* con muchas opciones, los botones bajan de línea */
 .es-ajuste .ds-seg button { padding: 5px 11px; font-size: 12px; min-height: 30px; }
@@ -1263,7 +1257,7 @@ dialog#dlgEditor { width: min(1400px, 98vw); max-height: 96vh; }
 .es-opcion:hover { background: color-mix(in srgb, var(--accent) 3%, transparent); }
 .es-opcion:has(.interruptor:checked) .es-ico { background: var(--accent); color: #fff; }
 .es-opcion:has(.interruptor:checked) .es-ico rect { opacity: .5; }
-@media (max-width: 640px) { .es-ajustes { margin-left: 0; } .es-ajuste { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .es-ajuste { grid-template-columns: 1fr; } }
 /* Plantillas: dos páginas, «Estilo de edición» y «Subtítulos» */
 .plant-vistas { margin-bottom: 14px; }
 .plant-vistas button { padding: 7px 16px; font-size: 13px; }
@@ -1418,29 +1412,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 </head>
 <body>
 <header id="cab">
-  <div class="cab-fila1">
-    <div class="marca-app"><div class="logo-app" aria-hidden="true">E</div>
-      <div class="cab-tit"><span class="cab-app">SALA DE EDICIÓN</span><h1 id="prefijo">—</h1></div></div>
-    <div class="cab-iconos">
-      <button class="btn sec proy-btn" id="proyBtn" type="button" hidden title="Proyecto compartido: lo que se edita en otras PCs">☁ Proyecto</button>
-      <button class="btn sec icono" id="verNotifs" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="punto num" id="nNotifs" hidden></span></button>
-      <button class="btn sec icono" id="verProcesos" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="punto" id="puntoProceso" hidden></span></button>
-    <span class="cuenta-ancla">
+  <div class="app-cab">
+    <div class="app-marca"><div class="app-logo" aria-hidden="true" style="background:linear-gradient(135deg,#1d4ed8,#3d8bff 55%,#5ee1ff)">E</div>
+      <div class="app-tit"><span class="app-nombre">Sala de edición</span><h1 class="app-titulo" id="prefijo">—</h1></div></div>
+    <div class="app-iconos">
+      <button class="app-ico proy-btn" id="proyBtn" type="button" hidden title="Proyecto compartido: lo que se edita en otras PCs">☁ Proyecto</button>
+      <button class="app-ico solo" id="verNotifs" type="button" title="Notificaciones: todos los avisos de la sala" aria-label="Notificaciones">🔔<span class="app-num" id="nNotifs" hidden></span></button>
+      <button class="app-ico solo" id="verProcesos" type="button" title="Procesos: lo que está haciendo la sala y para cancelarlo" aria-label="Procesos">☰<span class="app-punto" id="puntoProceso" hidden></span></button>
       <span id="cuentaChip"></span>
-      <div id="menuCuenta" class="menu-cuenta" role="menu" aria-label="Tu cuenta y configuración" hidden>
-        <div class="mc-yo" id="mcYo"></div>
-        <button role="menuitem" data-conf="confCuenta">👤 Cuenta y dispositivos</button>
-        <button role="menuitem" data-conf="confConexiones">🔌 Conexiones <span class="pill" id="mcNCon"></span></button>
-        <button role="menuitem" data-conf="confDrive">☁ Google Drive <span class="punto-estado" id="mcPDrive"></span></button>
-        <button role="menuitem" data-conf="confTablet">📱 Teleprompter en la tablet <span class="punto-estado" id="mcPRed"></span></button>
-        <button role="menuitem" data-conf="confAct">⟳ Actualizaciones <span class="punto-estado" id="mcPAct"></span></button>
-        <button role="menuitem" data-conf="confNotas">✎ Notas para Claude</button>
-        <button role="menuitem" data-conf="confRespaldos">🛟 Copias de seguridad</button>
-        <hr>
-        <a role="menuitem" href="/teleprompter" target="_blank">📜 Abrir el teleprompter</a>
-        <button role="menuitem" id="tema" title="Cambiar entre modo claro y oscuro"></button>
-      </div>
-    </span>
     </div>
   </div>
   <div class="cab-fila2">
@@ -1537,7 +1516,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 <label class="muted" style="display:grid;gap:4px;font-size:12px">Para
                   <select id="clNuevaTipo"><option value="ADS">Ads (anuncios pagados)</option><option value="ORG">Orgánico</option><option value="">Los dos</option></select></label>
                 <label class="muted" style="display:grid;gap:4px;font-size:12px">Tema
-                  <input id="clNuevaNombre" placeholder="ARTICULACIONES"></label>
+                  <input id="clNuevaNombre" maxlength="45" placeholder="ARTICULACIONES"></label>
               </div>
               <span style="font-size:12.5px">Se va a llamar: <b id="clNuevaVista"></b></span>
               <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas: Guiones (el guion), Clips (solo lo grabado), Flow (imágenes y clips de apoyo), Musica y V.FINALES. Todo lo que se grabe para este guion, el día que sea, va dentro. El día de grabación no hace falta.</span>
@@ -1577,10 +1556,10 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button data-vista="cuerpo" aria-pressed="true">Por cuerpo</button>
           <button data-vista="hook" aria-pressed="false">Por hook</button>
           <button data-vista="cta" aria-pressed="false">Por CTA</button>
-          <button data-vista="todos" aria-pressed="false">Todos</button>
+          <button data-vista="todos" aria-pressed="false">Sin agrupar</button>
         </div>
         <div class="segmento" id="filtroEstado" role="group" aria-label="Filtrar por estado">
-          <button data-estado="" aria-pressed="true">Todos</button>
+          <button data-estado="" aria-pressed="true">Todos los estados</button>
           <button data-estado="pendiente" aria-pressed="false">Por revisar</button>
           <button data-estado="editando" aria-pressed="false">Editando</button>
           <button data-estado="listo" aria-pressed="false">Aprobados</button>
@@ -1663,7 +1642,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <button data-gvista="video" aria-pressed="false">Hook + cuerpo</button>
     </div>
     <div class="fila" id="gBuscarFila" style="margin-bottom:12px">
-      <input id="gBuscar" type="search" placeholder="Buscar palabras que se dicen: «quirófano analgésicos», «ya no es el mismo»…" aria-label="Buscar palabras en el guion" style="flex:1;min-width:220px">
+      <input id="gBuscar" type="search" placeholder="Buscar palabras que se dicen: «se rasca», «Suplevet»…" aria-label="Buscar palabras en el guion" style="flex:1;min-width:220px">
       <span class="muted" id="gBuscarN" style="font-size:12px"></span>
     </div>
     <div id="guionLista" class="grid-assets" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,580px),1fr))"></div>
@@ -1764,29 +1743,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       </div>
       <div id="listaDescargas" class="grid-assets" style="margin-top:12px"></div>
     </div>
-    <div class="caja" style="margin-bottom:14px" id="cajaOrdenar">
-      <div class="fila" style="justify-content:space-between">
-        <div><h2 style="margin:0">Ordenar la sesión en Drive</h2>
-          <span class="muted" style="font-size:12px">Cada clip ya identificado toma el nombre de su pieza del guion y va a su carpeta (IMG_1058.MOV → Clips/Hooks/C2_H3.MOV), en Drive y en esta PC. No se vuelve a procesar nada ni se pierde lo editado.</span></div>
-        <div class="fila"><button class="btn" id="ordenarTodo" type="button" title="Escucha los clips nuevos, los compara con el guion, asigna los que coinciden y los renombra. Se hace en esta PC, sin Claude.">Analizar y renombrar todo</button>
-          <button class="btn sec" id="ordenarVer" type="button">Ver cómo quedarían</button>
-          <button class="btn sec" id="informeVer" type="button">Qué no se identificó</button></div>
-      </div>
-      <div id="ordenarLista" style="margin-top:10px"></div>
-      <div id="informeClips" style="margin-top:10px"></div>
-    </div>
-    <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
-      <div class="fila" style="justify-content:space-between">
-        <div><h2 style="margin:0">Clips por identificar <span class="pill" id="nSinAsignar"></span></h2>
-          <span class="muted" style="font-size:12px">Clips con nombre de cámara (IMG_1016…). La sala pasa su audio a texto <b>en esta PC</b> (gratis, sin Claude), lo compara con el guion y dice qué pieza es cada uno. Los archivos no se renombran.</span></div>
-        <div class="fila">
-          <button class="btn sec" id="numerarHooks" hidden>Numerar hooks en orden</button>
-          <button class="btn" id="escuchar" title="Trae los clips de Drive, los escucha, los compara con el guion e identifica los que se parecen claramente">Analizar clips</button>
-          <button class="btn sec" id="aceptarSug" title="Asigna cada clip a la pieza que sugirió la sala (solo los de 50 % de parecido o más)">Aceptar lo sugerido</button>
-        </div>
-      </div>
-      <div id="listaDescargas" class="grid-assets"></div>
-    </div>
+    <!-- «Ordenar la sesión» y «Clips por identificar» estaban dos veces (con los mismos id): los botones de la copia
+         de abajo no hacían nada y el cuadro «❓ Clips por identificar» llevaba a la de arriba. Quedan solo las de abajo. -->
     <div class="caja fl-seccion" id="cajaMusica">
       <div class="fl-sec-cab"><h2 style="margin:0">🎵 Música <span class="pill" id="nMusica"></span></h2>
         <span class="muted">Una pista por cuerpo, siempre instrumental y con adrenalina. Genérala en Google Flow Music (o Suno) con el prompt y suéltala en su cuadro: no hace falta renombrarla.</span></div>
@@ -1883,7 +1841,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <label>Nombre<input data-p="nombre"></label>
             <fieldset><legend>Letra</legend>
               <div class="dos"><label>Fuente<select data-p="fuente" id="plantFuente"></select></label>
-                <label>Tamaño<input type="number" min="30" max="180" data-p="tamano"></label></div>
+                <label>Tamaño<input type="number" min="20" max="260" data-p="tamano"></label></div>
               <div class="dos"><label>Mayúsculas<select data-p="mayusculas"><option value="true">Sí</option><option value="false">No</option></select></label>
               <label title="Si la frase no entra en el ancho del cuadro, pasa a dos líneas (en vez de achicarse)">Si no entra<select data-p="salto_auto"><option value="false">Se achica</option><option value="true">Pasa a 2 líneas</option></select></label></div>
               <div class="dos"><label title="Cuántas palabras salen a la vez">Texto en pantalla<select data-p="frase_completa"><option value="false">De a pocas palabras</option><option value="true">La frase completa</option></select></label></div>
@@ -1891,7 +1849,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 <label>Espacio entre letras (%)<input type="number" min="-5" max="30" step="1" data-p="espaciado"></label></div>
               <div class="dos"><label>Color del texto<input type="color" data-p="color_texto"></label>
                 <label>Palabra que se dice<input type="color" data-p="color_activo"></label></div>
-              <div class="dos"><label>Cuánto crece la que se dice (%)<input type="number" min="100" max="140" data-p="escala_activa"></label>
+              <div class="dos"><label>Cuánto crece la que se dice (%)<input type="number" min="50" max="300" data-p="escala_activa"></label>
                 <label>Palabras clave (color)<input type="color" data-p="color_resaltado"></label></div>
             </fieldset>
             <fieldset><legend>Borde y sombra</legend>
@@ -2021,7 +1979,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           </div>
           <div class="caja">
             <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Clips propuestos <span class="pill" id="clNProp"></span></h2>
-              <span class="muted" style="font-size:12px">Elige los que van. Mueve el inicio y el final si hace falta, y mira cada uno con ▶.</span></div>
+              <span class="muted" id="clElige" style="font-size:12px">Elige los que van. Mueve el inicio y el final si hace falta, y mira cada uno con ▶.</span></div>
             <div id="clLista" class="cl-lista"></div>
           </div>
           <div class="caja cl-opciones form-plant">
@@ -2257,7 +2215,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <div class="conf-cab">
             <div><h2>Copias de seguridad</h2>
               <p class="muted">Copias solo de tus cambios (subtítulos, cortes, zooms, versiones, portadas, copies, guion y ajustes), no de los videos: cada una pesa unos KB.
-                La sala guarda una sola cada pocos minutos si algo cambió, y también en Drive. Si algo sale mal, vuelve a una copia y rearma.</p></div>
+                La sala guarda una sola cada pocos minutos si algo cambió, y también en Drive. Si algo sale mal, vuelve a una copia y rearma: lo restaurado se sube como versión nueva del proyecto para todo el equipo.</p></div>
             <button class="btn" id="respGuardar">Guardar copia ahora</button>
           </div>
           <div id="respLista" class="resp-lista"></div>
@@ -2297,7 +2255,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <p class="muted" style="margin:0;font-size:13px">Después de subir los clips de la grabación, la sala hace todo seguido. Puedes dejarlo corriendo; al final te muestra un resumen y te avisa en 🔔.</p>
     <ol class="pasos-prod">
       <li>Escucha los clips nuevos, los compara con el guion y asigna los que coinciden.</li>
-      <li><label><input type="checkbox" id="prodRenombrar" checked> Renombra los clips con el código de su pieza, en Drive y en esta PC.</label></li>
+      <li><label><input type="checkbox" id="prodRenombrar" checked> Renombra los clips con el código de su pieza, en Drive y en esta PC <span class="muted">(cambia los nombres en el Drive del equipo)</span>.</label></li>
       <li>Prepara los clips: corta los silencios, iguala el volumen y pasa el audio a texto.</li>
       <li>Arma todos los videos.</li>
       <li>Revisa la calidad de cada video.</li>
@@ -2307,6 +2265,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     </ol>
     <div class="fila"><button class="btn" id="prodEmpezar" type="button">Empezar</button><span class="muted" id="prodEstimado" style="font-size:12.5px"></span></div>
   </div>
+  <div style="padding:16px;display:grid;gap:12px" id="prodResumen" hidden></div>
 </dialog>
 <dialog id="dlgNotifs" class="pop-notifs" aria-labelledby="notifTit">
   <div class="pn-cab">
@@ -2454,7 +2413,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <label class="muted ev-campo" style="flex:1">Tema<input id="bvTema" placeholder="ARTICULACIONES" required></label>
       </div>
       <span style="font-size:13px">Se va a llamar: <b id="bvNombre"></b></span>
-      <span class="muted" style="font-size:12px">Se crea en Drive con sus carpetas (Guiones, Clips, Flow, Musica y V.FINALES) y arranca vacía: la sala te va diciendo qué falta.</span>
+      <span class="muted" style="font-size:12px">Se crea en Drive con sus carpetas (Guion, Clips, Flow y V.FINALES) y arranca vacía: la sala te va diciendo qué falta.</span>
       <div class="fila"><button class="btn" id="bvCrear">Crear y abrir</button><button class="btn sec" type="button" id="bvNuevaNo">Cancelar</button></div>
     </form>
     <div class="bv-lista" id="bvLista" role="list"></div>
@@ -2494,7 +2453,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="fila" style="justify-content:space-between"><h2 id="pyTit" style="margin:0">Proyecto de la sesión</h2><button class="btn sec peq" type="button" id="pyCerrar">Cerrar</button></div>
     <div id="pyAviso"></div>
     <details id="pyHist"><summary class="muted" style="cursor:pointer">Historial: quién cambió qué y cuándo</summary><div id="pyLista" class="py-lista"></div></details>
-    <p class="muted" style="margin:0;font-size:11.5px">Lo que editas aquí (subtítulos, marcas, cortes, zoom, imágenes, versiones, portadas y copies) se sube solo a Drive cada minuto, y las otras PCs ven el aviso para traerlo. Antes de traer algo, la sala guarda una copia de lo tuyo (Configuración → Copias de seguridad).</p>
+    <p class="muted" style="margin:0;font-size:11.5px">Lo que editas aquí (subtítulos, marcas, cortes, zoom, imágenes, versiones, portadas y copies) se sube solo a Drive cada minuto, y las otras PCs ven el aviso para traerlo. Antes de traer algo, la sala guarda una copia de lo tuyo (Configuración → Copias de seguridad).
+      «Volver a esta» no borra nada: guarda esa versión como una nueva al final del historial, que pasa a ser la de todo el equipo.</p>
   </div>
 </dialog>
 <dialog id="dlgAtajos" aria-labelledby="atTit" style="width:min(620px,94vw)">
@@ -2578,10 +2538,10 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="lado"><span>♡</span><span>💬</span><span>➤</span></div><div class="txt" id="telTxt"></div></div>
     </div>
     <div>
-      <div class="campo"><label for="cInstagram">Copy Instagram</label><textarea id="cInstagram" rows="6"></textarea><span class="cuenta" data-de="cInstagram"></span></div>
-      <div class="campo"><label for="cTiktok">Copy TikTok</label><textarea id="cTiktok" rows="5"></textarea><span class="cuenta" data-de="cTiktok"></span></div>
-      <div class="campo"><label for="cYtTitulo">Título YouTube Shorts</label><input id="cYtTitulo" maxlength="100"><span class="cuenta" data-de="cYtTitulo"></span></div>
-      <div class="campo"><label for="cYoutube">Descripción YouTube</label><textarea id="cYoutube" rows="4"></textarea></div>
+      <div class="campo"><label for="cInstagram">Copy Instagram</label><textarea id="cInstagram" rows="6"></textarea><span class="cuenta" data-de="cInstagram" data-max="2200"></span></div>
+      <div class="campo"><label for="cTiktok">Copy TikTok</label><textarea id="cTiktok" rows="5"></textarea><span class="cuenta" data-de="cTiktok" data-max="4000"></span></div>
+      <div class="campo"><label for="cYtTitulo">Título YouTube Shorts</label><input id="cYtTitulo" maxlength="100"><span class="cuenta" data-de="cYtTitulo" data-max="100"></span></div>
+      <div class="campo"><label for="cYoutube">Descripción YouTube</label><textarea id="cYoutube" rows="4"></textarea><span class="cuenta" data-de="cYoutube" data-max="5000"></span></div>
       <div class="fila"><button class="btn" id="guardarCopy">Guardar copy</button>
         <button class="btn sec peq" id="copiarCopy">Copiar copy de esta red</button></div>
       <details><summary>Qué hizo el editor automático</summary><div id="dlgReceta"></div></details>
@@ -2606,7 +2566,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <label class="fila" style="display:flex;color:var(--ink);font-size:12.5px"><input type="checkbox" id="porSolo"> Usar la imagen tal cual (sin título ni logo)</label>
           </fieldset>
           <fieldset><legend>Título</legend>
-            <label>Texto (*palabra* sale con el color de acento)<input id="porTitulo" placeholder="Heridas que se *complican*"></label>
+            <label>Texto (*palabra* sale con el color de acento)<input id="porTitulo" maxlength="120" placeholder="Escribe el título; la *palabra* entre asteriscos va en color"></label>
             <div class="dos"><label>Letra<select id="porFuente"></select></label><label>Tamaño<input type="number" id="porTam" min="50" max="220" step="2"></label></div>
             <div class="dos"><label>Color del texto<input type="color" id="porColor"></label><label>Color de acento<input type="color" id="porAcento"></label></div>
             <div class="dos"><label>Borde<input type="number" id="porBorde" min="0" max="30"></label><label>Color del borde<input type="color" id="porColorBorde"></label></div>
@@ -2755,11 +2715,11 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 // Notificaciones: cada aviso que importa (listo, error) queda guardado en esta PC; la campana muestra los no leídos
 const NOTIF_IGNORAR = /^(Guardando|Buscando|Revisando|Cargando)/;
 function leerNotifs() { try { return JSON.parse(localStorage.getItem("sala_notifs") || "[]"); } catch (e) { return []; } }
-function guardarNotif(txt, cls) {
+function guardarNotif(txt, cls, leida = false) {
   if (!txt || cls === "muted" || NOTIF_IGNORAR.test(txt)) return;
   const l = leerNotifs();
   if (l[0] && l[0].txt === txt && Date.now() - l[0].t < 5000) return;
-  l.unshift({ t: Date.now(), txt, cls, leida: false });
+  l.unshift({ t: Date.now(), txt, cls, leida });
   try { localStorage.setItem("sala_notifs", JSON.stringify(l.slice(0, 200))); } catch (e) {}
   pintarCampana();
 }
@@ -2779,6 +2739,9 @@ const fmt = t => Number(t).toFixed(2) + " s";
 const avisar = (txt, cls = "muted") => {
   const a = $("aviso"); a.textContent = txt; a.className = cls;
   guardarNotif(txt, cls);
+  // el aviso de arriba se borra solo (quedaba minutos); los errores duran un poco más. Todos quedan en Notificaciones.
+  clearTimeout(a._t);
+  if (txt) a._t = setTimeout(() => { if (a.textContent === txt) { a.textContent = ""; a.className = ""; } }, cls === "err" ? 14000 : 8000);
   if (txt && !document.querySelector("dialog[open]")) {  // el aviso de arriba no se ve: sale también abajo, flotando
     const r = a.getBoundingClientRect(), tope = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--alto-header")) || 56;
     if (r.bottom < tope + 60 || r.top > innerHeight) {
@@ -2821,7 +2784,8 @@ document.addEventListener("click", e => {
 // ---------- Preguntas y avisos en ventanas de la sala ----------
 // confirm(), prompt() y alert() del navegador no se ven en la ventana del programa: la página quedaba esperando una
 // respuesta invisible (la ✕ del video no cerraba). Estas son ventanas de la sala, y cada decisión queda en Notificaciones.
-function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false }) {
+// validar(valor): con un campo, devuelve un texto de error para no cerrar la ventana (o nada si está bien)
+function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false, validar = null }) {
   return new Promise(ok => {
     const d = $("dlgPregunta");
     $("pqTexto").textContent = texto;
@@ -2829,7 +2793,11 @@ function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = n
     $("pqSi").className = "btn" + (peligro ? " peligro-btn" : "");
     $("pqCampo").hidden = campo === null; $("pqCampo").value = campo ?? "";
     const cerrar = v => { d.close(); $("pqSi").onclick = $("pqNo").onclick = null; d.oncancel = null; $("pqCampo").onkeydown = null; ok(v); };
-    $("pqSi").onclick = () => cerrar(campo === null ? true : $("pqCampo").value);
+    $("pqSi").onclick = () => {
+      const mal = campo !== null && validar ? validar($("pqCampo").value) : "";
+      if (mal) { avisar(mal, "err"); $("pqCampo").focus(); return; }
+      cerrar(campo === null ? true : $("pqCampo").value);
+    };
     $("pqNo").onclick = () => cerrar(campo === null ? false : null);
     d.oncancel = e => { e.preventDefault(); cerrar(campo === null ? false : null); };
     $("pqCampo").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("pqSi").click(); } };
@@ -2838,13 +2806,16 @@ function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = n
   });
 }
 const resumenPregunta = txt => String(txt).split(/[?.\n]/)[0].replace(/^¿/, "").slice(0, 110);
-async function preguntar(texto) {
-  const peligro = /borrar|quitar|descartar|perder|desconectar|cerrar el link/i.test(texto);
-  const r = await ventanaPregunta({ texto, si: peligro ? "Sí" : "Sí, seguir", peligro });
-  guardarNotif((r ? "✓ Confirmaste: " : "✕ Cancelaste: ") + resumenPregunta(texto), "ok");  // queda en Notificaciones (las «muted» no se guardan)
+// si: el texto del botón. Si no se da, en las que borran algo dice qué hace («Borrar», «Quitar»…) en vez de «Sí» a secas
+async function preguntar(texto, si) {
+  const peligro = /borrar|quitar|descartar|perder|desconectar|cerrar el link|reemplaz/i.test(texto);
+  const accion = [[/perder|descartar/i, "Descartar cambios"], [/borrar/i, "Sí, borrar"], [/quitar/i, "Sí, quitar"],
+    [/desconectar/i, "Desconectar"], [/cerrar el link/i, "Cerrar el link"], [/reemplaz/i, "Sí, reemplazar"]].find(([re]) => re.test(texto));
+  const r = await ventanaPregunta({ texto, si: si || (accion ? accion[1] : "Sí, seguir"), peligro });
+  guardarNotif((r ? "Confirmaste: " : "Cancelaste: ") + resumenPregunta(texto), "info", true);  // queda en Notificaciones, ya leída (no suma a la campana)
   return r;
 }
-async function pedirTexto(texto, valor = "") { return ventanaPregunta({ texto, si: "Aceptar", campo: String(valor ?? "") }); }
+async function pedirTexto(texto, valor = "", validar = null) { return ventanaPregunta({ texto, si: "Aceptar", campo: String(valor ?? ""), validar }); }
 function avisoModal(texto) { return ventanaPregunta({ texto: String(texto), si: "Entendido", no: null }); }
 const norm = w => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ]/g, "");
 // El botón que se tocó queda «esperando» mientras el pedido va y vuelve: un segundo clic no hace nada
@@ -2880,7 +2851,7 @@ async function cargar() {
   $("semana").innerHTML = [...activas].reverse().map(s => `<option ${s === E.semana ? "selected" : ""}>${esc(s)}</option>`).join("")
     + (activas.includes(E.semana) ? "" : `<option value="${esc(E.semana)}" selected>${esc(E.semana)} (archivada)</option>`)
     + `<option value="__link">📁 Abrir desde un link de carpeta…</option><option value="__buscar">Ver todas las sesiones…</option><option value="__nueva">+ Nueva sesión…</option>`;
-  $("notas").value = E.notas;
+  if (!notasSucias) $("notas").value = E.notas;
   $("actVersion").textContent = "v" + E.version;
   pintarRed();
   pintarDrive();
@@ -2927,7 +2898,8 @@ function pintarInicio() {
   const sinId = (E.checklist.sin_asignar || []).length;
   $("inSub").textContent = `Grabado: ${plural(tipos("cuerpo"), "cuerpo")}, ${plural(tipos("hook"), "hook")} y ${plural(tipos("cta"), "CTA", "CTA")} · ${E.hay_produccion ? "Con guion" : "Sin guion"}`;
   const stat = (n, txt, cls = "") => `<div class="stat ${cls}"><b>${n}</b><span>${txt}</span></div>`;
-  $("inStats").innerHTML = stat(vids.length, "Videos posibles", "azul") + stat(armados, "Armados") + stat(listos, "Aprobados", listos ? "ok" : "")
+  // las versiones aparte (-v2) no son combinaciones nuevas: no suman a «posibles»
+  $("inStats").innerHTML = stat(vids.filter(s => !s.es_version).length, "Videos posibles", "azul") + stat(armados, "Armados") + stat(listos, "Aprobados", listos ? "ok" : "")
     + stat(viejos, "Por rearmar", viejos ? "warn" : "") + stat(faltan, "Imágenes y música por generar", faltan ? "warn" : "");
   const pasos = [
     [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : `<button class="btn peq blanco" data-ir="claude">Escribir con Claude</button>`],
@@ -2986,7 +2958,9 @@ function pintarSiguiente(ahora, pasos, n) {
     `<button class="btn" type="button" data-ir="faltan">Identificar ${plural(n.sinId, "clip")}</button>`,
     `<button class="btn" type="button" data-clic="generarFlow">✦ Generar lo que falta (${n.faltan})</button><button class="btn sec" type="button" data-ir="faltan">Ver qué falta</button>`,
     `<button class="btn" type="button" data-clic="todo">▶ Armar ${n.viejos ? `y rearmar (${n.vids.length - n.armados + n.viejos})` : `los ${n.vids.length - n.armados} videos`}</button>`,
-    `<button class="btn" type="button" data-ir="videos">Revisar ${plural(n.vids.length - n.listos, "video")}</button><button class="btn sec" type="button" data-ir="publicar">Exportar</button>`,
+    ((pend, edi) => `<button class="btn" type="button" data-ir="videos" data-ir-estado="${pend || !edi ? "pendiente" : "editando"}">${pend || !edi ? `Revisar ${plural(pend, "video")}` : `Terminar ${plural(edi, "video")} en edición`}</button>`)(
+      n.vids.filter(s => s.existe && s.estado === "pendiente").length, n.vids.filter(s => s.existe && s.estado === "editando").length)
+    + `<button class="btn sec" type="button" data-ir="publicar">Exportar</button>`,
   ];
   $("inSiguiente").innerHTML = `<div class="sig"><span class="etq">Siguiente paso · ${ahora + 1} de ${pasos.length}</span><b>${pasos[ahora][1]}</b>
     <span class="muted">${AYUDA_PASO[ahora] || ""}</span>${avance}<div class="fila">${botones[ahora] || ""}</div></div>`;
@@ -3022,7 +2996,15 @@ function pintarRevisar() {
 let revisarTimer = null;
 addEventListener("resize", () => { clearTimeout(revisarTimer); revisarTimer = setTimeout(() => { if (E && revisarQueCaben() !== revisarCaben) pintarRevisar(); }, 200); });
 document.addEventListener("click", e => {  // botones del siguiente paso que aprietan otro botón de la sala
-  const b = e.target.closest("[data-clic]"); if (b) $(b.dataset.clic)?.click();
+  const b = e.target.closest("[data-clic]"); if (!b) return;
+  const o = $(b.dataset.clic); if (!o) return;
+  if (b.dataset.clic === "masApoyo") {  // primero hay que elegir cuántas: se lleva al paso 1 de Faltantes
+    irTab("faltan");
+    setTimeout(() => { $("apoyoCaja").scrollIntoView({ behavior: "smooth", block: "center" }); $("apCuerpo").focus(); }, 250);
+    return avisar("Elige cuántas imágenes y clips quieres por cuerpo y por hook, y toca «Agregar los prompts».", "muted");
+  }
+  if (o.disabled) return avisar(E?.trabajo?.activo ? "La sala está ocupada: espera a que termine lo que está haciendo (☰ Procesos)." : "Ese botón no se puede usar ahora.", "muted");
+  o.click();
 });
 document.addEventListener("keydown", e => {
   const t = e.target.closest?.(".rv[role=button]");
@@ -3106,7 +3088,7 @@ function pintarClaudeForm() {
   $("clListo").hidden = !conectado || yaHay;
   if (conectado && yaHay) {
     const n = t => E.piezas.filter(p => p.tipo === t).length;
-    $("clYaHayTxt").innerHTML = `<span class="pill ok">✓ Guion listo</span> <b>${esc(E.semana)}</b> ya tiene su guion: ${plural(E.salidas.length, "video posible", "videos posibles")} con lo grabado (${plural(n("cuerpo"), "cuerpo")} y ${plural(n("hook"), "hook")}).`;
+    $("clYaHayTxt").innerHTML = `<span class="pill ok">✓ Guion listo</span> <b>${esc(E.semana)}</b> ya tiene su guion: ${plural(E.salidas.filter(s => !s.es_version).length, "video posible", "videos posibles")} con lo grabado (${plural(n("cuerpo"), "cuerpo")} y ${plural(n("hook"), "hook")}).`;
   }
 }
 async function revisarClaude(forzar) {
@@ -3139,7 +3121,11 @@ document.addEventListener("click", async e => {
       else $("clPedido").focus();
       return;
     }
-    irTab(t.dataset.ir); return;
+    if (t.dataset.irEstado !== undefined) {  // «Revisar 3 videos»: Videos ya filtrado en ese estado
+      filtroEstado = t.dataset.irEstado;
+      document.querySelectorAll("#filtroEstado [data-estado]").forEach(b => b.setAttribute("aria-pressed", b.dataset.estado === filtroEstado));
+    }
+    irTab(t.dataset.ir); if (t.dataset.irEstado !== undefined && E) pintarVideos(); return;
   }
   if (t.dataset.abrirSesion) { $("dlgSesiones").close(); cambiarSesion(t.dataset.abrirSesion); return; }
 });
@@ -3199,6 +3185,9 @@ function nombreNuevaProduccion() {
 const pintarNuevaVista = () => {
   $("clNuevaVista").textContent = nombreNuevaProduccion() + ($("clNuevaNombre").value.trim() ? "" : " …tema");
   const tipo = tipoDe($("clSesion").value === "__nueva" ? nombreNuevaProduccion() : $("clSesion").value);
+  // ads u orgánico llevan un solo CTA: el selector apagado lo muestra (antes seguía diciendo «2 (anuncio y orgánico)»)
+  if (tipo && !$("clCtas").disabled) { $("clCtas").dataset.antes = $("clCtas").value; $("clCtas").value = "1"; }
+  else if (!tipo && $("clCtas").disabled && $("clCtas").dataset.antes) $("clCtas").value = $("clCtas").dataset.antes;
   $("clCtas").disabled = !!tipo;
   $("clCtas").title = tipo ? `Producción ${tipo === "ads" ? "de ads: un CTA de anuncio (CTA-A)" : "orgánica: un CTA orgánico (CTA-O)"}` : "";
 };
@@ -3215,10 +3204,16 @@ $("clGuion").onclick = async () => {
   if (sesion === "__nueva") {
     const nombre = nombreNuevaProduccion();
     if (!$("clNuevaNombre").value.trim()) { $("clNuevaNombre").focus(); return avisar("Escribe el tema de la nueva producción (ej. ARTICULACIONES).", "err"); }
+    // el mismo criterio que la sala usa para las carpetas de sesión (motor.nombre_sesion_valido)
+    if (/[\\/:*?"<>|]/.test(nombre) || nombre.startsWith(".")) { $("clNuevaNombre").focus(); return avisar('El nombre no puede llevar estos signos: / \\ : * ? " < > |', "err"); }
+    if (nombre.length > 60) { $("clNuevaNombre").focus(); return avisar(`El nombre es muy largo (${nombre.length} letras): máximo 60.`, "err"); }
     const clave = t => t.toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g, "");
     if (E.semanas.some(x => clave(x) === clave(nombre))) return avisar("Ya existe una sesión con ese nombre: elígela en la lista.", "err");
     try { await post("/api/semana", { semana: nombre }); sel = null; await cargar(); sesion = E.semana; $("clNuevaCaja").hidden = true; $("clNuevaNombre").value = ""; }
     catch (err) { return avisar("Error: " + err.message, "err"); }
+  } else {
+    const tiene = sesion === E.semana ? E.hay_produccion : (sesionesBv?.sesiones || []).find(s => s.nombre === sesion)?.guion;
+    if (tiene && !await preguntar(`«${sesion}» ya tiene guion. Claude escribe uno nuevo y reemplaza al que hay (el anterior queda guardado como copia). ¿Seguir?`, "Sí, escribir otro")) return;
   }
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
   try { await post("/api/claude", { accion: "guion", sesion, pedido: pedidoGuion() }); vigilar(await (await fetch("/api/trabajo")).json()); }
@@ -3237,7 +3232,8 @@ $("clOtra").onclick = () => {
   clMostrarForm = true; pintarClaudeForm();
   $("clSesion").value = "__nueva"; $("clSesion").dispatchEvent(new Event("change"));
 };
-$("gRevisar").onclick = revisarConClaude;
+$("gRevisar").onclick = e => E.piezas.length ? revisarConClaude(e)
+  : avisar("Todavía no hay clips grabados: súbelos y analízalos primero (Claude compara lo grabado con el guion).", "muted");
 $("inGrupo").onclick = () => {
   const libres = sesionesActivas().filter(s => !(E.grupos || {})[s]);
   $("grSesiones").innerHTML = libres.map(s => `<label class="fila" style="font-size:13px"><input type="checkbox" value="${esc(s)}"> ${esc(s)}</label>`).join("");
@@ -3266,8 +3262,8 @@ async function nuevaSesion() {
 }
 async function cambiarSesion(s) {
   // con un trabajo corriendo, cambiar de sesión mezclaba los videos de una sesión con las carpetas de la otra
-  if (E?.trabajo?.activo && s !== E.semana) return avisar("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.", "err");
-  if ($("dlg").open && !await cerrarVideo()) return;
+  if (E?.trabajo?.activo && s !== E.semana) { $("semana").value = E.semana; return avisar("La sala está trabajando (☰). Espera a que termine para cambiar de sesión.", "err"); }
+  if ($("dlg").open && !await cerrarVideo()) { $("semana").value = E.semana; return; }
   clMostrarForm = false;
   elegidos.clear(); pintarSeleccion();  // lo elegido era de la otra sesión
   $("clSalida").hidden = true; $("clSalida").textContent = "";
@@ -3285,10 +3281,10 @@ function tarjetaVideo(s) {
   const r = s.receta, falta = r && (r.faltan_assets.length || r.marcas_sin_encontrar.length);
   return `<div class="tarjeta ${elegidos.has(s.codigo) ? "elegida" : ""}" role="button" tabindex="0" aria-label="Abrir ${esc(s.archivo)}" data-cod="${esc(s.codigo)}" style="position:relative">
     <input type="checkbox" class="sel" data-sel="${esc(s.codigo)}" ${elegidos.has(s.codigo) ? "checked" : ""} aria-label="Seleccionar ${esc(s.archivo)}" onclick="event.stopPropagation()">
-    <span class="estado-dot ${s.estado}" title="${ESTADOS[s.estado] || ""}"></span>
+    <span class="estado-dot ${s.existe || s.estado !== "pendiente" ? s.estado : ""}" title="${s.existe || s.estado !== "pendiente" ? ESTADOS[s.estado] || "" : "Aún no armado"}"></span>
     ${s.portada ? `<div class="img" style="background-image:url('${s.portada}')"><span>${esc(s.codigo)}</span></div>`
       : `<div class="vacia">${esc(s.codigo)}<br>${s.existe ? "Sin portada" : "Aún no armado"}</div>`}
-    <div class="nombre">${esc(s.etiqueta)}${s.angulo ? ` <span class="pill ang" title="Grabado desde otro ángulo">↔ ${esc((E.angulos || {})[s.angulo] || s.angulo)}</span>` : ""}${s.edicion && s.edicion !== "A" ? ` <span class="pill ed" title="${esc(((E.ediciones || {})[s.edicion] || {}).nombre || "")}">Ed. ${esc(s.edicion)}</span>` : ""}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
+    <div class="nombre">${esc(s.etiqueta)}${s.angulo ? ` <span class="pill ang" title="Grabado desde otro ángulo">↔ ${esc((E.angulos || {})[s.angulo] || s.angulo)}</span>` : ""}${s.edicion && s.edicion !== "A" ? ` <span class="pill ed" title="${esc(((E.ediciones || {})[s.edicion] || {}).nombre || "")}">Ed. ${esc(s.edicion)}</span>` : ""}${s.es_version ? ' <span class="pill azul">Versión</span>' : ""}${s.propio ? ' <span class="pill azul" title="Tiene ajustes solo suyos">Solo este</span>' : ""}<br><span class="muted" style="font-weight:400">${esc((E.piezas.find(p => p.nombre === s.hook)?.info?.texto || (E.piezas_guion || {})[s.hook] || s.titulo_portada || "").replace(/\*/g, ""))}</span></div>
     <div class="pie">${s.existe ? `<span class="pill ok">${r ? r.duracion + " s" : "Armado"}</span>` : `<span class="pill" title="Aún no se arma: tócalo o usa «Armar seleccionados»">Sin armar</span>`}
       ${s.desactualizado ? `<span class="pill warn" title="Se cambió algo de sus piezas después de armarlo">⟳ Rearmar</span>` : ""}
       ${falta ? `<span class="pill warn" title="Faltan imágenes o marcas">⚠ ${r.faltan_assets.length + r.marcas_sin_encontrar.length}</span>` : ""}
@@ -3319,7 +3315,7 @@ function pintarFiltroEdicion() {  // «Todas · A · B…»: solo si la sesión 
 function pintarVideos() {
   const q = $("buscar").value.trim().toLowerCase();
   const lista = E.salidas.filter(s => (!q || s.archivo.toLowerCase().includes(q))
-    && (!filtroEstado || (filtroEstado === "viejo" ? s.desactualizado || !s.existe : s.estado === filtroEstado))
+    && (!filtroEstado || (filtroEstado === "viejo" ? s.desactualizado || !s.existe : s.estado === filtroEstado && (filtroEstado !== "pendiente" || s.existe)))
     && (!filtroEdicion || (s.edicion || "A") === filtroEdicion)
     && (filtroAngulo === null || (s.angulo || "") === filtroAngulo));
   pintarFiltroEdicion(); pintarFiltroAngulo();
@@ -3328,6 +3324,7 @@ function pintarVideos() {
     $("videos").innerHTML = `<div class="sin-nada">${E.bajando ? "Bajando la sesión de Drive… los videos aparecen cuando terminen de llegar los clips." : "Todavía no hay piezas en esta sesión. Sube las grabaciones a la carpeta de Drive (Clips) o en Faltantes."}</div>`;
     return;
   }
+  if (!lista.length) { $("videos").innerHTML = `<div class="sin-nada">Ningún video con ese filtro. Prueba con «Todos los estados» o borra la búsqueda.</div>`; return; }
   if (vistaVideos === "todos") { $("videos").innerHTML = `<div class="grid-portadas">${lista.map(tarjetaVideo).join("")}</div>`; return; }
   const clave = vistaVideos, grupos = new Map();
   lista.forEach(s => { const k = s[clave]; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(s); });
@@ -3338,12 +3335,12 @@ function pintarVideos() {
     const nombreTipo = { cuerpo: "Cuerpo", hook: "Hook", cta: "CTA" }[clave];
     return `<div class="grupo-cuerpo"><div class="grupo-cab ${clave}">
         <div class="titulo"><span class="cod">${esc(verPieza(k))}</span>
-          <div style="min-width:0"><b style="font-size:13px">${vs.length} video${vs.length === 1 ? "" : "s"}</b> <span class="muted" style="font-size:12px">· ${listos} aprobado${listos === 1 ? "" : "s"}${viejos ? ` · ${viejos} por armar` : ""}${p?.editada ? " · editado" : ""}</span>
+          <div style="min-width:0"><b style="font-size:13px">${plural(vs.filter(s => !s.es_version).length, "video")}${vs.some(s => s.es_version) ? ` + ${plural(vs.filter(s => s.es_version).length, "versión", "versiones")}` : ""}</b> <span class="muted" style="font-size:12px">· ${listos} aprobado${listos === 1 ? "" : "s"}${viejos ? ` · ${viejos} por armar` : ""}${p?.editada ? " · editado" : ""}</span>
           <div class="resumen" title="${esc(texto)}">${esc(texto)}</div></div></div>
         <div class="fila"><div class="progreso" title="${listos} de ${vs.length} aprobados"><i style="width:${vs.length ? listos / vs.length * 100 : 0}%"></i></div>
-          <button class="btn peq" data-grupo-editar="${esc(vs[0].codigo)}" title="Lo que cambies en ${esc(k)} se aplica a sus ${vs.length} videos">Editar ${nombreTipo.toLowerCase()}</button>
-          <button class="btn sec peq" data-grupo-armar="${esc(vs.map(s => s.codigo).join(","))}">${viejos ? `Armar ${viejos}` : "Rearmar todos"}</button>
-          <button class="btn sec peq" data-grupo-listos="${esc(vs.map(s => s.codigo).join(","))}">Aprobar todos</button></div></div>
+          <button class="btn peq" data-grupo-editar="${esc(vs[0].codigo)}" title="Lo que cambies en ${esc(k)} se aplica a sus ${vs.length} videos">Editar ${nombreTipo === "CTA" ? "CTA" : nombreTipo.toLowerCase()}</button>
+          <button class="btn sec peq" data-grupo-nom="${esc(verPieza(k))}" data-grupo-armar="${esc(vs.map(s => s.codigo).join(","))}">${viejos ? `Armar ${viejos}` : "Rearmar todos"}</button>
+          <button class="btn sec peq" data-grupo-nom="${esc(verPieza(k))}" data-grupo-listos="${esc(vs.map(s => s.codigo).join(","))}">Aprobar todos</button></div></div>
       <div class="grid-portadas">${vs.map(tarjetaVideo).join("")}</div></div>`;
   }).join("") || `<div class="sin-nada">Ningún video con ese filtro.</div>`;
 }
@@ -3360,9 +3357,18 @@ document.addEventListener("click", async e => {
   if (ge) { abrirVideo(ge.dataset.grupoEditar, true); return; }
   const ga = e.target.closest("[data-grupo-armar]");
   if (ga) { const cods = ga.dataset.grupoArmar.split(","); const viejos = cods.filter(c => { const s = E.salidas.find(x => x.codigo === c); return s && (s.desactualizado || !s.existe); });
-    try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos: viejos.length ? viejos : cods }); vigilar(await (await fetch("/api/trabajo")).json()); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
+    const van = viejos.length ? viejos : cods, verbo = viejos.length ? "Armar" : "Rearmar";
+    if (!await preguntar(`¿${verbo} ${plural(van.length, "video")} de ${ga.dataset.grupoNom || "este grupo"}? La sala los arma uno tras otro (lo ves en Procesos ☰).`)) return;
+    try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos: van }); vigilar(await (await fetch("/api/trabajo")).json());
+      avisar(`${verbo === "Armar" ? "Armando" : "Rearmando"} ${plural(van.length, "video")} de ${ga.dataset.grupoNom || "este grupo"}… lo ves en Procesos (☰).`, "ok"); }
+    catch (err) { avisar("Error: " + err.message, "err"); } return; }
   const gl = e.target.closest("[data-grupo-listos]");
-  if (gl) { try { await post("/api/estado_video", { estado: "listo", codigos: gl.dataset.grupoListos.split(",") }); await cargar(); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
+  if (gl) {
+    const cods = gl.dataset.grupoListos.split(",").filter(c => { const s = E.salidas.find(x => x.codigo === c); return s && s.existe && s.estado !== "listo"; });
+    if (!cods.length) return avisar("No hay videos armados por aprobar en este grupo.", "muted");
+    if (!await preguntar(`¿Marcar como aprobados ${cods.length === 1 ? "el video armado" : `los ${cods.length} videos armados`} de ${gl.dataset.grupoNom || "este grupo"}?`)) return;
+    try { await post("/api/estado_video", { estado: "listo", codigos: cods }); await cargar(); avisar(`${plural(cods.length, "video aprobado", "videos aprobados")}.`, "ok"); }
+    catch (err) { avisar("Error: " + err.message, "err"); } return; }
   const de = e.target.closest("[data-est]");
   if (de && actual) { try { await post("/api/estado_video", { codigo: actual.codigo, estado: de.dataset.est }); actual.estado = de.dataset.est; pintarEstadoDlg(); cargar(); } catch (err) { avisar("Error: " + err.message, "err"); } return; }
   const tp = e.target.closest("[data-tipo]");
@@ -3450,8 +3456,12 @@ function pintarTelefono() {
   }
   $("telTxt").innerHTML = html;
 }
-function contar() {
-  document.querySelectorAll(".cuenta").forEach(s => { s.textContent = `${$(s.dataset.de).value.length} caracteres`; });
+function contar() {  // con el límite de cada red (data-max): si se pasa, se pinta en rojo
+  document.querySelectorAll(".cuenta").forEach(s => {
+    const n = $(s.dataset.de).value.length, max = +s.dataset.max || 0;
+    s.textContent = max ? `${n} de ${max} caracteres${n > max ? ` · sobran ${n - max}` : ""}` : `${n} caracteres`;
+    s.style.color = max && n > max ? "var(--err)" : "";
+  });
 }
 
 // ---------- Piezas ----------
@@ -3544,8 +3554,11 @@ function pintarPieza(forzar) {
   // la misma pieza con cambios sin guardar no se repinta sola: se quedan los cambios
   if (!forzar && p && p.nombre === piezaPintada && piezaSucia()) { pintarSucia(); return; }
   piezaPintada = p ? p.nombre : null;
-  if (!p) { $("tituloPieza").textContent = "Pieza"; $("marcas").innerHTML = ""; pintarSucia(); return; }
-  $("tituloPieza").textContent = `${verPieza(p.nombre)} · ${p.tipo}${p.info.tipo && p.tipo === "hook" ? " · " + p.info.tipo : ""}`;
+  // sin piezas: un mensaje en vez del reproductor vacío con botones que no hacen nada
+  ["play", "nuevaMarca", "guardar", "guardarArmar"].forEach(id => { if ($(id)) $(id).disabled = !p; });
+  if (!p) { $("tituloPieza").textContent = "Pieza"; $("vPieza").removeAttribute("src");
+    $("marcas").innerHTML = `<p class="muted" style="margin:0">Todavía no hay piezas grabadas en esta sesión. Sube o graba las piezas en <button class="btn-link" type="button" data-ir="faltan">Faltantes</button>.</p>`; pintarSucia(); return; }
+  $("tituloPieza").textContent = `${verPieza(p.nombre)} · ${p.tipo}${p.info.tipo && p.tipo === "hook" && p.info.tipo !== "hook" ? " · " + p.info.tipo : ""}`;
   const v = $("vPieza");
   const [ruta, ver] = p.video.split("?");  // también si se volvió a preparar (otra versión: p. ej. al cambiar el formato)
   if (!v.src.includes(ruta) || (ver && !v.src.includes(ver))) v.src = p.video;
@@ -3660,7 +3673,7 @@ function pintarMarcas() {
   }
   // el texto dicho, línea por línea: cada palabra se toca; ✎ corrige el subtítulo de esa línea
   const elegidas = new Set(seleccionW(p).map(w => `${w.li}-${w.wi}`));
-  if (!p.lineas.length) html += `<p class="muted">${p.procesada ? "Esta pieza no tiene voz." : "Esta pieza aún no se prepara. Usa «Armar todos los videos» (arriba)."}</p>`;
+  if (!p.lineas.length) html += `<p class="muted">${p.procesada ? "Esta pieza no tiene voz." : "Esta pieza aún no se prepara. Usa «Armar todo» (arriba)."}</p>`;
   else html += `<div class="transcripcion">${p.lineas.map((l, li) => {
     const corr = lineasTmp[li] !== l.texto;
     const palabras = l.palabras.map((w, wi) => {
@@ -3710,7 +3723,7 @@ function pintarMarcas() {
             <div class="gal-elegido">${/^[bp]:/.test(m.sfx || "") ? `<button class="gal-play" type="button" data-gal-play="${esc("/sfx?id=" + encodeURIComponent(m.sfx))}" aria-label="Escuchar">▶</button>` : ""}
               <span class="nom">${esc(nombreSonido(m.sfx))}</span>
               <button class="btn sec peq" type="button" data-gal-abrir="sonido">Elegir sonido…</button></div></fieldset>
-          <fieldset><legend>Aa Cómo se ve el subtítulo</legend><select data-mk="sub">${opt([["", "Normal"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
+          <fieldset><legend>Aa Cómo se ve el subtítulo</legend><select data-mk="sub">${opt([["", "Automático (normal; sobre una imagen, más grande)"], ...E.estilos.map(x => [x, cap(x.replace(/_/g, " "))])], m.sub)}</select></fieldset>
           <fieldset><legend>🎵 Cambiar la música desde aquí</legend>
             <div class="gal-elegido">${m.musica && urlMusica(m.musica) ? `<button class="gal-play" type="button" data-gal-play="${esc(urlMusica(m.musica))}" aria-label="Escuchar">▶</button>` : ""}
               <span class="nom">${m.musica ? esc(m.musica) : '<span class="muted">Sin cambio (la misma pista del video)</span>'}</span>
@@ -4031,6 +4044,10 @@ function lineasEditadas() {
 
 async function guardar(armar) {
   const p = piezaSel(); if (!p) return;
+  if (!armar && !piezaSucia()) return avisar("No había cambios que guardar.", "muted");
+  // una línea que quedó sin texto se borra del subtítulo: antes pasaba sin avisar
+  const vacias = lineasTmp.map((t, i) => !String(t ?? "").trim() && String(p.lineas[i]?.texto || "").trim() ? i + 1 : 0).filter(Boolean);
+  if (vacias.length && !await preguntar(`Dejaste sin texto ${vacias.length === 1 ? `la línea ${vacias[0]}` : `las líneas ${vacias.join(", ")}`}: ese subtítulo se borra del video. ¿Borrarlo?`, "Sí, borrar")) return;
   try {
     avisar("Guardando…");
     const cambiaron = lineasTmp.some((t, i) => t !== p.lineas[i]?.texto);
@@ -4101,6 +4118,13 @@ document.addEventListener("click", async e => {
 });
 
 // la regla de la marca: música con adrenalina. Un prompt que suena suave se avisa
+// «Ver todo el prompt»: campo: valor, uno por renglón (antes salía el JSON crudo con llaves y comillas)
+const NOMBRE_CAMPO_PROMPT = { duracion: "duración", plan_b: "plan B", relacion: "relación", camara: "cámara", animacion: "animación", accion: "acción", iluminacion: "iluminación" };
+function promptLegible(o) {
+  const val = v => Array.isArray(v) ? v.map(val).join(", ") : v && typeof v === "object" ? Object.entries(v).map(([k, x]) => `${NOMBRE_CAMPO_PROMPT[k] || k.replace(/_/g, " ")}: ${val(x)}`).join(" · ") : String(v ?? "");
+  return Object.entries(o || {}).filter(([, v]) => v !== "" && v != null)
+    .map(([k, v]) => `<div><b>${esc(cap(NOMBRE_CAMPO_PROMPT[k] || k.replace(/_/g, " ")))}:</b> ${esc(val(v))}</div>`).join("") || `<span class="muted">Sin prompt.</span>`;
+}
 const MUSICA_SUAVE = /\b(soft|gentle|calm|acoustic|warm|relax\w*|chill|ambient|lo-?fi|mellow|corporate|soothing|peaceful|plucked|piano ballad)\b/i;
 function pintarMusica() {
   const lista = E.checklist.musica || [];
@@ -4115,10 +4139,12 @@ function pintarMusica() {
       <div class="fila" style="justify-content:space-between"><h3 style="margin:0"><code>${esc(m.id)}</code></h3>
         <span class="pill ${m.listo ? "ok" : "warn"}">${m.listo ? "✓ Lista" : "Falta"}</span></div>
       <span class="muted" style="font-size:12px">${esc(pr.herramienta || (m.suno ? "Suno" : "Google Flow Music"))} · ${esc(m.uso || "")}</span>
-      ${suave ? `<div class="mus-suave">⚠ Este prompt suena suave («${esc(suave[0])}»). La regla de la marca es música con adrenalina: cambia el prompt antes de generarla.</div>` : ""}
+      ${suave ? `<div class="mus-suave">⚠ Este prompt suena suave («${esc(suave[0])}»). La regla de la marca es música con adrenalina.
+        <button class="btn peq" type="button" data-rehacer-mus="${esc(m.id)}" data-sin-nota="1">⟳ Regenerar prompt con adrenalina</button></div>` : ""}
       ${pr.prompt ? `<p class="prompt-corto" title="${esc(pr.prompt)}">${esc(pr.prompt)}</p>` : ""}
-      <div class="fila">${campos.map(([k, v]) => `<button class="btn sec peq" data-copiar="${esc(v)}">Copiar ${esc(k.replace("_", " "))}</button>`).join("")}</div>
-      <details><summary class="muted" style="font-size:12px;cursor:pointer">Ver todo el prompt</summary><pre>${esc(JSON.stringify(pr, null, 2))}</pre></details>
+      <div class="fila">${campos.map(([k, v]) => `<button class="btn sec peq" data-copiar="${esc(v)}">Copiar ${esc(k.replace("duracion", "duración").replace("_", " "))}</button>`).join("")}
+        ${suave ? "" : `<button class="btn sec peq" type="button" data-rehacer-mus="${esc(m.id)}" title="Claude reescribe el prompt de esta pista (con adrenalina, como pide la marca). Puedes decirle qué cambiar">⟳ Regenerar prompt</button>`}</div>
+      <details><summary class="muted" style="font-size:12px;cursor:pointer">Ver todo el prompt</summary><div class="prompt-legible">${promptLegible(pr)}</div></details>
       ${m.url ? `<audio controls preload="none" src="${m.url}" style="width:100%"></audio>` : ""}
       <label class="soltar" data-destino="musica" data-nombre="${esc(m.id)}" tabindex="0" role="button">
         <span>${m.listo ? "✓ Lista · suelta otra para reemplazarla" : "⬇ Suelta aquí el audio descargado (o toca para elegirlo)"}</span>
@@ -4151,7 +4177,8 @@ function pintarResumenFaltan() {
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-fl-ir]"); if (!b) return;
-  const d = $(b.dataset.flIr); if (!d || d.hidden) return;
+  const d = $(b.dataset.flIr);
+  if (!d || d.hidden) return avisar(b.dataset.flIr === "cajaSinAsignar" ? "No hay clips por identificar: todos los clips subidos ya tienen su pieza." : "Ahí no hay nada pendiente.", "muted");
   if (d.tagName === "DETAILS") d.open = true;
   d.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -4179,7 +4206,8 @@ function pintarFaltan() {
   const nImg = ch.assets.filter(a => !a.listo).length, nMus = (ch.musica || []).filter(m => !m.listo).length;
   $("generarFlow").textContent = !(ch.musica || []).length ? "✦ Crear la música y generar lo que falta"
     : nImg + nMus ? `✦ Generar ${[nImg && `${nImg} imagen${nImg === 1 ? "" : "es"}`, nMus && `${nMus} pista${nMus === 1 ? "" : "s"}`].filter(Boolean).join(" y ")}` : "✓ Todo generado";
-  $("generarFlow").disabled = !!(ch.musica || []).length && !(nImg + nMus);
+  $("generarFlow").dataset.nada = !!(ch.musica || []).length && !(nImg + nMus) ? "1" : "";  // vigilar() también lo mira
+  $("generarFlow").disabled = !!$("generarFlow").dataset.nada || !!E.trabajo?.activo;
   pintarEstadoFlow();
   const faltaAssets = ch.assets.filter(a => !a.listo).length + (ch.musica || []).filter(m => !m.listo).length;
   const sinId = (ch.sin_asignar || []).length;  // los clips sin identificar también son algo por hacer aquí
@@ -4194,7 +4222,7 @@ function pintarFaltan() {
   ch.piezas_faltan.forEach(n => { const g = /CTA/i.test(n) && !/^C\d/i.test(n) ? "CTA" : n.split("_")[0]; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(n); });
   $("faltanPiezas").innerHTML = [...grupos].map(([g, ns]) => `<div class="pf-grupo"><h3>${esc(g)} · ${plural(ns.length, "pieza")}</h3><div class="pf-fichas">${ns.map(n =>
       `<label class="soltar pf-ficha" tabindex="0" role="button" aria-label="Subir el video de ${esc(n)}" data-destino="${carpeta(n)}" data-nombre="${esc(n)}">
-        <code>${esc(n)}</code><small>${esc((E.piezas.find(p => p.nombre === n)?.info?.texto || "").slice(0, 90))}</small><span>⬇ Suelta aquí el video</span><input type="file" accept="video/*"></label>`).join("")}</div></div>`).join("")
+        <code>${esc(n)}</code><small>${esc(((E.piezas_guion || {})[n] || E.piezas.find(p => p.nombre === n)?.info?.texto || "").slice(0, 90))}</small><span>⬇ Suelta aquí el video</span><input type="file" accept="video/*"></label>`).join("")}</div></div>`).join("")
     || `<p class="muted" style="margin:0">✓ Todas las piezas del guion están grabadas.</p>`;
   // imágenes y clips: galería; por defecto solo las que faltan (si falta alguna)
   const faltanA = ch.assets.filter(a => !a.listo).length;
@@ -4208,12 +4236,12 @@ function pintarFaltan() {
     return `<div class="as-card ${a.listo ? "listo" : "falta"}">
       <label class="soltar as-foto" tabindex="0" role="button" aria-label="Subir archivo para ${esc(a.id)}" data-destino="assets" data-nombre="${esc(a.id)}">
         ${ya?.url ? (ya.es_video ? `<video src="${ya.url}" muted preload="metadata"></video>` : `<img src="${ya.url}" alt="${esc(a.id)}" loading="lazy">`) : ""}
-        <span>${ya?.url ? "Suelta otra para cambiarla" : `⬇ Falta${a.tipo === "clip" ? " el clip" : ""} · suéltala aquí`}</span>
+        <span>${ya?.url ? (a.por_regenerar ? "⟳ Por regenerar con el prompt nuevo · suelta aquí la nueva" : "Suelta otra para cambiarla") : `⬇ Falta${a.tipo === "clip" ? " el clip" : ""} · suéltala aquí`}</span>
         <input type="file" accept="${a.tipo === "clip" ? "video/*" : "image/*,video/*"}"></label>
       <code>${esc(a.id)}</code><small>${esc(a.tipo)} · ${esc(a.pieza || "")}${a.palabra ? ` en «${esc(a.palabra)}»` : ""}</small>
       <div class="as-acc"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button></div>
       <details><summary>Más</summary>
-      <pre>${esc(prompt)}</pre>
+      <div class="prompt-legible">${promptLegible(a.flow)}</div>
       <div class="as-acc">${a.flow?.plan_b ? `<button class="btn sec peq" data-copiar="${esc(a.flow.plan_b)}" title="Por si Flow rechaza el prompt: el mismo plano dicho más neutro">Copiar plan B</button>` : ""}
         <button class="btn sec peq" data-copiar="${esc(prompt)}">Copiar JSON</button></div>
       ${(a.notas || []).map(n => `<span class="muted" style="font-size:12px">✎ ${esc(n.fecha)}: ${esc(n.nota)}</span>`).join("")}
@@ -4243,9 +4271,13 @@ async function subir(lbl, file, varios) {
   const esVid = file.type.startsWith("video/") || ["mov", "mp4", "m4v", "webm"].includes(ext);
   if (["hooks", "cuerpos", "ctas"].includes(lbl.dataset.destino) && !esVid) return avisar(`${lbl.dataset.nombre} es una toma grabada: arrastra un video, no ${file.type.startsWith("image/") ? "una imagen" : "ese archivo"}.`, "err");
   if (acepta === "video/*" && !esVid) return avisar(`${lbl.dataset.nombre} es un clip: arrastra un video.`, "err");
-  if (lbl.querySelector("img, video") && !await preguntar(`${lbl.dataset.nombre} ya tiene un archivo. ¿Reemplazarlo por «${file.name}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
+  const esAudio = file.type.startsWith("audio/") || ["mp3", "wav", "m4a", "aac", "ogg", "flac", "opus"].includes(ext);
+  if (lbl.dataset.destino === "musica" && !esAudio) return avisar(`${lbl.dataset.nombre} es música: arrastra un audio (.mp3, .wav, .m4a…), no ${file.type.startsWith("image/") ? "una imagen" : file.type.startsWith("video/") ? "un video" : "ese archivo"}.`, "err");
+  // en la música el reproductor está al lado del cuadro, no adentro
+  const yaTiene = !!(lbl.querySelector("img, video, audio") || (lbl.dataset.destino === "musica" && lbl.parentElement?.querySelector("audio")));
+  if (yaTiene && !await preguntar(`${lbl.dataset.nombre} ya tiene un archivo. ¿Reemplazarlo por «${file.name}»? (el anterior queda guardado en _REEMPLAZADOS)`)) return;
   if (varios > 1) avisar(`Soltaste ${varios} archivos: se usa solo el primero («${file.name}») para ${lbl.dataset.nombre}.`, "muted");
-  const span = lbl.querySelector("span");
+  const span = lbl.querySelector("span"), antes = span.textContent;
   lbl.dataset.subiendo = "1"; lbl.classList.add("subiendo");
   span.textContent = `Subiendo ${file.name}…`;
   try {
@@ -4253,7 +4285,11 @@ async function subir(lbl, file, varios) {
       (p, va, total) => { span.textContent = `Subiendo ${file.name}… ${Math.round(p * 100)} % (${(va / 1048576).toFixed(0)} de ${(total / 1048576).toFixed(0)} MB)`; });
     avisar(`${lbl.dataset.nombre} guardado.` + ((E.drive || {}).activo ? " Se está subiendo a Drive." : ""), "ok");
     await cargar();
-  } catch (e) { avisar("Error al subir: " + e.message, "err"); span.textContent = "Error, intenta de nuevo"; }
+  } catch (e) {
+    avisar("Error al subir: " + e.message, "err");
+    // si ya tenía su archivo, sigue bien: el cuadro vuelve a como estaba (no queda en «Error»)
+    span.textContent = yaTiene ? antes : "Error, intenta de nuevo";
+  }
   finally { delete lbl.dataset.subiendo; lbl.classList.remove("subiendo"); }
 }
 
@@ -4273,7 +4309,8 @@ function vigilar(t) {
   caja.hidden = !t.activo;
   $("puntoProceso").hidden = !t.activo;
   $("barraSel").style.bottom = t.activo ? "72px" : "16px";
-  ["producir", "todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas", "generarFlow", "masApoyo"].forEach(id => $(id).disabled = t.activo);
+  // generarFlow y masApoyo además se apagan cuando no hay nada que hacer (lo marcan pintarFaltan y resumenApoyo)
+  ["producir", "todo", "exTodo", "subirPanel", "guardarArmar", "rearmarUno", "escuchar", "clGuion", "clRevisar", "clRevisar2", "gRevisar", "gAnalizar", "clTemas", "generarFlow", "masApoyo"].forEach(id => $(id).disabled = !!t.activo || !!$(id).dataset.nada);
   $("trabajo").textContent = t.mensaje || "";
   pintarClaudeTrabajo(t);
   if (t.activo && !vigilando) {
@@ -4292,9 +4329,8 @@ function vigilar(t) {
         if (j.accion === "analizar" && !j.error) corroborado = true;
         if (["clips_preparar", "clips_armar"].includes(j.accion)) cargarClips();
         if (["revisar", "analizar", "procesar"].includes(j.accion)) pintarGuion();
-        if (j.accion === "producir" && j.resultado && !j.error) setTimeout(() => mostrarResumenProduccion(j.resultado), 300);
-        const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${h0.cantidad} videos` : ""})` : "";
-        avisar(j.error ? "Error: " + j.error.split("\n")[0] : "Listo: " + (j.log.at(-1) || "") + cuanto, j.error ? "err" : "ok");
+        if (j.accion === "producir" && j.resultado && !j.error && !j.cancelado) setTimeout(() => mostrarResumenProduccion(j.resultado), 300);
+        avisarFin(j);
         if (!j.error && reabrir && E.salidas.some(s => s.codigo === reabrir)) {
           const cod = reabrir; reabrir = null;
           // si mientras tanto se abrió otro video (o este tiene cambios), no se le abre otro encima: se perdían los cortes
@@ -4308,6 +4344,14 @@ function vigilar(t) {
   }
 }
 let reabrir = null;  // al terminar de rearmar un video, se vuelve a abrir con el resultado
+function avisarFin(j) {
+  const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${h0.cantidad} videos` : ""})` : "";
+  const nombre = NOMBRE_PROCESO[j.accion] || "El proceso";
+  if (j.cancelado) avisar(`Cancelado: ${nombre}.`, "warn");
+  else if (j.error) avisar("Error: " + j.error.split("\n")[0], "err");
+  else avisar(`Listo: ${(j.log || []).filter(x => x && !/^Listo$/.test(x)).at(-1) || nombre}${cuanto}`, "ok");
+  cancelPedido = null;
+}
 function pintarClaudeTrabajo(t) {
   if (t.accion === "temas" && !t.activo && Array.isArray(t.resultado)) {
     if (JSON.stringify(t.resultado) !== JSON.stringify(propuestas)) { propuestas = t.resultado; pintarTemas(); }
@@ -4323,7 +4367,11 @@ function pintarClaudeTrabajo(t) {
 }
 async function trabajo(accion, pieza) {
   if (accion === "uno") reabrir = pieza;
-  try { await post("/api/trabajo", { accion, pieza }); const j = await (await fetch("/api/trabajo")).json(); vigilar(j); }
+  try {
+    await post("/api/trabajo", { accion, pieza }); const j = await (await fetch("/api/trabajo")).json();
+    if (!j.activo && !(j.cola || []).length && j.accion === accion) { await cargar(); avisarFin(j); }  // terminó antes de mirarlo
+    vigilar(j);
+  }
   catch (e) { avisar("Error: " + e.message, "err"); }
 }
 
@@ -4361,14 +4409,24 @@ document.addEventListener("click", async e => {
     return;
   }
   const cp = e.target.closest("[data-copiar]");
-  if (cp) { navigator.clipboard.writeText(cp.dataset.copiar); avisar("Copiado.", "ok"); }
+  if (cp) copiar(cp.dataset.copiar, "Copiado.");
   const rh = e.target.closest("[data-rehacer-img]");
   if (rh) rehacerImagen(rh.dataset.rehacerImg);
+  const rm = e.target.closest("[data-rehacer-mus]");
+  if (rm) rehacerMusica(rm.dataset.rehacerMus, !!rm.dataset.sinNota);
 });
+async function rehacerMusica(id, sinNota) {
+  if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude) para regenerar el prompt.", "err"); }
+  const nota = sinNota ? "" : await pedirTexto(`¿Qué quieres cambiar de la música ${id}? (opcional: déjalo vacío y Claude la rehace con adrenalina)`, "");
+  if (nota === null) return;
+  try { await post("/api/claude", { accion: "rehacer_musica", id, nota }); vigilar(await (await fetch("/api/trabajo")).json()); avisar(`Claude está regenerando el prompt de ${id}…`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
 async function rehacerImagen(id) {
   const nota = ([...document.querySelectorAll("[data-nota-img]")].find(t => t.dataset.notaImg === id)?.value || "").trim();
   if (nota.length < 3) return avisar("Escribe qué hay que cambiar en la imagen.", "err");
   if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
+  if (!await preguntar(`Claude reescribe el prompt de ${id} con tu nota. La imagen de ahora queda «por regenerar» hasta que generes y subas la nueva. ¿Seguir?`)) return;
   try { await post("/api/claude", { accion: "rehacer", id, nota }); vigilar(await (await fetch("/api/trabajo")).json()); avisar(`Claude está rehaciendo el prompt de ${id}…`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
 }
@@ -4403,7 +4461,7 @@ document.addEventListener("keydown", e => {
 $("vPieza").addEventListener("timeupdate", vivo);
 $("vPieza").addEventListener("play", bucle);
 $("vPieza").addEventListener("seeked", vivo);
-$("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play() : v.pause(); };
+$("play").onclick = () => { const v = $("vPieza"); v.paused ? v.play().catch(() => {}) : v.pause(); };  // sin AbortError en la consola
 $("visor").addEventListener("click", () => $("play").click());  // tocar el video lo reproduce o lo pausa
 document.addEventListener("keydown", e => {  // Enter o Espacio (en Hooks, Cuerpos y CTAs), salvo mientras se escribe
   if (!["Enter", " "].includes(e.key) || e.repeat || document.querySelector('[data-panel="piezas"]')?.hidden || document.querySelector("dialog[open]")) return;
@@ -4429,6 +4487,7 @@ $("todo").onclick = async () => {
 };
 // ---------- Producir todo ----------
 $("producir").onclick = async () => {
+  $("prodCuerpo").hidden = false; $("prodResumen").hidden = true; $("prodTit").textContent = "Producir todo";
   $("prodPanel").disabled = !E.panel; $("prodPanel").checked = !!E.panel && $("prodPanel").checked;
   $("prodPanelLi").hidden = !E.panel;  // sin panel web (todo en esta PC y en Drive), la opción ni aparece
   $("prodPanel").closest("label").title = E.panel ? "" : "El panel no está configurado en esta PC (tu cuenta arriba a la derecha → Conexiones)";
@@ -4452,7 +4511,8 @@ $("prodEmpezar").onclick = async () => {
 };
 function mostrarResumenProduccion(r) {
   const lista = (t, xs, cls = "") => xs && xs.length ? `<div class="res-prod ${cls}"><b>${t} (${xs.length})</b><span>${xs.map(esc).join(", ")}</span></div>` : "";
-  $("prodCuerpo").innerHTML = `<p style="margin:0;font-size:15px"><b>✓ Producción lista</b> en ${durTxt(r.duracion)}</p>
+  $("prodCuerpo").hidden = true; $("prodResumen").hidden = false; $("prodTit").textContent = "Resumen de la producción";
+  $("prodResumen").innerHTML = `<p style="margin:0;font-size:15px"><b>✓ Producción lista</b> en ${durTxt(r.duracion)}</p>
     <div class="ficha">
       <div><span>Clips identificados solos</span><b>${r.identificados ?? 0}</b></div>
       ${r.renombrados != null ? `<div><span>Clips renombrados</span><b>${r.renombrados}</b></div>` : ""}
@@ -4486,7 +4546,7 @@ function pintarExport() {
   const aj = E.exportar || {};
   if (!pintarExport.listo) {  // los ajustes guardados se cargan una vez
     $("exRes").value = aj.resolucion || "1080"; $("exFps").value = String(aj.fps || 30); $("exCodec").value = aj.codec || "h264";
-    $("exCalidad").value = aj.calidad || "alta"; $("exPortada").checked = aj.portada_inicio !== false; $("exPorDia").checked = !!aj.por_dia;
+    $("exCalidad").value = aj.calidad || "recomendada"; $("exPortada").checked = aj.portada_inicio !== false; $("exPorDia").checked = !!aj.por_dia;
     $("exPeso").value = String(aj.peso_max || 0);
     pintarExport.listo = true;
   }
@@ -4500,7 +4560,15 @@ function pintarExport() {
       <button type="button" class="${s.portada ? "img" : "img vacia"}" data-ex-ver="${esc(s.codigo)}" title="Ver el video" ${s.portada ? `style="background-image:url('${s.portada}')"` : ""}>
         <span class="ex-play" aria-hidden="true">▶</span><span>${esc(s.codigo)}</span></button>
       <label class="pie" for="${id}">${s.receta ? `<span class="pill">${s.receta.duracion} s</span>` : ""}${s.desactualizado ? '<span class="pill warn">⟳ Rearmar</span>' : ""}${s.estado === "listo" ? '<span class="pill ok">Aprobado</span>' : ""}</label></div>`; }).join("")
-    || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todos los videos».</div>`;
+    || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todo».</div>`;
+  // sin videos armados no hay nada que exportar ni revisar (vigilar() también respeta «nada»)
+  $("exTodo").dataset.nada = hechos.length ? "" : "1";
+  $("exTodo").disabled = !hechos.length || !!E.trabajo?.activo;
+  $("exTodo").title = hechos.length ? "" : "Todavía no hay videos armados: ármalos con «Armar todo» en Inicio";
+  $("cajaCalidad").dataset.vacia = hechos.length ? "" : "1";
+  if (!hechos.length) { $("cajaCalidad").open = false; $("calResumen").innerHTML = "<b>Revisión de calidad</b>: se puede cuando haya videos armados"; }
+  $("cajaCalidad").querySelector(".cal-ver").hidden = !hechos.length;
+  $("cajaCalidad").querySelector("summary").onclick = ev => { if ($("cajaCalidad").dataset.vacia) { ev.preventDefault(); avisar("Todavía no hay videos armados para revisar.", "muted"); } };
   $("exSel").disabled = $("exPartes").disabled = !exElegidos.size;
   $("exSel").title = exElegidos.size ? "" : "Primero marca la casilla de los videos que quieres exportar";
   $("exPartes").title = exElegidos.size ? "Cada video en su carpeta (POR_PARTES): hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes. No usa los ajustes de calidad de este panel."
@@ -4646,7 +4714,8 @@ $("plantForm").addEventListener("input", () => { leerFormPlantilla(); animarMues
 $("plantPredet").onclick = async () => { leerFormPlantilla(); try { ofrecerRearmar(await guardarPlantilla(plantSel, plantEdit, true), "Plantilla guardada y en uso en los videos."); } catch (e) { avisar("Error: " + e.message, "err"); } };
 $("plantDuplicar").onclick = async () => {
   leerFormPlantilla();
-  const nombre = await pedirTexto("Nombre de la nueva plantilla:", (plantEdit.nombre || plantSel) + " (mía)");
+  const nombre = (await pedirTexto("Nombre de la nueva plantilla:", (plantEdit.nombre || plantSel) + " (mía)",
+    v => !v.trim() ? "Ponle un nombre a la plantilla." : v.trim().length > 60 ? "El nombre es muy largo (máximo 60 letras)." : ""))?.trim();
   if (!nombre) return;
   if (Object.values(E.plantillas).some(p => claveNombre(p.nombre) === claveNombre(nombre)) && !await preguntar(`Ya hay una plantilla «${nombre}». ¿Crear otra con el mismo nombre?`)) return;
   const base = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "propia";
@@ -4684,16 +4753,16 @@ const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
-  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow", rehacer: "Claude rehace el prompt de una imagen",
+  guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow", rehacer: "Claude rehace el prompt de una imagen", rehacer_musica: "Claude regenera el prompt de una música",
   generar_flow: "Claude genera en Flow con Chrome" };
-let procTimer = null, pestanaProc = "recientes", historialProc = null, detalleAbierto = false;
+let procTimer = null, pestanaProc = "recientes", historialProc = null, detalleAbierto = false, cancelPedido = null;  // cancelPedido: el inicio del trabajo que se pidió cancelar
 const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
 async function pintarProcesos() {
   let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
   document.querySelectorAll("[data-pf]").forEach(b => b.setAttribute("aria-selected", b.dataset.pf === pestanaProc));
   $("procActual").innerHTML = t.activo ? `<div class="pn-vivo">
       <div class="fila"><b><span class="rueda" aria-hidden="true"></span>${esc(NOMBRE_PROCESO[t.accion] || t.accion)}</b>
-        <button class="btn peq" id="procCancelar" type="button" style="background:var(--err)">Cancelar</button></div>
+        <button class="btn peq" id="procCancelar" type="button" style="background:var(--err)" ${cancelPedido === t.inicio ? "disabled" : ""}>${cancelPedido === t.inicio ? "Cancelando…" : "Cancelar"}</button></div>
       <span class="msg">${esc(t.mensaje || "")}</span>
       <small>Empezó a las ${hora(t.inicio)} · lleva ${durTxt(Date.now() / 1000 - t.inicio)}</small>
       <details ${detalleAbierto ? "open" : ""}><summary>Ver el detalle</summary><pre>${esc((t.log || []).slice(-25).join("\n"))}</pre></details></div>` : "";
@@ -4752,7 +4821,7 @@ function pintarNotifs() {
   $("listaNotifs").innerHTML = l.map(x => {
     const d = diaNotif(x.t), cab = d !== dia ? `<div class="pn-dia">${esc(d)}</div>` : ""; dia = d;
     return `${cab}<div class="notif ${x.cls} ${x.leida ? "" : "nueva"}">
-      <span class="ni" aria-hidden="true">${x.cls === "err" ? "!" : x.cls === "ok" ? "✓" : "i"}</span>
+      <span class="ni" aria-hidden="true">${x.cls === "err" ? "!" : x.cls === "ok" ? "✓" : x.cls === "warn" ? "■" : "i"}</span>
       <span class="nt">${esc(x.txt.replace(/^Error:\s*/, "").replace(/^./, c => c.toUpperCase()))}<small>${x.cls === "err" ? "Error · " + haceCuanto(x.t) : cap(haceCuanto(x.t))}</small></span>
       <button class="nx" type="button" data-nborrar="${x.t}" title="Quitar" aria-label="Quitar esta notificación">✕</button></div>`;
   }).join("") || `<div class="pn-vacio"><span>🔔</span>${filtroNotif === "err" ? "Ningún error. Todo bien." : filtroNotif ? "Nada por aquí." : "No hay notificaciones."}<br><small>Aquí quedan los avisos de lo que termina o falla.</small></div>`;
@@ -4790,7 +4859,8 @@ $("dlgProcesos").addEventListener("close", () => clearInterval(procTimer));
 $("procActual").addEventListener("click", async e => {
   if (e.target.id !== "procCancelar") return;
   e.target.disabled = true; e.target.textContent = "Cancelando…";
-  try { await post("/api/cancelar"); } catch (err) { avisar("Error: " + err.message, "err"); }
+  try { const t = await (await fetch("/api/trabajo")).json(); cancelPedido = t.inicio; await post("/api/cancelar"); }
+  catch (err) { cancelPedido = null; avisar("Error: " + err.message, "err"); }
 });
 // Configuración: cada opción es su propia página (se ve solo esa sección), no un índice que baja por una página larga
 let confActual = "confCuenta";
@@ -4805,8 +4875,6 @@ function irConf(id) {
 }
 function marcarMenuConf(id) {
   document.querySelectorAll(".conf-menu a").forEach(a => a.classList.toggle("activo", a.getAttribute("href") === "#" + id));
-  const enConf = !document.querySelector('[data-panel="notas"]').hidden;
-  document.querySelectorAll("#menuCuenta [data-conf]").forEach(b => b.setAttribute("aria-current", enConf && b.dataset.conf === id));
 }
 document.querySelectorAll(".conf-sec").forEach(x => x.hidden = x.id !== confActual);
 document.querySelectorAll(".conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
@@ -4833,35 +4901,25 @@ $("respLista").addEventListener("click", async e => {
   const b = e.target.closest("[data-resp]"); if (!b) return;
   if (!await preguntar(`¿Dejar la sesión como estaba el ${b.dataset.fecha}?
 
-Antes se guarda una copia de cómo está ahora, por si quieres volver. Después hay que rearmar los videos.`)) return;
+Antes se guarda una copia de cómo está ahora, por si quieres volver. Lo restaurado pasa a ser la versión del proyecto para todo el equipo (lo de ahora queda en el historial de ☁ Proyecto). Después hay que rearmar los videos.`)) return;
   b.disabled = true; b.textContent = "Restaurando…";
-  try { await post("/api/respaldos", { accion: "restaurar", archivo: b.dataset.resp }); await cargar(); pintarRespaldos();
-    avisar(`Listo: la sesión quedó como el ${b.dataset.fecha}. Toca «Armar todos los videos» para verla en los videos.`, "ok"); }
+  try { const r = await post("/api/respaldos", { accion: "restaurar", archivo: b.dataset.resp }); await cargar(); pintarRespaldos(); revisarProyecto(true);
+    avisar(`Listo: la sesión quedó como el ${b.dataset.fecha}${r.version_proyecto ? ` y se subió como versión ${r.version_proyecto} del proyecto` : ""}. Toca «Armar todo» para verla en los videos.`, "ok"); }
   catch (er) { avisar("Error: " + er.message, "err"); pintarRespaldos(); }
 });
 // El menú de la cuenta (tu foto arriba a la derecha) lleva a cada página de configuración
-function abrirMenuCuenta() {
-  const m = $("menuCuenta"); if (!m.hidden) return cerrarMenuCuenta();
-  const c = Cuenta.estado() || {};
-  $("mcYo").innerHTML = `<span class="cta-av">${esc((c.nombre || c.email || "?").trim()[0] || "?").toUpperCase()}</span><div style="min-width:0"><b>${esc(c.nombre || "Tu cuenta")}</b><small>${esc(c.email || "")}</small></div>`;
-  if (c.foto) $("mcYo").querySelector(".cta-av").outerHTML = `<img class="cta-av" src="${esc(c.foto)}" alt="" referrerpolicy="no-referrer">`;
-  // los puntitos de estado son los mismos que los del menú de la página de configuración
-  [["mcNCon", "confNCon"], ["mcPDrive", "confPDrive"], ["mcPRed", "confPRed"], ["mcPAct", "confPAct"]].forEach(([a, b]) => { $(a).className = $(b).className; $(a).textContent = $(b).textContent; });
-  marcarMenuConf(confActual);
-  m.hidden = false; $("cuentaChip").querySelector("button")?.setAttribute("aria-expanded", "true");
-  m.querySelector("[data-conf]").focus({ preventScroll: true });
+// Las opciones del menú de la cuenta: las mismas páginas que el menú de Configuración, con sus mismos puntitos de estado
+function menuCuenta() {
+  const enConf = !document.querySelector('[data-panel="notas"]').hidden;
+  const marca = id => { const x = $(id); return x ? `<span class="${x.className}">${esc(x.textContent)}</span>` : ""; };
+  return [...document.querySelectorAll(".conf-menu a[href^='#conf']")].map(a => {
+    const id = a.getAttribute("href").slice(1), txt = a.cloneNode(true);
+    txt.querySelectorAll("span").forEach(x => x.remove());
+    const [icono, ...resto] = txt.textContent.trim().split(" ");
+    const punto = a.querySelector(".punto-estado, .pill");
+    return { icono, texto: resto.join(" "), al: () => irConf(id), actual: enConf && id === confActual, extra: punto?.id ? marca(punto.id) : "" };
+  }).concat("-", { icono: "📜", texto: "Abrir el teleprompter", href: "/teleprompter" });
 }
-function cerrarMenuCuenta() { $("menuCuenta").hidden = true; $("cuentaChip").querySelector("button")?.setAttribute("aria-expanded", "false"); }
-$("menuCuenta").addEventListener("click", e => { const b = e.target.closest("[data-conf]"); if (b) { cerrarMenuCuenta(); irConf(b.dataset.conf); } });
-document.addEventListener("click", e => { if (!$("menuCuenta").hidden && !e.target.closest("#menuCuenta, #cuentaChip")) cerrarMenuCuenta(); });
-document.addEventListener("keydown", e => {
-  if ($("menuCuenta").hidden) return;
-  if (e.key === "Escape") { cerrarMenuCuenta(); $("cuentaChip").querySelector("button")?.focus(); }
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    const bs = [...$("menuCuenta").querySelectorAll("[role=menuitem]")], i = bs.indexOf(document.activeElement);
-    bs[(i + (e.key === "ArrowDown" ? 1 : -1) + bs.length) % bs.length].focus(); e.preventDefault();
-  }
-});
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
   let cuerpo = cuerpos.length === 1 ? cuerpos[0] : await pedirTexto(`¿De qué cuerpo son estos hooks? (${cuerpos.join(", ")})`, cuerpos[0] || "C1");
@@ -4877,7 +4935,16 @@ $("aceptarSug").onclick = async () => {
 $("subirPanel").onclick = () => trabajo("panel");
 $("importarFinales").onclick = async () => { if (await preguntar("¿Subir al panel todos los videos de V.FINALES de las sesiones de Drive? Puede tardar varios minutos.")) trabajo("importar"); };
 
-$("rearmarUno").onclick = async () => { if (actual) { const cod = actual.codigo; if (!await cerrarVideo()) return; trabajo("uno", cod); } };
+$("rearmarUno").onclick = async () => {
+  if (!actual) return;
+  // con piezas sin preparar, armar fallaba con un error de ffprobe y la ventana se cerraba: se avisa antes
+  const pz = n => E.piezas.find(p => p.nombre === n);
+  const sinGrabar = [actual.hook, actual.cuerpo, actual.cta].filter(n => n && !pz(n));
+  if (sinGrabar.length) return avisar(`Falta grabar ${sinGrabar.join(", ")}: súbelo en Faltantes y vuelve a armar.`, "err");
+  const sinPreparar = [actual.hook, actual.cuerpo, actual.cta].filter(n => n && !pz(n).procesada);
+  if (sinPreparar.length) return avisar(`Primero prepara los clips de ${sinPreparar.join(", ")}: toca «Analizar» o «Armar todo» en Inicio.`, "err");
+  const cod = actual.codigo; if (!await cerrarVideo()) return; trabajo("uno", cod);
+};
 $("cerrar").onclick = cerrarVideo;
 $("dlg").addEventListener("cancel", async e => { e.preventDefault(); if (!$("dlgEditor").open) await cerrarVideo(); });
 $("dlgReceta").addEventListener("click", e => {  // ir al segundo de una imagen o un sonido en el video
@@ -4896,7 +4963,7 @@ $("guardarCopy").onclick = async () => {
 };
 $("copiarCopy").onclick = () => {
   const t = red === "youtube" ? $("cYtTitulo").value + "\n\n" + $("cYoutube").value : red === "tiktok" ? $("cTiktok").value : $("cInstagram").value;
-  navigator.clipboard.writeText(t).then(() => avisar("Copy copiado.", "ok"), () => avisar("No se pudo copiar: selecciona el texto y usa Ctrl+C.", "err"));
+  copiar(t, "Copy copiado.");
 };
 // Formato de la sesión: vertical 9:16 o horizontal 16:9. Al cambiarlo, las piezas se preparan otra vez con el tamaño
 // nuevo y los videos quedan por re-armar (los subtítulos corregidos se conservan).
@@ -4996,17 +5063,23 @@ function pintarRed() {
   const r = E.red || {};
   $("redBoton").textContent = r.activa ? "Desactivar acceso por WiFi" : "Activar acceso por WiFi";
   $("redBoton").className = r.activa ? "btn sec" : "btn";
-  $("redInfo").innerHTML = r.activa
+  // la sala escucha la red desde que arranca: activarlo o apagarlo vale recién al cerrarla y volver a abrirla
+  const pendiente = r.en_marcha != null && r.en_marcha !== r.activa;
+  $("redInfo").innerHTML = pendiente
+    ? `<span class="pill warn">${r.activa ? "Se activa" : "Se apaga"} al cerrar y volver a abrir la sala</span>${r.activa ? ` Después, en la tablet abre <b class="dato">${esc(r.url)}</b> y escribe el PIN <b class="dato">${esc(r.pin)}</b>` : ""}`
+    : r.activa
     ? `<span class="pill ok">✓ Activo</span> En la tablet abre <b class="dato">${esc(r.url)}</b> y escribe el PIN <b class="dato">${esc(r.pin)}</b>`
     : `<span class="pill">Apagado</span> <span class="muted">Actívalo para leer el guion desde la tablet, sin internet.</span>`;
-  $("confPRed").className = "punto-estado " + (r.activa ? "ok" : "");
+  $("confPRed").className = "punto-estado " + (pendiente ? "warn" : r.activa ? "ok" : "");
 }
 $("redBoton").onclick = async () => {
   try { const r = await post("/api/red", { activa: !(E.red || {}).activa }); E.red = r; pintarRed();
     avisar("Listo. Cierra y vuelve a abrir la sala para aplicarlo (si Windows pregunta por el firewall, permite «Redes privadas»).", "ok"); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
-$("guardarNotas").onclick = async () => { try { await post("/api/notas", { texto: $("notas").value }); avisar("Notas guardadas.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
+let notasSucias = false;
+$("notas").addEventListener("input", () => { notasSucias = true; });
+$("guardarNotas").onclick = async () => { try { await post("/api/notas", { texto: $("notas").value }); notasSucias = false; avisar("Notas guardadas.", "ok"); } catch (e) { avisar("Error: " + e.message, "err"); } };
 // ---------- Portada de un video ----------
 let porTimer = null;
 let porDiseno = {};
@@ -5043,7 +5116,10 @@ function abrirPortada() {
   $("porVista").src = actual.portada || ""; $("porEstado").textContent = "Portada actual"; porSucia = false;
 }
 let porSucia = false;  // hay cambios de portada que se ven en vivo pero no se guardaron
+// los números de la portada dentro de lo que muestra el formulario (5000 de tamaño o borde −20 rompían la imagen)
+const entre = (v, min, max, def) => Number.isFinite(+v) && v !== "" ? Math.max(min, Math.min(max, +v)) : def;
 function leerPortada() {
+  ["porTam", "porBorde"].forEach(id => { const c = $(id), v = entre(c.value, +c.min, +c.max, null); if (v !== null && +c.value !== v) c.value = v; });
   return { ...porDiseno, segundo: Number($("porT").value), x: porDiseno.x, ancho_titulo: porDiseno.ancho_titulo, logo_x: porDiseno.logo_x, logo_y: porDiseno.logo_y, logo_ancho: porDiseno.logo_ancho, titulo: $("porTitulo").value.trim(), fuente: $("porFuente").value,
     tamano: Number($("porTam").value), color_texto: $("porColor").value, color_acento: $("porAcento").value, borde: Number($("porBorde").value),
     color_borde: $("porColorBorde").value, caja: $("porCaja").checked, color_caja: $("porColorCaja").value, y: Number($("porY").value),
@@ -5087,8 +5163,18 @@ $("porElems").addEventListener("click", e => {
   const i = e.target.closest("[data-pe-quitar]")?.dataset.peQuitar; if (i !== undefined) { porDiseno.elementos.splice(Number(i), 1); pintarElemsPortada(); verPortadaEnVivo(0); }
 });
 $("porElemAgregar").onclick = () => { const a = $("porElemSel").value; if (!a) return; porDiseno.elementos.push({ archivo: a, x: 60, y: 80, ancho: 300, opacidad: 100 }); pintarElemsPortada(); verPortadaEnVivo(0); };
+// Sube una imagen a Elementos. Si ya hay una con ese nombre, pregunta: reemplazarla o usar la que ya estaba. {archivo}
+async function subirElemento(f) {
+  const url = `/api/elemento?nombre=${encodeURIComponent(f.name)}`;
+  try { return await post(url, f, true); }
+  catch (err) {
+    if (!err.existe) throw err;
+    if (await preguntar(`Ya hay un elemento «${err.archivo}». ¿Reemplazarlo por el que elegiste? (si no, se usa el que ya estaba)`, "Sí, reemplazar")) return post(url + "&reemplazar=1", f, true);
+    return { archivo: err.archivo };
+  }
+}
 async function subirImagenPortada(f) {
-  const r = await post(`/api/elemento?nombre=${encodeURIComponent(f.name)}`, f, true);
+  const r = await subirElemento(f);
   E.elementos = (await (await fetch("/api/estado")).json()).elementos;
   return r.archivo;
 }
@@ -5238,9 +5324,13 @@ $("porGaleria").addEventListener("click", e => {
 // «Ver portada actual» deja el formulario como está guardado (antes solo cambiaba la imagen y los cambios seguían en el formulario)
 $("porVolver").onclick = abrirPortada;
 $("porGuardar").onclick = async () => {
+  const d = leerPortada();
+  if (!d.titulo && !d.solo_imagen) {
+    $("porTitulo").focus();
+    return avisar("Escribe el título de la portada (o marca «Solo imagen» para que no lleve texto).", "err");
+  }
   $("porGuardar").disabled = true; $("porEstado").textContent = "Haciendo la portada…";
   try {
-    const d = leerPortada();
     const r = await post("/api/portada", { codigo: actual.codigo, ...d });
     $("porVista").src = r.portada; actual.portada = r.portada; actual.ajustes_portada = d; porSucia = false;
     $("porEstado").innerHTML = `<span class="pill ok">✓ Guardada</span>`;
@@ -5491,12 +5581,15 @@ async function pintarSonidos() {
   $("sonChips").innerHTML = `<button data-son-cat="" aria-pressed="${!sonCat}"><span class="n">Todos</span> <span>${total}</span></button>` + biblioteca.map(c =>
     `<button data-son-cat="${esc(c.cat)}" aria-pressed="${sonCat === c.cat}" title="${esc(c.nombre)}${(d => d ? " — " + d : "")(Object.entries(DESC_SONIDO).find(([k]) => c.cat.toLowerCase().includes(k))?.[1] || "")}"><span class="n">${esc(c.nombre)}</span> <span>${c.archivos.length}</span></button>`).join("");
   const grupos = biblioteca.filter(c => !sonCat || c.cat === sonCat).map(c => ({
-    c, archivos: c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)) })).filter(g => g.archivos.length);
+    c, archivos: c.archivos.filter(a => !q || a.nombre.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q))
+      .sort((x, y) => x.nombre.localeCompare(y.nombre, "es", { numeric: true, sensitivity: "base" })) })).filter(g => g.archivos.length);  // 1, 2… 10 (no 1, 10, 11, 2)
+  const catNom = sonCat ? (biblioteca.find(c => c.cat === sonCat) || {}).nombre || sonCat : "";
+  $("sonBuscar").placeholder = catNom ? `Buscar en «${catNom}»…` : "Buscar en todos los sonidos…";
   const fila = (c, a) => `<div class="sb-fila" role="option" aria-selected="${dsSon?.id === a.id}" data-sel-son='${esc(JSON.stringify({ id: a.id, nombre: a.nombre, cat: c.cat, catNombre: c.nombre }))}'>
       <button class="btn-play" data-tocar="${esc(a.id)}" title="Escuchar" aria-label="Escuchar ${esc(a.nombre)}">▶</button>
       <span class="nom" title="${esc(a.nombre)}">${esc(cap(a.nombre))}</span>${a.aj ? `<span class="marca" title="Editado"></span>` : "<span></span>"}</div>`;
   $("sonLista").innerHTML = grupos.map(g => (grupos.length > 1 || !sonCat ? `<div class="sb-grupo">${esc(g.c.nombre)}</div>` : "") + g.archivos.map(a => fila(g.c, a)).join("")).join("")
-    || `<div class="sb-vacio">${q ? `Nada con «${esc(q)}».` : "Sin archivos (se bajan de Drive al abrir una sesión)."}</div>`;
+    || `<div class="sb-vacio">${q ? `Nada con «${esc(q)}»${catNom ? ` en «${esc(catNom)}». Toca «Todos» para buscar en todos los tipos` : ""}.` : "Sin archivos (se bajan de Drive al abrir una sesión)."}</div>`;
   $("sonElegido").hidden = !sonElegido;
   $("sonElegido").innerHTML = sonElegido ? `🎯 Listo para poner en un video: <b>${esc(sonElegido.nombre)}</b>. Abre el video → <b>Editar</b> → lleva el cabezal al segundo que quieras → <b>«+ Agregar en el cabezal»</b>.
     <button class="btn sec peq" type="button" id="sonElegidoQuitar">Quitar</button>` : "";
@@ -5513,10 +5606,15 @@ function ajustarAltoSonidos() {
 // al cambiar el tamaño de la ventana, o si aparece o se va un aviso arriba, el navegador se reacomoda y las ondas se redibujan
 addEventListener("resize", () => { ajustarAltoSonidos(); if (dsSon && !$("dsForm").hidden) { dsPintar(); dsPintarEq(); } });
 try { new ResizeObserver(ajustarAltoSonidos).observe($("sonElegido")); } catch (e) {}
-$("sonLista").addEventListener("click", e => {
+// ¿El sonido abierto tiene cambios sin guardar? (lo de la pantalla contra lo guardado, sin contar los «no» vacíos)
+const dsNorm = o => JSON.stringify(Object.entries(o || {}).filter(([, v]) => v !== false && v != null).sort(([a], [b]) => a < b ? -1 : 1));
+function dsSinGuardar() { return !!(dsSon && dsOndaO && !$("dsForm").hidden && dsNorm(dsLeer()) !== dsNorm(dsGuardado)); }
+$("sonLista").addEventListener("click", async e => {
   if (e.target.closest("[data-tocar]")) return;  // ▶ solo escucha
   const f = e.target.closest("[data-sel-son]"); if (!f) return;
-  const s = JSON.parse(f.dataset.selSon); abrirEditorSonido(s).then(() => dsTocar("cambios"));  // suena tal como queda en los videos
+  const s = JSON.parse(f.dataset.selSon);
+  if (s.id !== dsSon?.id && dsSinGuardar() && !await preguntar(`«${cap(dsSon.nombre)}» tiene cambios sin guardar. ¿Descartarlos y abrir «${cap(s.nombre)}»?`)) return;
+  abrirEditorSonido(s).then(() => dsTocar("cambios"));  // suena tal como queda en los videos
 });
 $("sonBuscar").addEventListener("input", pintarSonidos);
 function pintarNivelSonidos() {
@@ -5715,7 +5813,7 @@ function dsPintarResultado() {
   const fuente = tramo.length / ps || Math.max(0, h - d);  // segundos de sonido antes de la velocidad
   dsPintarResultado.fuente = fuente;
   const largo = fuente / vel, cola = eco ? .4 + eco : 0, total = largo + cola;
-  $("dsResTxt").textContent = `Dura ${total.toFixed(2)} s${vel !== 1 ? ` (${vel > 1 ? "más rápido" : "más lento"})` : ""}`;
+  $("dsResTxt").textContent = `Dura ${total.toFixed(2).replace(".", ",")} s${vel !== 1 ? ` (${vel > 1 ? "más rápido" : "más lento"})` : ""}`;
   const cv = $("dsRes"), w = cv.clientWidth, hh = cv.clientHeight, dpr = devicePixelRatio || 1;
   cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
   const g = cv.getContext("2d"); g.scale(dpr, dpr);
@@ -6026,6 +6124,7 @@ async function cargarEstructura(codigo, combo) {
   catch (e) { nuevo = { error: "No se pudo cargar el editor de este video (¿la sala se reinició?). Ciérralo y vuelve a abrirlo." }; }
   if (pedido !== cargarEstructura.n) return;
   est = nuevo;
+  if (actual && !combo) $("edTitulo").textContent = "Editar " + actual.archivo;  // otra versión (-v2) o video: el título lo sigue
   $("irEditor").disabled = !!est.error;
   if (est.error) { $("evInspector").innerHTML = `<span class="muted">${esc(est.error)}</span>`; return; }
   const opt = (lista, v) => lista.map(n => `<option value="${esc(n)}" ${n === v ? "selected" : ""}>${esc(verPieza(n))}</option>`).join("");
@@ -6084,7 +6183,8 @@ const firmaSubsVideo = () => JSON.stringify(["vidPlantilla", "vidAltura", "vidAl
 async function cerrarVideo() {  // al cerrar con ✕, Esc, exportar o rearmar, avisa si se pierde algo
   if (!$("dlg").open) return true;
   const que = sinGuardar();
-  if (que.length && !await preguntar(`Tienes ${que.join(", ").replace(/, ([^,]*)$/, " y $1")} sin guardar. ¿Cerrar igual y perderlo?`)) return false;
+  const lo = que.length > 1 ? "los" : { los: "los", las: "las", la: "la", el: "lo" }[String(que[0]).split(" ")[0]] || "lo";
+  if (que.length && !await preguntar(`Tienes ${que.join(", ").replace(/, ([^,]*)$/, " y $1")} sin guardar. ¿Cerrar igual y perder${lo}?`)) return false;
   firmaGuardada = null; firmaSubs = null; $("dlg").close(); return true;
 }
 function pintarAlcance() {
@@ -7449,6 +7549,7 @@ function irA(t) {
   const destino = s.a + (ed.t - s.g0);
   // mientras carga el video de otra pieza, el cabezal se queda donde se tocó (no vuelve al inicio de la pieza)
   if (irA.pend) { v.removeEventListener("loadedmetadata", irA.pend); irA.pend = null; }
+  if (!s.pieza.url) { ed.cargando = false; vistaEd(); return; }  // la pieza todavía no está preparada: no hay video que mostrar
   if (!v.src.includes(s.pieza.url.split("?")[0])) {
     ed.cargando = true; v.src = s.pieza.url;
     irA.pend = () => { irA.pend = null; v.currentTime = destino; ed.cargando = false; vistaEd(); };
@@ -7461,7 +7562,7 @@ $("evVideo").addEventListener("error", () => {  // un clip que no carga: se dice
   if (!ed || !$("dlgEditor").open && !$("dlg").open) return;
   ed.cargando = false;
   const s = segmentosEd()[evSeg];
-  avisar(`No se pudo cargar el clip de ${s ? s.t : "esta parte"}. Revisa que la pieza esté preparada (Inicio → Armar todos los videos).`, "err");
+  avisar(`No se pudo cargar el clip de ${s ? s.t : "esta parte"}. Revisa que la pieza esté preparada (Inicio → «Armar todo»).`, "err");
 });
 function vistaEd() {
   const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
@@ -7542,7 +7643,8 @@ function bucleEd() {
   if (s && v.currentTime >= s.b - .02) {
     if (evSeg + 1 >= segs.length) { pararEditor(); irA(0); return; }
     evSeg++; const n = segs[evSeg];
-    if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; if (evReproduciendo) v.play(); }, { once: true }); }
+    if (!n.pieza.url) { pararEditor(); return; }  // pieza sin preparar: no hay video que seguir
+    if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; if (evReproduciendo) v.play().catch(() => {}); }, { once: true }); }
     else if (Math.abs(v.currentTime - n.a) > .06) v.currentTime = n.a;  // si sigue de corrido (sin nada quitado en medio) no salta: no se traba
   }
   vistaEd(); sonarPrevia(); sonarVozAparte();
@@ -7728,6 +7830,7 @@ async function guardarEdicion() {
   if (!est.base || !misma) return guardarVersion(true);
   try {
     pararEditor();
+    if (firmaGuardada && firmaEd() !== firmaGuardada) marcarEditando(["listo"]);
     const sonidos = [...new Set(sonPend.flatMap(p => p.codigos || []))];  // los sonidos ya quedaron guardados: falta rearmar
     const r = await post("/api/edicion", { ...d, armar: true, extra_codigos: sonidos });
     sonPend = []; pintarPendientes();
@@ -7754,6 +7857,7 @@ $("evArmar").onclick = () => guardarEdicion();
 $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (no crea otro ni toca los demás del cuerpo)
   try {
     pararEditor();
+    marcarEditando(["listo"]);
     const r = await post("/api/version", { ...datosEd(), propio: true, codigo: est.codigo, id: est.codigo, armar: true });
     const cuerpo = est.cuerpo.nombre;
     firmaGuardada = null; $("dlg").close(); await cargar();
@@ -7762,12 +7866,16 @@ $("evSolo").onclick = async () => {  // los cambios quedan solo en este video (n
   } catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("evPartes").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!await cerrarVideo()) return; await exportarPartes([cod]); };
-$("evGuardar").onclick = () => guardarVersion(true, true);
+$("evGuardar").onclick = () => {
+  // sin cambios saldría una copia idéntica del video
+  if (firmaGuardada && firmaEd() === firmaGuardada) return avisar("No hay cambios: la versión aparte sería igual a este video. Cambia algo (o su nombre) y vuelve a tocar.", "muted");
+  guardarVersion(true, true);
+};
 // ---------- Proyecto compartido («Actualizar proyecto») ----------
 // Cada minuto se mira si otra PC subió una versión nueva de la edición de esta sesión. Si hay, sale el aviso con
 // «Actualizar», «Ahora no» y «Quedarme con lo mío» (si no hay otra ventana abierta; si la hay, el botón ☁ titila).
 let proy = null;
-const hace = t => { const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60)); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+const hace = t => !t ? "" : Date.now() / 1000 - t < 60 ? "recién" : haceTxt(t);  // sin «hace 1 días» ni «hace 0 min»
 function pospuesto(v) { try { return Number(sessionStorage.getItem("py_luego_" + E.semana + "_" + v) || 0) > Date.now(); } catch (e) { return false; } }
 async function revisarProyecto(forzar, abrir) {
   try { proy = await (await fetch("/api/proyecto" + (forzar ? "?forzar" : ""))).json(); } catch (e) { return; }
@@ -7818,7 +7926,7 @@ async function accionProyecto(accion, extra = {}) {
     $("dlgProyecto").close(); await cargar();
     if (accion === "actualizar" || accion === "volver") {
       const n = E.salidas.filter(s => s.desactualizado).length;
-      avisar(`Proyecto ${accion === "volver" ? `vuelto a la versión ${extra.version}` : `actualizado con lo de ${r.autor || "la otra PC"}`}.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar (Inicio → Armar).` : ""}`, "ok");
+      avisar(`${accion === "volver" ? `Listo: volviste a la versión ${extra.version}${r.nueva && r.nueva !== extra.version ? ` (se guardó como versión ${r.nueva}, la del equipo; las otras PCs verán el aviso)` : ""}` : `Proyecto actualizado con lo de ${r.autor || "la otra PC"}`}.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar (Inicio → Armar).` : ""}`, "ok");
     } else avisar(accion === "quedarme" ? "Listo: tu versión es ahora la del proyecto. Las otras PCs verán el aviso." : "Tus cambios se subieron al proyecto.", "ok");
     revisarProyecto(true);
   } catch (err) { avisar("Error: " + err.message, "err"); }
@@ -7835,7 +7943,11 @@ $("dlgProyecto").addEventListener("click", async e => {
     try { sessionStorage.setItem("py_luego_" + E.semana + "_" + proy.version_remota, String(Date.now() + 30 * 60000)); } catch (er) {}
     $("dlgProyecto").close(); avisar("Sigues con lo tuyo. El aviso vuelve a salir en 30 minutos (o toca ⟳ arriba cuando quieras).", "muted");
   }
-  else if (v && await preguntar(`¿Volver a la versión ${v}? Lo de ahora queda en el historial y en una copia de seguridad.`)) accionProyecto("volver", { version: Number(v) });
+  else if (v && await preguntar(`¿Volver a la versión ${v}?
+
+La sesión queda igual que en la versión ${v} y eso se guarda como una versión nueva (la ${(proy?.version_remota || 0) + 1}), que pasa a ser la de todo el equipo: las otras PCs verán el aviso para traerla.
+
+No se pierde nada: lo de ahora sigue en el historial (puedes volver a él igual) y en una copia de seguridad.`)) accionProyecto("volver", { version: Number(v) });
 });
 setInterval(() => { if (E && !document.hidden) revisarProyecto(); }, 60000);
 setTimeout(() => revisarProyecto(true), 6000);
@@ -8067,6 +8179,8 @@ async function cargarClips(abrir) {
 function pintarListaClips() {
   const est = v => v.estado === "listo" ? `${plural(v.propuestos, "clip propuesto", "clips propuestos")}${v.hechos ? ` · ${v.hechos} armados` : ""}`
     : v.estado === "transcribiendo" ? "Pasándolo a texto…" : "Esperando su turno…";
+  // el aviso «Subido: ahora la sala lo pasa a texto…» se va cuando ya no queda ninguno por escuchar
+  if (!subirVideoClips.subiendo && !CL.lista.some(v => v.estado !== "listo")) $("clSubiendo").hidden = true;
   $("clVideos").innerHTML = CL.lista.map(v => `<button type="button" data-clv="${v.id}" aria-current="${v.id === CL.sel}"><b>${esc(v.nombre)}</b>
       <small>${v.duracion ? tMin(v.duracion).replace(/\.\d$/, "") + " · " : ""}${esc(est(v))}</small></button>`).join("") || `<p class="muted" style="margin:0;font-size:12.5px">Todavía no subiste videos.</p>`;
 }
@@ -8075,6 +8189,11 @@ async function abrirClips(id) {
   let d; try { d = await (await fetch(`/api/clips/uno?id=${id}`)).json(); } catch (e) { return; }
   if (!d.ok) { CL.sel = null; $("clDetalle").hidden = true; $("clVacio").hidden = false; return; }
   const nuevo = !CL.d || CL.d.id !== id;
+  if (!nuevo) {  // al refrescar el mismo video se quedan los tiempos que se movieron y «+ Usar el video entero»
+    const viejos = Object.fromEntries(CL.d.propuesta.map(c => [c.id, c]));
+    d.propuesta = d.propuesta.map(c => viejos[c.id] ? { ...c, ini: viejos[c.id].ini, fin: viejos[c.id].fin, encuadre: viejos[c.id].encuadre } : c);
+    if (viejos.entero && !d.propuesta.some(c => c.id === "entero")) d.propuesta.unshift(viejos.entero);
+  }
   CL.d = d;
   if (nuevo) { CL.elegidos = new Set(d.propuesta.slice(0, 5).map(c => c.id)); $("clVideo").src = `/api/clips/fuente?id=${id}`; pintarOpcionesClips(d.opciones); }
   $("clVacio").hidden = true; $("clDetalle").hidden = false;
@@ -8087,6 +8206,7 @@ async function abrirClips(id) {
 function pintarPropuestaClips() {
   const d = CL.d, lista = d.propuesta;
   $("clNProp").textContent = lista.length;
+  $("clElige").hidden = !lista.length;  // sin clips propuestos no hay nada que elegir
   $("clLista").innerHTML = lista.map((c, k) => `<div class="cl-clip ${CL.elegidos.has(c.id) ? "elegido" : ""}" data-clc="${k}">
       <input type="checkbox" data-clsel ${CL.elegidos.has(c.id) ? "checked" : ""} aria-label="Elegir este clip" style="margin-top:3px">
       <div style="min-width:0"><b>${esc(c.titulo)}</b>
@@ -8103,7 +8223,10 @@ function pintarPropuestaClips() {
 }
 function pintarOpcionesClips(o) {
   $("opEncuadre").value = o.encuadre || "cara"; $("opSilencios").value = o.silencios || "normal"; $("opAudio").value = o.audio || "suave";
-  $("opColor").value = o.color || "natural"; $("opIgualar").checked = o.igualar !== false; $("opSubs").checked = o.subtitulos !== false; $("opZoom").checked = o.zoom !== false;
+  // «El del estilo (LUT)» solo si hay un LUT puesto en Plantillas → Estilo de edición
+  const hayLut = !!(E?.estilo_edicion || {}).lut, opLut = $("opColor").querySelector('option[value="estilo"]');
+  opLut.disabled = !hayLut; opLut.textContent = hayLut ? "El del estilo de edición (LUT)" : "El del estilo de edición (no hay LUT puesto)";
+  $("opColor").value = o.color === "estilo" && !hayLut ? "natural" : o.color || "natural"; $("opIgualar").checked = o.igualar !== false; $("opSubs").checked = o.subtitulos !== false; $("opZoom").checked = o.zoom !== false;
   $("opIgualarCaja").hidden = $("opAudio").value === "original";
 }
 $("opAudio").addEventListener("change", () => { $("opIgualarCaja").hidden = $("opAudio").value === "original"; });
@@ -8142,16 +8265,23 @@ $("clArmar").onclick = async () => {
   const clips = CL.d.propuesta.filter(c => CL.elegidos.has(c.id)).map(c => ({ ini: c.ini, fin: c.fin, titulo: c.titulo, encuadre: c.encuadre || null }));
   const opciones = { encuadre: $("opEncuadre").value, silencios: $("opSilencios").value, audio: $("opAudio").value, color: $("opColor").value,
     igualar: $("opIgualar").checked, subtitulos: $("opSubs").checked, zoom: $("opZoom").checked };
+  const cortos = clips.filter(c => !(c.fin - c.ini >= 1));  // un tramo de menos de 1 s fallaba sin decir nada
+  if (cortos.length) return avisar(`${cortos.map(c => `«${c.titulo}»`).join(", ")} dura${cortos.length === 1 ? "" : "n"} menos de 1 segundo: mueve el inicio o el final (mínimo 1 s).`, "err");
   try {
     const r = await post("/api/clips/armar", { id: CL.sel, clips, opciones });
     vigilar(await (await fetch("/api/trabajo")).json());
-    avisar(r.en_cola ? `Los ${clips.length} clips se arman cuando la sala termine lo que está haciendo (☰).` : `Armando ${plural(clips.length, "clip")}… lo ves en Procesos (☰).`, "ok");
+    avisar(r.en_cola ? `${clips.length === 1 ? "El clip se arma" : `Los ${clips.length} clips se arman`} cuando la sala termine lo que está haciendo (☰).` : `Armando ${plural(clips.length, "clip")}… lo ves en Procesos (☰).`, "ok");
   } catch (err) { avisar("Error: " + err.message, "err"); }
 };
 async function subirVideoClips(f) {
   if (!f) return;
   if (!/\.(mp4|mov|m4v|mkv|webm|avi)$/i.test(f.name)) return avisar("Sube un video (.mp4, .mov, .mkv, .webm…)", "err");
+  if (subirVideoClips.subiendo) return avisar("Espera a que termine de subir el video anterior.", "muted");
+  const sinExt = s => norm(String(s).replace(/\.[^.]+$/, ""));
+  const repetido = CL.lista.find(v => sinExt(v.nombre) === sinExt(f.name));
+  if (repetido && !await preguntar(`«${f.name}» ya está en la lista. ¿Subirlo otra vez como otro video?`, "Sí, subir otra vez")) { abrirClips(repetido.id); return; }
   const caja = $("clSubiendo"); caja.hidden = false;
+  subirVideoClips.subiendo = true;
   try {
     // con XHR para ver cuánto va (un video largo puede pesar varios GB)
     const r = await new Promise((ok, mal) => {
@@ -8162,10 +8292,12 @@ async function subirVideoClips(f) {
       x.onerror = () => mal(new Error("Se cortó la subida"));
       x.send(f);
     });
-    caja.textContent = "Listo: ahora la sala lo pasa a texto y busca los clips (☰ para ver cómo va).";
+    caja.textContent = "Subido: ahora la sala lo pasa a texto y busca los clips (☰ para ver cómo va).";
+    subirVideoClips.subiendo = false;
     vigilar(await (await fetch("/api/trabajo")).json());
     CL.d = null; await cargarClips(r.id);
   } catch (err) { caja.textContent = ""; caja.hidden = true; avisar("Error: " + err.message, "err"); }
+  finally { subirVideoClips.subiendo = false; }
 }
 $("clArchivo").onchange = e => { const f = e.target.files[0]; e.target.value = ""; subirVideoClips(f); };
 ["dragenter", "dragover"].forEach(t => $("clSoltar").addEventListener(t, e => { e.preventDefault(); $("clSoltar").classList.add("encima"); }));
@@ -8421,9 +8553,13 @@ async function pintarPreparar() {
   const clips = assets.filter(a => a.tipo === "clip").length;
   const claude = infoClaude?.instalado && infoClaude?.sesion;
   const sinClaude = claude ? "" : `<span class="muted" style="font-size:12px">Para que Claude lo proponga, conéctalo en Inicio → Claude.</span>`;
+  // con el guion ya leído: sin cuerpos o sin CTA no está listo (no sale ningún video)
+  const faltaPieza = g ? [!n("cuerpo") && "cuerpos", !n("cta") && "CTA"].filter(Boolean) : [];
+  const guionOk = E.hay_produccion && !faltaPieza.length;
   const pasos = [
-    { ok: E.hay_produccion, t: E.hay_produccion ? "Guion listo" : "Falta el guion",
-      d: E.hay_produccion ? (pz.length ? `${plural(n("cuerpo"), "cuerpo")}, ${plural(n("hook"), "hook")} y ${plural(n("cta"), "CTA", "CTA")}. La sala ya lo separó por piezas.` : "La sala ya lo separó por piezas.")
+    { ok: guionOk, t: !E.hay_produccion ? "Falta el guion" : guionOk ? "Guion listo" : "Al guion le faltan piezas",
+      d: E.hay_produccion ? (g ? `${plural(n("cuerpo"), "cuerpo")}, ${plural(n("hook"), "hook")} y ${plural(n("cta"), "CTA", "CTA")}.`
+          + (faltaPieza.length ? ` Le faltan ${faltaPieza.join(" y ")}: revísalo en Guion o sube otro.` : " La sala ya lo separó por piezas.") : "La sala ya lo separó por piezas.")
         : "Súbelo y la sala lo lee, lo separa en cuerpos, hooks y CTA y lo ordena. También lo puede escribir Claude.",
       b: E.hay_produccion ? `<button class="btn sec peq" type="button" data-ir="guion">Ver el guion</button><button class="btn sec peq" type="button" data-prep="guion">Cambiar el guion</button>`
         : `<button class="btn" type="button" data-prep="guion">⬆ Subir el guion (Word, .txt, .md o .json)</button><button class="btn sec" type="button" data-ir="claude">✳ Escribirlo con Claude</button>` },
@@ -8516,7 +8652,21 @@ function guardarConTeclado() {
   avisar("Aquí no hay nada que guardar con Ctrl+S.", "muted");
 }
 let portapapeles = null;  // lo copiado en el editor: {tipo, datos, texto}
-function copiarTexto(t) { try { navigator.clipboard.writeText(t).catch(() => {}); } catch (e) {} }
+// Copiar al portapapeles esperando a que de verdad se copie (antes decía «Copiado.» aunque el navegador no dejara).
+// Si no deja, se prueba a la antigua (un cuadro de texto escondido). Con «ok» avisa: ese texto o el error. Devuelve true/false.
+async function copiar(t, ok) {
+  let hecho = false;
+  try { await navigator.clipboard.writeText(String(t ?? "")); hecho = true; } catch (e) {
+    try {
+      const ta = document.createElement("textarea"); ta.value = String(t ?? ""); ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;left:-9999px;top:0";
+      ([...document.querySelectorAll("dialog[open]")].pop() || document.body).appendChild(ta);  // con una ventana abierta, lo de afuera no se puede elegir
+      ta.select(); hecho = document.execCommand("copy"); ta.remove();
+    } catch (e2) {}
+  }
+  if (ok !== undefined) avisar(hecho ? ok : "No se pudo copiar: selecciona el texto y usa Ctrl+C.", hecho ? "ok" : "err");
+  return hecho;
+}
+function copiarTexto(t) { return copiar(t); }
 function copiarEd(cortar) {
   if (!est || est.error || !ed) return;
   const cp = capaSel(), k = puntoSel(), linea = lineaSel(), b = bloqueSel();
@@ -8689,9 +8839,16 @@ $("evAlcance").addEventListener("click", async e => {
 
 // «Editar» abre el editor en su propia ventana grande (línea de tiempo + subtítulos de este video)
 $("edCuerpo").append($("editorVideo"), $("editorSubs"));
+// Estado del video al editarlo: «Por revisar» pasa a «Editando» al abrir el editor; «Aprobado» vuelve a «Editando» al cambiarlo
+function marcarEditando(desde) {
+  const a = actual;
+  if (!a || !desde.includes(a.estado || "pendiente")) return;
+  post("/api/estado_video", { codigo: a.codigo, estado: "editando" }).then(() => { a.estado = "editando"; if (actual === a) pintarEstadoDlg(); }).catch(() => {});
+}
 function abrirEditor() {
   if (!actual) return;
   $("edTitulo").textContent = "Editar " + actual.archivo;
+  marcarEditando(["pendiente"]);
   if (!$("dlgEditor").open) $("dlgEditor").showModal();
   llenarSelectorSonido(); pintarPendientes();
   setTimeout(() => { pintarEditor(); vistaEd(); pintarMudos(); }, 50);
@@ -8705,7 +8862,7 @@ $("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checke
 $("evExportar").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!await cerrarVideo()) return; await exportarVideos([cod]); };
 $("evBorrar").onclick = async () => {
   if (!est || est.base || !await preguntar(est.propio ? `¿Quitar los ajustes propios de ${est.codigo}? Vuelve a lo de ${est.cuerpo.nombre} y se rearma.` : `¿Borrar la versión ${est.codigo}?`)) return;
-  try { await post("/api/version", { borrar: est.codigo }); $("dlg").close(); await cargar();
+  try { await post("/api/version", { borrar: est.codigo }); firmaGuardada = null; $("dlgEditor").close(); $("dlg").close(); await cargar();
     if (est.propio) { reabrir = est.codigo; vigilar(await (await fetch("/api/trabajo")).json()); }
     avisar(est.propio ? `${est.codigo} vuelve a lo de ${est.cuerpo.nombre}. Rearmándolo…` : "Versión borrada.", "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -8727,7 +8884,7 @@ function pintarPlan() {
     const z = { ...est, ...(ed.estilo || {}) }, m = ed.musica || { modo: "otra" }, r = ed.ritmo || {};
     const musV = m.modo === "pista" ? "pista:" + (m.pista || "") : m.modo;
     return `<div class="plan-ed" data-ed="${k}"><div class="fila" style="gap:8px"><span class="letra">${k}</span>
-        <input data-ec="nombre" value="${esc(ed.nombre || "Edición " + k)}" aria-label="Nombre de la edición ${k}" style="flex:1;min-width:0">
+        <input data-ec="nombre" maxlength="40" value="${esc(ed.nombre || "Edición " + k)}" aria-label="Nombre de la edición ${k}" style="flex:1;min-width:0">
         <button class="btn sec peq" type="button" data-ed-borrar="${k}" title="Quitar la edición ${k} (sus videos ya armados quedan en la carpeta)">🗑</button></div>
       <div class="fila" style="gap:10px;flex-wrap:wrap"><label><input type="checkbox" data-ec="zoom_alterno" ${z.zoom_alterno ? "checked" : ""}> Zoom en las frases</label>
         <label><input type="checkbox" data-ec="zoom_hook" ${z.zoom_hook ? "checked" : ""}> Zoom en el hook</label></div>
@@ -8742,14 +8899,16 @@ function pintarPlan() {
       <label class="fila" style="gap:6px"><input type="checkbox" data-ec="acelerar" ${r.acelerar !== false ? "checked" : ""}> Acelerar un poco las frases lentas</label>
     </div>`;
   };
-  const cuerpos = Object.keys(planBorrador).length ? Object.keys(planBorrador) : E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
+  // los cuerpos del guion (aunque todavía no haya clips) y los ya grabados
+  const delGuion = Object.keys(E.piezas_guion || {}).filter(n => !/CTA/i.test(n) && !/_H\d/i.test(n));
+  const cuerpos = [...new Set([...Object.keys(planBorrador), ...delGuion, ...E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre)])];
   let total = 0, nuevos = 0;
   const filas = cuerpos.map(c => {
     const nb = videosBase(c), marcadas = planBorrador[c] || ["A"];
     total += nb * marcadas.length;
     nuevos += E.salidas.filter(s => s.cuerpo === c && !s.existe && marcadas.includes(s.edicion || "A")).length
       + nb * marcadas.filter(e => !(E.plan[c] || ["A"]).includes(e)).length;
-    const texto = (E.piezas.find(p => p.nombre === c)?.lineas || []).map(l => l.texto).join(" ");
+    const texto = (E.piezas.find(p => p.nombre === c)?.lineas || []).map(l => l.texto).join(" ") || (E.piezas_guion || {})[c] || "";
     return `<tr><td><b>${esc(verPieza(c))}</b> <span class="muted">· ${nb} video${nb === 1 ? "" : "s"} por edición</span><br><span class="muted">${esc(texto.slice(0, 70))}${texto.length > 70 ? "…" : ""}</span></td>
       ${letras.map(k => `<td><input type="checkbox" data-plan="${esc(c)}|${k}" ${marcadas.includes(k) ? "checked" : ""} ${k === "A" ? "disabled title='La A siempre se arma'" : ""} aria-label="${esc(c)} en la edición ${k}"></td>`).join("")}</tr>`;
   }).join("");
@@ -8758,7 +8917,7 @@ function pintarPlan() {
     <div class="plan-eds">${letras.map(k => tarjeta(k, eds[k])).join("")}</div>
     <h3 style="margin:0 0 6px">2 · Qué se arma de cada cuerpo</h3>
     <span class="muted" style="font-size:12px">Marca en qué ediciones sale cada cuerpo. Cada marca son los videos de ese cuerpo (todos sus hooks) editados así. Los cortes y sonidos que cambies en una edición quedan en esa edición.</span>
-    <table class="plan-tabla" style="margin-top:8px"><thead><tr><th>Cuerpo</th>${letras.map(k => `<th>${k}<br><span class="muted" style="font-weight:400">${esc(eds[k].nombre || "")}</span></th>`).join("")}</tr></thead>
+    <table class="plan-tabla" style="margin-top:8px"><thead><tr><th>Cuerpo</th>${letras.map(k => `<th>${k}<br><span class="muted" style="font-weight:400" data-ed-nom="${k}">${esc(eds[k].nombre || "")}</span></th>`).join("")}</tr></thead>
       <tbody>${filas}</tbody></table>
     <div class="plan-pie"><span><b>${total}</b> videos en la sesión${nuevos ? ` · <b>${nuevos}</b> por armar` : ""}</span>
       <div class="fila" style="gap:8px"><button class="btn sec" type="button" id="planGuardar">Guardar plan</button>
@@ -8767,6 +8926,15 @@ function pintarPlan() {
 $("abrirPlan").onclick = () => { planBorrador = null; pintarPlan(); $("dlgPlan").showModal(); };
 $("planCerrar").onclick = () => $("dlgPlan").close();
 async function guardarCampoEdicion(letra, campo, valor) {
+  if (campo === "nombre") {
+    const campoNom = document.querySelector(`#planCuerpo [data-ed="${letra}"] [data-ec="nombre"]`);
+    valor = String(valor).trim();
+    if (!valor) {  // vacío volvía a «Edición B» sin avisar
+      if (campoNom) campoNom.value = ((E.ediciones || {})[letra] || {}).nombre || "Edición " + letra;
+      return avisar("La edición necesita un nombre: se dejó el que tenía.", "muted");
+    }
+    if (valor.length > 40) { valor = valor.slice(0, 40); if (campoNom) campoNom.value = valor; avisar("El nombre se cortó a 40 letras.", "muted"); }
+  }
   const clave = `${letra}|${campo}|${JSON.stringify(valor)}`;
   if (guardarCampoEdicion.ultimo === clave && Date.now() - guardarCampoEdicion.t < 2000) return;  // change y focusout seguidos
   guardarCampoEdicion.ultimo = clave; guardarCampoEdicion.t = Date.now();
@@ -8778,6 +8946,8 @@ async function guardarCampoEdicion(letra, campo, valor) {
     : { estilo: { ...(ed.estilo || {}), [campo]: ["zoom_cada"].includes(campo) ? Number(valor) : ["zoom_fuerza"].includes(campo) ? Number(valor) : valor } };
   const r = await post("/api/ediciones", { accion: "guardar", letra, ...cambio });
   E.ediciones = r.ediciones;
+  const cab = document.querySelector(`#planCuerpo [data-ed-nom="${letra}"]`);  // la cabecera de la tabla también
+  if (cab) cab.textContent = (r.ediciones[letra] || {}).nombre || "";
   avisar(r.codigos.length ? `Edición ${letra} guardada: ${plural(r.codigos.length, "video")} de esa edición quedan por rearmar.` : `Edición ${letra} guardada.`, "ok");
 }
 $("planCuerpo").addEventListener("change", async e => {
@@ -8829,8 +8999,9 @@ async function pintarGuion() {
   const g = await (await fetch("/api/guion")).json();
   const sinAsignar = E.checklist.sin_asignar || [];
   $("gOrigen").hidden = !g.origen;
-  $("gOrigen").textContent = g.origen === "grabado" ? "Este guion lo armó la sala con lo que se dijo en cada clip (no había guion). Si tienes el de verdad, tócalo en «Subir guion»."
-    : g.origen === "subido" ? `Guion subido${g.archivo ? ` desde «${g.archivo}»` : ""}: solo trae el texto de cada pieza (sin marcas, imágenes ni copies).` : "";
+  $("gOrigen").textContent = g.origen === "grabado" ? (g.con_apoyo ? "El texto de este guion salió de lo que se dijo en cada clip (no había guion); después se le agregaron imágenes, música o marcas."
+      : "Este guion lo armó la sala con lo que se dijo en cada clip (no había guion). Si tienes el de verdad, tócalo en «Subir guion».")
+    : g.origen === "subido" ? `Guion subido${g.archivo ? ` desde «${g.archivo}»` : ""}` + (g.con_apoyo ? "." : ": solo trae el texto de cada pieza (sin marcas, imágenes ni copies).") : "";
   if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Puedes subirlo (Word, .md, .txt o el produccion.json de Claude), escribirlo con Claude, o seguir sin guion: la sala transcribe lo grabado y arma el guion con lo que se dijo.</p>
     <div class="fila" style="gap:8px"><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div></div>`;
     return; }
@@ -8843,7 +9014,8 @@ $("gSubirGuion").onchange = async e => {
   const f = e.target.files[0]; e.target.value = "";
   if (!f) return;
   try {
-    const r = await subirGuionArchivo(f, ultimoGuion && ultimoGuion.origen !== "grabado"); if (!r) return avisar("No se cambió el guion.", "muted");
+    const r = await subirGuionArchivo(f, !!ultimoGuion || E.hay_produccion); if (!r) return avisar("No se cambió el guion.", "muted");
+    resumenGuion = { semana: null, datos: null };  // el resumen de Inicio se vuelve a pedir con el guion nuevo
     avisar(`Guion subido: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}`
       + (r.origen === "texto" ? ". Solo trae el texto: marcas, imágenes y copies se agregan con Claude." : "."), "ok");
     await cargar(); pintarGuion();
@@ -9052,7 +9224,13 @@ function pintarEstadoGuion() {
   if (!hayClips && g.hay_guion) $("gEstado").innerHTML = `Todavía no hay clips en esta sesión: empieza por <b>Analizar los clips con el guion</b> (arriba).`;
 }
 // Antes de analizar: de qué carpeta de Drive se traen los clips y qué va a pasar
-function confirmarAnalizar() {
+async function confirmarAnalizar() {
+  // ocupada o sin clips: antes no pasaba nada y no se decía por qué
+  let t = null; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) {}
+  if (t?.activo) { avisar(`La sala está ocupada (${NOMBRE_PROCESO[t.accion] || "otro proceso"}): espera a que termine para analizar (☰ Procesos).`, "err"); return false; }
+  if (!E.drive?.activo && !E.piezas.length && !(E.checklist.sin_asignar || []).length) {
+    avisar("No hay clips nuevos para analizar: sube las grabaciones a la carpeta Clips de la sesión o en Faltantes.", "muted"); return false;
+  }
   const g = ultimoGuion, carpetas = E.en_drive || [E.semana];
   const conClip = g ? g.piezas.filter(p => p.clips.length).length : 0;
   $("daTit").textContent = `¿Analizar los clips de «${E.semana}»?`;
@@ -9068,6 +9246,7 @@ function confirmarAnalizar() {
 $("gAnalizar").onclick = async () => { if (!(await confirmarAnalizar())) return; corroborado = false; trabajo("analizar"); };
 $("gEmparejar").onclick = async () => {
   const sin = E.checklist.sin_asignar || [];
+  if (!sin.length && !E.piezas.length) return avisar("Todavía no hay clips: sube las grabaciones y toca «Analizar clips».", "muted");
   if (!sin.length) return avisar("No hay clips sin pieza: todos los clips analizados ya están emparejados.", "ok");
   if (sin.some(c => c.texto == null)) return avisar("Hay clips sin analizar: toca primero «Analizar clips».", "err");
   try {
@@ -9148,7 +9327,7 @@ function imprimirHojas(h) {
   marco.onload = () => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 60000); };
   document.body.appendChild(marco);
 }
-$("gDocCopiar").onclick = () => { navigator.clipboard.writeText(gDocTexto); avisar("Guion copiado.", "ok"); };
+$("gDocCopiar").onclick = () => copiar(gDocTexto, "Guion copiado.");
 $("gDocImprimir").onclick = () => {
   if (gVersion === "host" && gHostVista === "combinacion" && gHojas) return imprimirHojas(gHojas);
   // en un marco oculto: funciona igual en la ventana de la sala (que no abre ventanas nuevas) y en un navegador
@@ -9226,7 +9405,7 @@ setInterval(async () => {
 function pintarDescargas() {
   const r = ultimasDescargas; if (!r) return;
   const musica = E.checklist.musica || [], assets = E.checklist.assets || [];
-  const hace = t => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+  const hace = t => haceTxt(t) || "";
   $("listaDescargas").innerHTML = r.archivos.map(f => {
     const esMus = f.tipo === "musica", lista = esMus ? musica : assets;
     const base = f.nombre.replace(/\.[^.]+$/, "").toLowerCase(), faltan = lista.filter(x => !x.listo);
@@ -9239,15 +9418,17 @@ function pintarDescargas() {
         `<option value="${esc(x.id)}" ${x.id === sug ? "selected" : ""}>${esc(x.id)}${x.listo ? " · ya tiene (reemplazar)" : " · falta"}</option>`).join("") : "";
     return `<div class="caja asset">
       <div class="fila" style="justify-content:space-between"><code style="overflow-wrap:anywhere">${esc(f.nombre)}</code>
-        <span class="muted" style="font-size:11.5px">${{ musica: "Música", imagen: "Imagen", video: "Clip" }[f.tipo]} ·${f.mb} MB · ${hace(f.fecha)}</span></div>
+        <span class="muted" style="font-size:11.5px">${{ musica: "Música", imagen: "Imagen", video: "Clip" }[f.tipo]} · ${f.mb} MB · ${hace(f.fecha)}</span></div>
       ${vista}
       ${lista.length ? `<div class="fila"><select data-desc-id="${esc(f.nombre)}" style="flex:1;min-width:0">${opciones}</select>
         <button class="btn peq" type="button" data-importar="${esc(f.nombre)}" data-destino="${esMus ? "musica" : "assets"}">Usar</button></div>`
         : `<span class="muted" style="font-size:12px">El guion de esta sesión no pide ${esMus ? "música" : "imágenes ni clips"}.</span>`}
     </div>`;
   }).join("") + (r.otros && !verOtrasDescargas ? `<p class="muted" style="margin:0;font-size:12.5px">${r.archivos.length ? "" : `No hay nada con el código de esta sesión en el nombre en ${esc(r.carpeta)}. `}Hay ${plural(r.otros, "archivo")} más en Descargas que no se llaman como nada del guion. <button class="btn-link" type="button" id="verOtrasDesc">Verlos y elegir a mano</button></p>`
-    : !r.archivos.length ? `<p class="muted" style="margin:0">No hay música, imágenes ni clips bajados en los últimos ${r.dias} días en ${esc(r.carpeta)}.</p>` : "");
+    : !r.archivos.length ? `<p class="muted" style="margin:0">No hay música, imágenes ni clips bajados en los últimos ${r.dias} días en ${esc(r.carpeta)}.</p>` : "")
+    + (verOtrasDescargas ? `<p class="muted" style="margin:0;font-size:12.5px">${(r.total || 0) > r.archivos.length ? `Se ven los ${r.archivos.length} más nuevos de ${r.total}. ` : ""}<button class="btn-link" type="button" id="ocultarOtrasDesc">Ocultar los que no se llaman como el guion</button></p>` : "");
   const vo = $("verOtrasDesc"); if (vo) vo.onclick = () => { verOtrasDescargas = true; buscarDescargas(); };
+  const oc = $("ocultarOtrasDesc"); if (oc) oc.onclick = () => { verOtrasDescargas = false; buscarDescargas(); };
 }
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-importar]"); if (!b) return;
@@ -9271,6 +9452,7 @@ document.addEventListener("click", async e => {
 // ---------- Informe: lo que no se pudo identificar solo, con el porqué ----------
 const ICONO_DUDA = { reemplazado: "↺", sin_escuchar: "…", sin_voz: "🔇", otra_toma: "⧉", poco_parecido: "≈", no_se_parece: "?" };
 async function pintarInforme() {
+  if (sinClipsSesion()) { $("informeClips").innerHTML = `<p class="muted" style="margin:0">${SIN_CLIPS_TXT}</p>`; return; }
   $("informeClips").innerHTML = `<p class="muted" style="margin:0">Revisando…</p>`;
   try {
     const r = await (await fetch("/api/informe_clips")).json();
@@ -9294,7 +9476,10 @@ $("ordenarTodo").onclick = async () => {
 };
 
 // ---------- Ordenar la sesión: renombrar los clips con el código de su pieza ----------
+const SIN_CLIPS_TXT = "Todavía no hay clips en esta sesión: sube las grabaciones a Clips y toca «Analizar clips».";
+const sinClipsSesion = () => !E.piezas.length && !(E.checklist.sin_asignar || []).length;
 $("ordenarVer").onclick = async () => {
+  if (sinClipsSesion()) { $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">${SIN_CLIPS_TXT}</p>`; return; }
   $("ordenarLista").innerHTML = `<p class="muted" style="margin:0">Revisando los clips…</p>`;
   try {
     const r = await (await fetch("/api/renombrar")).json();
@@ -9417,14 +9602,16 @@ function pintarEstiloEdicion() {
         opcion("esHook", est.zoom_hook, "Zoom en el hook", "Se acerca despacio durante todo el hook, para enganchar en los primeros segundos.",
           `<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></svg>`,
           fila("Intensidad", fuerza("zoom_hook_fuerza", est.zoom_hook_fuerza, [[.06, "Suave"], [.1, "Media"], [.16, "Fuerte"]]))),
-        opcion("esCara", est.seguir_cara !== false, "Seguir la cara", "Los zooms se centran en la cara aunque te muevas o te salgas un poco del centro.",
+        opcion("esCara", est.seguir_cara !== false, "Seguir la cara", "Los zooms se centran en la cara aunque te muevas o te salgas un poco del centro."
+          + (!est.zoom_alterno && !est.zoom_hook ? " Con los dos zooms de arriba apagados, solo se nota en los zooms que pongas a mano en el editor." : ""),
           `<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="4.5"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>`)])}
       ${grupo("Imagen", "El color y el acabado de lo grabado", [
         opcion("esLut", !!est.lut, "Color (LUT)", "Le da a lo grabado el color de un LUT (.cube o .3dl), como un filtro de CapCut. Las imágenes de Flow no se tocan.",
           `<svg viewBox="0 0 24 24"><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>`,
           fila("LUT", `<span class="fila" style="gap:6px"><select id="esLutSel" aria-label="LUT">${(E.luts || []).map(n => `<option ${n === est.lut ? "selected" : ""}>${esc(n)}</option>`).join("")
             || `<option value="">Sube un LUT primero</option>`}</select>
-            <label class="btn sec peq" style="cursor:pointer">Subir LUT<input type="file" id="esLutSubir" accept=".cube,.3dl" hidden></label></span>`)
+            <label class="btn sec peq" style="cursor:pointer">Subir LUT<input type="file" id="esLutSubir" accept=".cube,.3dl" hidden></label>
+            ${(E.luts || []).length ? `<button class="btn sec peq" type="button" id="esLutBorrar" title="Quita de la sala el LUT elegido en la lista (no el que está en uso)">🗑 Quitar LUT</button>` : ""}</span>`)
           + fila("Intensidad", fuerza("lut_fuerza", est.lut_fuerza ?? 1, [[.3, "Suave"], [.6, "Media"], [1, "Completa"]]))),
         opcion("esEfecto", efectoOn, "Efecto de imagen", "Un acabado para todo el video: bordes oscuros (viñeta) o grano de película.",
           `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15l3-4 3 3 2-2 3 3"/></svg>`,
@@ -9432,7 +9619,7 @@ function pintarEstiloEdicion() {
         opcion("esFundido", fundidoOn, "Fundido de imágenes", "Las imágenes y los clips de Flow entran y salen con un fundido. Apagado, aparecen de golpe.",
           `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2"/></svg>`,
           fila("Largo", fuerza("fundido", fundidoOn ? est.fundido : .3, [[.2, "Rápido"], [.3, "Normal"], [.6, "Lento"]])))])}
-      ${grupo("Cortes", "Qué pasa cuando cambia de frase o de pieza", [
+      <div class="es-col">${grupo("Cortes", "Qué pasa cuando cambia de frase o de pieza", [
         opcion("esTrans", transOn, "Transiciones", "Un golpe visual en los cortes, para que el video tenga ritmo. Va junto con el sonido del corte.",
           `<svg viewBox="0 0 24 24"><path d="M4 6h7v12H4zM13 6h7v12h-7z"/><path d="M11 12h2"/></svg>`,
           fila("Tipo", seg("transicion", transOn ? est.transicion : "flash", [["flash", "Destello"], ["zoom", "Zoom"], ["sacudida", "Sacudida"], ["glitch", "Glitch"], ["desenfoque", "Desenfoque"]]))
@@ -9440,23 +9627,29 @@ function pintarEstiloEdicion() {
       ${grupo("Sonido", "Cómo se oye la voz", [
         opcion("esVoz", vozOn, "Voz limpia", "Quita el ruido de fondo (aire, calle, eco), suaviza las «s» fuertes y deja la voz pareja.",
           `<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
-          fila("Nivel", seg("limpieza_voz", vozOn ? est.limpieza_voz : "suave", [["suave", "Suave"], ["media", "Media"], ["fuerte", "Fuerte"]])))])}
+          fila("Nivel", seg("limpieza_voz", vozOn ? est.limpieza_voz : "suave", [["suave", "Suave"], ["media", "Media"], ["fuerte", "Fuerte"]])))])}</div>
     </div>`;
   const guardar = async cambio => {
     try {
-      const r = await post("/api/estilo_edicion", cambio);
-      E.estilo_edicion = { ...est, ...cambio }; pintarEstiloEdicion();
+      const { ok, codigos, ...guardado } = await post("/api/estilo_edicion", cambio), r = { codigos };
+      E.estilo_edicion = guardado; pintarEstiloEdicion();
       const n = (r.codigos || []).length;
-      avisar(`Estilo de edición guardado.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar: toca «Armar todos los videos» cuando quieras.` : ""}`, "ok");
+      avisar(`Estilo de edición guardado.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar: toca «Armar todo» cuando quieras.` : ""}`, "ok");
     } catch (e) { avisar("Error: " + e.message, "err"); pintarEstiloEdicion(); }
   };
   $("esZoom").onchange = e => guardar({ zoom_alterno: e.target.checked });
   $("esHook").onchange = e => guardar({ zoom_hook: e.target.checked });
-  $("esFundido").onchange = e => guardar({ fundido: e.target.checked ? .3 : .12 });
+  // al apagar se recuerda lo elegido, para que al prender vuelva igual (en esta PC)
+  const memo = (() => { try { return JSON.parse(localStorage.getItem("sala_estilo_memo") || "{}"); } catch (e) { return {}; } })();
+  const prender = (campo, on, apagado, defecto) => {
+    if (!on) { memo[campo] = est[campo]; try { localStorage.setItem("sala_estilo_memo", JSON.stringify(memo)); } catch (e) {} }
+    guardar({ [campo]: on ? (memo[campo] != null && memo[campo] !== apagado ? memo[campo] : defecto) : apagado });
+  };
+  $("esFundido").onchange = e => prender("fundido", e.target.checked, .12, .3);
   $("esCara").onchange = e => guardar({ seguir_cara: e.target.checked });
-  $("esVoz").onchange = e => guardar({ limpieza_voz: e.target.checked ? "suave" : "apagada" });
-  $("esEfecto").onchange = e => guardar({ efecto: e.target.checked ? "vineta" : "ninguno" });
-  $("esTrans").onchange = e => guardar({ transicion: e.target.checked ? "flash" : "ninguna" });
+  $("esVoz").onchange = e => prender("limpieza_voz", e.target.checked, "apagada", "suave");
+  $("esEfecto").onchange = e => prender("efecto", e.target.checked, "ninguno", "vineta");
+  $("esTrans").onchange = e => prender("transicion", e.target.checked, "ninguna", "flash");
   $("esLut").onchange = e => {
     if (!e.target.checked) return guardar({ lut: "" });
     if (!(E.luts || []).length) { e.target.checked = false; return $("esLutSubir").click(); }  // primero hay que subir uno
@@ -9466,6 +9659,12 @@ function pintarEstiloEdicion() {
   $("esLutSubir").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try { const r = await post(`/api/lut?nombre=${encodeURIComponent(f.name)}`, f, true); E.luts = r.luts; await guardar({ lut: r.archivo }); }
+    catch (er) { avisar("Error: " + er.message, "err"); }
+  };
+  if ($("esLutBorrar")) $("esLutBorrar").onclick = async () => {
+    const n = $("esLutSel").value; if (!n) return;
+    if (!await preguntar(`¿Quitar el LUT «${n}» de la sala?`, "Sí, quitar")) return;
+    try { const r = await post("/api/lut_borrar", { nombre: n }); E.luts = r.luts; pintarEstiloEdicion(); avisar(`LUT «${n}» quitado.`, "ok"); }
     catch (er) { avisar("Error: " + er.message, "err"); }
   };
   caja.querySelectorAll("[data-es]").forEach(b => b.onclick = () => guardar({ [b.dataset.es]: isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v }));
@@ -9499,6 +9698,8 @@ function elegirPlantilla(id, conservar) {
 // ¿Hay cambios sin guardar en la plantilla abierta? (se compara con cómo estaba al elegirla)
 let plantFirma = null;
 function plantSucia() { return !!plantEdit && JSON.stringify(plantEdit) !== plantFirma; }
+// cerrar o recargar la sala con una plantilla de subtítulos sin guardar: el navegador pregunta antes
+addEventListener("beforeunload", e => { if (plantSucia()) { e.preventDefault(); e.returnValue = ""; } });
 function marcarPlantSucia() {
   $("plantTitulo").innerHTML = esc(plantEdit?.nombre || plantSel || "Plantilla") + (plantSucia() ? ' <span class="pill warn">Sin guardar</span>' : "");
 }
@@ -9521,7 +9722,16 @@ function pintarDependientesPlant() {
   if ($("plantAlturaVal")) $("plantAlturaVal").textContent = v("altura_desde_abajo") || "";
 }
 document.addEventListener("input", e => { if (e.target.closest?.("#plantForm")) pintarDependientesPlant(); });
-document.addEventListener("change", e => { if (e.target.closest?.("#plantForm")) pintarDependientesPlant(); });
+document.addEventListener("change", e => {
+  if (!e.target.closest?.("#plantForm")) return;
+  // un número escrito fuera de rango vuelve al límite (los mismos que LIMITES_PLANTILLA del motor)
+  const el = e.target;
+  if (el.type === "number" && el.value !== "" && el.min !== "" && el.max !== "") {
+    const v = Math.max(+el.min, Math.min(+el.max, +el.value));
+    if (v !== +el.value) { el.value = v; avisar(`Ese valor va de ${el.min} a ${el.max}: quedó en ${v}.`, "muted"); el.dispatchEvent(new Event("input", { bubbles: true })); }
+  }
+  pintarDependientesPlant();
+});
 function leerFormPlantilla() {
   if (!plantEdit) return;
   document.querySelectorAll("#plantForm [data-p]").forEach(el => {
@@ -9598,7 +9808,8 @@ $("plantElemAgregar").onclick = () => {
 $("plantElemSubir").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try {
-    const r = await post(`/api/elemento?nombre=${encodeURIComponent(f.name)}`, f, true);
+    const r = await subirElemento(f);
+    if (!r) { e.target.value = ""; return; }
     const actual = JSON.parse(JSON.stringify(plantEdit));
     await cargar(); pintarPlantillas(); plantEdit = actual;
     plantEdit.elementos.push({ archivo: r.archivo, x: 760, y: 80, ancho: 260, opacidad: 100 }); pintarElementos(); animarMuestra();
@@ -9606,7 +9817,13 @@ $("plantElemSubir").onchange = async e => {
   } catch (err) { avisar("Error: " + err.message, "err"); }
   e.target.value = "";
 };
-$("plantListaElems").addEventListener("input", e => { const i = e.target.dataset.elemOp; if (i !== undefined) { plantEdit.elementos[i].opacidad = Number(e.target.value); pintarElementos(); } });
+// la opacidad cambia solo esa imagen del lienzo: redibujar la lista soltaba el deslizador a mitad de arrastre
+$("plantListaElems").addEventListener("input", e => {
+  const i = e.target.dataset.elemOp; if (i === undefined) return;
+  plantEdit.elementos[i].opacidad = Number(e.target.value);
+  const el = $("plantElems").querySelector(`[data-elem="${i}"]`); if (el) el.style.opacity = Number(e.target.value) / 100;
+  marcarPlantSucia();
+});
 $("plantListaElems").addEventListener("click", e => { const i = e.target.dataset.elemQuitar; if (i !== undefined) { plantEdit.elementos.splice(Number(i), 1); pintarElementos(); } });
 new ResizeObserver(() => { if (plantEdit && !$("plantLienzo").closest("[hidden]")) { colocarCaja(); pintarElementos(); } }).observe($("plantLienzo"));
 async function guardarPlantilla(id, datos, predeterminada) {
@@ -9622,9 +9839,10 @@ async function guardarPlantilla(id, datos, predeterminada) {
 // después de guardar: los videos que usan la plantilla se rearman para verla en el video (no cambian solos)
 async function ofrecerRearmar(r, que) {
   const n = (r && r.codigos || []).length;
-  if (!n) return avisar(`${que} Ningún video la usa todavía.`, "ok");
-  if (!await preguntar(`${que} ¿Rearmar ahora los ${n} video${n === 1 ? "" : "s"} que la usan para verla en el video?`))
-    return avisar(`${que} Los ${n} videos que la usan quedaron marcados «⟳ rearmar».`, "ok");
+  // r.codigos: solo los videos ya armados a los que les llega el cambio (plantilla, nivel de sonidos…)
+  if (!n) return avisar(`${que} Todavía no hay videos armados a los que les cambie algo.`, "ok");
+  if (!await preguntar(`${que} ¿Rearmar ahora ${n === 1 ? "el video armado al que le llega" : `los ${n} videos armados a los que les llega`} el cambio?`))
+    return avisar(`${que} ${n === 1 ? "Ese video quedó marcado" : `Los ${n} videos quedaron marcados`} «⟳ rearmar».`, "ok");
   try { await post("/api/trabajo_sel", { accion: "armar_sel", codigos: r.codigos }); vigilar(await (await fetch("/api/trabajo")).json());
     avisar(`${que} Rearmando ${n} videos… lo ves en Procesos (☰).`, "ok"); }
   catch (e) { avisar("Error: " + e.message, "err"); }
@@ -9640,11 +9858,11 @@ function pintarConexiones() {
   const ch = E.checklist || {}, usaFlow = (ch.assets || []).some(a => a.listo), usaMusica = (ch.musica || []).some(m => m.listo);
   const items = [
     { id: "drive", t: "Google Drive (carpeta EDICIÓN DE VIDEOS)", d: "Baja los clips de cada sesión y sube los videos, la música y las imágenes.", ok: drive, auto: true,
-      pasos: ["Abajo, en «Google Drive», pega el link de la carpeta del equipo.", "Toca «Conectar con Google» e inicia sesión con una cuenta que tenga permiso de <b>Editor</b> en esa carpeta (si solo puede ver, Drive borra lo que la sala sube).", "Toca «Actualizar sesiones» para ver las sesiones del equipo."],
+      pasos: ["En Configuración → «Google Drive», pega el link de la carpeta del equipo.", "Toca «Conectar con Google» e inicia sesión con una cuenta que tenga permiso de <b>Editor</b> en esa carpeta (si solo puede ver, Drive borra lo que la sala sube).", "Toca «Actualizar sesiones» para ver las sesiones del equipo."],
       boton: ["Ir a Google Drive", () => irConf("confDrive")], ico: "☁" },
     { id: "claude", t: "Claude (app de escritorio)", d: "Escribe los guiones y revisa lo grabado, con la suscripción de Claude (sin pagar API).", ok: claude, auto: true,
-      pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "En la sala, ve a Inicio → «Claude» y toca «Conectar». La sala usa esa misma cuenta.", "Si dice «sin sesión», vuelve a abrir la app de Claude y toca «Revisar de nuevo»."],
-      boton: ["Ir a Claude", () => { $("dlgAjustes")?.close?.(); irTab("inicio"); }], ico: "✳" },
+      pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "En la sala, ve a Inicio → «Claude» y toca «Iniciar sesión en Claude». La sala usa esa misma cuenta.", "Si dice «Falta iniciar sesión», vuelve a abrir la app de Claude y toca «Ya entré, revisar»."],
+      boton: ["Ir a Claude", () => irTab("inicio")], ico: "✳" },
     { id: "flow", t: "Google Flow (imágenes y clips con IA)", d: usaFlow ? "En uso: esta sesión ya tiene imágenes de Flow." : "Genera las imágenes y los clips de cada guion con su prompt (están en Faltantes).", ok: usaFlow || marcaConexion("flow"), manual: !usaFlow,
       pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI (Pro).", "Crea un proyecto con el nombre de la producción (por ejemplo «P01 B2B VETERINARIOS»).", "En los ajustes del asistente (ícono de deslizadores) elige <b>9:16</b> y <b>x1</b>, y guarda.", "En Faltantes copia el prompt de cada imagen y pídela con su código delante (por ejemplo «C3_IMG1: …»). Si Google rechaza un prompt, usa «Copiar plan B».", "Descarga cada imagen en <b>1K</b>. Luego, en Faltantes → «Poner en los videos», toca «Usar» en cada una: la sala la guarda con su nombre y la sube a Drive."],
       boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")], ico: "🖼" },
@@ -9654,8 +9872,8 @@ function pintarConexiones() {
     { id: "antigravity", t: "Antigravity con Gemini (opcional)", d: E.antigravity ? "Instalado en esta PC: en Faltantes, «Hacerlo con Antigravity» lo abre con todo listo." : "Para generar las imágenes en Flow sin Claude: Gemini Flash pega los prompts y baja todo con su nombre.",
       ok: !!E.antigravity, auto: true, opcional: !E.antigravity,
       pasos: ["Instala Antigravity (antigravity.google) y entra con tu cuenta de Google, la misma de Flow.", "En Antigravity, deja abierto su navegador con tu sesión de Google (Flow ya entra solo).",
-        "En la sala, Faltantes → «Hacerlo con Antigravity»: crea el paquete, abre Antigravity con esa carpeta y te copia el mensaje.",
-        "En el agente elige <b>Gemini Flash</b> (rápido: unos 5 s por paso; el modelo que piensa más tarda ~70 s por paso), pega el mensaje y deja que trabaje.",
+        "En la sala, Faltantes → «Hacerlo con Antigravity»: crea el paquete, abre Antigravity y le pasa el mensaje a Gemini Flash solo (usa el proyecto de tu última conversación en Antigravity: empieza una a mano la primera vez).",
+        "Si la sala no pudo pasárselo, te copia el mensaje: en el agente elige <b>Gemini Flash</b> (rápido: unos 5 s por paso), pégalo y deja que trabaje.",
         "Al terminar, Faltantes → «Poner en los videos»."],
       boton: ["Ir a Faltantes", () => irTab("faltan")], ico: "🪐" },
     { id: "chrome", t: "Claude en Chrome (opcional)", d: "Para que Claude haga solo las imágenes y la música en Flow, en tu navegador.", ok: marcaConexion("chrome"),
@@ -9666,7 +9884,7 @@ function pintarConexiones() {
       pasos: ["Pide el link y el código del panel a quien lo administra; se guardan en la configuración de esta PC.", "Entra a edicion.suplevet.pe con tu usuario para revisar y aprobar.", "En la tablet, abre el teleprompter del panel y en el navegador elige «Agregar a pantalla de inicio»: queda como una app."],
       boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")], ico: "▦" } : null,
     { id: "tablet", t: "Teleprompter en la tablet (por WiFi)", d: "Sin internet: la tablet lee el guion desde esta PC, con PIN.", ok: !!(E.red || {}).activa, auto: true,
-      pasos: ["Conecta la tablet al mismo WiFi que esta PC.", "Abajo, en «Teleprompter en la tablet», actívalo y abre en la tablet la dirección que aparece.", "Escribe el PIN. Usa «Líneas: 2 o 3» y «Tamaño» para leer cómodo frente a la cámara."],
+      pasos: ["Conecta la tablet al mismo WiFi que esta PC.", "En Configuración → «Teleprompter», actívalo, cierra y vuelve a abrir la sala, y abre en la tablet la dirección que aparece.", "Escribe el PIN. Usa «Líneas: 2 o 3» y «Tamaño» para leer cómodo frente a la cámara."],
       boton: ["Ir al teleprompter", () => irConf("confTablet")], ico: "📱" },
   ].filter(Boolean);
   const abiertos = new Set([...document.querySelectorAll("#listaConexiones details[open]")].map(d => d.dataset.id));
@@ -9724,19 +9942,26 @@ $("paqueteAg").onclick = async () => {
     $("agCaja").hidden = false; $("agTraerFila").hidden = true;
     $("agCaja").querySelector("b").textContent = "🪐 Antigravity: paquete listo";
     $("agInfo").textContent = `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""} · ${r.carpeta}`;
+    $("agMsg").textContent = r.mensaje;
+    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (r.enviado) {  // la sala ya le pasó el mensaje a Gemini: no hay nada que pegar
+      $("agPasos").innerHTML = [`La sala le pasó el paquete a <b>Gemini Flash</b> en Antigravity: ya está pegando los prompts en Flow (puedes mirarlo en Antigravity).`,
+        `Al final baja todo con su nombre a Descargas.`,
+        `Cuando termine, vuelve aquí y toca <b>3 · Poner en los videos</b>.`].map(x => `<li>${x}</li>`).join("");
+      return avisar("Gemini ya está trabajando en Antigravity. No hace falta pegar nada.", "ok");
+    }
     $("agPasos").innerHTML = (r.abierto
       ? [`Se abrió <b>Antigravity</b> con la carpeta del paquete (si no la ves, búscala en la barra de tareas).`]
       : [`Abre <b>Antigravity</b> y abre la carpeta del paquete (Archivo → Abrir carpeta): <code>${esc(r.carpeta)}</code>. ${r.instalado ? "" : "Si no lo tienes, instálalo desde antigravity.google."}`])
       .concat([`En el panel del agente elige el modelo <b>Gemini Flash</b> y empieza una conversación nueva.`,
         `Pega el mensaje de abajo (ya está copiado) y deja que trabaje: pega los prompts de corrido y al final baja todo con su nombre.`,
         `Cuando termine, vuelve aquí y toca <b>3 · Poner en los videos</b>.`]).map(x => `<li>${x}</li>`).join("");
-    $("agMsg").textContent = r.mensaje;
-    copiarTexto(r.mensaje);
-    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    avisar(r.abierto ? "Antigravity abierto con el paquete. El mensaje para Gemini ya está copiado." : "Paquete listo y mensaje copiado: ábrelo en Antigravity.", "ok");
+    const copiado = await copiar(r.mensaje);
+    avisar((r.porque ? `No pude pasárselo a Gemini solo (${r.porque}). ` : "") + (r.abierto ? "Antigravity abierto con el paquete." : "Paquete listo: ábrelo en Antigravity.")
+      + (copiado ? " El mensaje para Gemini ya está copiado." : " No se pudo copiar el mensaje: tócalo en «Copiar»."), copiado ? "ok" : "muted");
   } catch (err) { avisar(err.message, "err"); }
 };
-$("agCopiar").onclick = () => { copiarTexto($("agMsg").textContent); avisar("Mensaje copiado.", "ok"); };
+$("agCopiar").onclick = () => copiar($("agMsg").textContent, "Mensaje copiado.");
 
 // Cuántas imágenes por cuerpo y por hook: la sala recomienda según cuánto duran (una imagen cada ~4 s de voz)
 let AP = null;
@@ -9749,33 +9974,51 @@ async function pintarApoyo() {
   if ($("apCuerpo").value === "") { $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; }
   resumenApoyo();
 }
+// los mismos topes que el formulario y el servidor; enteros y sin negativos (99 daba «490 imágenes»)
+const LIM_APOYO = { apCuerpo: 12, apClips: 4, apHook: 4 };
+const valApoyo = id => Math.max(0, Math.min(LIM_APOYO[id], Math.round(+$(id).value || 0)));
 function resumenApoyo() {
   if (!AP) return;
-  const c = +$("apCuerpo").value || 0, cl = +$("apClips").value || 0, h = +$("apHook").value || 0;
+  const c = valApoyo("apCuerpo"), cl = valApoyo("apClips"), h = valApoyo("apHook");
   let img = 0, clips = 0;
   AP.piezas.forEach(f => { img += Math.max(0, (f.tipo === "cuerpo" ? c : h) - f.imagenes); if (f.tipo === "cuerpo") clips += Math.max(0, cl - f.clips); });
   const ya = AP.piezas.reduce((s, f) => s + f.imagenes + f.clips, 0), nc = AP.piezas.filter(f => f.tipo === "cuerpo").length, nh = AP.piezas.length - nc;
-  $("apResumen").innerHTML = img + clips ? `Hoy hay <b>${ya}</b> en ${plural(nc, "cuerpo")} y ${plural(nh, "hook")}. Se agregan <b>${plural(img, "imagen", "imágenes")}</b>${clips ? ` y <b>${plural(clips, "clip")}</b>` : ""}; las que ya hay se quedan.`
+  const donde = [nc && plural(nc, "cuerpo"), nh && plural(nh, "hook")].filter(Boolean).join(" y ") || "el guion";
+  $("apResumen").innerHTML = img + clips ? `Hoy hay <b>${plural(ya, "imagen o clip", "imágenes o clips")}</b> en ${donde}. Se agregan <b>${plural(img, "imagen", "imágenes")}</b>${clips ? ` y <b>${plural(clips, "clip")}</b>` : ""}; las que ya hay se quedan.`
     : "Cada cuerpo y cada hook ya tienen esa cantidad: sube los números para agregar más.";
+  $("masApoyo").dataset.nada = img + clips ? "" : "1";  // vigilar() también lo mira
   $("masApoyo").disabled = !(img + clips) || !!E?.trabajo?.activo;
 }
-["apCuerpo", "apClips", "apHook"].forEach(id => $(id).addEventListener("input", resumenApoyo));
+["apCuerpo", "apClips", "apHook"].forEach(id => {
+  $(id).addEventListener("input", resumenApoyo);
+  $(id).addEventListener("change", () => {  // al salir del campo, el número queda dentro de lo permitido
+    const v = valApoyo(id);
+    if (String(v) !== $(id).value) { $(id).value = v; avisar(`Ese número va de 0 a ${LIM_APOYO[id]}: quedó en ${v}.`, "muted"); resumenApoyo(); }
+  });
+});
 $("apRec").onclick = () => { const r = AP?.recomendado; if (!r) return; $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; resumenApoyo(); };
-const pedidoApoyo = () => ({ por_cuerpo: +$("apCuerpo").value || 0, clips: +$("apClips").value || 0, por_hook: +$("apHook").value || 0 });
+const pedidoApoyo = () => ({ por_cuerpo: valApoyo("apCuerpo"), clips: valApoyo("apClips"), por_hook: valApoyo("apHook") });
 async function promptsConAntigravity() {
   try {
     const r = await post("/api/prompts_antigravity", pedidoApoyo());
     $("agCaja").hidden = false; $("agTraerFila").hidden = false;
     $("agCaja").querySelector("b").textContent = "🪐 Antigravity: escribir los prompts";
     $("agInfo").textContent = r.carpeta;
+    $("agMsg").textContent = r.mensaje;
+    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (r.enviado) {  // la sala ya le pasó el mensaje a Gemini: no hay nada que pegar
+      $("agPasos").innerHTML = [`La sala le pasó el pedido a <b>Gemini</b> (el que piensa más) en Antigravity: ya está escribiendo los prompts (puedes mirarlo en Antigravity).`,
+        `Cuando Gemini diga que terminó, toca <b>«Gemini terminó: traer los prompts»</b>. La sala revisa lo que escribió y lo pasa a la sesión.`].map(x => `<li>${x}</li>`).join("");
+      return avisar("Gemini ya está escribiendo los prompts en Antigravity. No hace falta pegar nada.", "ok");
+    }
     $("agPasos").innerHTML = (r.abierto ? [`Se abrió <b>Antigravity</b> con la carpeta de los prompts (si no la ves, búscala en la barra de tareas).`]
       : [`Abre <b>Antigravity</b> y abre esta carpeta (Archivo → Abrir carpeta): <code>${esc(r.carpeta)}</code>. ${r.instalado ? "" : "Si no lo tienes, instálalo desde antigravity.google."}`])
       .concat([`En el panel del agente elige el modelo de <b>Gemini que piensa más</b> (aquí hay que escribir bien) y empieza una conversación nueva.`,
         `Pega el mensaje de abajo (ya está copiado) y deja que trabaje.`,
         `Cuando Gemini diga que terminó, toca <b>«Gemini terminó: traer los prompts»</b>. La sala revisa lo que escribió y lo pasa a la sesión.`]).map(x => `<li>${x}</li>`).join("");
-    $("agMsg").textContent = r.mensaje; copiarTexto(r.mensaje);
-    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    avisar(r.abierto ? "Antigravity abierto. El mensaje para Gemini ya está copiado." : "Carpeta lista y mensaje copiado: ábrela en Antigravity.", "ok");
+    const copiado = await copiar(r.mensaje);
+    avisar((r.porque ? `No pude pasárselo a Gemini solo (${r.porque}). ` : "") + (r.abierto ? "Antigravity abierto." : "Carpeta lista: ábrela en Antigravity.")
+      + (copiado ? " El mensaje para Gemini ya está copiado." : " No se pudo copiar el mensaje: tócalo en «Copiar»."), copiado ? "ok" : "muted");
   } catch (err) { avisar(err.message, "err"); }
 }
 $("apConAg").onclick = promptsConAntigravity;
@@ -9885,7 +10128,7 @@ $("vActualizar").onclick = async () => {
       try { const v = await (await fetch("/api/version?forzar")).json(); if (v.actual === r.version) return location.reload(); } catch (e) {}
       if (Date.now() - desde > 90000) {
         quitarCortina(); volver();
-        return avisar("La versión nueva no arrancó en 90 segundos. Cierra el Estudio y vuelve a abrirlo; si no abre, baja el instalador completo desde Configuración → Actualizaciones.", "err");
+        return avisar("La versión nueva no arrancó en 90 segundos. Cierra la sala y vuelve a abrirla; si no abre, baja el instalador completo desde Configuración → Actualizaciones.", "err");
       }
       setTimeout(esperar, 1500);
     };
@@ -9900,13 +10143,11 @@ const latir = () => fetch("/api/latido?ping").catch(() => {});
 latir(); setInterval(latir, 5000);
 addEventListener("pagehide", () => navigator.sendBeacon("/api/adios"));
 try { const v = localStorage.getItem("sala_vista"); if (v) { vistaVideos = v; document.querySelectorAll("[data-vista]").forEach(b => b.setAttribute("aria-pressed", b.dataset.vista === v)); } } catch (e) {}
-function pintarTema() { const claro = document.documentElement.dataset.tema === "claro"; $("tema").textContent = claro ? "☾ Pasar a modo oscuro" : "☀ Pasar a modo claro"; }
-$("tema").onclick = () => {
+function cambiarTema() {  // claro/oscuro: está al final del menú de tu cuenta
   const t = document.documentElement.dataset.tema === "claro" ? "oscuro" : "claro";
-  document.documentElement.dataset.tema = t; pintarTema();
+  document.documentElement.dataset.tema = t;
   try { localStorage.setItem("sala_tema", t); } catch (e) {}
-};
-pintarTema();
+}
 // Tocar fuera de una ventana (en lo oscuro) la cierra
 document.querySelectorAll("dialog").forEach(d => {
   let abajo = null;
@@ -9943,7 +10184,8 @@ marcarBotonesIA();
   fetch("/api/maximizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
   await Cuenta.iniciar({ app: "Sala de edición", letra: "E", fondo: "linear-gradient(135deg,#1d4ed8,#3d8bff 60%,#5ee1ff)",
                          lugar: $("cuentaChip"), alVolver: () => location.reload(),
-                         alAbrirCuenta: abrirMenuCuenta, alElegirCarpeta });
+                         menu: menuCuenta, version: () => E?.version, alCambiarTema: cambiarTema,
+                         preguntar, avisar, alElegirCarpeta });
   revisarClaude();
   await cargar();
   ARRANCO = true;

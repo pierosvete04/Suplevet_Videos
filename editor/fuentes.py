@@ -123,7 +123,10 @@ def disponibles():
     out = []
     for f in sorted([*CARPETA.glob("*.ttf"), *PROPIAS.glob("*.ttf"), *PROPIAS.glob("*.otf")], key=lambda x: x.name.lower()):
         try:
-            out.append({"archivo": f.name, "nombre": cargar(f.name).nombre, "propia": f.parent == PROPIAS})
+            # en la lista se ve sin el tamaño óptico de la fuente («DM Sans 9pt Black» → «DM Sans Black»); para armar
+            # el video se sigue usando el nombre completo (cargar().nombre)
+            nombre = " ".join(w for w in cargar(f.name).nombre.split() if not (w.lower().endswith("pt") and w[:-2].isdigit()))
+            out.append({"archivo": f.name, "nombre": nombre, "propia": f.parent == PROPIAS})
         except Exception:
             pass
     return out

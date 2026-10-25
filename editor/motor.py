@@ -1761,6 +1761,9 @@ def revision_guion():
         out.append(fila)
     sin_escuchar = sum(1 for c in clips_sin_asignar() if transcripcion_clip(c, crear=False) is None)
     return {"hay_guion": bool(prod.get("piezas")), "origen": prod.get("origen"), "archivo": prod.get("archivo"),
+            # ya tiene imágenes, música o marcas (de Claude o de la sala): no es solo «lo que se dijo»
+            "con_apoyo": bool(prod.get("assets") or prod.get("musica")
+                              or any(i.get("marcas") for i in (prod.get("piezas") or {}).values())),
             "sin_prompts": faltan_prompts_flow(), "piezas": out, "sin_escuchar": sin_escuchar,
             "sin_procesar": sum(1 for f in out if f["clips"] and not f["procesada"]), "sin_asignar": len(sugs)}
 
@@ -2083,7 +2086,7 @@ def documento_guion(version="host", vista="combinacion"):
     for n in _orden_piezas(prod):
         info = prod["piezas"][n]
         tipo = "cuerpo" if info.get("tipo") == "cuerpo" else tipo_de(n)
-        out += [f"## {n} · {tipo.upper()}" + (f" · {info['tipo']}" if tipo == "hook" and info.get("tipo") else ""), "",
+        out += [f"## {n} · {tipo.upper()}" + (f" · {info['tipo']}" if tipo == "hook" and info.get("tipo") not in (None, "", "hook") else ""), "",
                 f"**Voz:** {info.get('texto', '')}", ""]
         if info.get("portada"):
             out.append(f"**Portada:** {info['portada'].replace('*', '')}")
@@ -2327,6 +2330,61 @@ def leer_guion_texto(texto):
     return dict(sorted(out.items(), key=lambda x: ({"cuerpo": 0, "hook": 1, "cta": 2}[tipo_de(x[0])], x[0])))
 
 
+_PIEZA_SALA = r"(?:[CP]\d+(?:_[A-Z][\w-]*)?|CTA[\w-]*)"
+
+
+def leer_formato_sala(texto):
+    """El guion que exporta la propia sala (botón Word: «producción» o «para grabar», o los guion_*.md).
+    Tiene su propio formato («C1 · CUERPO» + «Voz: …», «☐ C1_H1 · pregunta: …»): el lector general no lo entiende.
+    Devuelve None si el texto no es de la sala, o {pieza: {tipo, texto, partes?}} (vacío si no trae piezas)."""
+    lineas = []
+    for crudo in texto.splitlines():
+        s = re.sub(r"^#+\s*", "", crudo.strip()).replace("**", "").replace("`", "").strip()
+        s = re.sub(r"^(?:[-*•]\s*)?(?:\[[ xX]\]\s*)?(?:☐\s*)?", "", s).strip()
+        if s and s != SALTO_DE_HOJA:
+            lineas.append(s)
+    if not lineas or not re.search(r"guion (?:de producci[oó]n|para grabar|para el host)", lineas[0], re.I):
+        return None
+    produccion_ = bool(re.search(r"guion de producci[oó]n", lineas[0], re.I))
+    frases, estilo = {}, {}
+    actual = cuerpo = seccion = None
+    for s in lineas[1:]:
+        if produccion_:
+            if s.startswith("Música (Google Flow Music)"):
+                break
+            if m := re.fullmatch(rf"({_PIEZA_SALA}) · (CUERPO|HOOK|CTA)(?: · (.+))?", s):
+                actual = m[1]
+                if m[3]:
+                    estilo[actual] = m[3].strip()
+            elif actual and (m := re.match(r"Voz:\s*(.+)", s)):
+                frases[actual] = [m[1].strip()]
+                actual = None
+            continue
+        if m := re.fullmatch(r"([CP]\d+) · cuerpo con .*", s):
+            cuerpo, seccion = m[1], None
+        elif m := re.fullmatch(r"(Cuerpo|Hooks de) ([CP]\d+)", s):
+            cuerpo, seccion = m[2], "cuerpo" if m[1] == "Cuerpo" else "hooks"
+        elif s in ("Hooks", "Cuerpo"):
+            seccion = s.lower()
+        elif re.fullmatch(r"CTAs?(?: \(.*\))?", s):
+            seccion = "cta"
+        elif m := re.fullmatch(rf"({_PIEZA_SALA})(?: · ([^:]+))?:\s*(.+)", s):
+            frases[m[1]] = [m[3].strip()]
+            if m[2]:
+                estilo[m[1]] = m[2].strip()
+        elif re.fullmatch(r"(?:cuerpo )?grabado|\(sin hooks\)|Lee tal cual\.|Una hoja por cuerpo.*", s, re.I):
+            continue
+        elif seccion == "cuerpo" and cuerpo:
+            num = re.match(r"^\d+\.\s+(.+)$", s)
+            frases.setdefault(cuerpo, []).append(num[1].strip() if num else s)
+    out = {}
+    for nombre, partes in frases.items():
+        tipo = tipo_de(nombre)
+        out[nombre] = {"tipo": "cuerpo" if tipo == "cuerpo" else estilo.get(nombre) or tipo, "texto": " ".join(partes),
+                       **({"partes": partes} if len(partes) > 1 else {})}
+    return dict(sorted(out.items(), key=lambda x: ({"cuerpo": 0, "hook": 1, "cta": 2}[tipo_de(x[0])], x[0])))
+
+
 def _texto_plano(datos):
     """Un .txt o .md: en UTF-8, o en el formato viejo de Windows (el Bloc de notas «ANSI»): si no, «picazón»
     salía «picaz�n»."""
@@ -2354,7 +2412,11 @@ def _leer_guion_archivo(nombre_archivo, datos):
             raise ValueError("No pude abrir ese Word. Guárdalo de nuevo como .docx o pásalo a .txt")
         if not texto.strip():
             raise ValueError("El archivo está vacío")
-        piezas_g = leer_guion_texto(texto)
+        piezas_g = leer_formato_sala(texto)  # el Word o el .md que exporta la propia sala
+        if piezas_g == {}:
+            raise ValueError("Ese archivo es un guion exportado por la sala, pero no trae piezas que se puedan leer.")
+        if piezas_g is None:
+            piezas_g = leer_guion_texto(texto)
         if not piezas_g:
             raise ValueError("No encontré piezas en ese guion. Cada cuerpo tiene que empezar con «C1», «C2»…, "
                              "los hooks con «H1», «H2»… (o «C1-H1: texto») y el cierre con «CTA».")
@@ -2424,10 +2486,12 @@ def _mezclar_guion(base, nuevo, cuando):
             out[nombre] = v  # se corrigió en la sala después de escribirse el archivo
         else:
             m = {**v, **{k: pz[k] for k in ("tipo", "texto") if k in pz}}
+            if pz.get("tipo") in ("hook", "cta") and v.get("tipo"):
+                m["tipo"] = v["tipo"]  # «hook»/«cta» a secas no pisa el estilo que ya tenía (pregunta, anuncio…)
             if pz.get("partes"):
                 m["partes"] = pz["partes"]
-            else:
-                m.pop("partes", None)
+            elif " ".join(v.get("partes") or []).strip() != str(pz.get("texto") or "").strip():
+                m.pop("partes", None)  # si el texto es el mismo, se quedan sus frases
             m.pop("editado_en_sala", None)
             m.pop("editado_en_sala_t", None)
             out[nombre] = m
@@ -2451,7 +2515,8 @@ def guion_en_carpeta():
     """El guion más nuevo que el equipo dejó en la carpeta Guion/Guiones (Word, .md, .txt o un .json de Claude)."""
     archivos = [f for d in CARPETAS_GUION if (S.principal / d).is_dir() for f in (S.principal / d).iterdir()
                 if f.is_file() and f.suffix.lower() in (".docx", ".md", ".txt", ".json")
-                and f.name.lower() not in _NO_SON_GUION and not f.name.startswith(("~$", "."))]
+                and f.name.lower() not in _NO_SON_GUION and not f.name.startswith(("~$", "."))
+                and not re.search(r"\((?:producci[oó]n|para grabar)\)$", f.stem)]  # los Word que exporta la sala
     con_nombre = [f for f in archivos if "guion" in norm(f.stem) or "script" in norm(f.stem)]
     return max(con_nombre or archivos, key=lambda f: f.stat().st_mtime, default=None)
 
@@ -2511,7 +2576,7 @@ def guion_para_grabar(semana=None):
             continue
         tipo = tipo_de(nombre) if info.get("tipo") not in ("cuerpo",) else "cuerpo"
         partes = info.get("partes") or (re.split(r"(?<=[.!?])\s+", texto.strip()) if tipo == "cuerpo" else [texto])
-        out.append({"nombre": nombre, "tipo": tipo, "tipo_hook": info.get("tipo") if tipo == "hook" else None,
+        out.append({"nombre": nombre, "tipo": tipo, "tipo_hook": info.get("tipo") if tipo == "hook" and info.get("tipo") != "hook" else None,
                     "texto": texto, "partes": [x for x in partes if x.strip()]})
     orden = {"cuerpo": 0, "hook": 1, "cta": 2}
     return sorted(out, key=lambda x: (orden[x["tipo"]], x["nombre"]))
@@ -3759,6 +3824,11 @@ def guardar_lut(nombre, datos):
         raise ValueError("El LUT tiene que ser un archivo .cube o .3dl")
     if b"LUT_3D_SIZE" not in datos[:20000] and Path(nombre).suffix.lower() == ".cube":
         raise ValueError("Ese .cube no parece un LUT 3D (le falta LUT_3D_SIZE)")
+    # .cube y .3dl son texto con una tabla de colores (tres números por línea): antes un .3dl cualquiera pasaba
+    num = r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"
+    filas = sum(1 for l in datos[:8_000_000].decode("utf-8", "replace").splitlines() if re.fullmatch(rf"\s*{num}\s+{num}\s+{num}\s*", l))
+    if filas < 8:
+        raise ValueError(f"Ese {Path(nombre).suffix.lower()} no parece un LUT: no trae la tabla de colores")
     LUTS.mkdir(parents=True, exist_ok=True)
     (LUTS / nombre).write_bytes(datos)
     return nombre
@@ -5440,7 +5510,11 @@ def texto_portada(combo):
             partes.pop(0)
         frase = re.split(r"(?<=[.?!])\s", partes[0] if partes else texto)[0] if partes else texto
         palabras = frase.rstrip(",.").split()
-        t = " ".join(palabras[:7]) + ("…" if len(palabras) > 7 else "")
+        if len(palabras) > 9:  # larga: se corta en una coma (no a media frase); si no hay, en 7 palabras con «…»
+            coma = max((i for i, w in enumerate(palabras[:9]) if w.endswith((",", ":", ";")) and i >= 2), default=None)
+            t = " ".join(palabras[:coma + 1]).rstrip(",:;") if coma is not None else " ".join(palabras[:7]) + "…"
+        else:
+            t = " ".join(palabras)
     return t
 
 
@@ -5535,8 +5609,9 @@ def hacer_portada(combo, archivo_video=None, prueba=None, destino=None):
     # el ancho de la caja del título (se estira de los costados): el texto se acomoda en más o menos filas
     ancho_t = max(160, min(W, int(float(aj.get("ancho_titulo") or (W - 180)))))
     margen = max(0, (W - ancho_t) // 2)
-    tam = int(float(aj.get("tamano") or cfg["tamano"]))
-    borde = float(aj["borde"]) if aj.get("borde") not in (None, "") else 12
+    # dentro de lo que deja el formulario (Tamaño 50–220, Borde 0–30): 5000 o −20 rompían la imagen
+    tam = max(50, min(220, int(float(aj.get("tamano") or cfg["tamano"]))))
+    borde = max(0.0, min(30.0, float(aj["borde"]))) if aj.get("borde") not in (None, "") else 12
     if aj.get("caja"):  # caja de color detrás del título (estilo de borde 3: el borde se vuelve caja)
         estilo, contorno, sombra = 3, color_ass(aj.get("color_caja") or "#99D3DA"), 0
         borde = max(borde, 18)
@@ -6127,7 +6202,7 @@ def calendario():
     return out
 
 
-AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "codec": "h264", "calidad": "alta", "portada_inicio": True, "por_dia": False,
+AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "codec": "h264", "calidad": "recomendada", "portada_inicio": True, "por_dia": False,
                     "peso_max": 0}  # MB por video; 0 = sin límite
 RESOLUCIONES = {"720": (720, 1280), "1080": (1080, 1920), "1440": (1440, 2560), "2160": (2160, 3840)}
 CALIDADES = {"ligera": 26, "recomendada": 22, "alta": 19, "maxima": 16}  # CRF: menos = mejor y más pesado
@@ -6207,9 +6282,11 @@ def exportar(avance=print, codigos=None, ajustes=None, raiz=None):
         sueltos = [c for c in (codigos or []) if not any(c in cs for cs in cal.values())]
         if sueltos:
             plan["SIN_DIA"] = sueltos
+    semana = semana_de_exporte()
     for dia, codigos in plan.items():
         destino = raiz / dia if dia else raiz
         destino.mkdir(parents=True, exist_ok=True)
+        paquete = []
         for cod in codigos:
             c = por_codigo.get(cod)
             if not c:
@@ -6226,8 +6303,41 @@ def exportar(avance=print, codigos=None, ajustes=None, raiz=None):
                 f"INSTAGRAM\n{cp.get('instagram', '')}\n\nTIKTOK\n{cp.get('tiktok', '')}\n\n"
                 f"YOUTUBE · título\n{cp.get('youtube_titulo', '')}\n\nYOUTUBE · descripción\n{cp.get('youtube', '')}\n",
                 encoding="utf-8")
+            m = re.match(r"DIA_(\d+)", dia)
+            paquete.append({"codigo": c["archivo"], "tipo": "video", "archivo": v.name,
+                            "portada": p.name if p.exists() else None, "semana": semana,
+                            "cuerpo": sin_angulo(c["cuerpo"])[0], "hook": c["hook"], "cta": c["cta"],
+                            "dia_sugerido": int(m.group(1)) if m else None, "copy_borrador": cp,
+                            "exportado": time.strftime("%Y-%m-%d %H:%M")})
             hechos.append(cod)
+        if paquete:
+            guardar_paquete(destino, paquete)
     return hechos
+
+
+def semana_de_exporte():
+    """La semana de la estrategia de lo que se exporta (S03 = la del lunes 19/10/2026): la que dice el guion
+    o, si no dice, la de hoy. La misma cuenta que la Sala de diseño y el Publicador."""
+    import datetime as dt
+    s = str(produccion().get("semana_estrategia") or produccion().get("semana") or "").strip().upper()
+    if re.fullmatch(r"S\d{1,3}", s):
+        return f"S{int(s[1:]):02d}"
+    b = CONFIG.get("semana_base") or {}
+    lunes = dt.date.fromisoformat(b.get("lunes", "2026-10-05"))
+    return f"S{int(b.get('numero', 1)) + (dt.date.today() - lunes).days // 7:02d}"
+
+
+def guardar_paquete(destino, piezas):
+    """paquete.json en la carpeta del exporte (contrato de ARQUITECTURA.md): el Publicador lee de aquí la semana,
+    el cuerpo, el día y el copy de cada video. Se suma a lo que ya había (un video exportado otra vez se reemplaza)."""
+    f = Path(destino) / "paquete.json"
+    try:
+        antes = json.loads(f.read_text(encoding="utf-8")).get("piezas", [])
+    except (FileNotFoundError, ValueError):
+        antes = []
+    nuevos = {x["archivo"] for x in piezas}
+    f.write_text(json.dumps({"piezas": [x for x in antes if x.get("archivo") not in nuevos] + piezas},
+                            ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 # ---------- Revisión de calidad antes de exportar ----------
@@ -6407,7 +6517,9 @@ def checklist():
     assets = []
     for a in p.get("assets", []):
         f = buscar_asset(a["id"])
-        assets.append({**a, "listo": bool(f), "archivo_actual": f.name if f else None})
+        # «Rehacer con Claude» le dio un prompt nuevo: la imagen de antes ya no vale hasta que llegue una más nueva
+        viejo = bool(f) and float(a.get("prompt_nuevo_t") or 0) > f.stat().st_mtime
+        assets.append({**a, "listo": bool(f) and not viejo, "por_regenerar": viejo, "archivo_actual": f.name if f else None})
     musica = [{**m, "listo": bool(buscar_musica(m["id"])), "archivo_actual": (buscar_musica(m["id"]) or Path("")).name or None}
               for m in produccion().get("musica", []) if m.get("id")]
     sug = sugerencias()

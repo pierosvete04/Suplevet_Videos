@@ -317,6 +317,32 @@ def traer(version=None):
                 "sigue_cambiado": _firma(ahora) != _firma(nuevos)}
 
 
+def _cambie_aqui():
+    """¿Hay algo editado en esta PC que todavía no está en ninguna versión del proyecto?"""
+    loc = _leer_local()
+    firma = _firma(_archivos())
+    return firma != (loc.get("firma") or {}) if loc.get("version") is not None else bool(firma)
+
+
+def volver(version):
+    """«Volver a esta»: la sesión queda como la versión elegida y eso se sube como una versión NUEVA del proyecto
+    (v5 = copia de la v2), así las otras PCs reciben el aviso y nada se pierde: lo de antes sigue en el historial.
+    Si en esta PC había cambios sin subir, primero se suben, para que también queden en el historial."""
+    with _cerrojo:
+        antes = publicar("lo que había antes de volver") if _cambie_aqui() and not revisar().get("pendiente") else None
+        r = traer(version)
+        r["nueva"] = publicar(f"volvió a la versión {int(version)}")
+        r["antes"] = antes
+        return r
+
+
+def tras_restaurar(fecha):
+    """Después de restaurar una copia de seguridad, eso pasa a ser la versión del proyecto (para todo el equipo)."""
+    if not disponible():
+        return None
+    return publicar(f"volvió a la copia de seguridad del {fecha}" if fecha else "volvió a una copia de seguridad")
+
+
 def quedarme():
     """Lo de esta PC pasa a ser la versión del proyecto (lo que había queda en el historial)."""
     return publicar("se quedó con su versión")

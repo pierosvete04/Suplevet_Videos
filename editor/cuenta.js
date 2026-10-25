@@ -3,6 +3,10 @@
      await Cuenta.iniciar({ app: "Sala de diseño", letra: "D", fondo: "linear-gradient(...)", lugar: elementoDeLaCabeza,
                             alElegirCarpeta: res => {...} });   // opcional: lo de la app después de elegir carpeta
    La promesa se cumple cuando hay sesión; si se cierra (aquí o desde otra PC) vuelve la pantalla de entrar.
+   Cabecera común: las tres apps arman su cabecera con las clases app-* de aquí (logo, nombre de la app, título,
+   íconos) y pasan menu: () => [{ icono, texto, al, extra, actual, href }, "-", …] para el menú que cuelga de tu cuenta
+   (el mismo en las tres), más version: () => "1.2.3" y alCambiarTema: () => {…} (claro/oscuro, al final del menú).
+   preguntar/avisar: las ventanas de la app (en la ventana del programa confirm() y alert() no se ven).
    Cada servidor atiende GET /api/cuenta/carpetas (cuenta.carpetas_para_elegir) y POST /api/cuenta/primera (cuenta.primera). */
 (() => {
   const css = `
@@ -64,7 +68,40 @@
   .cta-cortina>div{display:grid;gap:10px;justify-items:center;text-align:center;padding:26px 30px;border-radius:16px;background:var(--surface,#0b111e);border:1px solid var(--line2,#24365a);box-shadow:0 20px 50px rgba(0,0,0,.35);max-width:min(440px,90vw);font:14px/1.5 "Segoe UI",system-ui,sans-serif}
   .cta-cortina b{font-size:20px}
   .cta-cortina .cta-gira{font-size:34px}
-  @media (prefers-reduced-motion:reduce){.cta-gira{animation-duration:3s}}`;
+  @media (prefers-reduced-motion:reduce){.cta-gira{animation-duration:3s}}
+  .app-cab{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;min-width:0}
+  .app-marca{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 auto}
+  .app-logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;color:#fff;font:800 15px var(--fd,"Segoe UI",system-ui);box-shadow:0 0 18px rgba(61,139,255,.3)}
+  .app-tit{display:grid;gap:1px;min-width:0;line-height:1.15}
+  .app-nombre{font:700 10.5px var(--mono,Consolas,monospace);letter-spacing:.14em;text-transform:uppercase;color:var(--muted,#8494b4)}
+  .app-titulo{margin:0;font:750 19px var(--fd,"Segoe UI",system-ui);letter-spacing:-.005em;color:var(--ink,#edf3ff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-iconos{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none;flex-wrap:wrap;justify-content:flex-end}
+  .app-ico{position:relative;min-width:36px;height:36px;padding:0 11px;border-radius:10px;border:1px solid var(--line2,#24365a);background:var(--surface2,#101829);color:var(--ink,#edf3ff);font:600 12.5px var(--f,"Segoe UI",system-ui);display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap;text-decoration:none}
+  .app-ico.solo{padding:0;width:36px;font-size:16px}
+  .app-ico:hover,.app-ico:focus-visible{border-color:var(--accent,#3d8bff);outline:none}
+  .app-ico .app-punto{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--accent2,#5ee1ff);box-shadow:0 0 8px var(--accent2,#5ee1ff)}
+  .app-ico .app-num{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;font:700 10px/16px var(--f,"Segoe UI");color:#fff;background:var(--err,#ff6b7d)}
+  .app-pastilla{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:99px;border:1px solid var(--line2,#24365a);color:var(--muted,#8494b4);font:600 12px var(--f,"Segoe UI");white-space:nowrap;background:none;cursor:pointer}
+  .app-pastilla.ok{color:var(--ok,#4ade9b);border-color:color-mix(in srgb,var(--ok,#4ade9b) 55%,transparent)}
+  .app-pastilla.mal{color:var(--warn,#ffb547);border-color:color-mix(in srgb,var(--warn,#ffb547) 55%,transparent)}
+  .cta-ancla{position:relative;display:inline-flex}
+  .cta-chip[aria-expanded="true"]{border-color:var(--accent,#3d8bff);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#3d8bff) 30%,transparent)}
+  .cta-menu{position:absolute;top:calc(100% + 10px);right:0;z-index:60;width:290px;max-width:calc(100vw - 24px);display:grid;gap:2px;padding:8px;border-radius:14px;border:1px solid var(--line2,#24365a);background:var(--surface,#0b111e);color:var(--ink,#edf3ff);box-shadow:0 24px 60px rgba(0,0,0,.35);font:13px/1.4 var(--f,"Segoe UI",system-ui);animation:ctaMenu .16s ease-out}
+  .cta-menu::before{content:"";position:absolute;top:-6px;right:22px;width:10px;height:10px;transform:rotate(45deg);background:var(--surface,#0b111e);border-left:1px solid var(--line2,#24365a);border-top:1px solid var(--line2,#24365a)}
+  @keyframes ctaMenu{from{opacity:0;transform:translateY(-4px)}}
+  .cta-menu .cta-mc-yo{display:flex;gap:10px;align-items:center;padding:6px 8px 10px;margin-bottom:4px;border-bottom:1px solid var(--line,#1a2740);min-width:0}
+  .cta-menu .cta-mc-yo>div{min-width:0}
+  .cta-menu .cta-mc-yo b,.cta-menu .cta-mc-yo small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cta-menu .cta-mc-yo small{color:var(--muted,#8494b4);font-size:11.5px}
+  .cta-menu hr{border:0;border-top:1px solid var(--line,#1a2740);margin:4px 2px;width:auto}
+  .cta-menu [role=menuitem]{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:9px;background:none;color:inherit;font:600 13px var(--f,"Segoe UI",system-ui);text-align:left;cursor:pointer;text-decoration:none;box-sizing:border-box}
+  .cta-menu [role=menuitem]:hover,.cta-menu [role=menuitem]:focus-visible{background:var(--surface2,#101829);outline:none}
+  .cta-menu [role=menuitem][aria-current="true"]{box-shadow:inset 3px 0 0 var(--accent,#3d8bff);background:var(--surface2,#101829)}
+  .cta-menu .cta-mc-ico{width:20px;text-align:center;flex:none}
+  .cta-menu .cta-mc-extra{margin-left:auto;display:inline-flex;align-items:center}
+  .cta-menu .cta-mc-pie{padding:6px 10px 2px;color:var(--muted,#8494b4);font:600 11px var(--mono,Consolas,monospace)}
+  @media (max-width:1050px){.cta-chip{padding:3px}.cta-chip>span:not(.cta-av){display:none}}
+  @media (max-width:640px){.app-titulo{font-size:16px}}`;
   const G = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>`;
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pedir = async (ruta, cuerpo) => {
@@ -78,6 +115,8 @@
     : `<span class="${clase}">${esc((c.nombre || c.email || "?").trim()[0] || "?").toUpperCase()}</span>`;
   const fecha = t => t ? t.replace(/^(\d{4})-(\d\d)-(\d\d) /, "$3/$2/$1 ") : "—";
   let opc = {}, estado = {}, velo = null, dlg = null;
+  const preguntar = async t => opc.preguntar ? opc.preguntar(t) : confirm(t);
+  const avisarError = t => opc.avisar ? opc.avisar(t, "err") : alert(t);
 
   function estilo() {
     if (document.getElementById("cta-css")) return;
@@ -226,9 +265,54 @@
 
   function pintarChip() {
     if (!opc.lugar) return;
-    opc.lugar.innerHTML = `<button class="cta-chip" title="Tu cuenta, dispositivos y seguridad">${avatar(estado)}<span>${esc(estado.nombre || estado.email)}</span></button>`;
-    opc.lugar.querySelector("button").onclick = abrirPanel;
+    opc.lugar.classList.add("cta-ancla");
+    opc.lugar.innerHTML = `<button class="cta-chip" title="Tu cuenta y la configuración" aria-haspopup="${opc.menu ? "menu" : "dialog"}" aria-expanded="false">${avatar(estado)}<span>${esc(estado.nombre || estado.email)}</span></button>`;
+    opc.lugar.querySelector("button").onclick = opc.menu ? () => (menuEl ? cerrarMenu(true) : abrirMenu()) : abrirPanel;
   }
+
+  // El menú que cuelga de tu cuenta (el mismo en las tres apps): quién eres, las páginas de configuración de la app,
+  // claro/oscuro y la versión. Cada app dice sus opciones con opc.menu().
+  let menuEl = null;
+  function abrirMenu() {
+    cerrarMenu();
+    const items = (opc.menu?.() || []).filter(Boolean);
+    const claro = document.documentElement.dataset.tema === "claro";
+    if (opc.alCambiarTema) items.push("-", { icono: claro ? "☾" : "☀", texto: claro ? "Pasar a modo oscuro" : "Pasar a modo claro", al: opc.alCambiarTema, tema: true });
+    menuEl = document.createElement("div");
+    menuEl.className = "cta-menu"; menuEl.setAttribute("role", "menu"); menuEl.setAttribute("aria-label", "Tu cuenta y configuración");
+    const v = opc.version?.();
+    menuEl.innerHTML = `<div class="cta-mc-yo">${avatar(estado)}<div><b>${esc(estado.nombre || "Tu cuenta")}</b><small>${esc(estado.email || "")}</small></div></div>`
+      + items.map((x, i) => x === "-" ? "<hr>" : `<${x.href ? `a href="${esc(x.href)}" target="_blank" rel="noopener"` : 'button type="button"'} role="menuitem" data-mc="${i}"${x.actual ? ' aria-current="true"' : ""}>`
+        + `<span class="cta-mc-ico" aria-hidden="true">${esc(x.icono || "")}</span><span>${esc(x.texto)}</span>${x.extra ? `<span class="cta-mc-extra">${x.extra}</span>` : ""}</${x.href ? "a" : "button"}>`).join("")
+      + (v ? `<div class="cta-mc-pie">${esc(opc.app)} v${esc(String(v).replace(/^v/, ""))}</div>` : "");
+    menuEl.onclick = e => {
+      const b = e.target.closest("[data-mc]"); if (!b) return;
+      const x = items[+b.dataset.mc];
+      if (x.tema) { x.al?.(); return abrirMenu(); }  // se queda abierto, con el texto nuevo
+      cerrarMenu(); x.al?.();
+    };
+    opc.lugar.appendChild(menuEl);
+    opc.lugar.querySelector(".cta-chip")?.setAttribute("aria-expanded", "true");
+    menuEl.querySelector("[role=menuitem]")?.focus({ preventScroll: true });
+  }
+  function cerrarMenu(foco) {
+    if (!menuEl) return;
+    menuEl.remove(); menuEl = null;
+    const chip = opc.lugar?.querySelector(".cta-chip");
+    chip?.setAttribute("aria-expanded", "false");
+    if (foco) chip?.focus();
+  }
+  document.addEventListener("click", e => { if (menuEl && !e.target.closest(".cta-ancla")) cerrarMenu(); });
+  document.addEventListener("keydown", e => {
+    if (!menuEl) return;
+    if (e.key === "Escape") { e.preventDefault(); cerrarMenu(true); }
+    else if (e.key === "Tab") cerrarMenu();
+    else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+      const bs = [...menuEl.querySelectorAll("[role=menuitem]")], i = bs.indexOf(document.activeElement);
+      const j = e.key === "Home" ? 0 : e.key === "End" ? bs.length - 1 : (i + (e.key === "ArrowDown" ? 1 : -1) + bs.length) % bs.length;
+      bs[j]?.focus(); e.preventDefault();
+    }
+  });
 
   let caja = null;  // donde está dibujado el panel ahora (la ventana o una página de la app)
   function montar(el, enVentana) {
@@ -258,15 +342,18 @@
         if (a === "cerrar") return dlg?.close();
         if (a === "carpeta") { dlg?.close(); if (await elegirCarpeta()) montar(el, enVentana); return; }
         if (a === "salir") {
-          if (!confirm("¿Cerrar sesión en esta PC? Las tres apps volverán a pedir entrar con Google.")) return;
+          if (!await preguntar("¿Cerrar sesión en esta PC? Las tres apps volverán a pedir entrar con Google.")) return;
           await pedir("/api/salir", {}); dlg?.close(); estado = await pedir("/api/cuenta"); return volverAEntrar();
         }
         if (a === "otros") {
-          if (!confirm("¿Cerrar la sesión en todos los demás dispositivos?")) return;
+          if (!await preguntar("¿Cerrar la sesión en todos los demás dispositivos?")) return;
           const r = await pedir("/api/cerrar_otros", {}); b.textContent = `Pedido en ${r.cerrados} dispositivo(s)`; return cargarDispositivos();
         }
-        if (a === "uno") { await pedir("/api/cerrar_dispositivo", { id: b.dataset.id }); b.textContent = "Cierre pedido"; b.disabled = true; }
-      } catch (er) { alert(er.message); }
+        if (a === "uno") {
+          if (!await preguntar(`¿Cerrar la sesión en «${b.closest(".cta-disp")?.querySelector("b")?.textContent || "ese dispositivo"}»? Se cierra en su próxima revisión (máximo 10 minutos).`)) return;
+          await pedir("/api/cerrar_dispositivo", { id: b.dataset.id }); b.textContent = "Cierre pedido"; b.disabled = true;
+        }
+      } catch (er) { avisarError(er.message); }
     };
     cargarDispositivos();
   }
@@ -327,6 +414,8 @@
     },
     estado: () => estado,
     abrirPanel,
+    abrirMenu,
+    cerrarMenu,
     elegirCarpeta,
     pintarEn: el => { estilo(); montar(el, false); },
   };

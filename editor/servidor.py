@@ -45,9 +45,12 @@ def ip_local():
         return "127.0.0.1"
 
 
+RED_EN_MARCHA = {"si": None}  # si la sala arrancó escuchando la red (el cambio vale recién al volver a abrirla)
+
+
 def red():
     r = motor.CONFIG.get("red_local", {})
-    return {"activa": bool(r.get("activa")), "pin": r.get("pin", ""),
+    return {"activa": bool(r.get("activa")), "pin": r.get("pin", ""), "en_marcha": RED_EN_MARCHA["si"],
             "url": f"http://{ip_local()}:{PUERTO}/teleprompter" if r.get("activa") else None}
 LATIDO = {"ultimo": 0.0, "adios": 0.0}  # la ventana avisa que está abierta; al cerrarla, la sala se apaga (solo con el .exe)
 
@@ -138,7 +141,7 @@ def estado():
         r = S.recetas / f"{c['codigo']}.json"
         info_hook = motor.info_pieza(c["hook"])
         v = c.get("version") or {}
-        etiqueta = v.get("nombre") or f"Hook {motor.sin_angulo(c['hook'])[0].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") else "")
+        etiqueta = v.get("nombre") or f"Hook {motor.sin_angulo(c['hook'])[0].split('_')[-1].lstrip('H')}" + (f" · {info_hook['tipo']}" if info_hook.get("tipo") not in (None, "", "hook") else "")
         ap = motor.ajustes_portada(c["codigo"])
         av = motor.ajustes_video(c["codigo"])
         # desactualizado: se cambió algo de sus piezas (subtítulos, recortes, zoom) o sus ajustes después de armarlo
@@ -187,7 +190,9 @@ def estado():
             "sin_carpeta": bool(cuenta._leer(cuenta.INFO).get("sin_carpeta")), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": {k: ({**v, "escala_activa": 108} if float(v.get("escala_activa") or 108) < 50 else v) for k, v in motor.plantillas().items()}, "plantilla": motor.id_plantilla(),  # las dañadas hasta la 1.47.8 (escala 3) se ven bien
-            "plantilla_predeterminada": motor.CONFIG.get("plantilla_activa") or motor.CONFIG["subtitulos"].get("plantilla"),
+            # una predeterminada que ya se borró no cuenta: vuelve la de por defecto
+            "plantilla_predeterminada": next((p for p in (motor.CONFIG.get("plantilla_activa"), motor.CONFIG["subtitulos"].get("plantilla"))
+                                              if p and p in motor.plantillas()), motor.id_plantilla()),
             "plantilla_del_guion": prod.get("plantilla_sub"), "fuentes": fuentes.disponibles(),
             "portada_estilo": {"fuente": motor.CONFIG["portada"].get("fuente") or "", "mayusculas": motor.CONFIG["portada"].get("mayusculas", True)},
             "propias": list(motor.CONFIG.get("plantillas_propias", {})), "fabrica": list(motor.CONFIG.get("plantillas_sub", {})),
@@ -396,12 +401,23 @@ def _tipo_descarga(f):
     return "musica" if ext in motor.EXT_AUDIO else "imagen" if ext in motor.EXT_IMG else "video" if ext in motor.EXT_VID else None
 
 
+def codigos_armados(cumple=lambda c: True):
+    """Los videos que ya tienen su .mp4 armado (y cumplen la condición): solo esos quedan «por rearmar» al cambiar
+    un estilo o una plantilla. Antes se devolvían todas las combinaciones aunque no hubiera ninguno armado."""
+    return [c["codigo"] for c in motor.combinaciones() if cumple(c) and (motor.S.salida / f"{c['archivo']}.mp4").exists()]
+
+
+# Faltantes › «¿Cuántas imágenes?»: los mismos topes que el formulario (por cuerpo 12, clips 4, por hook 4)
+TOPES_APOYO = (("por_cuerpo", 12), ("clips", 4), ("por_hook", 4))
+
+
 def descargas_recientes(dias=7, todos=False):
     """Música, imágenes y clips bajados en los últimos días (lo de Flow, Flow Music o Suno), lo más nuevo primero.
     Solo los que se llaman como algo del guion de la sesión; los demás se cuentan (y se ven con todos=True)."""
     base = carpeta_descargas()
     ck = motor.checklist()
     ids = {"musica": [m["id"] for m in ck.get("musica", [])], "assets": [a["id"] for a in ck.get("assets", [])]}
+    puestos = {x["id"] for x in ck.get("musica", []) + ck.get("assets", []) if x.get("listo")}  # ya están en la sesión
     archivos, otros = [], 0
     if base.is_dir():
         limite = time.time() - dias * 86400
@@ -413,6 +429,8 @@ def descargas_recientes(dias=7, todos=False):
             if st.st_mtime < limite or st.st_size > 600 * 1024 * 1024:
                 continue
             aid = id_de_archivo(f.name, ids["musica" if tipo == "musica" else "assets"])
+            if aid in puestos:  # ese ya está puesto en la sesión: no se vuelve a ofrecer
+                continue
             if not aid:
                 otros += 1
                 if not todos:
@@ -420,7 +438,8 @@ def descargas_recientes(dias=7, todos=False):
             archivos.append({"nombre": f.name, "tipo": tipo, "mb": round(st.st_size / 1048576, 1), "fecha": st.st_mtime, "id": aid,
                              "url": "/descargas/" + quote(f.name) + f"?v={int(st.st_mtime)}"})
     archivos.sort(key=lambda x: (not x["id"], -x["fecha"]))
-    return {"carpeta": str(base), "dias": dias, "archivos": archivos[:60], "otros": otros,
+    # se muestran hasta 60 (los que se llaman como algo del guion primero): «total» dice cuántos había, para que cuadre
+    return {"carpeta": str(base), "dias": dias, "archivos": archivos[:60], "total": len(archivos), "otros": otros,
             "auto": bool(motor.CONFIG.get("auto_descargas", True))}
 
 
@@ -914,7 +933,10 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     if drive.estado()["activo"]:
                         avance("Subiendo los clips a Drive")
                         drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
-                    avance(f"Listo: {len(extra['clips'])} clips armados en {salida}")
+                    # sin «Listo:» (el aviso de la sala ya lo pone), en plural bien y con la ruta corta (sesión/carpeta)
+                    n = len(extra["clips"])  # «hechos» trae también los de antes
+                    corta = "/".join(Path(str(salida)).parts[-2:])
+                    avance(f"{n} clip{'s' if n != 1 else ''} armado{'s' if n != 1 else ''} en {corta}")
                 if accion == "conectar":
                     drive.conectar(extra["link"], extra.get("client_id", ""), extra.get("client_secret", ""), avance=avance)
                 if accion == "bajar":
@@ -1012,6 +1034,13 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         drive.subir(motor.S.drive, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = r
                     avance(f"Prompt nuevo de {extra['id']}: {(r.get('cambio') or 'listo').rstrip('. ')}. Cópialo y genera la imagen en Flow.")
+                if accion == "rehacer_musica":  # «⟳ Regenerar prompt» de una pista: Claude lo reescribe con adrenalina
+                    r = asistente.rehacer_musica(extra["id"], extra.get("nota", ""), avance=avance)
+                    motor._prod_cache = None
+                    if drive.estado()["activo"]:
+                        drive.subir(motor.S.drive, ["Guion"], avance=avance)
+                    TRABAJO["resultado"] = r
+                    avance(f"Prompt nuevo de {extra['id']}: {(r.get('cambio') or 'listo').rstrip('. ')}. Cópialo y genera la pista en Flow Music.")
                 if accion == "temas":
                     TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
                     avance("Temas propuestos: elige uno por cuerpo.")
@@ -1562,9 +1591,7 @@ class H(BaseHTTPRequestHandler):
                 if acc == "actualizar":
                     r = proyecto.traer()
                 elif acc == "volver":
-                    v = int(b.get("version") or 0)
-                    r = proyecto.traer(v)
-                    r["nueva"] = proyecto.publicar(f"volvió a la versión {v}")
+                    r = proyecto.volver(int(b.get("version") or 0))
                 elif acc in ("quedarme", "publicar"):
                     r = {"version": proyecto.quedarme() if acc == "quedarme" else proyecto.publicar()}
                 else:
@@ -1641,7 +1668,7 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, **antigravity.armar(bool(b.get("todas")), bool(b.get("abrir")))})
             elif u.path == "/api/prompts_antigravity":  # «Agregar los prompts» con Gemini, sin Claude
                 b = self._cuerpo()
-                self._json({"ok": True, **antigravity.armar_prompts(*(max(0, min(12, int(b.get(k) or 0))) for k in ("por_cuerpo", "clips", "por_hook")), abrir=True)})
+                self._json({"ok": True, **antigravity.armar_prompts(*(max(0, min(tope, int(float(b.get(k) or 0)))) for k, tope in TOPES_APOYO), abrir=True)})
             elif u.path == "/api/traer_prompts_antigravity":
                 self._json({"ok": True, **antigravity.traer_prompts()})
             elif u.path == "/api/marca_plantilla":
@@ -1682,6 +1709,10 @@ class H(BaseHTTPRequestHandler):
                     if TRABAJO["activo"]:
                         raise ValueError("Espera a que termine lo que está haciendo la sala (☰) para restaurar")
                     r = respaldos.restaurar(str(b.get("archivo", "")))
+                    try:  # lo restaurado pasa a ser la versión del proyecto: las otras PCs reciben el aviso
+                        r["version_proyecto"] = proyecto.tras_restaurar(r.get("fecha", ""))
+                    except Exception as e:  # noqa: BLE001 — sin Drive se sube solo en la próxima revisión
+                        print("Proyecto tras restaurar:", e)
                     if drive.estado()["activo"]:
                         for m in motor.S.miembros:
                             drive.subir_en_segundo_plano(motor.S.en_drive(m), ["asignaciones.json"])
@@ -1750,12 +1781,14 @@ class H(BaseHTTPRequestHandler):
                 if not re.fullmatch(r"[a-z0-9_]{1,40}", pid):
                     raise ValueError("Id de plantilla no válido")
                 # los videos que la usan se cuentan antes de borrarla (después ya usaban otra y la lista salía vacía)
-                usaban = [c["codigo"] for c in motor.combinaciones() if motor.id_plantilla_de(c) == pid]
+                usaban = codigos_armados(lambda c: motor.id_plantilla_de(c) == pid)
                 if b.get("borrar"):
                     propias = {k: v for k, v in motor.CONFIG.get("plantillas_propias", {}).items() if k != pid}
                     cambio = {"plantillas_propias": propias}
                     if motor.CONFIG.get("plantilla_activa") == pid:  # era la predeterminada: sus videos quedan por rearmar
                         cambio["plantilla_activa_cambio"] = time.time()
+                        if pid not in motor.CONFIG.get("plantillas_sub", {}):  # era propia: se vuelve a la de por defecto
+                            cambio["plantilla_activa"] = motor.CONFIG["subtitulos"].get("plantilla")
                     motor.guardar_config(cambio)
                     motor.guardar_config({"plantillas_borradas_cambio": {**(motor.CONFIG.get("plantillas_borradas_cambio") or {}), pid: time.time()}})
                     return self._json({"ok": True, "codigos": usaban})
@@ -1773,15 +1806,31 @@ class H(BaseHTTPRequestHandler):
                     motor.guardar_config({"plantilla_activa": pid, "plantilla_activa_cambio": time.time()})
                     motor.fijar_plantilla_sesion(pid)
                 # los videos que usan esta plantilla (para ofrecer re-armarlos)
-                usan = [c["codigo"] for c in motor.combinaciones() if motor.id_plantilla_de(c) == pid]
+                usan = codigos_armados(lambda c: motor.id_plantilla_de(c) == pid)
                 self._json({"ok": True, "codigos": usan})
             elif u.path == "/api/elemento":
                 nombre = re.sub(r"[^\w.-]", "_", q["nombre"][0])[-80:]
                 if not nombre.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
                     raise ValueError("Sube una imagen PNG, JPG, WEBP o un GIF")
+                datos = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+                # que de verdad sea una imagen (antes se aceptaba cualquier archivo con la extensión cambiada)
+                if not (datos[:8] == b"\x89PNG\r\n\x1a\n" or datos[:3] == b"\xff\xd8\xff" or datos[:6] in (b"GIF87a", b"GIF89a")
+                        or (datos[:4] == b"RIFF" and datos[8:12] == b"WEBP")):
+                    raise ValueError("Ese archivo no es una imagen PNG, JPG, WEBP ni GIF (aunque se llame así)")
+                if (motor.ELEMENTOS / nombre).exists() and not q.get("reemplazar"):  # se pregunta antes de pisar uno igual
+                    return self._json({"ok": False, "existe": True, "archivo": nombre, "error": f"Ya hay un elemento «{nombre}»"})
                 motor.ELEMENTOS.mkdir(parents=True, exist_ok=True)
-                (motor.ELEMENTOS / nombre).write_bytes(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+                (motor.ELEMENTOS / nombre).write_bytes(datos)
                 self._json({"ok": True, "archivo": nombre})
+            elif u.path == "/api/lut_borrar":  # quitar un LUT subido (si no está en uso)
+                nombre = Path(str(self._cuerpo().get("nombre") or "")).name
+                f = motor.ruta_lut(nombre)
+                if not f:
+                    raise ValueError("Ese LUT ya no está")
+                if motor.estilo_edicion().get("lut") == nombre or any((e.get("estilo") or {}).get("lut") == nombre for e in motor.ediciones().values()):
+                    raise ValueError("Ese LUT está en uso: primero apaga «Color (LUT)» o elige otro")
+                f.unlink()
+                self._json({"ok": True, "luts": motor.luts()})
             elif u.path == "/api/lut":  # LUT de color para Estilo de edición
                 nombre = motor.guardar_lut(q["nombre"][0][-80:], self.rfile.read(int(self.headers.get("Content-Length") or 0)))
                 self._json({"ok": True, "archivo": nombre, "luts": motor.luts()})
@@ -1806,7 +1855,19 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "archivo": nombre})
             elif u.path == "/api/portada":
                 b = self._cuerpo()
-                c = next(x for x in motor.combinaciones() if x["codigo"] == b["codigo"])
+                c = next((x for x in motor.combinaciones() if x["codigo"] == b.get("codigo")), None)
+                if not c:
+                    raise ValueError("Ese video ya no está en la sesión")
+                for k, lo, hi in (("tamano", 50, 220), ("borde", 0, 30)):  # lo mismo que deja el formulario
+                    if b.get(k) not in (None, ""):
+                        try:
+                            b[k] = max(lo, min(hi, float(b[k])))
+                        except (TypeError, ValueError):
+                            raise ValueError(f"El {'tamaño' if k == 'tamano' else 'borde'} de la portada tiene que ser un número")
+                if isinstance(b.get("titulo"), str):
+                    b["titulo"] = b["titulo"].strip()[:120]
+                if not b.get("titulo") and not b.get("solo_imagen"):
+                    raise ValueError("Escribe el título de la portada (o marca «Solo imagen»)")
                 motor.guardar_ajustes_portada(b["codigo"], b)
                 motor.hacer_portada(c)  # un segundo: no hace falta re-armar el video
                 self._json({"ok": True, "portada": url_media(motor.S.portadas / f"{c['archivo']}.jpg")})
@@ -1882,7 +1943,7 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 aj = {"normalizar": bool(b.get("normalizar", True)), "objetivo_lufs": max(-30.0, min(-10.0, float(b.get("objetivo_lufs", -20))))}
                 motor.guardar_config({"sonidos_nivel": aj, "estilo_cambio": time.time()})
-                self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
+                self._json({"ok": True, **aj, "codigos": codigos_armados()})
             elif u.path == "/api/estilo_edicion":  # zoom alternado, zoom en el hook y fundido (Plantillas → Estilo de edición)
                 b = self._cuerpo()
                 d = motor.estilo_edicion()  # lo que no venga se queda como estaba
@@ -1900,7 +1961,7 @@ class H(BaseHTTPRequestHandler):
                       "transicion": b.get("transicion", d["transicion"]) if b.get("transicion", d["transicion"]) in motor.TRANSICIONES else "flash",
                       "transicion_donde": b.get("transicion_donde", d["transicion_donde"]) if b.get("transicion_donde", d["transicion_donde"]) in motor.DONDE_TRANSICION else "cta"}
                 motor.guardar_config({"estilo_edicion": aj, "estilo_cambio": time.time()})
-                self._json({"ok": True, **aj, "codigos": [c["codigo"] for c in motor.combinaciones()]})
+                self._json({"ok": True, **aj, "codigos": codigos_armados()})
             elif u.path == "/api/silencios":  # cortar solo el silencio del inicio y del final de cada clip
                 b = self._cuerpo()
                 aj = {"auto": bool(b.get("auto", True)), "margen": max(0.0, min(0.5, float(b.get("margen", 0.08))))}
@@ -2010,8 +2071,10 @@ class H(BaseHTTPRequestHandler):
                     if len(nota) < 3:
                         raise ValueError("Escribe qué hay que cambiar en la imagen")
                     lanzar("rehacer", extra={"id": str(b.get("id", "")), "nota": nota})
+                elif b.get("accion") == "rehacer_musica":
+                    lanzar("rehacer_musica", extra={"id": str(b.get("id", "")), "nota": str(b.get("nota", "")).strip()[:1000]})
                 elif b.get("accion") == "mas_apoyo":
-                    lanzar("mas_apoyo", extra={k: max(0, min(12, int(b.get(k) or 0))) for k in ("por_cuerpo", "clips", "por_hook")})
+                    lanzar("mas_apoyo", extra={k: max(0, min(tope, int(float(b.get(k) or 0)))) for k, tope in TOPES_APOYO})
                 elif b.get("accion") == "temas":
                     lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
                                            "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",
@@ -2105,6 +2168,8 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             else:
                 self.send_error(404)
+        except ValueError as e:  # un error normal del usuario (archivo o dato que no sirve): no es una falla de la sala
+            self._json({"ok": False, "error": str(e)}, 400)
         except Exception as e:
             self._json({"ok": False, "error": str(e)}, 500)
 
@@ -2112,6 +2177,7 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     host = "0.0.0.0" if red()["activa"] else "127.0.0.1"
+    RED_EN_MARCHA["si"] = host == "0.0.0.0"
     print(f"Sala de edición en http://localhost:{PUERTO}  (sesión {motor.S.semana})", flush=True)
     vigilar_ventana()
     cuenta.iniciar("Sala de edición", motor.VERSION)
