@@ -1,3 +1,8 @@
+Versión 1.50.4 (se actualiza desde la app con «Actualizar ahora»):
+- **La ventana de cada video es más simple:** el video, qué usa (subtítulos, imágenes, música, sonidos) y la portada en miniatura. Arriba: «✎ Editar video», «🖼 Editar portada» y «🕘 Historial».
+- **Editar portada** se abre en su propia ventana, encima. **Historial** muestra lo que hizo el editor automático; tocar un segundo lleva el video ahí.
+- Ya no están los copies ni la vista por red (eso lo hace el Publicador), ni el cuadro vacío del editor que quedaba abajo.
+
 Versión 1.50.3 (se actualiza desde la app con «Actualizar ahora»):
 - **Enter y Espacio siempre pausan y reanudan** en el editor. Antes, después de tocar «Inicio», Enter volvía a empezar desde el principio en vez de pausar.
 

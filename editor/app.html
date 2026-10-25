@@ -234,6 +234,16 @@ dialog { overscroll-behavior: contain; overflow: auto; }
 dialog::backdrop { background: rgba(2,4,8,.75); backdrop-filter: blur(4px); }
 .dlg-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--flotante); backdrop-filter: blur(10px); z-index: 2; }
 .dlg-cuerpo { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 260px) minmax(0, 1fr); gap: 16px; padding: 16px; overflow: auto; }
+dialog#dlg { width: min(900px, 96vw); }
+#dlg .dlg-cuerpo { grid-template-columns: minmax(0, 360px) minmax(0, 1fr); }
+#dlg .dlg-cuerpo video { max-width: 360px; }
+.dlg-info { display: grid; gap: 14px; align-content: start; }
+.dlg-portada-mini { display: grid; gap: 8px; justify-items: start; }
+.dlg-portada-mini img { width: 150px; aspect-ratio: 9/16; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; background: var(--bg2); }
+body.horizontal .dlg-portada-mini img { width: 240px; aspect-ratio: 16/9; }
+#dlg #editorVideo, #dlg .dlg-sobra { display: none !important; }
+#dlgPortadaCuerpo #editorPortada { margin: 0; border: 0; padding: 0; background: none; box-shadow: none; }
+#dlgPortadaCuerpo #editorPortada > .fila:first-child h2 { display: none; }  /* el título ya está en la ventana */
 .dlg-cuerpo video { display: block; width: 100%; max-width: 300px; max-height: 70vh; margin: 0 auto; border-radius: 12px; background: #000; aspect-ratio: 9/16; }
 .redes button { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); cursor: pointer; }
 .redes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -2495,6 +2505,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div class="dlg-cab"><h2 id="alcTit" style="margin:0">A qué videos llega lo que cambias</h2><button class="btn sec peq" type="button" id="alcCerrar">Cerrar</button></div>
   <div id="dlgAlcanceCuerpo" style="padding:16px;display:grid;gap:12px"></div>
 </dialog>
+<dialog id="dlgPortadaEd" aria-labelledby="porTitDlg" style="width:min(1180px,96vw)">
+  <div class="dlg-cab"><h2 id="porTitDlg" style="margin:0">Portada</h2><button class="btn sec peq" type="button" id="porCerrar">Cerrar</button></div>
+  <div id="dlgPortadaCuerpo" style="padding:16px;overflow:auto"></div>
+</dialog>
+<dialog id="dlgHistorial" aria-labelledby="hisTit" style="width:min(760px,94vw)">
+  <div class="dlg-cab"><h2 id="hisTit" style="margin:0">Qué hizo el editor automático</h2><button class="btn sec peq" type="button" id="hisCerrar">Cerrar</button></div>
+  <div id="dlgHistorialCuerpo" style="padding:16px;overflow:auto"></div>
+</dialog>
 <dialog id="dlgImpMarca" aria-labelledby="imTit" style="width:min(1000px,96vw);max-height:92vh">
   <div style="padding:20px 22px;display:grid;gap:14px">
     <div class="fila" style="justify-content:space-between"><h2 id="imTit" style="margin:0">Esto encontré en tu carpeta</h2>
@@ -2638,7 +2656,9 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <label class="est-sel" id="dlgEstadoCaja"><span>Estado</span>
         <select id="dlgEstadoSel" aria-label="Estado del video">
           <option value="pendiente">🟡 Por revisar</option><option value="editando">🔵 Editando</option><option value="listo">🟢 Aprobado</option></select></label>
-      <button class="btn" id="irEditor" title="Abre el editor de este video: cortes, zoom, imágenes, sonidos y subtítulos">✎ Editar video</button>
+      <button class="btn" id="irEditor" title="Abre el editor de este video: cortes, encuadre, imágenes, sonidos y subtítulos">✎ Editar video</button>
+      <button class="btn sec" id="irPortada" type="button" title="Título, fondo, logo e imágenes de la portada">🖼 Editar portada</button>
+      <button class="btn sec" id="irHistorial" type="button" title="Lo que hizo el editor automático al armar este video">🕘 Historial</button>
       <button class="btn sec" id="rearmarUno" title="Vuelve a armar el video con los cambios guardados">⟳ Rearmar</button>
       <button class="btn sec peq" id="cerrar" aria-label="Cerrar">✕</button></div></div>
   <div class="dlg-cuerpo">
@@ -3539,6 +3559,7 @@ function abrirVideo(cod, editar) {
   }
   const v = $("dlgVideo"); v.src = actual.video || ""; v.poster = actual.portada || "";
   $("dlgPortada").href = actual.portada || "#"; $("dlgPortada").hidden = !actual.portada;
+  $("dlgPortadaMini").src = actual.portada || "";
   const c = actual.copy || {};
   $("cInstagram").value = c.instagram || ""; $("cTiktok").value = c.tiktok || "";
   $("cYtTitulo").value = c.youtube_titulo || ""; $("cYoutube").value = c.youtube || "";
@@ -5071,6 +5092,30 @@ $("dlgEditor").addEventListener("cancel", e => {  // Esc no cierra el editor: su
   if ($("edMas").open) { $("edMas").open = false; return; }
   ed.sel = ed.subSel = ed.cSel = ed.kSel = ed.aSel = null; pintarEditor();
 });
+{
+  const cols = [...$("dlg").querySelectorAll(".dlg-cuerpo > div")];
+  cols[1].classList.add("dlg-sobra"); cols[2].classList.add("dlg-sobra");  // la vista por red y los copies: eso lo hace el Publicador
+  const info = document.createElement("div"); info.className = "dlg-info";
+  const mini = document.createElement("div"); mini.className = "dlg-portada-mini";
+  mini.innerHTML = `<span class="etq">Portada</span><img id="dlgPortadaMini" alt="Portada del video" title="Toca para editar la portada">`;
+  info.append(cols[0].querySelector(".usa-caja"), mini);
+  $("dlgPortadaEd").addEventListener("close", () => { const m = $("dlgPortadaMini"); if (actual?.portada) m.src = actual.portada; });
+  cols[0].after(info);
+  $("dlgPortadaCuerpo").append($("editorPortada"));
+  $("dlgHistorialCuerpo").append($("dlgReceta"));
+  $("dlgReceta").closest("details")?.remove();
+}
+function verPortadaVideo() {  // la ventana de la portada, encima de la del video
+  if (!actual) return;
+  $("dlgPortadaEd").showModal();
+  if (!porSucia) abrirPortada(); else { pintarCosasPortada(); verPortadaEnVivo(0); }
+}
+$("irPortada").onclick = verPortadaVideo;
+$("dlg").addEventListener("click", e => { if (e.target.id === "dlgPortadaMini") verPortadaVideo(); });
+$("porCerrar").onclick = () => $("dlgPortadaEd").close();
+$("irHistorial").onclick = () => $("dlgHistorial").showModal();
+$("hisCerrar").onclick = () => $("dlgHistorial").close();
+$("dlgReceta").addEventListener("click", e => { if (e.target.closest("a, [data-t], button")) $("dlgHistorial").close(); });  // tocar un segundo: se ve en el video
 $("dlgReceta").addEventListener("click", e => {  // ir al segundo de una imagen o un sonido en el video
   const a = e.target.closest("[data-ir-seg]"); if (!a) return;
   e.preventDefault(); const v = $("dlgVideo"); v.currentTime = Number(a.dataset.irSeg); v.play().catch(() => {});
