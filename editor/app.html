@@ -264,10 +264,14 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .piezas-layout { display: grid; grid-template-columns: 210px minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
 /* Piezas como el editor: todo en una pantalla. Izquierda la lista; al centro el texto arriba y la línea de tiempo abajo;
    a la derecha el video en su panel oscuro, a toda la altura */
-.piezas-layout.pz-pagina { grid-template-columns: 180px minmax(0, 1fr) clamp(280px, 28vw, 540px); grid-template-rows: minmax(0, 1fr) minmax(260px, 46%);
-  grid-template-areas: "lista texto video" "lista linea video"; align-items: stretch; gap: 12px;
+.piezas-layout.pz-pagina { grid-template-columns: 180px minmax(0, 1fr) clamp(280px, 28vw, 540px); grid-template-rows: var(--pz-alto-texto, minmax(0, 1fr)) 10px minmax(150px, 1fr);
+  grid-template-areas: "lista texto video" "lista gh video" "lista linea video"; align-items: stretch; gap: 0 12px;
   min-height: 520px; }
 main:has(> section[data-panel="piezas"]:not([hidden])) { padding-bottom: 12px; }  /* en Piezas todo entra en la pantalla */
+.pz-pagina > #piezas, .pz-pagina > .pz-video { margin: 0; }
+/* arriba: Hooks/Cuerpos/CTAs a la izquierda y los botones de guardar a la derecha, siempre a la vista */
+.pz-arriba { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.pz-arriba .pz-guardar { display: flex; gap: 8px; align-items: center; margin: 0; }
 .pz-pagina > #piezas { grid-area: lista; overflow: auto; min-height: 0; margin: 0; }
 .pz-pagina > .pz-texto { grid-area: texto; overflow: auto; min-height: 0; margin: 0; }
 .pz-pagina > #pzTl { grid-area: linea; overflow: auto; min-height: 0; margin: 0; }
@@ -284,6 +288,7 @@ body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
   .piezas-layout.pz-pagina { height: auto; grid-template-columns: 180px minmax(0, 1fr); grid-template-rows: auto auto auto;
     grid-template-areas: "lista video" "texto texto" "linea linea"; }
   .pz-video .pz-pantalla { height: 60vh; }
+  .pz-pagina > .ed-barrita { display: none; }
 }
 .grupo { margin-bottom: 12px; }
 .grupo h3 { font: 600 10.5px var(--mono); letter-spacing: .02em; color: var(--muted); }
@@ -1060,6 +1065,7 @@ dialog .toast.err, .toast-pag.err { border-color: var(--err); } dialog .toast.ok
 .pz-ayuda { margin: 6px 0 10px; font-size: 12.5px; line-height: 1.5; }
 .pz-ayuda kbd, .marca-insp kbd { font: 600 11px var(--mono); padding: 1px 5px; border: 1px solid var(--line2); border-radius: 4px; background: var(--bg2); }
 .pz-guardar { margin-top: 12px; }
+.transcripcion .w.parcial { text-decoration: underline dashed var(--err); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
 .transcripcion .w.quitada { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--muted); background: color-mix(in srgb, var(--err) 10%, transparent); }
 .tr-linea .tr-lapiz { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 4px; border-radius: 6px; }
 .tr-linea .tr-lapiz:hover { color: var(--accent2); background: var(--bg2); }
@@ -3668,7 +3674,10 @@ function pintarSucia() { $("piezaSucia").hidden = !piezaSucia(); }
 let lineasTmp = [], quitTmp = [], marcaFin = null, editLinea = null;
 // todas las palabras de la pieza en orden, con su lugar (línea, palabra) y su tiempo
 const planoPieza = p => p.lineas.flatMap((l, li) => l.palabras.map((w, wi) => ({ li, wi, w: w.w, s: w.s, e: w.e })));
-const quitadaW = w => quitTmp.some(([a, b]) => (w.s + w.e) / 2 >= a && (w.s + w.e) / 2 <= b);
+// cuánto de la palabra cae dentro de lo quitado (0 a 1). Quitada solo si se va casi entera: un corte que se lleva el
+// final de una palabra (un respiro, la cola) la deja «cortada en parte», no tachada, porque se sigue escuchando
+const cubiertaW = w => { const d = Math.max(.01, w.e - w.s); return Math.min(1, quitTmp.reduce((q, [a, b]) => q + Math.max(0, Math.min(b, w.e) - Math.max(a, w.s)), 0) / d); };
+const quitadaW = w => cubiertaW(w) >= .7;
 function seleccionW(p) {  // las palabras elegidas (una, o de la primera a la última con Shift)
   if (!marcaSel) return [];
   const pl = planoPieza(p), idx = x => pl.findIndex(w => w.li === x.li && w.wi === x.wi);
@@ -3845,9 +3854,9 @@ function pintarMarcas() {
   else html += `<div class="transcripcion">${p.lineas.map((l, li) => {
     const corr = lineasTmp[li] !== l.texto;
     const palabras = l.palabras.map((w, wi) => {
-      const m = deWord.get(`${li}-${wi}`), sel = elegidas.has(`${li}-${wi}`), q = quitadaW(w);
+      const m = deWord.get(`${li}-${wi}`), sel = elegidas.has(`${li}-${wi}`), c = cubiertaW(w), q = c >= .7, parte = !q && c >= .08;
       const oculto = m && !pasa(m);
-      return `<span class="w ${m && !oculto ? "con" : ""} ${sel ? "sel" : ""} ${q ? "quitada" : ""}" data-w="${li}-${wi}" tabindex="0" role="button" title="${w.s.toFixed(2)} s${q ? " · quitada" : ""}">${m && !oculto ? `<i>${iconos(m)}</i>` : ""}${esc(w.w)}</span>`;
+      return `<span class="w ${m && !oculto ? "con" : ""} ${sel ? "sel" : ""} ${q ? "quitada" : ""} ${parte ? "parcial" : ""}" data-w="${li}-${wi}" tabindex="0" role="button" title="${w.s.toFixed(2)} s${q ? " · quitada" : parte ? ` · se corta un pedacito (${Math.round(c * 100)} %): el resto se escucha` : ""}">${m && !oculto ? `<i>${iconos(m)}</i>` : ""}${esc(w.w)}</span>`;
     }).join(" ");
     return `<div class="tr-linea"><span class="tr-t" data-ir-t="${l.s}" title="Escuchar desde aquí">${l.s.toFixed(1)}s</span><span>${palabras}</span>
       <button class="tr-lapiz" type="button" data-editar-linea="${li}" title="Corregir el subtítulo de esta línea" aria-label="Corregir el subtítulo de esta línea">✎</button>
@@ -3994,6 +4003,24 @@ $("dlgGaleria").addEventListener("mouseout", e => { const v = e.target.closest("
   const pantalla = document.createElement("div"); pantalla.className = "pz-pantalla";
   $("visor").before(pantalla); pantalla.append($("visor"));
   lay.append($("pzTl"));
+  // los botones de guardar suben a la fila de Hooks/Cuerpos/CTAs (antes quedaban abajo del texto, fuera de la vista)
+  const arriba = document.createElement("div"); arriba.className = "pz-arriba";
+  $("tipoPiezas").before(arriba); $("tipoPiezas").style.marginBottom = "0";
+  const guardar = $("guardarArmar").closest(".pz-guardar");
+  guardar.prepend($("piezaSucia"));
+  arriba.append($("tipoPiezas"), guardar);
+  // barrita entre el texto y la línea de tiempo: arrastrarla achica el texto y agranda la línea de tiempo (se recuerda en esta PC)
+  const gh = document.createElement("div"); gh.className = "ed-barrita h"; gh.title = "Arrastra para cambiar el alto del texto y de la línea de tiempo (doble clic: como antes)";
+  lay.append(gh);
+  try { const t = Number(localStorage.getItem("sala_pz_alto")); if (t) lay.style.setProperty("--pz-alto-texto", t + "px"); } catch (e) {}
+  gh.addEventListener("pointerdown", e => { gh.classList.add("moviendo"); try { gh.setPointerCapture(e.pointerId); } catch (er) {} e.preventDefault(); });
+  gh.addEventListener("pointermove", e => {
+    if (!gh.classList.contains("moviendo")) return;
+    const r = lay.getBoundingClientRect();
+    lay.style.setProperty("--pz-alto-texto", Math.round(Math.max(90, Math.min(r.height - 170, e.clientY - r.top - 5))) + "px");
+  });
+  gh.addEventListener("pointerup", () => { gh.classList.remove("moviendo"); try { localStorage.setItem("sala_pz_alto", parseInt(lay.style.getPropertyValue("--pz-alto-texto")) || ""); } catch (e) {} });
+  gh.addEventListener("dblclick", () => { lay.style.removeProperty("--pz-alto-texto"); try { localStorage.removeItem("sala_pz_alto"); } catch (e) {} });
   // el alto justo para que entre en la pantalla sin bajar (debajo de la cabecera y de Hooks/Cuerpos/CTAs)
   const ajustar = () => { if (lay.offsetParent === null || innerWidth <= 1100) { lay.style.height = ""; return; }
     lay.style.height = Math.max(520, innerHeight - (lay.getBoundingClientRect().top + scrollY) - 16) + "px"; };

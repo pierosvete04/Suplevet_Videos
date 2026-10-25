@@ -1,3 +1,8 @@
+Versión 1.51.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Piezas: los botones de guardar arriba**, en la fila de Hooks / Cuerpos / CTAs, siempre a la vista.
+- **Barrita entre el texto y la línea de tiempo:** arrástrala para achicar el texto y agrandar la línea de tiempo (doble clic: como antes).
+- **Una palabra cortada solo en parte ya no sale tachada:** si un corte se lleva solo la cola o el inicio de una palabra (y se sigue escuchando), sale con una línea roja punteada debajo. Tachada = se quita casi entera.
+
 Versión 1.51.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Piezas y subtítulos, igual que el editor:** todo en una pantalla. A la izquierda las piezas, al centro el texto y la línea de tiempo, y a la derecha el video en su panel oscuro, fijo.
 - **Con cortes / Sin cortes en la línea de tiempo:** con cortes, lo quitado desaparece y queda una rayita donde hubo un corte (tócala y «↩ Volver a poner»); sin cortes, se ve y se escucha todo, con lo quitado rayado.
