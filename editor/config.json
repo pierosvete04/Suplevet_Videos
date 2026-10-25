@@ -29,6 +29,8 @@
   ],
   "sonidos": {
     "volumen_sfx": 0.7,
+    "graves_maximo": 0.6,
+    "categorias_con_graves": ["impacto", "tension", "drama", "riser_largo"],
     "quitar_silencio_inicial": true,
     "umbral_inicio": 0.05,
     "separacion_minima": 1.5,
@@ -155,7 +157,8 @@
     "flash_transicion_cta": true
   },
   "musica": {
-    "volumen": 0.22,
+    "volumen": 1.0,
+    "objetivo_lufs": -23,
     "rotar_pistas": true
   },
   "portada": {

@@ -1808,6 +1808,69 @@ def ganancia_normalizada(f):
     return 10 ** (max(-15.0, min(12.0, db)) / 20)
 
 
+def ganancia_musica(f, desde=0.0, largo=30.0):
+    """Volumen de una pista de música: todas quedan al mismo nivel (config musica.objetivo_lufs; con la voz a -16 y lo
+    que baja al hablar, queda unos 12 dB debajo de la voz), por más que una venga más fuerte que otra. Se mide solo el
+    pedazo que suena en el video (muchas pistas empiezan suave). musica.volumen sube o baja eso (1 = tal cual)."""
+    mu = CONFIG["musica"]
+    try:
+        db = float(mu.get("objetivo_lufs", -23)) - sonoridad_tramo(f, desde, largo)
+    except Exception:  # noqa: BLE001 — si no se puede medir, el nivel de antes
+        return 0.3
+    return 10 ** (max(-30.0, min(15.0, db)) / 20) * float(mu.get("volumen", 1.0))
+
+
+def sonoridad_tramo(f, desde, largo):
+    """LUFS de un pedazo de un audio (en caché, por archivo y pedazo redondeado)."""
+    f = Path(f)
+    desde, largo = round(float(desde), 1), round(max(3.0, float(largo)), 0)
+    cache = DATOS / "ondas" / "sonoridad.json"
+    try:
+        tabla = json.loads(cache.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        tabla = {}
+    firma = f"{f}|{f.stat().st_size}|{int(f.stat().st_mtime)}|{desde}|{largo}"
+    if firma in tabla:
+        return tabla[firma]
+    r = run([FFMPEG, "-hide_banner", "-ss", f"{desde}", "-t", f"{largo}", "-i", str(f), "-vn", "-af", "ebur128", "-f", "null", "-"])
+    i = re.findall(r"I:\s+(-?[\d.]+) LUFS", r.stderr)
+    valor = float(i[-1]) if i and float(i[-1]) > -60 else sonoridad(f)
+    tabla[firma] = valor
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(tabla), encoding="utf-8")
+    return valor
+
+
+def parte_grave(f):
+    """Qué parte de la energía de un sonido está debajo de 200 Hz (0 a 1), en caché. Un whoosh claro anda por 0.1–0.4;
+    los de «cámara lenta» o las animaciones de logo pasan de 0.8 y suenan a bajo."""
+    import numpy as np
+    f = Path(f)
+    cache = DATOS / "ondas" / "graves.json"
+    try:
+        tabla = json.loads(cache.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        tabla = {}
+    try:
+        firma = f"{f}|{f.stat().st_size}|{int(f.stat().st_mtime)}"
+    except OSError:
+        return 0.0
+    if firma in tabla:
+        return tabla[firma]
+    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", "22050",
+                          "-t", "4", "-f", "s16le", "-"], capture_output=True).stdout
+    x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
+    valor = 0.0
+    if len(x) > 256:
+        pot = np.abs(np.fft.rfft(x * np.hanning(len(x)))) ** 2
+        fr = np.fft.rfftfreq(len(x), 1 / 22050)
+        valor = round(float(pot[fr < 200].sum() / max(pot.sum(), 1e-9)), 3)
+    tabla[firma] = valor
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(tabla), encoding="utf-8")
+    return valor
+
+
 def onda_archivo(f, por_seg=50):
     """Picos de volumen de un archivo de audio cualquiera (un sonido de la biblioteca), en caché."""
     import numpy as np
@@ -3786,8 +3849,8 @@ ESTILO_DEFECTO = {
     "lut": "",              # LUT de color (.cube) subido en Estilo de edición; vacío = sin LUT
     "lut_fuerza": 1.0,      # 0.3 suave · 0.6 media · 1 completa
     "efecto": "ninguno",    # ninguno | vineta | grano | vineta_grano
-    "transicion": "flash",  # ninguna | flash | zoom | sacudida | glitch | desenfoque
-    "transicion_donde": "cta",  # cta (solo al entrar el CTA) | piezas (hook→cuerpo y cuerpo→CTA) | frases (también entre frases)
+    "transicion": "aleatoria",  # ninguna | aleatoria | flash | zoom | sacudida | glitch | desenfoque | barrido | negro
+    "transicion_donde": "frases",  # cta (solo al entrar el CTA) | piezas (hook→cuerpo y cuerpo→CTA) | frases (también entre frases)
 }
 LIMPIEZAS_VOZ = {  # filtros de ffmpeg sobre la voz ya cortada; al final se vuelve a igualar el volumen
     "suave": "highpass=f=80,afftdn=nr=10:nf=-42:tn=1,deesser=i=0.3",
@@ -3796,7 +3859,13 @@ LIMPIEZAS_VOZ = {  # filtros de ffmpeg sobre la voz ya cortada; al final se vuel
               "acompressor=threshold=-22dB:ratio=4:attack=5:release=80",
 }
 EFECTOS_VIDEO = {"vineta": "vignette=angle=PI/5", "grano": "noise=alls=6:allf=t", "vineta_grano": "vignette=angle=PI/5,noise=alls=6:allf=t"}
-TRANSICIONES = ("ninguna", "flash", "zoom", "sacudida", "glitch", "desenfoque")
+TRANSICIONES = ("ninguna", "aleatoria", "flash", "zoom", "sacudida", "glitch", "desenfoque", "barrido", "negro")
+# las que entran en «aleatoria» (el CTA siempre entra con destello, como foto) y el sonido que va con cada una
+NOMBRES_TRANSICION = {"flash": "destello", "zoom": "zoom", "sacudida": "sacudida", "glitch": "glitch",
+                      "desenfoque": "desenfoque", "barrido": "barrido", "negro": "parpadeo a negro"}
+TRANS_AZAR = ("zoom", "barrido", "flash", "glitch", "sacudida", "desenfoque", "negro")
+SONIDO_TRANSICION = {"flash": "camara", "zoom": "zoom", "sacudida": "impacto", "glitch": "glitch", "desenfoque": "whoosh",
+                     "barrido": "whoosh", "negro": "whoosh_inverso"}
 DONDE_TRANSICION = ("cta", "piezas", "frases")
 
 
@@ -3994,6 +4063,27 @@ def _expresion_cara(combo, offs, eje):
 
 
 # ---------- Transiciones entre cortes ----------
+def transiciones_de(combo, offs):
+    """[(segundo, tipo)]: cada momento de transición con la que le toca. Con «aleatoria» cambia de un corte a otro
+    (nunca dos iguales seguidas) y es siempre la misma para ese video; el CTA entra con destello."""
+    trans = estilo_edicion(combo).get("transicion", "flash")
+    ts = momentos_transicion(combo, offs)
+    if trans != "aleatoria":
+        return [(t, trans) for t in ts]
+    ed = edicion_de(combo)
+    t_cta = round(offs[2] + float(((ed.get("recortes") or {}).get("cta") or [0])[0]), 3)
+    out, antes = [], None
+    for k, t in enumerate(ts):
+        if abs(t - t_cta) < 0.01:
+            tipo = "flash"
+        else:
+            ops = [x for x in TRANS_AZAR if x != antes]
+            tipo = ops[int(hashlib.md5(f"{combo['codigo']}|{k}".encode()).hexdigest(), 16) % len(ops)]
+        out.append((t, tipo))
+        antes = tipo
+    return out
+
+
 def momentos_transicion(combo, offs):
     """Segundos (del video sin recortes) donde va la transición: entrada del CTA, del cuerpo y, si se pide, de cada frase."""
     est = estilo_edicion(combo)
@@ -4096,13 +4186,14 @@ def _expresion_zoom(combo, offs, total):
     """Expresiones de zoompan (zoom, x, y) según el tiempo del video sin recortes (it): primero los tramos de zoom
     (fotogramas clave con punto de foco); donde no hay tramo, el zoom por bloque de siempre. None si no hay zoom."""
     z = edicion_de(combo).get("zoom") or {}
-    trans = estilo_edicion(combo).get("transicion")
-    golpes = momentos_transicion(combo, offs) if trans in ("zoom", "sacudida") else []
-    if not z and not golpes:
+    trs = transiciones_de(combo, offs)
+    empujes = [t for t, k in trs if k in ("zoom", "barrido")]  # el barrido también empuja un poco la cámara
+    golpes = [t for t, k in trs if k == "sacudida"]
+    if not z and not golpes and not empujes:
         return None
     base = _expresion_zoom_bloques(combo, offs, total, z) or "1"
-    if trans == "zoom":  # transición «zoom»: un empujón de cámara que se suelta en 0.3 s en cada corte
-        base = f"({base})+" + "+".join(f"between(it,{t:.3f},{t + 0.3:.3f})*0.16*pow(1-(it-{t:.3f})/0.3,2)" for t in golpes)
+    if empujes:  # transición «zoom»: un empujón de cámara que se suelta en 0.3 s en cada corte
+        base = f"({base})+" + "+".join(f"between(it,{t:.3f},{t + 0.3:.3f})*0.16*pow(1-(it-{t:.3f})/0.3,2)" for t in empujes)
     inicio = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
     fin = {"hook": offs[1], "cuerpo": offs[2], "cta": total}
     segs = []  # (t0, t1, zoom, fx, fy) con fx/fy = punto fijo (ancla)
@@ -4152,7 +4243,7 @@ def _expresion_zoom(combo, offs, total):
                     segs.append((b, c, f"({t['z1']}+({1 - t['z1']:.3f})*{q})", f"{t['fx1']}", f"{t['fy1']}"))
     # el punto fijo del zoom de siempre: la cara (seguida en el tiempo) o, si no se encontró, donde suele estar
     fx, fy = _expresion_cara(combo, offs, 1) or "0.5", _expresion_cara(combo, offs, 2) or "0.38"
-    if trans == "sacudida":  # transición «sacudida»: la cámara tiembla 0.3 s en cada corte
+    if golpes:  # transición «sacudida»: la cámara tiembla 0.3 s en cada corte
         for t in golpes:  # con la cara de ese momento en número (la trayectoria entera repetida en cada corte no cabe en Windows)
             x, y = _cara_en(combo, offs, t)
             segs.append((t, t + 0.3, "1.08", f"({x:.3f}+0.03*sin(it*61))", f"({y:.3f}+0.03*cos(it*53))"))
@@ -5159,11 +5250,18 @@ def elegir_sfx(categoria, semilla):
     En las categorías con tope de largo (config sonidos.largo_audible_maximo: los whoosh de los cortes) solo entran
     los archivos rápidos: la biblioteca también trae whoosh en cámara lenta de varios segundos que arrastran el corte."""
     topes = CONFIG["sonidos"].get("largo_audible_maximo", {})
+    tope_graves = float(CONFIG["sonidos"].get("graves_maximo", 0.6))
+    con_graves = set(CONFIG["sonidos"].get("categorias_con_graves", ["impacto", "tension", "drama", "riser_largo"]))
     for cat in [categoria] + CONFIG["sonidos"].get("respaldo", {}).get(categoria, []):
         opciones = sfx_de(cat)
         if cat in topes:
             rapidos = [f for f in opciones if 0.12 <= (largo_audible(f) or 0) <= float(topes[cat])]
             opciones = rapidos or opciones
+        if cat not in con_graves:
+            # fuera los que son casi puro bajo (whoosh «slow motion», animaciones de logo): en el celular suenan
+            # como un contrabajo o un retumbe, no como el aire de un whoosh
+            claros = [f for f in opciones if parte_grave(f) <= tope_graves]
+            opciones = claros or opciones
         if opciones:
             k = int(hashlib.md5(semilla.encode()).hexdigest(), 16) % len(opciones)
             return opciones[k]
@@ -5233,11 +5331,22 @@ def planear_sonidos(combo, offs, total, subs, marcas):
     revela = next((w for w in reversed(pal_hook[-4:]) if norm(w["w"]) == "esto"), None) if so.get("revelar_en_hook", True) else None
     if revela:
         add("revelar", revela["s"] - 0.05, 3, f"revela el producto en «{revela['w']}»")
-    else:
+    trs = transiciones_de(combo, offs)
+    t_cta = offs[2] + float(((v_ed.get("recortes") or {}).get("cta") or [0])[0])
+    if trs:  # cada transición suena con lo suyo: barrido → whoosh, destello → obturador, sacudida → golpe…
+        for t, tipo in trs:
+            if revela and abs(t - offs[1]) < 1.5:
+                continue  # el brillo del «esto» ya hace de paso al cuerpo
+            cat = SONIDO_TRANSICION.get(tipo, "whoosh")
+            if abs(t - t_cta) < 0.01:
+                cat = so.get("transicion_cta", "camara") if tipo == "flash" else cat
+            antes = 0.03 if cat in ("camara", "impacto", "glitch") else 0.15  # el whoosh sube antes del corte
+            add(cat, t - antes, 3, f"transición {NOMBRES_TRANSICION.get(tipo, tipo)}", pegar=True)
+    if not revela and not any(abs(t - offs[1]) < 1.5 for t, _ in trs):
         add("whoosh", offs[1] - 0.2, 3, "corte hook→cuerpo", pegar=True)
-    # «Camera shutter para hacer transiciones»: el paso al CTA suena a foto (con un destello blanco en la imagen)
-    cat_paso = so.get("transicion_cta", "camara")
-    add(cat_paso, offs[2] + float(((v_ed.get("recortes") or {}).get("cta") or [0])[0]) - 0.03, 3, "transición al CTA", pegar=True)
+    if not trs:
+        # «Camera shutter para hacer transiciones»: el paso al CTA suena a foto (con un destello blanco en la imagen)
+        add(so.get("transicion_cta", "camara"), t_cta - 0.03, 3, "transición al CTA", pegar=True)
     # «Whoosh para hacer zoom in y zoom out»: un whoosh corto donde salta o empieza el zoom de una frase
     partes_c = {p["i"]: p for p in partes_de(cuerpo)}
     rec_p = (v_ed.get("recortes") or {}).get("partes") or {}
@@ -5323,6 +5432,9 @@ def planear_sonidos(combo, offs, total, subs, marcas):
             continue
         if c["prio"] < 3 and any(abs(c["t"] - e["t"]) < sep for e in elegidos if e["cat"] != "riser"):
             continue
+        if c["prio"] == 3 and c["motivo"].startswith("transición") and any(
+                abs(c["t"] - e["t"]) < 0.35 and e["prio"] >= 3 for e in elegidos):
+            continue  # ya suena algo justo ahí (una marca del guion, el CTA): no se apilan dos golpes
         f = (ruta_sonido(c["archivo"]) if c.get("archivo") else None) or elegir_sfx(c["cat"], f"{combo['codigo']}|{c['cat']}|{len(elegidos)}")
         if not f:
             continue
@@ -5827,20 +5939,31 @@ def armar_uno(combo, n_musica=None, extras=None):
         v_prev = f"v{idx}"
         idx += 1
     # transiciones en los cortes (Estilo de edición); «zoom» y «sacudida» ya van dentro del zoom de arriba
-    trans = estilo_edicion(combo).get("transicion", "flash")
-    momentos = momentos_transicion(combo, offs) if trans in ("flash", "glitch", "desenfoque") else []
-    en = lambda a, b: "+".join(f"between(t,{t + a:.3f},{t + b:.3f})" for t in momentos)
-    if trans == "flash" and momentos:  # como foto: un destello blanco cortito donde entra la voz (con el obturador)
-        f.append(f"[{v_prev}]drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='{en(0, 0.07)}',"
-                 f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='{en(0.07, 0.14)}'[vtrans]")
-        v_prev = "vtrans"
-    elif trans == "glitch" and momentos:  # los colores se separan y aparece estática un instante
-        f.append(f"[{v_prev}]rgbashift=rh=-18:bh=18:rv=6:enable='{en(0, 0.09)}',rgbashift=rh=10:bh=-10:enable='{en(0.09, 0.16)}',"
-                 f"noise=alls=40:allf=t:enable='{en(0, 0.12)}'[vtrans]")
-        v_prev = "vtrans"
-    elif trans == "desenfoque" and momentos:  # entra desenfocado y se aclara
-        f.append(f"[{v_prev}]gblur=sigma=24:enable='{en(0, 0.08)}',gblur=sigma=10:enable='{en(0.08, 0.16)}',"
-                 f"gblur=sigma=4:enable='{en(0.16, 0.24)}'[vtrans]")
+    # con «aleatoria» cada corte trae la suya; «zoom» y «sacudida» ya van dentro del zoom de arriba
+    trs = transiciones_de(combo, offs)
+    capas_t = []
+    for tipo in ("flash", "glitch", "desenfoque", "barrido", "negro"):
+        momentos = [t for t, k in trs if k == tipo]
+        if not momentos:
+            continue
+        en = lambda a, b, ms=momentos: "+".join(f"between(t,{t + a:.3f},{t + b:.3f})" for t in ms)
+        if tipo == "flash":  # como foto: un destello blanco cortito donde entra la voz (con el obturador)
+            capas_t.append(f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='{en(0, 0.07)}',"
+                           f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='{en(0.07, 0.14)}'")
+        elif tipo == "glitch":  # los colores se separan y aparece estática un instante
+            capas_t.append(f"rgbashift=rh=-18:bh=18:rv=6:enable='{en(0, 0.09)}',rgbashift=rh=10:bh=-10:enable='{en(0.09, 0.16)}',"
+                           f"noise=alls=40:allf=t:enable='{en(0, 0.12)}'")
+        elif tipo == "desenfoque":  # entra desenfocado y se aclara
+            capas_t.append(f"gblur=sigma=24:enable='{en(0, 0.08)}',gblur=sigma=10:enable='{en(0.08, 0.16)}',"
+                           f"gblur=sigma=4:enable='{en(0.16, 0.24)}'")
+        elif tipo == "barrido":  # paneo rápido: la imagen se estira de lado (desenfoque solo horizontal) y se asienta
+            capas_t.append(f"gblur=sigma=60:sigmaV=0.5:enable='{en(0, 0.07)}',gblur=sigma=28:sigmaV=0.5:enable='{en(0.07, 0.14)}',"
+                           f"gblur=sigma=8:sigmaV=0.5:enable='{en(0.14, 0.2)}'")
+        elif tipo == "negro":  # parpadeo a negro: se apaga un instante y vuelve
+            capas_t.append(f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.95:t=fill:enable='{en(0, 0.06)}',"
+                           f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.5:t=fill:enable='{en(0.06, 0.13)}'")
+    if capas_t:
+        f.append(f"[{v_prev}]{','.join(capas_t)}[vtrans]")
         v_prev = "vtrans"
     if extras:
         f.append(f"[{v_prev}]split=2[vlimpio][vs]")
@@ -5916,7 +6039,7 @@ def armar_uno(combo, n_musica=None, extras=None):
                             "modo": o["modo"]} for o in overlays],
               # pistas de música en el video sin recortes, para escucharlas en la vista previa del editor
               "pistas": [{"t0": round(t["t0"], 2), "t1": round(t["t1"], 2), "desde": t["desde"], "archivo": str(t["archivo"]),
-                          "id": t["id"]} for t in tramos],
+                          "id": t["id"], "vol": round(ganancia_musica(t["archivo"], t["desde"], t["t1"] - t["t0"]), 3)} for t in tramos],
               "volumen_musica": CONFIG["musica"]["volumen"], "silenciar": mudo,
               "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
     (S.recetas / f"{combo['codigo']}.json").write_text(json.dumps(receta, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -5954,20 +6077,23 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None,
             largo = tr["t1"] - tr["t0"] + (cruce if k < len(tramos) - 1 else 0)
             ms = int(tr["t0"] * 1000)
             f.append(f"[{i}:a]atrim=start={tr['desde']:.2f}:duration={largo:.2f},asetpts=N/SR/TB,"
-                     f"aformat=sample_rates=48000:channel_layouts=stereo,"
+                     f"aformat=sample_rates=48000:channel_layouts=stereo,volume={ganancia_musica(tr['archivo'], tr['desde'], largo):.3f},"
                      f"afade=t=in:st=0:d={0.05 if k == 0 else cruce},afade=t=out:st={max(0, largo - cruce):.2f}:d={cruce},"
                      f"adelay={ms}|{ms}[mt{k}]")
         juntar = "".join(f"[mt{k}]" for k in range(len(tramos)))
         f.append(f"{juntar}amix=inputs={len(tramos)}:normalize=0:duration=longest,atrim=0:{total:.2f}[mraw]"
                  if len(tramos) > 1 else f"[mt0]atrim=0:{total:.2f}[mraw]")
         mute = "".join(f",volume=0:enable='between(t,{a:.2f},{b:.2f})'" for a, b in silencios)
-        f.append(f"[mraw]volume={CONFIG['musica']['volumen']}{mute}[m0]")
+        f.append(f"[mraw]{mute[1:] or 'anull'}[m0]")
+        # baja un poco donde se habla (antes bajaba tanto que bajo la voz no se oía nada)
+        duck = "sidechaincompress=threshold=0.06:ratio=3:attack=20:release=300"
         if extras:
-            f.append("[m0][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350,asplit=2[mus][musx]")
+            f.append(f"[m0][sc]{duck},asplit=2[mus][musx]")
         else:
-            f.append("[m0][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[mus]")
+            f.append(f"[m0][sc]{duck}[mus]")
         mezcla.append("[mus]")
     vol = CONFIG["sonidos"]["volumen_sfx"]
+    con_graves = set(CONFIG["sonidos"].get("categorias_con_graves", ["impacto", "tension", "drama", "riser_largo"]))
     sfx = []
     for k, e in enumerate(eventos):
         cmd += ["-i", str(e["archivo"])]
@@ -5982,7 +6108,8 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None,
         recorte = (f"atrim={e['desde']:.2f}:{e['desde'] + e['largo']:.2f},asetpts=N/SR/TB,"
                    + (f"{_atempo(vel)}," if abs(vel - 1) > 1e-3 else "")
                    + f"afade=t=out:st={max(0, sale - 0.15):.2f}:d=0.15,")
-        f.append(f"[{idx}:a]{recorte}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}"
+        bajos = "" if e["cat"] in con_graves else "highpass=f=110,"  # el bajo de un whoosh retumba en el celular
+        f.append(f"[{idx}:a]{recorte}{bajos}aformat=sample_rates=48000:channel_layouts=stereo,adelay={ms}|{ms},volume={vk:.2f}"
                  + (f",asplit=2[s{k}][sx{k}]" if extras else f"[s{k}]"))
         mezcla.append(f"[s{k}]")
         sfx.append(f"[sx{k}]")

@@ -1,3 +1,9 @@
+Versión 1.51.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Al abrir «Editar video», el video del detalle se pausa:** ya no sigue sonando atrás.
+- **La música se escucha:** antes quedaba unos 30 dB debajo de la voz. Ahora cada pista se mide y queda al mismo nivel, y al hablar baja solo un poco (unos 11 dB debajo de la voz).
+- **Fuera los sonidos que suenan a contrabajo:** al elegir sola, la sala deja de lado los whoosh y animaciones que son casi puro bajo, y a los sonidos se les quita el retumbe (menos a los golpes).
+- **Transiciones en cada cambio de clip, con su sonido:** barrido (whoosh), zoom, destello (obturador), sacudida (golpe), glitch, desenfoque y parpadeo a negro. Por defecto «Al azar»: cada corte trae una distinta y el CTA entra con destello. Se cambia en Plantillas → Estilo de edición. Toca «Armar todo» para que los videos ya armados tomen los cambios.
+
 Versión 1.51.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Piezas: Espacio y Enter reproducen y pausan** aunque acabes de tocar una pieza, una palabra o un botón.
 - **Al tocar una palabra, su panel queda a la vista** (abajo del texto): imagen o clip encima, sonido en esa palabra, música desde ahí, cómo se ve el subtítulo, quitar o corregir. Se cierra con ✕ o Esc.

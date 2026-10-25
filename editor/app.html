@@ -8156,7 +8156,7 @@ function sonarPrevia() {
     // baja sola cuando hay voz (como el ducking del armado)
     const s = segmentosEd()[evSeg], o = s && ondas[s.pieza.nombre], v = $("evVideo");
     const voz = o ? (o.picos[Math.floor(v.currentTime * o.por_seg)] || 0) : 0;
-    evMusica.volume = Math.min(1, (r.volumen_musica || .22) * (voz > .06 ? .45 : 1));
+    evMusica.volume = Math.min(1, (p.vol ?? r.volumen_musica ?? .3) * (voz > .06 ? .7 : 1));
     if (evMusica.paused) evMusica.play().catch(() => {});
   }
   if (evFxPrev != null && tr > evFxPrev && tr - evFxPrev < .5 && !mudoEd("sonidos")) {
@@ -9417,6 +9417,7 @@ function abrirEditor() {
   if (!actual) return;
   $("edTitulo").textContent = "Editar " + actual.archivo;
   marcarEditando(["pendiente"]);
+  $("dlgVideo").pause(); // el video del detalle queda detrás: si sigue sonando se mezcla con el del editor
   if (!$("dlgEditor").open) $("dlgEditor").showModal();
   llenarSelectorSonido(); pintarPendientes();
   setTimeout(() => { pintarEditor(); vistaEd(); pintarMudos(); $("evAjustar").click(); verPestanaEd("texto"); }, 50);
@@ -10145,7 +10146,7 @@ function pintarEstiloEdicion() {
   const caja = $("cajaEstiloEd"); if (!caja || !E) return;
   const est = { zoom_alterno: false, zoom_tipo: "punch", zoom_fuerza: .14, zoom_cada: 2, zoom_hook: false, zoom_hook_fuerza: .1, fundido: .12, ...(E.estilo_edicion || {}) };
   const fundidoOn = est.fundido > .15;
-  const vozOn = (est.limpieza_voz || "suave") !== "apagada", efectoOn = (est.efecto || "ninguno") !== "ninguno", transOn = (est.transicion || "flash") !== "ninguna";
+  const vozOn = (est.limpieza_voz || "suave") !== "apagada", efectoOn = (est.efecto || "ninguno") !== "ninguno", transOn = (est.transicion || "aleatoria") !== "ninguna";
   // botones de elegir una opción (se guardan al tocarlos)
   const seg = (campo, actual, opciones) => `<span class="ds-seg" role="group">${opciones.map(([v, t]) =>
     `<button type="button" data-es="${campo}" data-v="${v}" aria-pressed="${String(actual) === String(v)}">${t}</button>`).join("")}</span>`;
@@ -10188,9 +10189,9 @@ function pintarEstiloEdicion() {
           `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="14" rx="2"/><rect x="10" y="5" width="11" height="14" rx="2"/></svg>`,
           fila("Largo", fuerza("fundido", fundidoOn ? est.fundido : .3, [[.2, "Rápido"], [.3, "Normal"], [.6, "Lento"]])))])}
       <div class="es-col">${grupo("Cortes", "Qué pasa cuando cambia de frase o de pieza", [
-        opcion("esTrans", transOn, "Transiciones", "Un golpe visual en los cortes, para que el video tenga ritmo. Va junto con el sonido del corte.",
+        opcion("esTrans", transOn, "Transiciones", "Un golpe visual en cada cambio de clip, con su sonido: barrido con whoosh, destello con obturador, sacudida con golpe… En «Al azar» cada corte trae una distinta (el CTA entra siempre con destello).",
           `<svg viewBox="0 0 24 24"><path d="M4 6h7v12H4zM13 6h7v12h-7z"/><path d="M11 12h2"/></svg>`,
-          fila("Tipo", seg("transicion", transOn ? est.transicion : "flash", [["flash", "Destello"], ["zoom", "Zoom"], ["sacudida", "Sacudida"], ["glitch", "Glitch"], ["desenfoque", "Desenfoque"]]))
+          fila("Tipo", seg("transicion", transOn ? est.transicion : "aleatoria", [["aleatoria", "Al azar"], ["barrido", "Barrido"], ["zoom", "Zoom"], ["flash", "Destello"], ["sacudida", "Sacudida"], ["glitch", "Glitch"], ["desenfoque", "Desenfoque"], ["negro", "Parpadeo a negro"]]))
           + fila("Dónde", seg("transicion_donde", est.transicion_donde || "cta", [["cta", "Al entrar el CTA"], ["piezas", "Hook → cuerpo → CTA"], ["frases", "También entre frases"]])))])}
       ${grupo("Sonido", "Cómo se oye la voz", [
         opcion("esVoz", vozOn, "Voz limpia", "Quita el ruido de fondo (aire, calle, eco), suaviza las «s» fuertes y deja la voz pareja.",
@@ -10217,7 +10218,7 @@ function pintarEstiloEdicion() {
   $("esCara").onchange = e => guardar({ seguir_cara: e.target.checked });
   $("esVoz").onchange = e => prender("limpieza_voz", e.target.checked, "apagada", "suave");
   $("esEfecto").onchange = e => prender("efecto", e.target.checked, "ninguno", "vineta");
-  $("esTrans").onchange = e => prender("transicion", e.target.checked, "ninguna", "flash");
+  $("esTrans").onchange = e => prender("transicion", e.target.checked, "ninguna", "aleatoria");
   $("esLut").onchange = e => {
     if (!e.target.checked) return guardar({ lut: "" });
     if (!(E.luts || []).length) { e.target.checked = false; return $("esLutSubir").click(); }  // primero hay que subir uno
