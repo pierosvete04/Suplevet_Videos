@@ -1132,7 +1132,7 @@ dialog#dlgEditor { width: 100vw; height: 100vh; max-width: none; max-height: non
 dialog#dlgEditor[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
 dialog#dlgEditor::backdrop { background: var(--bg); }
 #dlgEditor .cuerpo-editor { padding: 12px 14px; display: grid; gap: 12px; min-height: 0; overflow: hidden;
-  grid-template-columns: minmax(380px, 1fr) auto; grid-template-rows: minmax(0, 1fr) minmax(300px, 44%); grid-template-areas: "ajustes video" "linea linea"; }
+  grid-template-columns: minmax(380px, 1.25fr) minmax(320px, 1fr); grid-template-rows: minmax(0, 1.6fr) minmax(250px, 1fr); grid-template-areas: "ajustes video" "linea linea"; }
 #dlgEditor .ed-ajustes { grid-area: ajustes; display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; min-width: 0;
   border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
 .ed-tabs { display: flex; gap: 2px; padding: 4px 8px 0; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
@@ -1143,9 +1143,13 @@ dialog#dlgEditor::backdrop { background: var(--bg); }
 .ed-panelx { overflow: auto; padding: 12px 14px; min-height: 0; display: grid; gap: 12px; align-content: start; }
 .ed-panelx[hidden] { display: none; }
 .ed-panelx .caja { margin: 0; border: 0; padding: 0; background: none; box-shadow: none; }
-#dlgEditor .ed-lado { grid-area: video; min-height: 0; display: grid; place-items: center; }
-#dlgEditor .ed-lado .ev-visor { height: 100%; width: auto; max-width: 40vw; }
-body.horizontal #dlgEditor .ed-lado .ev-visor { height: auto; width: min(46vw, 820px); max-height: 100%; max-width: none; }
+#dlgEditor .ed-lado { grid-area: video; min-height: 0; min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; justify-items: center;
+  padding: 10px 10px 8px; border-radius: 14px; background: #0b0f17; border: 1px solid var(--line); }
+#dlgEditor .ed-lado .ev-visor { height: 100%; width: auto; max-width: 100%; border-color: #1f2a3d; }
+body.horizontal #dlgEditor .ed-lado .ev-visor { height: auto; width: 100%; max-height: 100%; }
+#dlgEditor .ed-lado .ev-reproducir { margin: 0; background: transparent; border-color: #1f2a3d; justify-content: center; }
+#dlgEditor .ed-lado .ev-reproducir .ev-btn { color: #e8eefc; } #dlgEditor .ed-lado .ev-reproducir .ev-btn.prim { color: #fff; }
+#dlgEditor .ed-lado .ev-reproducir .ev-tiempo, #dlgEditor .ed-lado .ev-reproducir #evDur { color: #9fb0cf; }
 #dlgEditor .ed-linea { grid-area: linea; display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0;
   border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
 #dlgEditor .ed-linea .ev-barra { position: static; margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line); box-shadow: none; flex-wrap: wrap; }
@@ -1156,9 +1160,13 @@ body.horizontal #dlgEditor .ed-lado .ev-visor { height: auto; width: min(46vw, 8
 #dlgEditor .ev-voz { border: 0; margin: 0; padding: 0; background: none; }
 #dlgEditor #editorVideo { display: none; }
 /* arriba: un solo «Guardar» (con a cuántos videos cambia) y lo demás en «Más» */
-.ed-guardar { display: inline-grid; justify-items: start; line-height: 1.15; padding: 6px 14px; min-height: 36px; }
-.ed-guardar small { font: 500 11px var(--f); opacity: .85; }
-.ed-mas { position: relative; }
+.ed-guardar { display: inline-grid; justify-items: start; align-content: center; line-height: 1.15; padding: 4px 14px; height: 38px; }
+.ed-guardar small { font: 500 11px var(--f); opacity: .85; } .ed-guardar small:empty { display: none; }
+#dlgEditor > .dlg-cab .fila { align-items: center; }
+#dlgEditor > .dlg-cab .btn, .ed-mas > summary { height: 38px; box-sizing: border-box; }
+.ed-alcance-btn { font-size: 12px; }
+#dlgAlcanceCuerpo .aviso-alcance { margin: 0 !important; }
+.ed-mas { position: relative; border: 0; padding: 0; margin: 0; }
 .ed-mas > summary { list-style: none; cursor: pointer; min-height: 36px; display: inline-flex; align-items: center; }
 .ed-mas > summary::-webkit-details-marker { display: none; }
 .ed-mas-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; display: grid; gap: 2px; min-width: 240px; padding: 6px;
@@ -2430,12 +2438,18 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div id="planCuerpo" style="padding:16px"></div>
 </dialog>
 <dialog id="dlgEditor" aria-labelledby="edTitulo">
-  <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2><span class="ed-estado" id="edEstado" aria-live="polite"></span></div>
+  <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2>
+      <button class="btn sec peq ed-alcance-btn" id="edAlcanceBtn" type="button" title="A qué videos llega lo que cambias, cambiar la toma o hacer una versión nueva">ⓘ <span id="edAlcanceTxt">A qué videos llega</span> ▾</button>
+      <span class="ed-estado" id="edEstado" aria-live="polite"></span></div>
     <div class="fila"><button class="btn ed-guardar" id="edGuardarTop" type="button" title="Guarda y rearma lo que cambió (Ctrl+S)"><b>Guardar</b><small id="edGuardarSub"></small></button>
       <details class="ed-mas" id="edMas"><summary class="btn sec peq">Más ▾</summary><div class="ed-mas-menu" id="edMasMenu" role="menu"></div></details>
       <button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
   <div id="evMenu" class="ev-menu" role="menu" aria-label="Opciones del pedazo" hidden></div>
+</dialog>
+<dialog id="dlgAlcance" aria-labelledby="alcTit" style="width:min(720px,94vw)">
+  <div class="dlg-cab"><h2 id="alcTit" style="margin:0">A qué videos llega lo que cambias</h2><button class="btn sec peq" type="button" id="alcCerrar">Cerrar</button></div>
+  <div id="dlgAlcanceCuerpo" style="padding:16px;display:grid;gap:12px"></div>
 </dialog>
 <dialog id="dlgImpMarca" aria-labelledby="imTit" style="width:min(1000px,96vw);max-height:92vh">
   <div style="padding:20px 22px;display:grid;gap:14px">
@@ -6316,6 +6330,7 @@ function pintarAlcance() {
   // botones: «Aplicar a todos los videos de C1» o «Solo a este video»
   $("evArmar").textContent = "Guardar";
   edAlcanceTxt = est.propio ? "Solo este video" : !est.base ? "Esta versión" : !misma ? "Como versión nueva" : `Cambia ${plural(nCuerpo, "video")}`;
+  $("edAlcanceTxt").textContent = est.propio ? "Solo este video" : !est.base ? "Versión aparte" : `${est.cuerpo.nombre} va en ${plural(nCuerpo, "video")}`;
   pintarEstadoEd();
   $("evArmar").title = est.base && misma ? "Guarda todo (cortes, encuadre, imágenes, sonidos) y rearma solo los videos que cambian: lo del cuerpo vale para todos sus videos; lo del hook o el CTA, para los que los usan" : "";
   $("evSolo").hidden = !est.base || !misma;
@@ -9037,14 +9052,15 @@ $("evAlcance").addEventListener("click", async e => {
     + PESTANAS.map(([k], i) => `<div class="ed-panelx" role="tabpanel" data-edpanel="${k}" ${i ? "hidden" : ""}></div>`).join("");
   const panel = k => ajustes.querySelector(`[data-edpanel="${k}"]`);
   panel("ajustes").append($("evGuia"), $("evInspector"));
-  panel("video").append($("evAlcance"), document.querySelector("#editorVideo .ev-panel .fila"), $("evNombre").closest("label"));
+  panel("video").append(document.querySelector("#editorVideo .ev-panel .fila"), $("evNombre").closest("label"));
+  $("dlgAlcanceCuerpo").append($("evAlcance"));
   panel("subtitulos").append($("editorSubs"));
   panel("texto").append($("evVoz"));
   panel("sonidos").append(document.querySelector("#editorVideo .ev-sonido-barra"));
   lado.append($("evVisor"));
-  // Reproducir al centro de la barra, con el tiempo y lo que dura, como en CapCut
+  // Reproducir y el tiempo debajo del video, como el reproductor de CapCut
   $("evReproducir").append($("evDur"));
-  $("evDeshacer").closest(".ev-grupo").after($("evReproducir"));
+  lado.append($("evReproducir"));
   linea.append(document.querySelector("#editorVideo .ev-barra"), $("evTL"));
   // un solo «Guardar» arriba; lo demás en «Más»
   const acciones = $("evArmar").parentElement;
@@ -9062,6 +9078,9 @@ function verPestanaEd(k) {
 }
 $("dlgEditor").addEventListener("click", e => { const b = e.target.closest("[data-edtab]"); if (b) verPestanaEd(b.dataset.edtab); });
 $("evVozBtn").onclick = () => verPestanaEd("texto");  // «Texto» de la barra abre su pestaña
+$("edAlcanceBtn").onclick = () => $("dlgAlcance").showModal();
+$("alcCerrar").onclick = () => $("dlgAlcance").close();
+$("evAlcance").addEventListener("click", e => { if (e.target.closest("button")) $("dlgAlcance").close(); }, true);
 // Pistas como en un DAW: «+» suma otra fila a Imágenes o Sonidos; el nombre de cada pista se arrastra para subirla o bajarla
 $("evTL").addEventListener("click", e => {
   const b = e.target.closest("[data-mas]"); if (!b) return;

@@ -1,3 +1,8 @@
+Versión 1.50.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Reproductor como el de CapCut:** el video va en un panel oscuro más grande, con Inicio, Reproducir y el tiempo justo debajo. Todo queda fijo; solo cambian las pestañas de la izquierda.
+- **«ⓘ C1 va en N videos ▾»:** el aviso de a qué videos llega lo que cambias ahora es un botón chico junto al título; abre una ventana con el detalle, «Cambiar la toma» y «Nueva versión».
+- «Guardar», «Más» y «Volver al video» quedan del mismo alto y alineados.
+
 Versión 1.50.0 (se actualiza desde la app con «Actualizar ahora»):
 - **El editor entra en una sola pantalla, como CapCut:** arriba a la izquierda los ajustes en pestañas (Ajustes · Video · Subtítulos · Texto · Sonidos), arriba a la derecha el video, y abajo las herramientas con Reproducir al centro y la línea de tiempo. Ya no hay que bajar.
 - **Pistas como en un DAW:** «+» suma «Imágenes 2», «Imágenes 3»… y «Sonidos 2»…; las imágenes y los sonidos se arrastran de una pista a otra, y cada pista se reordena arrastrando su nombre. La pista de imágenes de más arriba se ve encima en el video. Los sonidos que se pisan bajan solos a otra fila.
