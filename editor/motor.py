@@ -3075,10 +3075,13 @@ def _limpiar_puntos(lista):
     return [out[t] for t in sorted(out)]
 
 
+PISTAS_IMAGEN = 5  # «Imágenes», «Imágenes 2»… hasta 5 pistas en el editor
+
+
 def _limpiar_capas(c):
-    """Pista «Imágenes y escenas» del editor: {pieza: [{id, t, dur, modo, mov, x, y, ancho}]}. id = imagen o clip de
+    """Pistas «Imágenes» del editor: {pieza: [{id, t, dur, modo, mov, x, y, ancho, pista}]}. id = imagen o clip de
     la carpeta Flow de la sesión; t en segundos del clip de la pieza; en modo ventana, x/y/ancho en px del video
-    (1080×1920 o, en 16:9, 1920×1080)."""
+    (1080×1920 o, en 16:9, 1920×1080). pista: 0 = «Imágenes», 1 = «Imágenes 2»…; la de más arriba se ve encima."""
     out = {}
     for k, v in (c or {}).items():
         if k not in ("hook", "cuerpo", "cta"):
@@ -3093,6 +3096,8 @@ def _limpiar_capas(c):
                         "dur": round(min(60.0, max(0.3, float(x.get("dur", 2)))), 3),
                         "modo": "ventana" if x.get("modo") == "ventana" else "completa",
                         "mov": x.get("mov") if x.get("mov") in ("fijo", "zoom_in", "zoom_out") else "fijo"}
+                if int(x.get("pista") or 0) > 0:
+                    capa["pista"] = min(PISTAS_IMAGEN - 1, int(x["pista"]))
                 if capa["modo"] == "ventana":
                     W, H = lienzo()
                     vx, vy, va = VENTANA_DEFECTO[formato()]
@@ -5755,20 +5760,22 @@ def armar_uno(combo, n_musica=None, extras=None):
                 overlays.append({"asset": m["asset"], "archivo": f, "t": t, "dur": dur, "modo": m.get("modo", "completa"),
                                  "mov": m.get("mov", "zoom_in"), "es_imagen": f.suffix.lower() in EXT_IMG})
     # Pista «Imágenes y escenas» del editor: imágenes o clips puestos a mano en un segundo de cada pieza
+    # se ponen de la pista de abajo a la de arriba: la de más arriba («Imágenes 3») queda encima, como en CapCut
     o_pieza = {"hook": offs[0], "cuerpo": offs[1], "cta": offs[2]}
-    for pz, capas in (edicion_de(combo).get("capas") or {}).items():
-        for c in capas:
-            f = buscar_asset(c["id"])
-            if not f:
-                faltan.append(c["id"])
-                continue
-            t = o_pieza.get(pz, 0) + c["t"]
-            dur = min(c["dur"], total - t - 0.05)
-            if f.suffix.lower() in EXT_VID:
-                dur = min(dur, duracion(f))
-            if dur > 0.2:
-                overlays.append({"asset": c["id"], "archivo": f, "t": t, "dur": dur, "modo": c["modo"], "mov": c["mov"],
-                                 "es_imagen": f.suffix.lower() in EXT_IMG, **{k: c[k] for k in ("x", "y", "ancho") if k in c}})
+    por_pista = sorted(((pz, c) for pz, capas in (edicion_de(combo).get("capas") or {}).items() for c in capas),
+                       key=lambda x: x[1].get("pista", 0))
+    for pz, c in por_pista:
+        f = buscar_asset(c["id"])
+        if not f:
+            faltan.append(c["id"])
+            continue
+        t = o_pieza.get(pz, 0) + c["t"]
+        dur = min(c["dur"], total - t - 0.05)
+        if f.suffix.lower() in EXT_VID:
+            dur = min(dur, duracion(f))
+        if dur > 0.2:
+            overlays.append({"asset": c["id"], "archivo": f, "t": t, "dur": dur, "modo": c["modo"], "mov": c["mov"],
+                             "es_imagen": f.suffix.lower() in EXT_IMG, **{k: c[k] for k in ("x", "y", "ancho") if k in c}})
     tapas = [(o["t"], o["t"] + o["dur"]) for o in overlays if o["modo"] == "completa"]
     escribir_ass(list(zip(offs, subs, marcas)), trabajo / "subs.ass", tapas, combo)
 

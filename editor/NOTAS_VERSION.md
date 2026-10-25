@@ -1,3 +1,10 @@
+Versión 1.50.0 (se actualiza desde la app con «Actualizar ahora»):
+- **El editor entra en una sola pantalla, como CapCut:** arriba a la izquierda los ajustes en pestañas (Ajustes · Video · Subtítulos · Texto · Sonidos), arriba a la derecha el video, y abajo las herramientas con Reproducir al centro y la línea de tiempo. Ya no hay que bajar.
+- **Pistas como en un DAW:** «+» suma «Imágenes 2», «Imágenes 3»… y «Sonidos 2»…; las imágenes y los sonidos se arrastran de una pista a otra, y cada pista se reordena arrastrando su nombre. La pista de imágenes de más arriba se ve encima en el video. Los sonidos que se pisan bajan solos a otra fila.
+- **Un solo «Guardar»** arriba, con a cuántos videos cambia. Guarda también la plantilla y la altura del subtítulo, y ya no te saca del editor: rearma en segundo plano. Lo demás (solo en este video, versión nueva, exportar) está en «Más».
+- **Arreglos del editor:** tocar un pedazo ya no mueve el cabezal a su inicio (Cortar funciona donde tocaste); cambiar hook, cuerpo o CTA pregunta antes de perder lo no guardado; Esc ya no cierra el editor; Ctrl+Z deshace estirar un borde; un sonido agregado se puede quitar antes de rearmar; al terminar de reproducir el cabezal queda al final; la línea de tiempo se ajusta al abrir; una imagen nueva no queda encima de otra; sobre una imagen a pantalla completa el subtítulo va al centro, como en el video.
+- **Palabras iguales en toda la sala:** pedazo (no bloque), cortar (no dividir), quitar (no borrar), encuadre (no zoom), imagen (no escena), sonido (no efecto), «Separar la voz», «Guardar como versión nueva», «Quitar ajustes propios».
+
 Versión 1.49.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Subtítulos en el editor, igual que en el video:** ya no los tapa una imagen de Flow, y con «La frase completa» se ve la frase entera con la palabra que suena (antes, entre dos líneas, no se veía nada).
 - **Editor más ordenado:** Inicio, Reproducir y el tiempo van debajo del video, como en CapCut. Arriba, en dos columnas: la pieza elegida y los «🎙 Cortes por voz» (ahora plegables, con cuánto se corta en el título) y, al lado, los subtítulos del video.
