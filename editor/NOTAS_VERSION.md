@@ -1,3 +1,7 @@
+Versión 1.49.1 (se actualiza desde la app con «Actualizar ahora»):
+- **El editor del video es una página entera, como CapCut:** a la derecha el video completo y fijo (se queda a la vista aunque bajes); a la izquierda, arriba los ajustes (hook, cuerpo y CTA, el pedazo elegido, la versión y los subtítulos) y abajo las herramientas y la línea de tiempo.
+- **Lo que cortas desaparece de la línea de tiempo:** ya no quedan los cuadros rayados con ⊘ ni la raya roja al lado; el video se ve seguido. Para volver a ponerlo: Ctrl+Z, o «Sin cortes» (C), donde lo cortado se ve rayado en rojo y se puede tocar.
+
 Versión 1.49.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Antigravity sin pegar nada:** en Faltantes, «Hacerlo con Antigravity» y «Agregar los prompts» con Gemini abren Antigravity y le pasan el mensaje a Gemini solos (Flash para Flow, el que piensa más para los prompts). Si no se puede, copian el mensaje como antes.
 - **Exportar deja la semana para el Publicador:** cada carpeta del exporte lleva un `paquete.json` con la semana (S03), el cuerpo, el hook, el CTA, el día y el copy de cada video. Así el Publicador pone cada video en su semana sin adivinar.
