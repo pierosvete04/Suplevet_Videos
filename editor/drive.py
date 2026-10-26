@@ -260,7 +260,10 @@ def bajada_completa(nombre):
 
 
 def bajar_biblioteca(avance=print):
-    """Solo las carpetas y archivos de sonidos que usa la sala (sfx_mapa), no toda la librería."""
+    """Solo las carpetas y archivos de sonidos que usa la sala (sfx_mapa), no toda la librería.
+    Si en Drive falta alguno (otra marca, una carpeta renombrada), se avisa y se sigue: la sala usa los que vienen con
+    ella. Antes un sonido faltante cortaba la bajada de la sesión y «Analizar los clips» fallaba siempre."""
+    faltan = []
     for rels in motor.CONFIG.get("sfx_mapa", {}).values():
         for rel in rels:
             destino = CACHE / "SOUND FX" / rel
@@ -268,10 +271,16 @@ def bajar_biblioteca(avance=print):
                 continue
             avance(f"Bajando sonidos: {rel.split('/')[-1]}")
             fuente = f"{REMOTO}:SOUND FX/{rel}"
-            if Path(rel).suffix:
-                _rc("copyto", fuente, destino)
-            else:
-                _rc("copy", fuente, destino, "--max-depth", "1", "--exclude", "*.asd")
+            try:
+                if Path(rel).suffix:
+                    _rc("copyto", fuente, destino)
+                else:
+                    _rc("copy", fuente, destino, "--max-depth", "1", "--exclude", "*.asd")
+            except Exception:  # noqa: BLE001
+                faltan.append(rel.split("/")[-1])
+    if faltan:
+        avance(f"Ojo: no encontré en Drive {len(faltan)} carpeta(s) de sonidos (SOUND FX: {', '.join(faltan[:4])}"
+               f"{'…' if len(faltan) > 4 else ''}). Se usan los sonidos que trae la sala.")
 
 
 def subir(nombre, partes=None, avance=print):

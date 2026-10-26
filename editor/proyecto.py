@@ -336,6 +336,14 @@ def volver(version):
         return r
 
 
+def antes_de_restaurar():
+    """Antes de restaurar una copia: lo de esta PC que no se había subido se sube, para que quede en el historial."""
+    if not disponible():
+        return None
+    with _cerrojo:
+        return publicar("lo que había antes de restaurar") if _cambie_aqui() and not revisar().get("pendiente") else None
+
+
 def tras_restaurar(fecha):
     """Después de restaurar una copia de seguridad, eso pasa a ser la versión del proyecto (para todo el equipo)."""
     if not disponible():

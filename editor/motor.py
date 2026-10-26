@@ -1250,6 +1250,13 @@ def limites_de_voz(video):
 
 
 _modelo = None
+_AVANCE_VOZ = [print]  # a quién se avisa que se baja el modelo de voz (lo pone el trabajo que transcribe)
+
+
+def _modelo_bajado(nombre):
+    """¿El modelo de voz ya está en esta PC? (faster-whisper lo guarda en la caché de Hugging Face)."""
+    hub = Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface") / "hub"
+    return any(hub.glob(f"models--*faster-whisper-{nombre}*")) if hub.exists() else False
 
 
 def transcribir(video):
@@ -1257,6 +1264,8 @@ def transcribir(video):
     import numpy as np
     from faster_whisper import WhisperModel
     if _modelo is None:
+        if not _modelo_bajado(CONFIG["transcripcion"]["modelo"]):
+            _AVANCE_VOZ[0]("Bajando el modelo que entiende la voz (solo la primera vez, ~1,5 GB: puede tardar varios minutos)…")
         _modelo = WhisperModel(CONFIG["transcripcion"]["modelo"], device="cpu", compute_type="int8")
     pcm = subprocess.run([FFMPEG, "-hide_banner", "-i", str(video), "-vn", "-ac", "1", "-ar", "16000",
                           "-f", "f32le", "-"], capture_output=True).stdout
@@ -1317,6 +1326,7 @@ def _con_gop(firma):
 
 
 def procesar(forzar_subs=False, avance=print):
+    _AVANCE_VOZ[0] = avance
     for d in (S.proc, S.subs):
         d.mkdir(parents=True, exist_ok=True)
     escuchar_tomas_largas(avance)
@@ -1435,6 +1445,7 @@ def transcripcion_clip(c, crear=True):
 
 def escuchar_clips(avance=print):
     """Transcribe los clips sin asignar para poder sugerir de qué pieza son."""
+    _AVANCE_VOZ[0] = avance
     pendientes = clips_sin_asignar()
     for n, c in enumerate(pendientes, 1):
         avance(f"Escuchando {c['ruta'].name} ({n}/{len(pendientes)})")
@@ -3330,7 +3341,11 @@ def guardar_edicion_piezas(datos):
         propios = ("editado", "sonidos", "sonidos_quitar")  # los sonidos a mano se guardan aparte (Sonidos del editor)
         actual = ajustes_de_pieza(pieza, e, todo)  # en una edición nueva, arranca de lo de la A
         antes = {k: v for k, v in actual.items() if k not in propios}
-        if val != antes:
+        sin_marca = lambda d: {k: v for k, v in d.items() if k != "voz_revisada"}
+        if val != antes and sin_marca(val) == sin_marca(antes):
+            # solo se anota que una persona ya vio sus cortes por voz: no cambia el video, no se rearma nada
+            todo[clave_pieza(pieza, e)] = {**actual, "voz_revisada": True}
+        elif val != antes:
             sonidos = {k: v for k, v in actual.items() if k in ("sonidos", "sonidos_quitar")}
             todo[clave_pieza(pieza, e)] = {**val, **sonidos, "editado": time.time()}  # la fecha queda aunque se deshaga: sus videos se re-arman
             cambiadas.append(pieza)
@@ -5870,6 +5885,9 @@ def armar_uno(combo, n_musica=None, extras=None):
     if viejas := piezas_en_otro_formato(orden):
         raise RuntimeError(f"{', '.join(viejas)} sigue en el formato anterior: prepara las piezas otra vez antes de armar")
     archivos = [S.proc / f"{n}.mp4" for n in orden]
+    falta = [Path(a).stem for a in archivos if not Path(a).exists()]
+    if falta:
+        raise ValueError(f"{', '.join(falta)} no está preparado en esta PC: toca «Analizar los clips» en Inicio y vuelve a armar.")
     durs = [duracion(a) for a in archivos]
     offs = [0, durs[0], durs[0] + durs[1]]
     total = sum(durs)
@@ -6223,6 +6241,10 @@ def armar(pieza=None, avance=print, codigos=None):
              and (codigos is None or c["codigo"] in codigos)]
     if piezas_en_otro_formato():  # se cambió el formato: primero las piezas con el tamaño nuevo
         avance("Preparando las piezas en el formato nuevo")
+        procesar(avance=avance)
+    elif any(not (S.proc / f"{n}.mp4").exists() for c in todos for n in (c["hook"], c["cuerpo"], c["cta"])):
+        # una pieza que todavía no se preparó en esta PC (p. ej. sus subtítulos vinieron de otra): se prepara antes
+        avance("Preparando las piezas que faltan")
         procesar(avance=avance)
     a_la_vez = min(armados_a_la_vez(), len(todos))
     if a_la_vez <= 1:

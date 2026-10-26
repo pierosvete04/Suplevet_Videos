@@ -112,6 +112,8 @@ def _quien():
 def hacer(nombre="", auto=False, subir=True):
     """Guarda una copia. La automática no se guarda si nada cambió desde la última. Devuelve su info o None."""
     with _cerrojo:
+        if not motor.S.principal.exists():  # una sesión que no existe (la de ejemplo de una PC recién instalada)
+            return None
         contenido = _contenido()
         if not contenido:
             return None
@@ -187,8 +189,9 @@ def restaurar(nombre_archivo):
                 destino = S.principal / "produccion.json"
             elif n == "ajustes/grupos.json":
                 destino = motor.GRUPOS_PATH
-            elif n == "ajustes/config.local.json":  # se mezcla: las llaves, Drive, el panel y la sesión abierta de esta PC no se tocan
-                motor.guardar_config({k: v for k, v in json.loads(datos).items() if not k.startswith(_PROPIO_PC) and not _SECRETO.search(k)})
+            elif n == "ajustes/config.local.json":
+                # no se restaura: el estilo de edición, las plantillas y los sonidos editados son de toda la sala (de
+                # todas las sesiones), y volver una sesión atrás no debe cambiar cómo se arman las demás
                 continue
             else:
                 continue

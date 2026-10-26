@@ -858,9 +858,11 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                 if accion == "guion_grabado" and not motor.guion_desde_grabado() and motor._guion_propio().get("origen") != "grabado":
                     avance("Esta sesión ya tiene guion: no lo cambié")
                 if accion in ("todo", "armar"):
-                    motor.armar(pieza, avance=avance)
+                    hechos_a = motor.armar(pieza, avance=avance)
+                    avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}")
                 if accion == "armar_sel":
-                    motor.armar(avance=avance, codigos=extra["codigos"])
+                    hechos_a = motor.armar(avance=avance, codigos=extra["codigos"])
+                    avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}")
                 if accion == "ordenar_todo":  # analizar, asignar lo seguro y renombrar, todo de una vez
                     motor.escuchar_clips(avance=avance)
                     n = motor.aceptar_sugerencias(0.5)
@@ -964,8 +966,9 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     motor.procesar(avance=avance)
                     guion_si_falta()
                     falta = len(motor.clips_sin_asignar())
-                    avance(f"Clips analizados y comparados con el guion: {n} identificados solos"
-                           + (f", {falta} por revisar a mano" if falta else "") + ".")
+                    avance("Clips analizados y comparados con el guion"
+                           + (f": {n} identificados por lo que se dice" if n else "")
+                           + (f", {falta} por revisar a mano" if falta else ": todos tienen su pieza") + ".")
                 if accion == "todo_por_mi":
                     # «Lo analizo y ordeno todo por ti»: sin guion, la sala ya armó uno con lo que se dijo en cada clip;
                     # ahora renombra los clips en Drive con el código de su pieza y Claude propone imágenes y música
@@ -1717,6 +1720,10 @@ class H(BaseHTTPRequestHandler):
                 if b.get("accion") == "restaurar":
                     if TRABAJO["activo"]:
                         raise ValueError("Espera a que termine lo que está haciendo la sala (☰) para restaurar")
+                    try:  # lo de ahora que no se había subido queda en el historial de ☁ Proyecto
+                        proyecto.antes_de_restaurar()
+                    except Exception as e:  # noqa: BLE001 — igual queda la copia «Antes de restaurar»
+                        print("Proyecto antes de restaurar:", e)
                     r = respaldos.restaurar(str(b.get("archivo", "")))
                     try:  # lo restaurado pasa a ser la versión del proyecto: las otras PCs reciben el aviso
                         r["version_proyecto"] = proyecto.tras_restaurar(r.get("fecha", ""))
@@ -2062,6 +2069,13 @@ class H(BaseHTTPRequestHandler):
                 codigos = motor.guardar_edicion_piezas(b)
                 # más los videos con sonidos cambiados en el editor (ya guardados, falta re-armarlos)
                 codigos = sorted(set(codigos) | set(b.get("extra_codigos") or []))
+                # solo se rearman los videos que ya estaban armados (los que nunca se armaron se arman desde Videos)
+                armados = {c["codigo"] for c in motor.combinaciones() if (motor.S.salida / f"{c['archivo']}.mp4").exists()}
+                codigos = [c for c in codigos if c in armados]
+                # un video aprobado que cambió por dentro (comparte el cuerpo o el CTA) vuelve a «Editando» para revisarlo
+                for cod in codigos:
+                    if motor.ajustes_video(cod).get("estado") == "listo":
+                        motor.guardar_ajustes_video(cod, {"estado": "editando"})
                 cola = bool(b.get("armar") and codigos and lanzar("armar_sel", extra={"codigos": codigos}, en_cola=True))
                 self._json({"ok": True, "codigos": codigos, "en_cola": cola})
             elif u.path == "/api/claude":

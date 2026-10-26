@@ -1,3 +1,13 @@
+Versión 1.52.1 (se actualiza desde la app con «Actualizar ahora»):
+- **«Analizar los clips» ya no falla** si en Drive falta una carpeta de sonidos: avisa cuáles y sigue con los que trae la sala.
+- **Nada se pierde sin aviso:** recargar, cerrar o cambiar de sesión pregunta si hay cambios sin guardar en Piezas o en el editor. Volver a una versión o restaurar una copia ya no deja lo viejo en Piezas (que al guardar pisaba lo restaurado).
+- **Restaurar una copia** sube antes lo de ahora al historial y ya no cambia el estilo de edición ni las plantillas de las otras sesiones.
+- **Editor:** «Guardar solo en este video» y «Guardar como versión nueva» cierran bien el editor; la duración coincide con el video armado; salen todos los sonidos en su pista; el primer guardado ya no rearma toda la sesión; solo se rearman los videos ya armados.
+- **Aprobados que cambian por dentro** (comparten el cuerpo o el CTA) vuelven a «Editando» para revisarlos.
+- **Armar** prepara solo las piezas que faltan en vez de fallar con un error técnico.
+- **Para una PC nueva:** aviso al bajar el modelo de voz (~1,5 GB, una sola vez), la lista de sesiones vuelve a mirar Drive, Antigravity sin instalar explica cómo instalarlo y mensajes de Claude más claros.
+- Textos: «Listo: N videos armados», «imágenes» con tilde, «Marca de encuadre», número de versión correcto en «Volver a esta». La muestra de Estilo de edición se cierra al cambiar de pestaña.
+
 Versión 1.52.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Muestras en Estilo de edición:** cada opción tiene «▶ Ver muestra» y, al cambiar un ajuste, la muestra se arma sola. Es un video corto hecho con tus clips y los mismos filtros del armado: transiciones con su sonido, LUT y efecto en pantalla partida (antes | después), zoom alternado, zoom en el hook, fundido de imágenes y voz limpia (antes y después).
 

@@ -74,7 +74,8 @@ def actualizar_conocimiento(avance=print):
             drive._rc("copy", f"{drive.REMOTO}:_SALA/claude", CONOCIMIENTO, timeout=300)
         except Exception as e:
             if not (CONOCIMIENTO / ".claude").is_dir():
-                raise RuntimeError(f"No pude bajar las skills de Drive (_SALA/claude): {e}")
+                raise RuntimeError("Faltan las skills de Claude en Drive (carpeta _SALA/claude). Pídele a Claude, en la PC "
+                                   "principal, «sube las skills a la sala».") from e
     if not (CONOCIMIENTO / ".claude" / "skills").is_dir():
         raise RuntimeError("Faltan las skills de Claude. Pídele a Claude, en la PC principal, «sube las skills a la sala».")
 
