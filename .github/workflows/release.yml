@@ -50,7 +50,18 @@ jobs:
       - name: Bajar ffmpeg
         shell: pwsh
         run: |
-          Invoke-WebRequest https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip -OutFile ffmpeg.zip
+          # gyan.dev a veces rechaza a los servidores de GitHub: se reintenta y, si no, se baja de su copia en GitHub
+          $ok = $false
+          foreach ($i in 1..3) {
+            try { Invoke-WebRequest https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip -OutFile ffmpeg.zip -TimeoutSec 300; $ok = $true; break }
+            catch { Write-Host "gyan.dev falló (intento $i): $_"; Start-Sleep 15 }
+          }
+          if (-not $ok) {
+            $rel = Invoke-RestMethod https://api.github.com/repos/GyanD/codexffmpeg/releases/latest -Headers @{ Authorization = "Bearer ${{ github.token }}" }
+            $url = ($rel.assets | Where-Object { $_.name -like '*essentials_build.zip' } | Select-Object -First 1).browser_download_url
+            Write-Host "Bajando ffmpeg de $url"
+            Invoke-WebRequest $url -OutFile ffmpeg.zip -TimeoutSec 600
+          }
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_tmp
           New-Item -ItemType Directory -Force dist/SalaSuplevet/ffmpeg | Out-Null
           Get-ChildItem ffmpeg_tmp -Recurse -Include ffmpeg.exe,ffprobe.exe,LICENSE | Copy-Item -Destination dist/SalaSuplevet/ffmpeg
