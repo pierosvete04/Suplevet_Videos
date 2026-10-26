@@ -1350,6 +1350,15 @@ class H(BaseHTTPRequestHandler):
             if not f:
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/muestra_estilo":  # muestra de una opción de Estilo de edición, hecha con ffmpeg como el armado
+            q = parse_qs(u.query)
+            try:
+                cambios = json.loads(q.get("cambios", ["{}"])[0] or "{}")
+                self._json({"ok": True, **motor.muestra_estilo(q.get("que", [""])[0], cambios if isinstance(cambios, dict) else {})})
+            except (ValueError, RuntimeError) as e:
+                self._json({"ok": False, "error": str(e).splitlines()[0][:300]})
+        elif u.path.startswith("/muestra/"):
+            self._archivo(motor.MUESTRAS, u.path.rsplit("/", 1)[1])
         elif u.path == "/pista":  # la música de un video, para escucharla en la vista previa del editor
             q = parse_qs(u.query)
             try:

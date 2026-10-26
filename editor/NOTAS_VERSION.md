@@ -1,3 +1,6 @@
+Versión 1.52.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Muestras en Estilo de edición:** cada opción tiene «▶ Ver muestra» y, al cambiar un ajuste, la muestra se arma sola. Es un video corto hecho con tus clips y los mismos filtros del armado: transiciones con su sonido, LUT y efecto en pantalla partida (antes | después), zoom alternado, zoom en el hook, fundido de imágenes y voz limpia (antes y después).
+
 Versión 1.51.3 (se actualiza desde la app con «Actualizar ahora»):
 - **Al abrir «Editar video», el video del detalle se pausa:** ya no sigue sonando atrás.
 - **La música se escucha:** antes quedaba unos 30 dB debajo de la voz. Ahora cada pista se mide y queda al mismo nivel, y al hablar baja solo un poco (unos 11 dB debajo de la voz).

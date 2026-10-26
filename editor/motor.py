@@ -4084,6 +4084,33 @@ def transiciones_de(combo, offs):
     return out
 
 
+def _capas_transicion(trs):
+    """Filtros de imagen de las transiciones [(segundo, tipo)] (destello, glitch, desenfoque, barrido, negro), en una
+    lista para encadenar con comas. «zoom» y «sacudida» van en el zoompan."""
+    capas_t = []
+    for tipo in ("flash", "glitch", "desenfoque", "barrido", "negro"):
+        momentos = [t for t, k in trs if k == tipo]
+        if not momentos:
+            continue
+        en = lambda a, b, ms=momentos: "+".join(f"between(t,{t + a:.3f},{t + b:.3f})" for t in ms)
+        if tipo == "flash":  # como foto: un destello blanco cortito donde entra la voz (con el obturador)
+            capas_t.append(f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='{en(0, 0.07)}',"
+                           f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='{en(0.07, 0.14)}'")
+        elif tipo == "glitch":  # los colores se separan y aparece estática un instante
+            capas_t.append(f"rgbashift=rh=-18:bh=18:rv=6:enable='{en(0, 0.09)}',rgbashift=rh=10:bh=-10:enable='{en(0.09, 0.16)}',"
+                           f"noise=alls=40:allf=t:enable='{en(0, 0.12)}'")
+        elif tipo == "desenfoque":  # entra desenfocado y se aclara
+            capas_t.append(f"gblur=sigma=24:enable='{en(0, 0.08)}',gblur=sigma=10:enable='{en(0.08, 0.16)}',"
+                           f"gblur=sigma=4:enable='{en(0.16, 0.24)}'")
+        elif tipo == "barrido":  # paneo rápido: la imagen se estira de lado (desenfoque solo horizontal) y se asienta
+            capas_t.append(f"gblur=sigma=60:sigmaV=0.5:enable='{en(0, 0.07)}',gblur=sigma=28:sigmaV=0.5:enable='{en(0.07, 0.14)}',"
+                           f"gblur=sigma=8:sigmaV=0.5:enable='{en(0.14, 0.2)}'")
+        elif tipo == "negro":  # parpadeo a negro: se apaga un instante y vuelve
+            capas_t.append(f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.95:t=fill:enable='{en(0, 0.06)}',"
+                           f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.5:t=fill:enable='{en(0.06, 0.13)}'")
+    return capas_t
+
+
 def momentos_transicion(combo, offs):
     """Segundos (del video sin recortes) donde va la transición: entrada del CTA, del cuerpo y, si se pide, de cada frase."""
     est = estilo_edicion(combo)
@@ -5938,30 +5965,8 @@ def armar_uno(combo, n_musica=None, extras=None):
         f.append(f"[{v_prev}][e{idx}]overlay={int(float(el.get('x', 0)))}:{int(float(el.get('y', 0)))}:eof_action=pass[v{idx}]")
         v_prev = f"v{idx}"
         idx += 1
-    # transiciones en los cortes (Estilo de edición); «zoom» y «sacudida» ya van dentro del zoom de arriba
     # con «aleatoria» cada corte trae la suya; «zoom» y «sacudida» ya van dentro del zoom de arriba
-    trs = transiciones_de(combo, offs)
-    capas_t = []
-    for tipo in ("flash", "glitch", "desenfoque", "barrido", "negro"):
-        momentos = [t for t, k in trs if k == tipo]
-        if not momentos:
-            continue
-        en = lambda a, b, ms=momentos: "+".join(f"between(t,{t + a:.3f},{t + b:.3f})" for t in ms)
-        if tipo == "flash":  # como foto: un destello blanco cortito donde entra la voz (con el obturador)
-            capas_t.append(f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='{en(0, 0.07)}',"
-                           f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.4:t=fill:enable='{en(0.07, 0.14)}'")
-        elif tipo == "glitch":  # los colores se separan y aparece estática un instante
-            capas_t.append(f"rgbashift=rh=-18:bh=18:rv=6:enable='{en(0, 0.09)}',rgbashift=rh=10:bh=-10:enable='{en(0.09, 0.16)}',"
-                           f"noise=alls=40:allf=t:enable='{en(0, 0.12)}'")
-        elif tipo == "desenfoque":  # entra desenfocado y se aclara
-            capas_t.append(f"gblur=sigma=24:enable='{en(0, 0.08)}',gblur=sigma=10:enable='{en(0.08, 0.16)}',"
-                           f"gblur=sigma=4:enable='{en(0.16, 0.24)}'")
-        elif tipo == "barrido":  # paneo rápido: la imagen se estira de lado (desenfoque solo horizontal) y se asienta
-            capas_t.append(f"gblur=sigma=60:sigmaV=0.5:enable='{en(0, 0.07)}',gblur=sigma=28:sigmaV=0.5:enable='{en(0.07, 0.14)}',"
-                           f"gblur=sigma=8:sigmaV=0.5:enable='{en(0.14, 0.2)}'")
-        elif tipo == "negro":  # parpadeo a negro: se apaga un instante y vuelve
-            capas_t.append(f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.95:t=fill:enable='{en(0, 0.06)}',"
-                           f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.5:t=fill:enable='{en(0.06, 0.13)}'")
+    capas_t = _capas_transicion(transiciones_de(combo, offs))
     if capas_t:
         f.append(f"[{v_prev}]{','.join(capas_t)}[vtrans]")
         v_prev = "vtrans"
@@ -6696,3 +6701,185 @@ if __name__ == "__main__":
         rehacer_portadas()
     if a.accion in ("exportar", "todo"):
         exportar()
+
+
+# ---------- Muestras de Estilo de edición ----------
+MUESTRAS = DATOS / "muestras"
+QUE_MUESTRA = ("transicion", "lut", "efecto", "zoom", "zoom_hook", "fundido", "voz")
+
+
+def _clips_muestra():
+    """Dos clips de la sesión para las muestras: un hook y un cuerpo (o los que haya)."""
+    vids = sorted((f for f in S.proc.glob("*.mp4") if duracion(f) > 3), key=lambda f: f.name) if S.proc.exists() else []
+    if not vids:
+        raise ValueError("Todavía no hay clips analizados en esta sesión: analiza los clips y vuelve a probar la muestra.")
+    hook = next((f for f in vids if "_H" in f.stem.upper()), vids[0])
+    otro = next((f for f in vids if f != hook and "_" not in f.stem), next((f for f in vids if f != hook), hook))
+    return hook, otro
+
+
+def muestra_estilo(que, cambios=None):
+    """Muestra corta de una opción de Estilo de edición, hecha con ffmpeg sobre pedazos de lo grabado de la sesión y con
+    los mismos filtros del armado: así se ve técnicamente cómo queda. cambios: lo elegido en pantalla encima de lo
+    guardado. Devuelve {"archivo", "nota", "marcas": [(segundo, texto)]}. En caché por opción y ajustes."""
+    if que not in QUE_MUESTRA:
+        raise ValueError("Esa opción no tiene muestra")
+    est = {**estilo_edicion(), **(cambios or {})}
+    a, b = _clips_muestra()
+    claves = {"transicion": ("transicion",), "lut": ("lut", "lut_fuerza"), "efecto": ("efecto",),
+              "zoom": ("zoom_tipo", "zoom_fuerza", "zoom_cada"), "zoom_hook": ("zoom_hook_fuerza",), "fundido": ("fundido",),
+              "voz": ("limpieza_voz",)}[que]
+    firma = json.dumps([que, {k: est.get(k) for k in claves}, str(a), a.stat().st_mtime, str(b), b.stat().st_mtime, 3],
+                       sort_keys=True, default=str)
+    nombre = hashlib.md5(firma.encode()).hexdigest()[:16] + ".mp4"
+    MUESTRAS.mkdir(parents=True, exist_ok=True)
+    salida = MUESTRAS / nombre
+    W, H = (540, 960) if lienzo()[1] >= lienzo()[0] else (960, 540)
+    norma = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,fps=30,format=yuv420p"
+    aud = "aformat=sample_rates=48000:channel_layouts=stereo"
+    trabajo = MUESTRAS / ("t_" + nombre[:-4])
+    trabajo.mkdir(exist_ok=True)
+    cmd, f, marcas, nota, sfx = [FFMPEG, "-hide_banner", "-y"], [], [], "", []
+    ini = lambda v, k=0: min(max(0.5, duracion(v) * 0.15) + 0.9 * k, max(0.0, duracion(v) - 1.6))
+
+    def pedazos(lista, dur):
+        """[(clip, desde)] de dur segundos cada uno, unidos: [vc][ac]."""
+        for k, (v, d0) in enumerate(lista):
+            cmd.extend(["-ss", f"{d0:.2f}", "-t", f"{dur:.2f}", "-i", str(v)])
+            f.append(f"[{k}:v]{norma}[p{k}];[{k}:a]{aud},asetpts=N/SR/TB[q{k}]")
+        f.append("".join(f"[p{k}][q{k}]" for k in range(len(lista))) + f"concat=n={len(lista)}:v=1:a=1[vc][ac]")
+        return len(lista)
+
+    def zoompan(z, x="0.5", y="0.38", entrada="vc", salida_="vz"):
+        f.append(f"[{entrada}]zoompan=z='max(1,{z})':x='iw*min(max(({x})*(1-1/zoom),0),1-1/zoom)':"
+                 f"y='ih*min(max(({y})*(1-1/zoom),0),1-1/zoom)':d=1:s={W}x{H}:fps=30,setsar=1[{salida_}]")
+
+    if que == "transicion":
+        tipo = est.get("transicion") if est.get("transicion") not in (None, "ninguna") else "aleatoria"
+        tipos = ["barrido", "zoom", "flash", "glitch", "sacudida"] if tipo == "aleatoria" else [tipo, tipo]
+        largo = 1.3
+        n = pedazos([((a, b)[k % 2], ini((a, b)[k % 2], k // 2)) for k in range(len(tipos) + 1)], largo)
+        trs = [(round(largo * (k + 1), 3), t) for k, t in enumerate(tipos)]
+        empujes = [t for t, k in trs if k in ("zoom", "barrido")]
+        golpes = [t for t, k in trs if k == "sacudida"]
+        v = "vc"
+        if empujes or golpes:
+            z = "1" + "".join(f"+between(it,{t:.3f},{t + 0.3:.3f})*0.16*pow(1-(it-{t:.3f})/0.3,2)" for t in empujes) \
+                + "".join(f"+between(it,{t:.3f},{t + 0.3:.3f})*0.08" for t in golpes)
+            jx = "".join(f"+between(it,{t:.3f},{t + 0.3:.3f})*0.03*sin(it*61)" for t in golpes)
+            jy = "".join(f"+between(it,{t:.3f},{t + 0.3:.3f})*0.03*cos(it*53)" for t in golpes)
+            zoompan(z, f"0.5{jx}", f"0.4{jy}")
+            v = "vz"
+        capas = _capas_transicion(trs)
+        f.append(f"[{v}]{','.join(capas) if capas else 'null'}[v]")
+        for t, k in trs:
+            cat = SONIDO_TRANSICION.get(k, "whoosh")
+            sfx.append((cat, t - (0.03 if cat in ("camara", "impacto", "glitch") else 0.15)))
+            marcas.append((t, NOMBRES_TRANSICION.get(k, k)))
+        total = largo * n
+        nota = ("Al azar: cada corte trae una distinta (en el video, el CTA entra siempre con destello)." if tipo == "aleatoria"
+                else f"{NOMBRES_TRANSICION.get(tipo, tipo).capitalize()} en cada corte, con su sonido.")
+    elif que in ("lut", "efecto"):
+        total = 3.5
+        pedazos([(a, ini(a))], total)
+        if que == "lut":
+            lut = ruta_lut(est.get("lut"))
+            if not lut:
+                raise ValueError("Sube un LUT primero para ver la muestra.")
+            local = f"lut{lut.suffix.lower()}"
+            shutil.copyfile(lut, trabajo / local)
+            fuerza = max(0.0, min(1.0, float(est.get("lut_fuerza", 1.0))))
+            filtro = (f"lut3d=file={local}" if fuerza >= 0.99 else None)
+            if filtro:
+                f.append(f"[vc]split[o][p];[p]{filtro}[q]")
+            else:
+                f.append(f"[vc]split=3[o][p][lb];[p]lut3d=file={local}[lc];[lc][lb]blend=all_mode=normal:all_opacity={fuerza:.2f}[q]")
+            nota = f"Izquierda: como se grabó · derecha: con el LUT {est.get('lut')}."
+        else:
+            ef = est.get("efecto") if est.get("efecto") in EFECTOS_VIDEO else "vineta"
+            f.append(f"[vc]split[o][p];[p]{EFECTOS_VIDEO[ef]}[q]")
+            nota = "Izquierda: sin efecto · derecha: con " + {"vineta": "viñeta", "grano": "grano", "vineta_grano": "viñeta y grano"}[ef] + "."
+        f.append(f"[o]crop={W // 2}:{H}:0:0[l];[q]crop={W // 2}:{H}:{W // 2}:0[r];[l][r]hstack=2,"
+                 f"drawbox=x={W // 2 - 1}:y=0:w=2:h={H}:color=white@0.9:t=fill[v]")
+    elif que == "zoom":
+        largo, fu = 1.5, float(est.get("zoom_fuerza", 0.14))
+        lista = [((a, b)[k % 2], ini((a, b)[k % 2], k // 2)) for k in range(4)]
+        pedazos(lista, largo)
+        tipo, cada = est.get("zoom_tipo", "punch"), int(est.get("zoom_cada", 2))
+        partes = []
+        for k in range(4):
+            if k % cada:
+                continue
+            t0, t1 = k * largo, (k + 1) * largo
+            tk = ("punch", "in", "out")[(k // cada) % 3] if tipo == "mezcla" else tipo
+            pr = f"((it-{t0:.2f})/{largo:.2f})"
+            zk = {"punch": f"{1 + fu:.3f}", "in": f"(1+{fu:.3f}*{pr})", "out": f"(1+{fu:.3f}*(1-{pr}))"}[tk]
+            partes.append(f"between(it,{t0:.2f},{t1 - 0.001:.3f})*({zk}-1)")
+            sfx.append(("zoom", t0 - 0.08))
+            marcas.append((t0, {"punch": "salto", "in": "acercar", "out": "alejar"}[tk]))
+        zoompan("1+" + "+".join(partes) if partes else "1")
+        f.append("[vz]null[v]")
+        total = largo * 4
+        nota = ("Frase sí, frase no" if cada == 2 else "En todas las frases") + ": así se mueve la cámara en el cuerpo."
+    elif que == "zoom_hook":
+        total, fu = 3.5, float(est.get("zoom_hook_fuerza", 0.1))
+        pedazos([(a, ini(a))], total)
+        zoompan(f"1+{fu:.3f}*it/{total}")
+        f.append("[vz]null[v]")
+        nota = "El hook se acerca despacio de principio a fin."
+    elif que == "fundido":
+        total = 4.0
+        pedazos([(a, ini(a))], total)
+        imgs = sorted((x for x in S.assets.iterdir() if x.suffix.lower() in EXT_IMG), key=lambda x: x.name) if S.assets.exists() else []
+        fd = float(est.get("fundido", 0.12))
+        dur_i = 2.0
+        if imgs:
+            cmd.extend(["-loop", "1", "-framerate", "30", "-t", f"{dur_i}", "-i", str(imgs[0])])
+        else:  # sin imágenes de Flow: un cuadro del otro clip hace de imagen
+            cmd.extend(["-ss", f"{ini(b):.2f}", "-t", f"{dur_i}", "-i", str(b)])
+        fade = (f",fade=t=in:st=0:d={fd:.2f}:alpha=1,fade=t=out:st={dur_i - fd:.2f}:d={fd:.2f}:alpha=1" if fd > 0.15 else "")
+        f.append(f"[1:v]{norma},format=yuva420p{fade},setpts=PTS+1/TB[img]")
+        f.append(f"[vc][img]overlay=0:0:eof_action=pass:enable='between(t,1,{1 + dur_i})'[v]")
+        marcas += [(1.0, "entra la imagen"), (1 + dur_i, "sale")]
+        nota = (f"La imagen entra y sale con un fundido de {fd:.1f} s." if fd > 0.15 else "Sin fundido: la imagen aparece y se va de golpe.")
+    else:  # voz: el mismo pedazo dos veces, primero como se grabó y después limpio
+        total = 3.0
+        nivel = est.get("limpieza_voz") if est.get("limpieza_voz") in LIMPIEZAS_VOZ else "suave"
+        for k in range(2):
+            cmd.extend(["-ss", f"{ini(a):.2f}", "-t", f"{total:.2f}", "-i", str(a)])
+            f.append(f"[{k}:v]{norma}[p{k}]")
+        f.append(f"[0:a]{aud},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,asetpts=N/SR/TB[q0]")
+        f.append(f"[1:a]{aud},{LIMPIEZAS_VOZ[nivel]},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,asetpts=N/SR/TB[q1]")
+        f.append("[p0][q0][p1][q1]concat=n=2:v=1:a=1[v][ac]")
+        marcas += [(0.0, "como se grabó"), (total, f"voz limpia ({nivel})")]
+        total *= 2
+        nota = "Escúchala con sonido: primero como se grabó y después con la voz limpia."
+    # los sonidos de cada corte, igual que en el armado (sin retumbe de bajos)
+    mezcla = ["[ac]"]
+    idx = len([x for x in cmd if x == "-i"])
+    for k, (cat, t) in enumerate(sfx):
+        arch = elegir_sfx(cat, f"muestra|{cat}|{k}")
+        if not arch:
+            continue
+        d = dur_audio(arch)
+        desde = inicio_audible(arch)
+        if desde >= d - 0.05:
+            desde = 0.0
+        largo_s = min(d - desde, 1.0)
+        ms = int(max(0.0, t) * 1000)
+        vk = CONFIG["sonidos"]["volumen_sfx"] * CONFIG["sonidos"].get("volumen_por_categoria", {}).get(cat, 1.0) * ganancia_normalizada(arch)
+        cmd.extend(["-i", str(arch)])
+        f.append(f"[{idx}:a]atrim={desde:.2f}:{desde + largo_s:.2f},asetpts=N/SR/TB,afade=t=out:st={max(0, largo_s - 0.15):.2f}:d=0.15,"
+                 f"highpass=f=110,{aud},adelay={ms}|{ms},volume={vk:.2f}[s{k}]")
+        mezcla.append(f"[s{k}]")
+        idx += 1
+    f.append(f"{''.join(mezcla)}amix=inputs={len(mezcla)}:normalize=0:duration=first,alimiter=limit=0.89:level=disabled[a]"
+             if len(mezcla) > 1 else "[ac]anull[a]")
+    if not salida.exists():
+        run(cmd + ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-t", f"{total:.2f}", "-c:v", "libx264",
+                   "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
+                   "-movflags", "+faststart", str(salida)], cwd=trabajo)
+    shutil.rmtree(trabajo, ignore_errors=True)
+    for viejo in sorted(MUESTRAS.glob("*.mp4"), key=lambda x: x.stat().st_mtime)[:-40]:  # se guardan las últimas 40
+        viejo.unlink(missing_ok=True)
+    return {"archivo": nombre, "nota": nota, "marcas": [[round(t, 2), m] for t, m in marcas], "dur": round(total, 2)}
