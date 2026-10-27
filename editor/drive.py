@@ -15,6 +15,7 @@ Uso desde consola (lo usa Claude para subir guiones):
 """
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -251,8 +252,51 @@ def bajar_sesion(nombre, avance=print):
         avance(f"Bajando los clips de «{nombre}»…")
         _rc("copy", f"{REMOTO}:{nombre}", CACHE / nombre, *excluir, *RAPIDO, avance=avance, prefijo="Clips: ")
         bajar_biblioteca(avance)
+        quitar_borrados_en_drive(nombre, avance)
         (CACHE / nombre / ".bajada").write_text(str(time.time()), encoding="utf-8")
         avance(f"«{nombre}» quedó lista en esta PC")
+
+
+_NO_SE_LIMPIA = ("v.finales/", "videos finales/", "listos/", "flow/", "assets/", "musica/", "música/", "_sala_proyecto/", "_reemplazados/")
+
+
+def quitar_borrados_en_drive(nombre, avance=print):
+    """Los clips grabados que se borraron (o se movieron) en Drive también salen de esta PC: bajar solo agrega, y la
+    sala seguía contando clips que ya no existen (P05: una carpeta borrada en Drive dejaba 24 clips de más). No se
+    borran: pasan a datos/papelera/<sesión>/. Solo clips de video; nunca Flow, música ni videos finales."""
+    local = CACHE / nombre
+    if not local.is_dir():
+        return []
+    try:
+        remotos = {x["Path"] for x in json.loads(_rc("lsjson", f"{REMOTO}:{nombre}", "-R", "--files-only", "--fast-list", timeout=600))}
+    except Exception:  # noqa: BLE001 — sin la lista de Drive no se toca nada
+        return []
+    if not remotos:  # Drive no devolvió nada: mejor no tocar
+        return []
+    quitados = []
+    for f in local.rglob("*"):
+        if not f.is_file() or f.suffix.lower() not in motor.EXT_VID:
+            continue
+        rel = f.relative_to(local).as_posix()
+        if rel in remotos or rel.lower().startswith(_NO_SE_LIMPIA) or time.time() - f.stat().st_mtime < 3600:
+            continue  # está en Drive, no es un clip grabado, o recién llegó (puede estar subiéndose)
+        destino = motor.DATOS / "papelera" / nombre / rel
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(f, destino)
+            quitados.append(rel)
+        except OSError:
+            pass
+    for d in sorted((x for x in local.rglob("*") if x.is_dir()), key=lambda x: -len(x.parts)):
+        try:
+            d.rmdir()  # las carpetas que quedaron vacías (solo si están vacías)
+        except OSError:
+            pass
+    if quitados:
+        n = len(quitados)
+        avance(f"{n} clip{'s' if n != 1 else ''} que ya no {'están' if n != 1 else 'está'} en Drive "
+               f"{'salieron' if n != 1 else 'salió'} de esta PC (en la papelera de la sala, por si acaso)")
+    return quitados
 
 
 def bajada_completa(nombre):

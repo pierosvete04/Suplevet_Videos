@@ -1,3 +1,6 @@
+Versión 1.53.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Los clips borrados o movidos en Drive también salen de esta PC:** al bajar la sesión (y al «Analizar los clips»), los clips grabados que ya no están en Drive pasan a la papelera de la sala (datos/papelera). Antes solo se agregaban y la sala contaba clips que ya no existían. Nunca toca Flow, música ni videos finales.
+
 Versión 1.53.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Inicio en una PC con Antigravity y sin Claude:** la tarjeta ya no dice «Claude no está instalado» al abrir la sala; dice «🪐 Antigravity · ✓ Antigravity listo» y su resumen habla de Gemini (antes la tarjeta se pintaba antes de saber que la PC tiene Antigravity).
 
