@@ -16,5 +16,6 @@
 !/requirements-build.txt
 !/*.bat
 !/biblioteca/
+!/vendor/
 !/instalador/
 __pycache__/

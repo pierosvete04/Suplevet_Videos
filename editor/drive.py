@@ -299,6 +299,41 @@ def subir(nombre, partes=None, avance=print):
                 _rc("copyto", local, f"{REMOTO}:{nombre}/{parte}")
 
 
+# «Terminar sesión»: todo lo de la sesión sube a Drive, se comprueba archivo por archivo y recién ahí se puede borrar
+# la copia de esta PC. Nada se borra en Drive.
+EXCLUIR_TODO = ["--exclude", "desktop.ini", "--exclude", ".bajada", "--exclude", "*.part", "--exclude", ".*.part",
+                "--exclude", "_REEMPLAZADOS/**"]
+
+
+def subir_todo(nombre, avance=print):
+    """Sube la carpeta entera de la sesión (clips, Flow, música, guion, V.FINALES…). Solo agrega o actualiza."""
+    local = CACHE / nombre
+    if not local.is_dir():
+        return
+    with _candado:
+        avance(f"Subiendo a Drive todo «{nombre}»…")
+        _rc("copy", local, f"{REMOTO}:{nombre}", *EXCLUIR_TODO, *RAPIDO, avance=avance, prefijo="Subiendo: ")
+
+
+def faltan_en_drive(nombre):
+    """Los archivos de la copia local de la sesión que no están en Drive, o que están con otro tamaño."""
+    local = CACHE / nombre
+    if not local.is_dir():
+        return []
+    d = motor.DATOS / "_trabajo"
+    d.mkdir(parents=True, exist_ok=True)
+    falta, distinto = d / "faltan_en_drive.txt", d / "distintos_en_drive.txt"
+    for f in (falta, distinto):
+        f.write_text("", encoding="utf-8")
+    r = subprocess.run([str(rclone()), "check", str(local), f"{REMOTO}:{nombre}", "--one-way", "--size-only", *EXCLUIR_TODO,
+                        "--missing-on-dst", str(falta), "--differ", str(distinto), "--config", str(CONF)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600)
+    lista = [x.strip() for f in (falta, distinto) for x in f.read_text(encoding="utf-8").splitlines() if x.strip()]
+    if r.returncode != 0 and not lista:  # no pudo comparar (sin internet…): no se da por bueno
+        raise RuntimeError("No pude comparar con Drive: " + (r.stderr.strip().splitlines() or ["error desconocido"])[-1])
+    return lista
+
+
 # Lo que no se pudo subir a Drive (sin internet, Drive no deja…): la sala lo muestra con «Reintentar».
 # Antes solo quedaba en el log y la otra PC nunca recibía el archivo.
 PENDIENTES = []

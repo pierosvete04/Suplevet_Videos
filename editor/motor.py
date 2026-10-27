@@ -144,7 +144,7 @@ def guardar_grupos(g):
 # datos/drive_producciones.json (lo arma drive.actualizar_lista): {"P02 …": {"sesiones": [días], "guion": "día" o ""}}
 PRODUCCIONES_PATH = DATOS / "drive_producciones.json"
 SUBCARPETAS = {"guion", "guiones", "1_guion", "clips", "flow", "assets", "musica", "música", "v.finales", "videos finales", "listos"}
-CARPETAS_GUION = ("Guion", "Guiones", "1_guion")  # ahí se deja el guion (Word, .md, .txt o produccion.json) y la sala lo lee
+CARPETAS_GUION = ("Guion", "Guiones", "1_guion")  # ahí se deja el guion (PDF, Word, .md, .txt o produccion.json) y la sala lo lee
 
 
 def es_dia_de_grabacion(nombre):
@@ -390,7 +390,7 @@ def resumen_sesiones():
             raiz = S.base / grs[n]["carpeta"] if grs[n].get("carpeta") else S.base
             carpetas += [raiz / x for x in grs[n].get("sesiones", [])]
         en_pc = any(c.is_dir() for c in carpetas)
-        guion = any((c / x / "produccion.json").exists() or ((c / x).is_dir() and any((c / x).glob("*.docx")))
+        guion = any((c / x / "produccion.json").exists() or ((c / x).is_dir() and any(f.suffix.lower() in (".docx", ".pdf") for f in (c / x).iterdir()))
                     for c in carpetas for x in CARPETAS_GUION)
         m_ = re.match(r"^P\d+\s+(ADS|ORG)\b", n, re.I)
         out.append({"nombre": n, "archivada": n in arch, "grupo": bool(grs.get(n)), "en_pc": en_pc, "guion": guion,
@@ -1536,6 +1536,11 @@ def angulos_por_pasadas(pieza_de, por_rel):
     return out
 
 
+def _orden_natural(texto):
+    """IMG_998 antes que IMG_1000: los números se comparan como números."""
+    return [int(x) if x.isdigit() else x.lower() for x in re.split(r"(\d+)", str(texto))]
+
+
 def sugerencias():
     """{rel: {texto, pieza, parecido, mejor}}. «mejor» marca la toma más parecida de cada pieza;
     si hay empate gana la última grabada (suele ser la buena). Un guion grabado completo dos veces (una pasada
@@ -1549,16 +1554,34 @@ def sugerencias():
     ya = {p["nombre"] for p in piezas()}
     ya |= {f"{p['nombre']}_P{k}" for p in piezas() for ks in p["frases"].values() for k in ks}
     out, por_rel, propia = {}, {}, {}
-    for c in clips_sin_asignar():
+    orden = []  # (clip, texto, {pieza: parecido}) en el orden en que se grabaron
+    for c in sorted(clips_sin_asignar(), key=lambda c: _orden_natural(c["rel"])):
         texto = transcripcion_clip(c, crear=False)
         if texto is None:
             continue
+        orden.append((c, texto, {n: _parecido(texto, t) for n, t in esperadas.items()}))
+    # Las tomas se graban en orden: un clip con media frase («También estás evaluando…») se parece a varias piezas,
+    # y gana la del cuerpo que se estaba grabando (el de los clips seguros de antes y de después)
+    cuerpo_de = lambda n: m[1] if (m := re.match(r"^((?:[CP]\d+)(?:~[A-Z0-9]+)?)(?:_|$)", n or "")) else None
+    seguros = {}
+    for i, (_, _, pts) in enumerate(orden):
+        n, v = max(pts.items(), key=lambda x: x[1], default=(None, 0))
+        if v >= 0.75 and cuerpo_de(n):  # solo los que casi seguro son esa pieza marcan el cuerpo de sus vecinos
+            seguros[i] = cuerpo_de(n)
+    for i, (c, texto, pts) in enumerate(orden):
+        antes = next((seguros[j] for j in range(i - 1, max(-1, i - 9), -1) if j in seguros), None)
+        despues = next((seguros[j] for j in range(i + 1, min(len(orden), i + 9)) if j in seguros), None)
+        # el cuerpo del clip seguro de antes suma y el de después también (en el cambio de cuerpo, cada uno suma lo suyo)
+        con_vecino = lambda n, v: v + 0.1 * ((cuerpo_de(n) == antes) + (cuerpo_de(n) == despues)) if cuerpo_de(n) else v
         por_rel[c["rel"]] = c
-        cerca = max(((n, _parecido(texto, t)) for n, t in esperadas.items()), key=lambda x: x[1], default=(None, 0))
+        cerca = max(((n, con_vecino(n, v)) for n, v in pts.items()), key=lambda x: x[1], default=(None, 0))
         if cerca[1] >= 0.35:
             propia[c["rel"]] = cerca[0]
-        mejor = max(((n, _parecido(texto, t)) for n, t in esperadas.items() if n not in ya), key=lambda x: x[1], default=(None, 0))
-        out[c["rel"]] = {"texto": texto, "pieza": mejor[0] if mejor[1] >= 0.35 else None, "parecido": round(mejor[1], 2)}
+        mejor = max(((n, con_vecino(n, v)) for n, v in pts.items() if n not in ya), key=lambda x: x[1], default=(None, 0))
+        # de otro cuerpo que los clips grabados justo antes y después: se sugiere, pero no se pone solo (a revisar)
+        lejos = bool(mejor[0] and cuerpo_de(mejor[0]) and antes and despues and cuerpo_de(mejor[0]) not in (antes, despues))
+        out[c["rel"]] = {"texto": texto, "pieza": mejor[0] if mejor[1] >= 0.35 else None,
+                         "parecido": round(pts.get(mejor[0], 0) if mejor[0] else 0, 2), **({"lejos": True} if lejos else {})}
     # dos pasadas del mismo guion: la segunda es otro ángulo y no compite con la primera
     for rel, ang in angulos_por_pasadas(propia, por_rel).items():
         pieza = con_angulo(propia[rel], ang) if ang else propia[rel]
@@ -1664,7 +1687,7 @@ def informe_clips():
 def aceptar_sugerencias(minimo=0.5):
     hechas = 0
     for rel, sug in sugerencias().items():
-        if sug["mejor"] and sug["parecido"] >= minimo:
+        if sug["mejor"] and sug["parecido"] >= minimo and not sug.get("lejos"):
             guardar_asignacion(rel, sug["pieza"])
             hechas += 1
     return hechas
@@ -2321,6 +2344,7 @@ def leer_guion_texto(texto):
         if not s or re.fullmatch(r"[-*_=—–\s]{3,}", s):
             continue
         titulo = s.startswith("#")
+        nivel = len(s) - len(s.lstrip("#"))  # «## CTA» (de todo el guion) no es lo mismo que «### CTA» (dentro de un cuerpo)
         s = re.sub(r"^#+\s*", "", s)
         # primero la negrita y después la viñeta: «**H3.** …» quedaba «*H3.» y no se leía como el hook 3
         s = s.replace("**", "").replace("__", "").replace("`", "").strip()
@@ -2334,7 +2358,8 @@ def leer_guion_texto(texto):
             nonlocal cuerpo, seccion, cta_actual
             if not corto:
                 return False
-            if m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*(\d+)(?:\s*[—:\-–]\s*.*|\s*\(.*\))?", s, re.I):
+            if (m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*(\d+)(?:\s*[—:\-–]\s*.*|\s*\(.*\))?", s, re.I)) \
+                    or (titulo and (m := re.fullmatch(r"(\d{1,2})\s*[—:\-–.]\s*\D.*", s))):  # «## 1 — SUPLEVET Y PARVOVIRUS»
                 cuerpo, seccion, cta_actual = f"C{int(m[1])}", "cuerpo", None
             elif re.fullmatch(r"(?:HOOKS?|GANCHOS?)\s*(?:[:(].*)?", s, re.I):
                 seccion = "hooks"
@@ -2342,6 +2367,8 @@ def leer_guion_texto(texto):
                 seccion = "cuerpo"
             elif m := re.fullmatch(r"(?:CTAS?|CIERRES?|LLAMADOS? A LA ACCI[OÓ]N)(?:[\s_-]*(\d+|[A-Z]))?\s*(?:[—:\-–(].*)?", s, re.I):
                 seccion, cta_actual = "cta", (f"CTA{int(m[1])}" if m[1] and m[1].isdigit() else f"CTA-{m[1].upper()}" if m[1] else None)
+                if titulo and nivel <= 2:  # «## CTA»: el cierre de todo el guion, no el de un cuerpo
+                    cuerpo = None
             else:
                 return False
             return True
@@ -2360,7 +2387,10 @@ def leer_guion_texto(texto):
                 return True
             if m := re.match(rf"^CTA(?:[\s_-]*([A-Z0-9]+?))?(?:[.\s_-]+(\d+))?{sep}(.+)$", s, re.I):
                 suf = m[1].upper() if m[1] else ""
-                d = frases.setdefault("CTA" + (suf if suf.isdigit() else f"-{suf}" if suf else ""), {})
+                # un «CTA.» sin número dentro de un cuerpo es el cierre de ese cuerpo (C1_CTA); antes todos los
+                # cuerpos se juntaban en un solo CTA con sus cierres uno detrás de otro
+                nombre = f"{cuerpo}_CTA" if not suf and cuerpo else "CTA" + (suf if suf.isdigit() else f"-{suf}" if suf else "")
+                d = frases.setdefault(nombre, {})
                 d[int(m[2]) if m[2] else max(d, default=0) + 1] = m[3].strip()
                 return True
             return False
@@ -2468,8 +2498,109 @@ def _texto_plano(datos):
         return datos.decode("cp1252", "replace")
 
 
+def _pypdf():
+    """pypdf viaja con la sala en vendor/ (así sirve con una actualización, sin reinstalar). El .exe de antes no trae
+    xml.dom, que pypdf solo usa para los metadatos XMP: si falta, se reemplaza esa parte por una vacía."""
+    vendor = str(Path(__file__).resolve().parent / "vendor")
+    if vendor not in sys.path:
+        sys.path.insert(0, vendor)
+    try:
+        import xml.dom.minidom  # noqa: F401
+        import xml.dom.expatbuilder  # noqa: F401
+        import xml.dom.xmlbuilder  # noqa: F401
+    except ImportError:
+        import types
+        xmp = types.ModuleType("pypdf.xmp")
+        xmp.XmpInformation = type("XmpInformation", (), {"__init__": lambda self, *a, **k: None})
+        xmp.XMP_MAX_ELEMENT_COUNT, xmp.XMP_MAX_INPUT_LENGTH = 100_000, 10_000_000
+        sys.modules.setdefault("pypdf.xmp", xmp)
+    import pypdf
+    return pypdf
+
+
+def _texto_pdf(datos):
+    """El texto de un PDF (el guion exportado desde Word o Google Docs), un renglón por línea. Los renglones que el
+    PDF partió por el ancho de la hoja se vuelven a juntar en su párrafo, como en el Word."""
+    import io as _io
+    pypdf = _pypdf()
+    lector = pypdf.PdfReader(_io.BytesIO(datos))
+    if lector.is_encrypted:
+        try:
+            lector.decrypt("")
+        except Exception:  # noqa: BLE001
+            raise ValueError("Ese PDF tiene contraseña: expórtalo de nuevo sin contraseña.")
+    lineas = []
+    for pag in lector.pages:
+        lineas += (pag.extract_text() or "").replace("\r", "").split("\n")
+    return _como_titulos(_juntar_renglones(lineas))
+
+
+def _como_titulos(texto):
+    """En el PDF los títulos y las tablas pierden su forma («C1 HVA · gancho», «Cuerpo 1 Tres cosas…», «2 Uno: …»,
+    «CTA Guarda…»): se escriben como los entiende el lector de guiones («## C1 — HVA», «1. Tres cosas…», «CTA. …»)."""
+    out, pas = [], False
+    for ln in texto.split("\n"):
+        s = ln.strip()
+        # cuerpo en tabla PAS: «Cuerpo · Problema · Agitación · Solución P El parvovirus…» y las filas «A …», «S …»
+        if m := re.match(r"^CUERPO\s*·\s*PROBLEMA\b.*?\s([PAS])\s+(.+)$", s, re.I):
+            pas = True
+            out += ["### Cuerpo", f"{m[1]}. {m[2]}"]
+            continue
+        if pas and (m := re.match(r"^([PAS])\s+(.+)$", s)):
+            out.append(f"{m[1]}. {m[2]}")
+            continue
+        if m := re.fullmatch(r"(?:C|VIDEO)\s*(\d+)\s+(?![.:\-—–)])(.{1,60})", s, re.I):  # «Cuerpo 1 …» es la fila 1
+            if len(m[2].split()) <= 10 and not re.search(r"[.!?]$", m[2]):  # un tema corto, no una frase
+                # el tema largo no se pone: el lector tomaría «Calidad de vida (todo en uno)» como la primera frase
+                out.append(f"## C{int(m[1])}" + (f" — {m[2]}" if len(m[2].split()) < 6 else ""))
+                continue
+        # «1. SUPLEVET Y PARVOVIRUS CANINO»: un número y un título en mayúsculas abre el cuerpo 1
+        if (m := re.fullmatch(r"(\d{1,2})\s*[.)—–-]?\s+(.{3,70})", s)) and m[2] == m[2].upper() and re.search(r"[A-ZÁÉÍÓÚÑ]{3}", m[2]):
+            out.append(f"## C{int(m[1])}")
+            continue
+        if re.match(r"^(?:HOOKS?|GANCHOS?)\b", s, re.I) and len(s) <= 90 and not re.match(r"^HOOKS?\s*\d", s, re.I):
+            out.append("## Hooks")
+            continue
+        if m := re.match(r"^CUERPO\s+(\d+)\s+(.+)$", s, re.I):  # la primera fila de la tabla del cuerpo
+            out += ["### Cuerpo", f"{m[1]}. {m[2]}"]
+            continue
+        if re.fullmatch(r"(?:CTAS?\s+)?(?:CTAS?|CIERRES?)(?:\s*[·:(—–-].*)?", s, re.I):  # «CTA», «CTA CTAs · elige 2» (tabla)
+            out.append("### CTA")
+            continue
+        if m := re.match(r"^(CTA(?:\s*\d+)?)\s+(?![.:\-—–)])(.+)$", s, re.I):
+            out.append(f"{m[1]}. {m[2]}")
+            continue
+        if m := re.match(r"^(\d{1,2})\s+([^\d\s.].*)$", s):  # «2 Uno: su flora…» = la frase 2
+            out.append(f"{m[1]}. {m[2]}")
+            continue
+        out.append(ln)
+    return "\n".join(out)
+
+
+_TITULO_PDF = re.compile(r"^\s*(?:[-•*#]+\s*)?(?:C\d+|H\d+|CTAS?\d*|HOOKS?|CUERPO|CIERRE|GANCHO|FRASE|PARTE|P\d+|PROMPT|"
+                         r"IMAGEN|M[UÚ]SICA|NOTA|SFX|COPY|PORTADA|PLAN B|EVITAR)\b", re.I)
+# un renglón que empieza con el código de una pieza o con el número de la frase (la fila de una tabla)
+_FILA_PDF = re.compile(r"^\s*(?:H\d+|CTA\s*\d*|C\d+[.\-_ ]*(?:H|P)?\d*|CUERPO\s+\d+|\d{1,2}[\s.)])", re.I)
+
+
+def _juntar_renglones(lineas):
+    """Un PDF no tiene párrafos: corta las frases donde se acaba la hoja o la celda. Un renglón se junta con el anterior
+    cuando no empieza con un código («H2», «CTA», «3») ni es un título o una viñeta, y además el anterior no terminó la
+    frase, o es una fila con código (en una tabla, lo que sigue sin código es el resto de esa celda)."""
+    out = []
+    for ln in (x.rstrip() for x in lineas):
+        prev = out[-1].strip() if out else ""
+        titulo = _TITULO_PDF.match(ln) and not ln.strip()[:1].islower()  # «parte de la evaluación…» sigue la frase, no es «PARTE»
+        if (ln.strip() and prev and not titulo and not _FILA_PDF.match(ln) and not re.match(r"^\s*[-•*]\s", ln)
+                and (not re.search(r"[.!?:»”\")\]]$", prev) or (_FILA_PDF.match(prev) and not re.fullmatch(r"\S+", prev)))):
+            out[-1] = out[-1].rstrip() + " " + ln.strip()
+        else:
+            out.append(ln)
+    return "\n".join(out)
+
+
 def _leer_guion_archivo(nombre_archivo, datos):
-    """El guion de un archivo: produccion.json de Claude (completo) o Word / .md / .txt (solo el texto)."""
+    """El guion de un archivo: produccion.json de Claude (completo) o PDF / Word / .md / .txt (solo el texto)."""
     ext = Path(nombre_archivo).suffix.lower()
     if ext == ".json":
         try:
@@ -2479,11 +2610,16 @@ def _leer_guion_archivo(nombre_archivo, datos):
         if not isinstance(prod, dict) or not isinstance(prod.get("piezas"), dict) or not prod["piezas"]:
             raise ValueError("Ese .json no es un guion de la sala (le falta «piezas»)")
         prod.pop("origen", None)
-    elif ext in (".docx", ".md", ".txt"):
+    elif ext in (".docx", ".md", ".txt", ".pdf"):
         try:
-            texto = _texto_docx(datos) if ext == ".docx" else _texto_plano(datos)
+            texto = _texto_docx(datos) if ext == ".docx" else _texto_pdf(datos) if ext == ".pdf" else _texto_plano(datos)
+        except ValueError:
+            raise
         except Exception:
-            raise ValueError("No pude abrir ese Word. Guárdalo de nuevo como .docx o pásalo a .txt")
+            raise ValueError("No pude abrir ese PDF. Expórtalo de nuevo (Archivo → Guardar como PDF) o súbelo en Word."
+                             if ext == ".pdf" else "No pude abrir ese Word. Guárdalo de nuevo como .docx o pásalo a .txt")
+        if ext == ".pdf" and not texto.strip():
+            raise ValueError("Ese PDF no tiene texto (es una imagen escaneada): súbelo en Word o expórtalo como PDF desde Word o Docs.")
         if not texto.strip():
             raise ValueError("El archivo está vacío")
         piezas_g = leer_formato_sala(texto)  # el Word o el .md que exporta la propia sala
@@ -2496,8 +2632,7 @@ def _leer_guion_archivo(nombre_archivo, datos):
                              "los hooks con «H1», «H2»… (o «C1-H1: texto») y el cierre con «CTA».")
         prod = {"origen": "subido", "archivo": Path(nombre_archivo).name, "piezas": piezas_g}
     else:
-        raise ValueError("Sube el guion en Word (.docx), texto (.md o .txt) o el produccion.json de Claude. "
-                         "Un PDF no se puede leer: pásalo a Word.")
+        raise ValueError("Sube el guion en PDF, Word (.docx), texto (.md o .txt) o el produccion.json de Claude.")
     return prod
 
 
@@ -2588,7 +2723,7 @@ _GUION_CON_ERROR = {}  # firma → error, para no intentar leer una y otra vez u
 def guion_en_carpeta():
     """El guion más nuevo que el equipo dejó en la carpeta Guion/Guiones (Word, .md, .txt o un .json de Claude)."""
     archivos = [f for d in CARPETAS_GUION if (S.principal / d).is_dir() for f in (S.principal / d).iterdir()
-                if f.is_file() and f.suffix.lower() in (".docx", ".md", ".txt", ".json")
+                if f.is_file() and f.suffix.lower() in (".docx", ".pdf", ".md", ".txt", ".json")
                 and f.name.lower() not in _NO_SON_GUION and not f.name.startswith(("~$", "."))
                 and not re.search(r"\((?:producci[oó]n|para grabar)\)$", f.stem)]  # los Word que exporta la sala
     con_nombre = [f for f in archivos if "guion" in norm(f.stem) or "script" in norm(f.stem)]

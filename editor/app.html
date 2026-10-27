@@ -1636,6 +1636,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <div class="barra-prog" id="inBarra"><i></i></div>
         </div>
         <div class="stats" id="inStats"></div>
+        <button class="btn sec peq" type="button" id="inTerminar" style="margin-top:12px;width:100%" title="Sube a Drive todo lo de la sesión (clips, imágenes, música, guion y videos finales), lo comprueba y, si quieres, la borra de esta PC">☁ Terminar sesión</button>
       </div>
       </div>
       <div class="in-col in-centro">
@@ -1644,7 +1645,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Preparar la sesión</h2><span class="pill" id="prepAvance"></span></div>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">Antes de grabar: el guion, las imágenes, la música y los sonidos. Cuando subas los clips, la sala arma los videos con todo esto.</p>
         <ol class="prep-lista" id="prepLista"></ol>
-        <input type="file" id="prepGuion" accept=".docx,.md,.txt,.json" hidden>
+        <input type="file" id="prepGuion" accept=".pdf,.docx,.md,.txt,.json" hidden>
       </div>
       <div class="caja">
         <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Para revisar <span class="pill" id="inNRevisar"></span></h2>
@@ -1749,8 +1750,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div class="g-acciones">
       <label class="g-accion principal" id="gSubirZona" tabindex="0">
         <span class="g-ico" aria-hidden="true">⬆</span>
-        <span><b>Subir guion</b><small>Word, .txt, .md o el de Claude (.json). Haz clic o arrástralo aquí.</small></span>
-        <input type="file" id="gSubirGuion" accept=".docx,.md,.txt,.json" hidden></label>
+        <span><b>Subir guion</b><small>PDF, Word, .txt, .md o el de Claude (.json). Haz clic o arrástralo aquí.</small></span>
+        <input type="file" id="gSubirGuion" accept=".pdf,.docx,.md,.txt,.json" hidden></label>
       <button class="g-accion" type="button" id="gArmar">
         <span class="g-ico" aria-hidden="true">✦</span>
         <span><b id="gArmarTit">Armar el guion con los clips</b><small id="gArmarTxt">Escucha los clips, saca los subtítulos y arma el guion con lo que se dijo. En esta PC, sin Claude.</small></span></button>
@@ -2619,6 +2620,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <label class="fila muted" style="font-size:12px"><input type="checkbox" id="inVerArch"> Ver archivadas <span id="inNArch"></span></label></div>
           <div class="sesiones" id="inSesiones"></div>
           <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
+            <button class="btn sec peq" type="button" data-terminar>☁ Terminar sesión y borrarla de esta PC</button>
             <button class="btn sec peq" id="inRenombrarGrupo" type="button" hidden title="Las carpetas de Drive de sus días no cambian">Cambiar nombre del grupo</button>
             <span class="muted" style="font-size:11.5px">Archiva las que ya terminaste: dejan de salir en las listas y las encuentras buscando.</span></div>
           <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
@@ -3055,7 +3057,12 @@ async function cargar() {
   $("importarFinales").hidden = !E.panel || !(E.drive || {}).activo;
   if (!sel || !E.piezas.find(p => p.nombre === sel)) sel = E.piezas.find(p => p.tipo === tipoPieza)?.nombre || E.piezas[0]?.nombre;
   pintarVideos(); pintarPiezas(); pintarPieza(); pintarFaltan(); pintarDias(); pintarInicio(); pintarExport();
-  if ((E.drive || {}).activo && !E.sesion_bajada) avisar(`La sesión «${E.semana}» se está bajando de Drive…`);
+  // una sesión terminada (archivada y borrada de esta PC) no se baja sola: se elige con cuál seguir
+  if ((E.drive || {}).activo && !E.sesion_bajada && (E.archivadas || []).includes(E.semana) && !E.trabajo?.activo) {
+    avisar(`«${E.semana}» está terminada y guardada en Drive. Elige con qué sesión trabajar (si la abres de nuevo, se baja de Drive).`, "muted");
+    if (!$("dlgBienvenida").open) abrirBienvenida();
+  }
+  else if ((E.drive || {}).activo && !E.sesion_bajada) avisar(`La sesión «${E.semana}» se está bajando de Drive…`);
   else if (!E.hay_produccion) avisar("Esta sesión no tiene guion: se arma igual con lo que hay y, al procesar, la sala arma el guion con lo que se dijo. Si tienes el guion, súbelo en la pestaña Guion.", "muted");
   else avisar("");
   vigilar(E.trabajo);
@@ -3252,6 +3259,41 @@ $("inRenombrarGrupo").onclick = async () => {
 };
 $("inTipo").addEventListener("change", pintarListaSesiones);
 $("inVerArch").addEventListener("change", pintarListaSesiones);
+// «Terminar sesión»: todo a Drive (clips, Flow, música, guion, V.FINALES y lo editado), comprobado archivo por archivo;
+// después, si se quiere, se borra de esta PC. Nunca se borra nada en Drive.
+async function terminarSesion() {
+  let info;
+  try { info = await (await fetch("/api/terminar_info")).json(); } catch (e) { return avisar("No pude revisar la sesión: " + e.message, "err"); }
+  if (!info.drive) return avisar("Drive no está conectado: conéctalo (Configuración → Cuenta) para poder terminar la sesión.", "err");
+  if (E.trabajo?.activo) return avisar("La sala está trabajando (☰). Espera a que termine para terminar la sesión.", "err");
+  const gb = (info.peso / 1e9).toFixed(1), n = info.sin_exportar.length;
+  const ojo = n ? `
+
+Ojo: ${plural(n, "video armado no se exportó", "videos armados no se exportaron")} a V.FINALES (${info.sin_exportar.slice(0, 4).join(", ")}${n > 4 ? "…" : ""}). Si borras la sesión, no estarán en Drive (se pueden volver a armar). Expórtalos antes en «Exportar».` : "";
+  const borrar = await preguntar(`Terminar «${info.sesion}»
+
+1. Se sube a Drive todo lo de la sesión: clips, imágenes y clips de Flow, música, guion, videos finales y lo editado.
+2. Se comprueba en Drive archivo por archivo.
+3. Si está todo, se borra de esta PC (${gb} GB) y la sesión queda archivada. Si la vuelves a abrir, se baja de Drive.
+
+En Drive no se borra nada. Si falta algo, no se borra nada de la PC.${ojo}`, `Subir todo y borrar de esta PC (${gb} GB)`);
+  if (!borrar && !await preguntar("¿Solo subir todo a Drive y comprobarlo, sin borrar nada de esta PC?", "Solo subir y comprobar")) return;
+  try {
+    await post("/api/terminar", { borrar });
+    vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(borrar ? "Subiendo todo a Drive… cuando esté comprobado, se borra de esta PC." : "Subiendo todo a Drive y comprobándolo…", "muted");
+    if (borrar) {  // al terminar: la sesión ya no está en esta PC, se elige con cuál seguir
+      const reloj = setInterval(async () => {
+        let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
+        if (t.activo) return;
+        clearInterval(reloj);
+        if (!t.error && t.accion === "terminar") { await cargar(); abrirBienvenida(); }
+      }, 3000);
+    }
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+}
+$("inTerminar").onclick = terminarSesion;
+document.querySelector("[data-terminar]").onclick = () => { $("dlgSesiones").close(); terminarSesion(); };
 $("inArchivar").onclick = async () => {
   const archivar = !(E.archivadas || []).includes(E.semana);
   try { await post("/api/archivar", { sesion: E.semana, archivar }); await cargar();
@@ -5041,7 +5083,7 @@ $("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("an
 const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Rearmar videos de una pieza", uno: "Rearmar un video",
   armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
-  conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
+  terminar: "Terminar sesión (todo a Drive)", conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
   guion_grabado: "Armar el guion con lo grabado", prompts_flow: "Claude escribe los prompts de Flow", rehacer: "Claude rehace el prompt de una imagen", rehacer_musica: "Claude regenera el prompt de una música",
   generar_flow: "Claude genera en Flow con Chrome" };
@@ -8985,7 +9027,16 @@ $("bvBuscar").addEventListener("input", pintarBienvenida);
 $("dlgBienvenida").addEventListener("click", e => {
   const b = e.target.closest("[data-bv]"); if (!b) return;
   $("dlgBienvenida").close();
-  if (b.dataset.bv !== E.semana) cambiarSesion(b.dataset.bv); else irTab("inicio");
+  if (b.dataset.bv !== E.semana) cambiarSesion(b.dataset.bv);
+  else if ((E.drive || {}).activo && !E.sesion_bajada) {  // la misma, pero terminada (borrada de esta PC): se vuelve a bajar
+    (async () => {
+      try {
+        if ((E.archivadas || []).includes(E.semana)) await post("/api/archivar", { sesion: E.semana, archivar: false });
+        await post("/api/semana", { semana: E.semana }); await cargar(); irTab("inicio");
+      } catch (err) { avisar("Error: " + err.message, "err"); }
+    })();
+  }
+  else irTab("inicio");
 });
 $("bvCerrar").onclick = () => $("dlgBienvenida").close();
 $("bvAdmin").onclick = () => { $("dlgBienvenida").close(); pintarListaSesiones(); $("dlgSesiones").showModal(); };
@@ -9603,7 +9654,7 @@ async function pintarGuion() {
   $("gOrigen").textContent = g.origen === "grabado" ? (g.con_apoyo ? "El texto de este guion salió de lo que se dijo en cada clip (no había guion); después se le agregaron imágenes, música o marcas."
       : "Este guion lo armó la sala con lo que se dijo en cada clip (no había guion). Si tienes el de verdad, tócalo en «Subir guion».")
     : g.origen === "subido" ? `Guion subido${g.archivo ? ` desde «${g.archivo}»` : ""}` + (g.con_apoyo ? "." : ": solo trae el texto de cada pieza (sin marcas, imágenes ni copies).") : "";
-  if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Puedes subirlo (Word, .md, .txt o el produccion.json de Claude), escribirlo con Claude, o seguir sin guion: la sala transcribe lo grabado y arma el guion con lo que se dijo.</p>
+  if (!g.hay_guion) { ultimoGuion = null; $("gEstado").innerHTML = ""; $("guionLista").innerHTML = `<div class="caja"><p class="muted" style="margin:0 0 10px">Esta sesión todavía no tiene guion. Puedes subirlo (PDF, Word, .md, .txt o el produccion.json de Claude), escribirlo con Claude, o seguir sin guion: la sala transcribe lo grabado y arma el guion con lo que se dijo.</p>
     <div class="fila" style="gap:8px"><button class="btn blanco peq" data-ir="inicio">Ir a Inicio → Claude</button></div></div>`;
     return; }
   ultimoGuion = g;

@@ -1,3 +1,10 @@
+Versión 1.53.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Guiones en PDF:** «Subir guion» y la carpeta Guion de Drive aceptan PDF (exportado desde Word o Google Docs). La sala vuelve a juntar las frases que el PDF corta y entiende sus tablas («H1 …», «Cuerpo 1 …», «CTA …», tablas PAS).
+- **Más formas de guion:** cuerpos titulados «1 — TEMA» o «1. TEMA» (sin «C»), y el «CTA.» de cada cuerpo queda como su propio cierre (C1_CTA, C2_CTA…) en vez de juntarse todos en uno.
+- **Analizar los clips usa el orden de grabación:** una toma con media frase se va al cuerpo que se estaba grabando, y un clip que parece de otro cuerpo que sus vecinos queda para revisar en vez de ponerse solo.
+- **☁ Terminar sesión** (Inicio y Sesiones): sube a Drive todo lo de la sesión (clips, Flow, música, guion, V.FINALES y lo editado), lo comprueba archivo por archivo y, si quieres, la borra de esta PC y la archiva. En Drive no se borra nada; si falta algo, no se borra nada de la PC. Al volver a abrirla, se baja de Drive.
+- Las imágenes y la música de «Generar con Chrome» ya no quedan sueltas en Descargas: pasan a «Descargas/Usados por la sala» (ya estaban en la sesión y en Drive).
+
 Versión 1.52.1 (se actualiza desde la app con «Actualizar ahora»):
 - **«Analizar los clips» ya no falla** si en Drive falta una carpeta de sonidos: avisa cuáles y sigue con los que trae la sala.
 - **Nada se pierde sin aviso:** recargar, cerrar o cambiar de sesión pregunta si hay cambios sin guardar en Piezas o en el editor. Volver a una versión o restaurar una copia ya no deja lo viejo en Piezas (que al guardar pisaba lo restaurado).

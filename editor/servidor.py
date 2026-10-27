@@ -371,6 +371,7 @@ def generar_en_flow(avance):
             continue
         try:
             importar_descarga(f.name, aid, destinos[aid])
+            apartar_descarga(f.name)  # ya está en la sesión (y sube a Drive): no queda suelto en Descargas
             hechos.append(aid)
         except ValueError as e:
             pendientes.append({"id": aid, "motivo": str(e)})
@@ -703,6 +704,9 @@ def abrir_sesion(sem):
     motor.usar_semana(sem)
     motor.guardar_config({"semana": sem})
     if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
+        if sem in motor.archivadas():  # una sesión terminada que se vuelve a abrir: sale del archivo y se baja de nuevo
+            motor.guardar_archivadas([x for x in motor.archivadas() if x != sem])
+            threading.Thread(target=lambda: _sin_error(drive.subir_archivadas), daemon=True).start()
         lanzar("bajar")  # se baja sola la primera vez que se abre
 
 
@@ -788,6 +792,25 @@ def maximizar_ventana():
                 return
             time.sleep(0.5)
     threading.Thread(target=lambda: _sin_falla(tarea), daemon=True).start()
+
+
+def sesion_en_pc():
+    """Lo que la sesión abierta ocupa en esta PC: (carpetas de Drive que la forman, carpetas locales pesadas, bytes).
+    Pesado = la copia de Drive (clips, Flow, música, guion, V.FINALES), las piezas preparadas, los videos armados y
+    las transcripciones. Los subtítulos, las recetas y las copias de seguridad (livianos) se quedan."""
+    S = motor.S
+    raices = [S.carpeta_prod] if S.carpeta_prod else list(dict.fromkeys([S.drive, *[S.en_drive(m) for m in S.miembros]]))
+    raices = [r for r in raices if r and not any(o != r and r.startswith(o + "/") for o in raices)]  # sin repetir lo de adentro
+    locales = [drive.CACHE / r for r in raices] + [S.proc, S.salida, S.transcripciones]
+    peso = sum(f.stat().st_size for d in locales if d.exists() for f in d.rglob("*") if f.is_file())
+    return raices, locales, peso
+
+
+def sin_exportar():
+    """Los videos armados que no están en V.FINALES (si se borra la sesión de la PC, habría que volver a armarlos)."""
+    S = motor.S
+    hechos = {f.name for f in S.listos.rglob("*.mp4")} if S.listos.exists() else set()
+    return sorted(f.stem for f in S.salida.glob("*.mp4") if f.name not in hechos) if S.salida.exists() else []
 
 
 def lanzar(accion, pieza=None, extra=None, en_cola=False):
@@ -1068,6 +1091,33 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     if drive.estado()["activo"]:
                         drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
                         avance(f"Exportados y subidos a Drive ({motor.S.listos.name}): {len(hechos)} videos")
+                if accion == "terminar":  # «Terminar sesión»: todo a Drive, comprobado; y si se pidió, se borra de esta PC
+                    if not drive.estado()["activo"]:
+                        raise RuntimeError("Drive no está conectado: sin Drive no se puede terminar la sesión.")
+                    sem = motor.S.semana
+                    if proyecto.disponible():  # lo editado (cortes, subtítulos, imágenes) también queda en Drive
+                        if proyecto.revisar().get("pendiente") and proyecto._cambie_aqui():
+                            raise RuntimeError("Otra PC subió cambios de esta sesión que todavía no trajiste: resuélvelo en ☁ Proyecto y vuelve a terminar.")
+                        if proyecto._cambie_aqui():
+                            avance("Guardando lo editado en el proyecto…")
+                            proyecto.publicar("al terminar la sesión")
+                    raices, locales, peso = sesion_en_pc()
+                    for r in raices:
+                        drive.subir_todo(r, avance=avance)
+                    avance("Comprobando en Drive, archivo por archivo…")
+                    faltan = [f"{r}/{x}" for r in raices for x in drive.faltan_en_drive(r)]
+                    if faltan:
+                        raise RuntimeError(f"Drive todavía no tiene {len(faltan)} archivo{'s' if len(faltan) != 1 else ''} "
+                                           f"({', '.join(faltan[:3])}{'…' if len(faltan) > 3 else ''}). No borré nada: vuelve a tocar «Terminar sesión».")
+                    if not (extra or {}).get("borrar"):
+                        avance(f"Listo: todo «{sem}» está en Drive (comprobado archivo por archivo).")
+                    else:
+                        for d in locales:
+                            shutil.rmtree(d, ignore_errors=True)
+                        motor.guardar_archivadas([x for x in motor.archivadas() if x != sem] + [sem])
+                        threading.Thread(target=lambda: _sin_error(drive.subir_archivadas), daemon=True).start()
+                        avance(f"Listo: «{sem}» está entera en Drive y se borró de esta PC ({peso / 1e9:.1f} GB libres). "
+                               "Quedó archivada: si la vuelves a abrir, se baja de Drive.")
                 if accion == "importar":
                     n = panel.importar_finales(avance=avance)
                     avance(f"Importados {n} videos finales al panel")
@@ -1200,6 +1250,10 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(b)
         elif u.path == "/api/estado":
             self._json(estado())
+        elif u.path == "/api/terminar_info":  # antes de «Terminar sesión»: cuánto ocupa y qué videos no se exportaron
+            raices, _, peso = sesion_en_pc()
+            self._json({"ok": True, "sesion": motor.S.semana, "peso": peso, "carpetas": raices, "sin_exportar": sin_exportar(),
+                        "drive": bool(drive.estado()["activo"])})
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
         elif u.path == "/api/marca":
@@ -1576,7 +1630,7 @@ class H(BaseHTTPRequestHandler):
                            "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}[q["destino"][0]]
                 drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
                 self._json({"ok": True, "archivo": archivo})
-            elif u.path == "/api/subir_guion":  # el guion de la sesión: produccion.json de Claude, Word, .md o .txt
+            elif u.path == "/api/subir_guion":  # el guion de la sesión: produccion.json de Claude, PDF, Word, .md o .txt
                 n = int(self.headers.get("Content-Length") or 0)
                 if n > 20 * 1024 * 1024:
                     raise ValueError("El archivo es muy grande para ser un guion")
@@ -2173,6 +2227,9 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/copy":
                 motor.guardar_copy(q["codigo"][0], self._cuerpo())
+                self._json({"ok": True})
+            elif u.path == "/api/terminar":
+                lanzar("terminar", extra={"borrar": bool(self._cuerpo().get("borrar"))})
                 self._json({"ok": True})
             elif u.path == "/api/trabajo":
                 b = self._cuerpo()
