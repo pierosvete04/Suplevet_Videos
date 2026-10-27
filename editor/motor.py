@@ -1547,10 +1547,15 @@ def sugerencias():
     por ángulo) da piezas de otro ángulo: C1~A2_P3 (ver angulos_por_pasadas)."""
     esperadas = {n: i.get("texto", "") for n, i in produccion().get("piezas", {}).items() if i.get("texto")}
     # un cuerpo grabado frase por frase: cada toma se compara también con cada frase (C2_P1, C2_P2…)
+    mitades = {}  # hook o CTA de dos o más oraciones: {pieza: cuántas}; se puede haber grabado en dos clips
     for n, i in produccion().get("piezas", {}).items():
         if i.get("tipo") == "cuerpo" and len(i.get("partes") or []) > 1:
             for k, frase in enumerate(i["partes"], 1):
                 esperadas[f"{n}_P{k}"] = frase
+        elif i.get("tipo") in ("hook", "cta") and len(fr := oraciones(i.get("texto", ""))) > 1:
+            mitades[n] = len(fr)
+            for k, frase in enumerate(fr, 1):
+                esperadas[f"{n}_P{k}"] = frase  # C1_H2_P1, C1_H2_P2: se unen solas en el hook C1_H2
     ya = {p["nombre"] for p in piezas()}
     ya |= {f"{p['nombre']}_P{k}" for p in piezas() for ks in p["frases"].values() for k in ks}
     out, por_rel, propia = {}, {}, {}
@@ -1595,7 +1600,22 @@ def sugerencias():
                 por_pieza[sug["pieza"]] = rel
     for rel, sug in out.items():
         sug["mejor"] = bool(sug["pieza"]) and por_pieza.get(sug["pieza"]) == rel
+    # Hook partido en dos clips: las mitades se ponen solas solo si están todas y no hay una toma entera buena
+    # (si no, el hook quedaría con media frase, o con la toma entera y además una mitad pegada)
+    for rel, sug in out.items():
+        m = re.match(r"^(.+)_P(\d+)$", sug["pieza"] or "")
+        if not m or m[1] not in mitades or not sug["mejor"]:
+            continue
+        entera = por_pieza.get(m[1])
+        todas = all(por_pieza.get(f"{m[1]}_P{k}") for k in range(1, mitades[m[1]] + 1))
+        if (entera and out[entera]["parecido"] >= 0.5) or m[1] in ya or not todas:
+            sug["a_revisar"] = True
     return out
+
+
+def oraciones(texto):
+    """Las oraciones de un texto («Frente al parvovirus, cada decisión cuenta. ¿También estás evaluando…?» → 2)."""
+    return [x.strip() for x in re.split(r"(?<=[.!?…])\s+(?=[¿¡«A-ZÁÉÍÓÚÑ])", str(texto or "").strip()) if len(x.strip()) > 3]
 
 
 def numerar_hooks(cuerpo=None):
@@ -1687,7 +1707,7 @@ def informe_clips():
 def aceptar_sugerencias(minimo=0.5):
     hechas = 0
     for rel, sug in sugerencias().items():
-        if sug["mejor"] and sug["parecido"] >= minimo and not sug.get("lejos"):
+        if sug["mejor"] and sug["parecido"] >= minimo and not sug.get("lejos") and not sug.get("a_revisar"):
             guardar_asignacion(rel, sug["pieza"])
             hechas += 1
     return hechas

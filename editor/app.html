@@ -3341,6 +3341,23 @@ async function revisarClaude(forzar) {
        <button class="btn sec peq" id="clRevisarEstado">Revisar de nuevo</button>`
     : `<p style="margin:0 0 10px">Claude Code está instalado. Falta entrar <b>una sola vez</b> con tu cuenta de Claude: se abre una ventana y luego el navegador para aceptar.</p>
        <div class="fila"><button class="btn blanco" id="clLogin">Iniciar sesión en Claude</button><button class="btn sec peq" id="clRevisarEstado">Ya entré, revisar</button></div>`;
+  pintarTarjetaIA(c);
+}
+// La tarjeta de la IA en Inicio: si esta PC trabaja con Antigravity (Gemini) y no con Claude, dice Antigravity
+function pintarTarjetaIA(c) {
+  const conClaude = c.instalado && c.sesion, conAg = !conClaude && !!E?.antigravity;
+  const det = $("detClaude");
+  det.querySelector("summary b").textContent = conAg ? "🪐 Antigravity" : "✳ Claude";
+  det.querySelector(".claude-logo").textContent = conAg ? "A" : "C";
+  det.querySelector(".claude-cab h2").textContent = conAg ? "Antigravity (Gemini)" : "Claude";
+  if (!conAg) return;
+  $("clEstado").innerHTML = `<span class="pill ok">✓ Antigravity listo</span> Gemini genera las imágenes de Flow y escribe sus prompts (en Faltantes).`;
+  $("clResumen").textContent = E.hay_produccion ? "guion listo · imágenes y prompts con Gemini" : "sube el guion en la pestaña Guion";
+  $("clConfig").hidden = false;
+  $("clConfig").innerHTML = `<p style="margin:0 0 8px" class="muted">Déjalo abierto mientras usas la sala: en <b>Faltantes → «Hacerlo con Antigravity»</b> la sala le pasa el trabajo a Gemini sola.
+      Escribir o revisar guiones con IA necesita Claude (opcional).</p>
+    <div class="fila"><button class="btn" data-ir="guion">Ver el guion</button><button class="btn sec" data-ir="faltan">Ir a Faltantes</button></div>`;
+  $("clYaHay").hidden = true; $("clListo").hidden = true;
 }
 document.addEventListener("click", async e => {
   const t = e.target.closest("button, a"); if (!t) return;
@@ -4399,8 +4416,13 @@ function pintarSinAsignar() {
   $("cajaSinAsignar").hidden = !lista.length;
   $("nSinAsignar").textContent = lista.length;
   $("numerarHooks").hidden = !lista.some(c => c.carpeta === "hook");
-  const esperadas = Object.keys(E.piezas_guion || {});
-  $("codigosPiezas").innerHTML = esperadas.map(n => `<option value="${esc(n)}">`).join("");
+  // también las mitades de un hook o un CTA de dos oraciones (C1_H2_P1, C1_H2_P2): se unen solas en esa pieza
+  const oraciones = t => String(t || "").trim().split(/(?<=[.!?…])\s+(?=[¿¡«A-ZÁÉÍÓÚÑ])/).filter(x => x.trim().length > 3);
+  const esperadas = Object.entries(E.piezas_guion || {}).flatMap(([n, t]) => {
+    const fr = /_H\d+$|CTA/i.test(n) ? oraciones(t) : [];
+    return [[n, ""], ...(fr.length > 1 ? fr.map((x, k) => [`${n}_P${k + 1}`, `${n} · parte ${k + 1} de ${fr.length}: ${x.slice(0, 50)}`]) : [])];
+  });
+  $("codigosPiezas").innerHTML = esperadas.map(([n, l]) => `<option value="${esc(n)}"${l ? ` label="${esc(l)}"` : ""}>`).join("");
   const visibles = lista.filter(c => !(ocultar && c.pieza && !c.mejor));
   $("sinAsignar").innerHTML = visibles.map(c => `<div class="caja asset ${descElegidos.has(c.rel) ? "brilla" : ""}">
       <div class="fila" style="justify-content:space-between"><label class="fila" style="margin:0"><input type="checkbox" data-desc="${esc(c.rel)}" ${descElegidos.has(c.rel) ? "checked" : ""}><h3 style="margin:0"><code>${esc(c.nombre)}</code></h3></label>

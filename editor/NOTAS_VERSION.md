@@ -1,3 +1,7 @@
+Versión 1.53.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Hooks grabados en dos clips:** «Analizar los clips» reconoce cada mitad de un hook o CTA de dos oraciones (C1_H2_P1 + C1_H2_P2) y las une solas en ese hook. Una mitad suelta no se pone sola; si hay una toma entera buena, va esa. En Clips, la lista para asignar a mano ofrece también las partes.
+- **Inicio con Antigravity:** si la PC trabaja con Antigravity (Gemini) y no con Claude, la tarjeta dice «🪐 Antigravity · ✓ Antigravity listo» y ya no pide instalar Claude.
+
 Versión 1.53.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Guiones en PDF:** «Subir guion» y la carpeta Guion de Drive aceptan PDF (exportado desde Word o Google Docs). La sala vuelve a juntar las frases que el PDF corta y entiende sus tablas («H1 …», «Cuerpo 1 …», «CTA …», tablas PAS).
 - **Más formas de guion:** cuerpos titulados «1 — TEMA» o «1. TEMA» (sin «C»), y el «CTA.» de cada cuerpo queda como su propio cierre (C1_CTA, C2_CTA…) en vez de juntarse todos en uno.
