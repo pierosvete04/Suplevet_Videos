@@ -3087,6 +3087,9 @@ function pintarDrivePend(lista) {
 // ---------- Inicio ----------
 function pintarInicio() {
   $("inSesion").textContent = E.semana;
+  // la tarjeta de la IA se pinta también al llegar los datos: si Claude se revisó antes, todavía no se sabía si
+  // esta PC tiene Antigravity y quedaba diciendo «Claude no está instalado»
+  if (typeof infoClaude !== "undefined" && infoClaude) pintarTarjetaIA(infoClaude);
   const vids = E.salidas, armados = vids.filter(s => s.existe).length, listos = vids.filter(s => s.estado === "listo").length;
   const viejos = vids.filter(s => s.desactualizado).length;
   const tipos = t => E.piezas.filter(p => p.tipo === t).length;
@@ -3112,7 +3115,9 @@ function pintarInicio() {
   $("inPasosRes").textContent = `${hechos} de ${pasos.length} pasos hechos`;
   pintarSiguiente(ahora, pasos, { vids, armados, listos, viejos, faltan, sinId });
   pintarRevisar();
-  $("clResumen").textContent = E.hay_produccion ? "guion listo · revisar lo grabado o escribir el de otra sesión" : "esta sesión no tiene guion: escríbelo aquí";
+  const soloAg = !!E.antigravity && !(infoClaude?.instalado && infoClaude?.sesion);  // esta PC trabaja con Gemini, no con Claude
+  $("clResumen").textContent = soloAg ? (E.hay_produccion ? "guion listo · imágenes y prompts con Gemini" : "sube el guion en la pestaña Guion")
+    : E.hay_produccion ? "guion listo · revisar lo grabado o escribir el de otra sesión" : "esta sesión no tiene guion: escríbelo aquí";
   if (!E.hay_produccion && !pintarInicio.yaAbri) { $("detClaude").open = true; pintarInicio.yaAbri = true; }
   pintarListaSesiones();
   pintarPreparar(); pintarCambios();

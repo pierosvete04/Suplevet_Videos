@@ -1,3 +1,6 @@
+Versión 1.53.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Inicio en una PC con Antigravity y sin Claude:** la tarjeta ya no dice «Claude no está instalado» al abrir la sala; dice «🪐 Antigravity · ✓ Antigravity listo» y su resumen habla de Gemini (antes la tarjeta se pintaba antes de saber que la PC tiene Antigravity).
+
 Versión 1.53.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Hooks grabados en dos clips:** «Analizar los clips» reconoce cada mitad de un hook o CTA de dos oraciones (C1_H2_P1 + C1_H2_P2) y las une solas en ese hook. Una mitad suelta no se pone sola; si hay una toma entera buena, va esa. En Clips, la lista para asignar a mano ofrece también las partes.
 - **Inicio con Antigravity:** si la PC trabaja con Antigravity (Gemini) y no con Claude, la tarjeta dice «🪐 Antigravity · ✓ Antigravity listo» y ya no pide instalar Claude.
