@@ -706,7 +706,7 @@ def abrir_sesion(sem):
     if drive.estado()["activo"] and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros) and not TRABAJO["activo"]:
         if sem in motor.archivadas():  # una sesión terminada que se vuelve a abrir: sale del archivo y se baja de nuevo
             motor.guardar_archivadas([x for x in motor.archivadas() if x != sem])
-            threading.Thread(target=lambda: _sin_error(drive.subir_archivadas), daemon=True).start()
+            threading.Thread(target=lambda: _sin_falla(drive.subir_archivadas), daemon=True).start()
         lanzar("bajar")  # se baja sola la primera vez que se abre
 
 
@@ -1091,6 +1091,23 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     if drive.estado()["activo"]:
                         drive.subir(motor.S.drive, [motor.S.listos.name], avance=avance)
                         avance(f"Exportados y subidos a Drive ({motor.S.listos.name}): {len(hechos)} videos")
+                if accion == "reiniciar":  # «Empezar de cero»: clips y análisis de nuevo; el guion y lo editado se quedan
+                    if not drive.estado()["activo"]:
+                        raise RuntimeError("Drive no está conectado: sin Drive no se pueden volver a bajar los clips.")
+                    sem = motor.S.semana
+                    avance("Guardando una copia de seguridad de cómo estaba…")
+                    _sin_falla(lambda: respaldos.hacer(nombre="Antes de empezar de cero", auto=False))
+                    for m in motor.S.miembros:  # sin clips identificados, también en Drive (si no, volverían al bajar)
+                        motor._escribir_asig(m, {})
+                        motor._reemp_archivo(m).unlink(missing_ok=True)
+                        drive.subir(motor.S.en_drive(m), ["asignaciones.json"], avance=avance)
+                    _, locales, peso = sesion_en_pc()
+                    avance(f"Borrando de esta PC los clips y lo analizado ({peso / 1e9:.1f} GB)…")
+                    for d in locales:
+                        shutil.rmtree(d, ignore_errors=True)
+                    for m in motor.S.miembros:
+                        drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
+                    avance(f"Listo: «{sem}» empezó de cero con los clips de Drive. Ahora: Analizar los clips.")
                 if accion == "terminar":  # «Terminar sesión»: todo a Drive, comprobado; y si se pidió, se borra de esta PC
                     if not drive.estado()["activo"]:
                         raise RuntimeError("Drive no está conectado: sin Drive no se puede terminar la sesión.")
@@ -1115,7 +1132,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         for d in locales:
                             shutil.rmtree(d, ignore_errors=True)
                         motor.guardar_archivadas([x for x in motor.archivadas() if x != sem] + [sem])
-                        threading.Thread(target=lambda: _sin_error(drive.subir_archivadas), daemon=True).start()
+                        threading.Thread(target=lambda: _sin_falla(drive.subir_archivadas), daemon=True).start()
                         avance(f"Listo: «{sem}» está entera en Drive y se borró de esta PC ({peso / 1e9:.1f} GB libres). "
                                "Quedó archivada: si la vuelves a abrir, se baja de Drive.")
                 if accion == "importar":
@@ -2228,6 +2245,9 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/copy":
                 motor.guardar_copy(q["codigo"][0], self._cuerpo())
                 self._json({"ok": True})
+            elif u.path == "/api/reiniciar_sesion":
+                lanzar("reiniciar")
+                self._json({"ok": True})
             elif u.path == "/api/terminar":
                 lanzar("terminar", extra={"borrar": bool(self._cuerpo().get("borrar"))})
                 self._json({"ok": True})
@@ -2269,6 +2289,13 @@ if __name__ == "__main__":
         vigilar_descargas()
     if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba en otro puerto no sube nada al proyecto del equipo
         proyecto.vigilar(lambda: TRABAJO["activo"])  # la edición se comparte con las otras PCs por Drive (Actualizar proyecto)
+    def bajar_si_falta():  # la sesión abierta sin sus clips (recién instalada, o se borraron): se baja sola
+        time.sleep(8)
+        if (drive.estado()["activo"] and not TRABAJO["activo"] and motor.S.semana not in motor.archivadas()
+                and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros)):
+            _sin_falla(lambda: lanzar("bajar"))
+    if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):
+        threading.Thread(target=bajar_si_falta, daemon=True).start()
     cuenta.latido(forzar=True)
     if red()["activa"]:
         print(f"Teleprompter para la tablet: {red()['url']}  ·  PIN {red()['pin']}")

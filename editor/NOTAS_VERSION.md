@@ -1,3 +1,10 @@
+Versión 1.53.4 (se actualiza desde la app con «Actualizar ahora»):
+- **⬇ Bajar de Drive** en Inicio (tarjeta de la sesión): trae los clips nuevos y saca de la PC los que se borraron en Drive.
+- **↺ Empezar de cero:** guarda una copia, borra de la PC los clips y lo analizado (y qué pieza es cada clip, también en Drive) y vuelve a bajar los clips. El guion, lo editado y el estilo se quedan.
+- **La sesión abierta se baja sola** si al abrir la sala no tiene sus clips en esta PC.
+- **Claude dice en qué va:** en vez de «Corrigiendo produccion.json» una y otra vez, dice la pieza y el paso («trabajando en C7_H3 · paso 42»).
+- Arreglo: «Terminar sesión» y volver a abrir una sesión archivada ahora sí suben la lista de archivadas a Drive.
+
 Versión 1.53.3 (se actualiza desde la app con «Actualizar ahora»):
 - **Los clips borrados o movidos en Drive también salen de esta PC:** al bajar la sesión (y al «Analizar los clips»), los clips grabados que ya no están en Drive pasan a la papelera de la sala (datos/papelera). Antes solo se agregaban y la sala contaba clips que ya no existían. Nunca toca Flow, música ni videos finales.
 

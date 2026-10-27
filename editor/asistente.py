@@ -9,6 +9,7 @@ Cómo funciona:
 """
 import glob
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -111,8 +112,14 @@ def correr(prompt, carpetas, avance=print, max_turnos=80, chrome=False):
                     nombre = b.get("name", "")
                     if nombre.startswith("mcp__claude-in-chrome__"):
                         avance("Claude · Chrome · " + (arg.get("action_summary") or arg.get("action") or nombre.split("__")[-1]))
+                    elif nombre == "Edit":
+                        # el mismo archivo una y otra vez («Corrigiendo produccion.json» ×80) parecía colgado: se dice
+                        # qué pieza va y en qué paso está
+                        cambio = str(arg.get("new_string") or arg.get("old_string") or "")
+                        pieza = re.search(r'"((?:[CP]\d+)(?:_H\d+|_CTA)?|CTA[\w-]*)"\s*:', cambio)
+                        avance(f"Claude · {'trabajando en ' + pieza[1] if pieza else 'corrigiendo ' + Path(str(que)).name} · paso {pasos}")
                     else:
-                        avance(f"Claude · {nombres.get(nombre, nombre)} {Path(str(que)).name}".strip())
+                        avance(f"Claude · {nombres.get(nombre, nombre)} {Path(str(que)).name} · paso {pasos}".strip())
                 elif b.get("type") == "text" and b.get("text", "").strip():
                     avance("Claude · " + b["text"].strip().splitlines()[0][:140])
         elif ev.get("type") == "result":
