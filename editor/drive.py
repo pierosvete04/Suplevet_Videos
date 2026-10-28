@@ -319,6 +319,17 @@ def compartir_transcripciones(nombre, local, avance=print):
         pass
 
 
+def subir_transcripciones(nombre, local):
+    """Solo sube lo escuchado de esta PC que todavía no está en Drive (la subida automática de cada 5 minutos)."""
+    local = Path(local)
+    if not local.is_dir() or not any(local.glob("*.json")):
+        return
+    try:
+        _rc("copy", local, f"{REMOTO}:{nombre}/_SALA_PROYECTO/transcripciones", "--update", "--include", "*.json", *RAPIDO, timeout=900)
+    except Exception:  # noqa: BLE001 — sin internet: va en la próxima vuelta
+        pass
+
+
 def bajada_completa(nombre):
     return (CACHE / nombre / ".bajada").exists()
 

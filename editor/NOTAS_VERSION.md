@@ -1,3 +1,7 @@
+Versión 1.53.6 (se actualiza desde la app con «Actualizar ahora»):
+- **⬆ Subir a Drive** en Inicio, al lado de «⬇ Bajar de Drive»: sube en el momento todo lo de esta PC (guion, imágenes, música, lo escuchado de cada clip, lo editado, los videos finales y una copia de seguridad).
+- **Lo escuchado de cada clip se sube solo cada 5 minutos** (lo editado ya se subía cada minuto).
+
 Versión 1.53.5 (se actualiza desde la app con «Actualizar ahora»):
 - **Lo analizado pasa a la otra PC:** lo que la sala escuchó de cada clip se guarda en Drive (_SALA_PROYECTO/transcripciones) al analizar y al bajar; el editor no vuelve a escuchar los clips.
 - **La primera vez que una PC abre una sesión**, los subtítulos y lo editado del equipo se traen solos (sin tocar «Actualizar»).

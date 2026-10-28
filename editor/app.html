@@ -1637,8 +1637,9 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         </div>
         <div class="stats" id="inStats"></div>
         <div class="fila" style="margin-top:12px;gap:6px;flex-wrap:nowrap">
-          <button class="btn sec peq" type="button" id="inBajarDrive" style="flex:1" title="Trae de Drive los clips nuevos (y saca de esta PC los que borraste en Drive)">⬇ Bajar de Drive</button>
-          <button class="btn sec peq" type="button" id="inDeCero" style="flex:1" title="Vuelve a bajar los clips y a analizarlos desde cero. El guion y lo editado se quedan">↺ Empezar de cero</button></div>
+          <button class="btn sec peq" type="button" id="inSubirDrive" style="flex:1" title="Sube ahora a Drive todo lo de esta PC: guion, imágenes, música, lo escuchado, lo editado y los videos finales (también se sube solo cada pocos minutos)">⬆ Subir a Drive</button>
+          <button class="btn sec peq" type="button" id="inBajarDrive" style="flex:1" title="Trae de Drive los clips nuevos y lo que hicieron otras PCs (y saca de esta PC los clips que borraste en Drive)">⬇ Bajar de Drive</button></div>
+        <button class="btn sec peq" type="button" id="inDeCero" style="margin-top:6px;width:100%" title="Vuelve a bajar los clips y a analizarlos desde cero. El guion y lo editado se quedan">↺ Empezar de cero</button>
         <button class="btn sec peq" type="button" id="inTerminar" style="margin-top:6px;width:100%" title="Sube a Drive todo lo de la sesión (clips, imágenes, música, guion y videos finales), lo comprueba y, si quieres, la borra de esta PC">☁ Terminar sesión</button>
       </div>
       </div>
@@ -3301,6 +3302,11 @@ En Drive no se borra nada. Si falta algo, no se borra nada de la PC.${ojo}`, `Su
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 $("inTerminar").onclick = terminarSesion;
+$("inSubirDrive").onclick = () => {
+  if (!(E.drive || {}).activo) return avisar("Drive no está conectado: conéctalo en Configuración → Cuenta.", "err");
+  if (E.trabajo?.activo) return avisar("La sala está trabajando (☰). Espera a que termine: igual se sube solo cada pocos minutos.", "err");
+  accionDrive("subir");
+};
 $("inBajarDrive").onclick = () => {
   if (!(E.drive || {}).activo) return avisar("Drive no está conectado: conéctalo en Configuración → Cuenta.", "err");
   accionDrive("bajar");

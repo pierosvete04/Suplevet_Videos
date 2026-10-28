@@ -968,9 +968,16 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     for m in motor.S.miembros:  # en un grupo, cada una de sus sesiones
                         drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
                     drive.compartir_transcripciones(motor.S.drive, motor.S.transcripciones, avance=avance)
-                if accion == "subir_drive":
+                if accion == "subir_drive":  # «⬆ Subir a Drive»: todo lo de esta PC, ahora
                     for m in motor.S.miembros:
                         drive.subir(motor.S.en_drive(m), avance=avance)
+                    avance("Subiendo lo que se escuchó de cada clip…")
+                    drive.subir_transcripciones(motor.S.drive, motor.S.transcripciones)
+                    if proyecto.disponible() and proyecto._cambie_aqui() and not proyecto.revisar().get("pendiente"):
+                        avance("Subiendo lo editado (subtítulos, cortes, imágenes)…")
+                        proyecto.publicar("subido a mano")
+                    _sin_falla(lambda: respaldos.hacer(auto=True))
+                    avance(f"Listo: lo de «{motor.S.semana}» en esta PC está en Drive")
                 if accion == "lista_drive":
                     avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
@@ -2293,6 +2300,14 @@ if __name__ == "__main__":
         vigilar_descargas()
     if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba en otro puerto no sube nada al proyecto del equipo
         proyecto.vigilar(lambda: TRABAJO["activo"])  # la edición se comparte con las otras PCs por Drive (Actualizar proyecto)
+    def subir_cada_5_min():  # lo escuchado de cada clip también se sube solo (lo editado ya sube cada minuto: proyecto)
+        while True:
+            time.sleep(300)
+            if drive.estado()["activo"] and not TRABAJO["activo"]:
+                _sin_falla(lambda: drive.subir_transcripciones(motor.S.drive, motor.S.transcripciones))
+    if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):
+        threading.Thread(target=subir_cada_5_min, daemon=True).start()
+
     def bajar_si_falta():  # la sesión abierta sin sus clips (recién instalada, o se borraron): se baja sola
         time.sleep(8)
         if (drive.estado()["activo"] and not TRABAJO["activo"] and motor.S.semana not in motor.archivadas()
