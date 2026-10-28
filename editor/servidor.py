@@ -1378,6 +1378,17 @@ class H(BaseHTTPRequestHandler):
             self._archivo(f.parent, f.name)
         elif u.path == "/api/cuenta/carpetas":  # elegir la carpeta del proyecto (cuenta.js): las carpetas de la cuenta
             self._json({"ok": True, **cuenta.carpetas_para_elegir()})
+        elif u.path == "/api/miniatura_sesion":  # la imagen del cuadro de cada sesión en la pantalla de sesiones
+            nombre = parse_qs(u.query).get("s", [""])[0]
+            if not nombre or Path(nombre).name != nombre or not (motor.DATOS / "salidas" / nombre).is_dir():
+                return self.send_error(404)
+            try:
+                f = motor.miniatura_sesion(nombre)
+            except Exception:  # noqa: BLE001 — sin imagen, el cuadro muestra el código de la sesión
+                f = None
+            if not f:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
         elif u.path == "/api/sesiones":  # la pantalla de entrada: qué sesiones hay y cómo va cada una
             self._json({"sesiones": motor.resumen_sesiones(), "actual": motor.S.semana, "ultima": motor.CONFIG.get("semana")})
         elif u.path == "/api/proyecto":  # ¿hay una versión nueva del proyecto hecha en otra PC?

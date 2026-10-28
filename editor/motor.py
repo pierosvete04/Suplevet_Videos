@@ -393,11 +393,44 @@ def resumen_sesiones():
         guion = any((c / x / "produccion.json").exists() or ((c / x).is_dir() and any(f.suffix.lower() in (".docx", ".pdf") for f in (c / x).iterdir()))
                     for c in carpetas for x in CARPETAS_GUION)
         m_ = re.match(r"^P\d+\s+(ADS|ORG)\b", n, re.I)
-        out.append({"nombre": n, "archivada": n in arch, "grupo": bool(grs.get(n)), "en_pc": en_pc, "guion": guion,
+        # cuánto ocupa en esta PC: la carpeta de la sesión (clips, guion, imágenes) + lo preparado y lo armado aquí
+        peso = sum(_peso_carpeta(c) for c in carpetas) + _peso_carpeta(DATOS / "procesado" / n) + _peso_carpeta(sal)
+        out.append({"nombre": n, "archivada": n in arch, "grupo": bool(grs.get(n)), "en_pc": en_pc, "guion": guion, "peso": peso,
+                    "miniatura": bool(sal.is_dir() and next(sal.glob("*.mp4"), None)),
                     "tipo": ("ads" if m_.group(1).upper() == "ADS" else "organico") if m_ else None,
                     "videos": len(list(sal.glob("*.mp4"))) if sal.is_dir() else 0,
                     "ultima": max(tiempos) if tiempos else None})
     return out
+
+
+def _peso_carpeta(d):
+    """Bytes de todo lo que hay dentro (0 si no existe)."""
+    total = 0
+    try:
+        for raiz, _, archivos in os.walk(d):
+            for a in archivos:
+                try:
+                    total += os.path.getsize(os.path.join(raiz, a))
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return total
+
+
+def miniatura_sesion(nombre):
+    """Una imagen de un video armado de la sesión, para su cuadro en la pantalla de sesiones (en caché)."""
+    sal = DATOS / "salidas" / nombre
+    videos = sorted(sal.glob("*.mp4"), key=lambda f: f.stat().st_mtime) if sal.is_dir() else []
+    if not videos:
+        return None
+    destino = DATOS / "miniaturas" / f"{re.sub(r'[^\w.-]+', '_', nombre)}.jpg"
+    if destino.exists() and destino.stat().st_mtime >= videos[-1].stat().st_mtime:
+        return destino
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    run([FFMPEG, "-hide_banner", "-y", "-ss", "1.5", "-i", str(videos[-1]), "-frames:v", "1",
+         "-vf", "scale=360:-2", "-q:v", "5", str(destino)])
+    return destino
 
 
 def semanas_disponibles():

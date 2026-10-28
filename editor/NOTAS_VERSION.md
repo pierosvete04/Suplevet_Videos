@@ -1,3 +1,7 @@
+Versión 1.54.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Pantalla de sesiones con cuadros** (como CapCut o Illustrator): «💻 En esta computadora», con lo que ocupa cada sesión y el total, y «☁ En Drive», las que aún no se bajaron. Cada cuadro trae una miniatura de un video armado (o el código de la sesión), si tiene guion, cuántos videos armados y cuándo se trabajó.
+- **Liberar espacio** desde el cuadro de una sesión: sube todo a Drive, lo comprueba y la quita de esta PC (lo mismo que «Terminar sesión»).
+
 Versión 1.54.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Procesos (☰) explica qué está haciendo** en palabras simples (preparar una pieza, pasar a texto, armar un video…), con una barra «136 de 186 · 73 %».
 - **Cuánto falta:** «lleva 44 min · faltan ~17 min (termina ~11:09 p. m.)», calculado con el ritmo que lleva. También en la barra de abajo.

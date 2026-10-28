@@ -867,8 +867,23 @@ dialog.bienvenida { width: min(980px, 96vw); max-height: 92vh; padding: 0; borde
 .bv-seguir { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 16px 18px; border-radius: 14px;
   border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .bv-seguir b { font-size: 18px; }
-.bv-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; max-height: 46vh; overflow-y: auto; padding: 2px; }
-.bv-ses { display: grid; gap: 6px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.bv-lista { display: grid; gap: 14px; max-height: 52vh; overflow-y: auto; padding: 2px; }
+.bv-sec { display: grid; gap: 8px; }
+.bv-sec h3 { margin: 0; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+.bv-sec h3 small { color: var(--muted); font-weight: 400; }
+.bv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.bv-ses { display: grid; gap: 0; text-align: left; padding: 0; overflow: hidden; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; position: relative; }
+.bv-mini { aspect-ratio: 16 / 10; display: grid; place-items: center; overflow: hidden; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, var(--surface2)), var(--surface2)); }
+.bv-mini img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.bv-mini span { font: 800 28px var(--fd, var(--f)); color: var(--accent); letter-spacing: .02em; }
+.bv-ses.solo-drive .bv-mini { background: repeating-linear-gradient(135deg, var(--surface2) 0 10px, var(--surface) 10px 20px); }
+.bv-ses.solo-drive .bv-mini span { color: var(--muted); }
+.bv-info { display: grid; gap: 5px; padding: 10px 12px 12px; }
+.bv-donde { font-size: 11.5px; font-weight: 600; }
+.bv-ses .bv-abierta { position: absolute; top: 8px; left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--accent); color: #fff; }
+.bv-ses .bv-liberar { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.bv-ses:hover .bv-liberar, .bv-ses:focus-within .bv-liberar { opacity: 1; }
+@media (hover: none) { .bv-ses .bv-liberar { opacity: 1; } }
 .bv-ses:hover, .bv-ses:focus-visible { border-color: var(--accent); transform: translateY(-1px); outline: none; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
 .bv-ses[aria-current="true"] { border-color: var(--accent); }
 .bv-ses b { font-size: 14px; line-height: 1.25; }
@@ -9190,15 +9205,42 @@ function pintarBienvenida() {
   $("bvSeguir").innerHTML = actual && !q ? `<div class="bv-seguir"><div style="display:grid;gap:3px"><span class="etq">Seguir donde te quedaste</span><b>${esc(actual.nombre)}</b>
       <span class="muted" style="font-size:12.5px">${esc(detalle(actual).join(" · "))}</span></div>
       <button class="btn" type="button" data-bv="${esc(actual.nombre)}">Seguir con esta sesión →</button></div>` : "";
-  const lista = d.sesiones.filter(s => (q ? norm(s.nombre).includes(q) : !s.archivada) && (q || s.nombre !== d.actual))
-    .sort((a, b) => (b.ultima || 0) - (a.ultima || 0) || b.nombre.localeCompare(a.nombre));
-  $("bvLista").innerHTML = lista.map(s => `<button type="button" class="bv-ses" role="listitem" data-bv="${esc(s.nombre)}" aria-current="${s.nombre === d.actual}">
-      <b>${esc(s.nombre)}</b><span class="det">${detalle(s).map(x => `<span>${esc(x)}</span>`).join("·")}</span>
-      ${s.archivada ? `<span class="pill">archivada</span>` : ""}</button>`).join("")
+  const lista = d.sesiones.filter(s => q ? norm(s.nombre).includes(q) : !s.archivada || s.en_pc)
+    .sort((a, b) => (b.nombre === d.actual) - (a.nombre === d.actual) || (b.ultima || 0) - (a.ultima || 0) || b.nombre.localeCompare(a.nombre));
+  // como CapCut o Illustrator: cada sesión es un cuadro, primero las que están en esta PC y luego las que solo están en Drive
+  const gb = b => b >= 1e9 ? `${(b / 1e9).toLocaleString("es-PE", { maximumFractionDigits: 1 })} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : "casi nada";
+  const codigo = n => (n.match(/^P\d+/i) || n.match(/^\d+/) || [n.slice(0, 3)])[0].toUpperCase();
+  const cuadro = s => {
+    const local = s.en_pc || s.peso > 0, abierta = s.nombre === d.actual;
+    const donde = local ? `💻 En esta PC · ${gb(s.peso || 0)}` : "☁ Solo en Drive · se baja al abrirla";
+    return `<div class="bv-ses ${local ? "" : "solo-drive"}" role="listitem button" tabindex="0" data-bv="${esc(s.nombre)}" aria-current="${abierta}" title="${esc(s.nombre)}">
+      <div class="bv-mini">${s.miniatura ? `<img loading="lazy" alt="" src="/api/miniatura_sesion?s=${encodeURIComponent(s.nombre)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${esc(codigo(s.nombre))}'}))">` : `<span>${esc(codigo(s.nombre))}</span>`}</div>
+      ${abierta ? `<span class="bv-abierta">Abierta ahora</span>` : ""}
+      ${local && s.en_pc ? `<button type="button" class="bv-liberar" data-liberar="${esc(s.nombre)}" title="Sube a Drive todo lo de esta sesión, lo comprueba y la quita de esta PC">Liberar espacio</button>` : ""}
+      <div class="bv-info"><b>${esc(s.nombre)}</b><span class="bv-donde">${donde}</span>
+        <span class="det">${detalle(s).map(x => `<span>${esc(x)}</span>`).join("·")}</span>
+        ${s.archivada ? `<span class="pill" style="justify-self:start">archivada</span>` : ""}</div></div>`;
+  };
+  const enPc = lista.filter(s => s.en_pc || s.peso > 0), enDrive = lista.filter(s => !(s.en_pc || s.peso > 0));
+  const peso = enPc.reduce((t, s) => t + (s.peso || 0), 0);
+  const seccion = (tit, sub, xs) => xs.length ? `<section class="bv-sec"><h3>${tit} <small>${sub}</small></h3><div class="bv-grid">${xs.map(cuadro).join("")}</div></section>` : "";
+  $("bvLista").innerHTML = (seccion("💻 En esta computadora", `${plural(enPc.length, "sesión", "sesiones")} · ${gb(peso)}`, enPc)
+    + seccion("☁ En Drive", `${plural(enDrive.length, "sesión", "sesiones")} sin bajar a esta PC`, enDrive))
     || `<p class="muted" style="margin:0">${q ? "Ninguna sesión con ese nombre." : "No hay otras sesiones."}</p>`;
 }
 $("bvBuscar").addEventListener("input", pintarBienvenida);
-$("dlgBienvenida").addEventListener("click", e => {
+$("dlgBienvenida").addEventListener("keydown", e => {  // los cuadros se abren también con Enter o espacio
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".bv-ses")) { e.preventDefault(); e.target.click(); }
+});
+$("dlgBienvenida").addEventListener("click", async e => {
+  const lib = e.target.closest("[data-liberar]");
+  if (lib) {  // «Liberar espacio»: abre la sesión y hace «Terminar sesión» (sube todo a Drive, lo comprueba y la quita de la PC)
+    e.stopPropagation();
+    if (E?.trabajo?.activo) return avisar("La sala está trabajando (☰): espera a que termine.", "err");
+    $("dlgBienvenida").close();
+    if (lib.dataset.liberar !== E.semana) await cambiarSesion(lib.dataset.liberar);
+    return terminarSesion();
+  }
   const b = e.target.closest("[data-bv]"); if (!b) return;
   $("dlgBienvenida").close();
   if (b.dataset.bv !== E.semana) cambiarSesion(b.dataset.bv);
