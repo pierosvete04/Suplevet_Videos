@@ -1,3 +1,11 @@
+Versión 1.55.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Arreglado el desfase de audio:** en los cuerpos grabados frase por frase, al unir las frases la voz se iba adelantando (hasta 0,2 s en la mitad del cuerpo). Ahora queda pegada a la imagen. Las piezas preparadas antes se rehacen solas al preparar (con sus subtítulos; las marcas se quedan).
+- **Identificar clips ~10× más rápido** y más acertado: cuenta cuánto del guion se dijo (gana la retoma completa), une un hook o CTA dicho en dos clips, pone una frase dicha con otras palabras si cae entre la anterior y la siguiente, el relleno solo con tomas de menos de 20 minutos, cada celular grabando a la vez es su propio ángulo, y de dos tomas casi iguales gana la última.
+- **Faltantes usa el mismo motor:** ya no sugiere piezas equivocadas; marca «otra toma» lo que ya tiene clip.
+- **Lo renombrado por la sala** se puede corregir en el próximo análisis (ya no queda congelado).
+- **Recorte del inicio:** un clic al empezar ya no impide quitar el silencio. Buscar silencios ya no decodifica el video (más rápido).
+- Los archivos «.partial» que Drive está bajando ya no tumban la sala.
+
 Versión 1.54.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Pantalla de sesiones con cuadros** (como CapCut o Illustrator): «💻 En esta computadora», con lo que ocupa cada sesión y el total, y «☁ En Drive», las que aún no se bajaron. Cada cuadro trae una miniatura de un video armado (o el código de la sesión), si tiene guion, cuántos videos armados y cuándo se trabajó.
 - **Liberar espacio** desde el cuadro de una sesión: sube todo a Drive, lo comprueba y la quita de esta PC (lo mismo que «Terminar sesión»).
