@@ -1,3 +1,6 @@
+Versión 1.55.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Cambiar un clip desde la línea de tiempo** (Piezas y subtítulos): botón «↻ Cambiar un clip» y una ↻ en cada clip. La ventana muestra cada clip de la pieza con su vista previa y la lista de clips sin asignar, primero el que sugiere la sala para esa frase.
+
 Versión 1.55.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Una frase dicha en dos clips seguidos se une sola:** si juntos se parecen más a la frase del guion («La evaluación nutricional es importante.» + «Para acompañar sus necesidades…»), o si el segundo es un pedacito que sigue al anterior («…la masa muscular» + «Y recuperación.»). La segunda parte se llama C22_P3B y va justo después de C22_P3. En hooks y CTA queda como _P1 + _P2.
 

@@ -353,6 +353,12 @@ body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
 #barraClips .bc-sep { width: 1px; align-self: stretch; background: var(--line2); }
 #barraClips input { min-width: 150px; flex: 1; }
 .asset.elegido { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-blq.clip { position: relative; }
+.tl-blq .tl-cambiar { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line2);
+  background: var(--surface); color: var(--ink); font-size: 12px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.tl-blq:hover .tl-cambiar, .tl-blq .tl-cambiar:focus-visible { opacity: 1; }
+@media (hover: none) { .tl-blq .tl-cambiar { opacity: 1; } }
+#tmCuerpo .toma.esta { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
 .pf-ficha .pf-omitir { font-size: 11.5px; color: var(--muted); justify-self: start; }
 .pf-ficha .pf-omitir:hover { color: var(--err); }
 .tarjeta .sel { position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 7px; border: 2px solid #fff; background: rgba(0,0,0,.35); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
@@ -1905,6 +1911,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
           <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
           <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
+          <button class="btn sec peq" type="button" id="tlCambiarClip" title="Cambia un clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar un clip</button>
         </div>
       </div>
       <div class="tl" id="tl"></div>
@@ -4238,6 +4245,13 @@ async function cargarPartes(p) {
   pintarTl();
 }
 const durTl = p => $("vPieza").duration || (p.lineas.length ? p.lineas[p.lineas.length - 1].e + .3 : 1);
+$("tlCambiarClip").onclick = () => { const p = piezaSel(); if (p) abrirToma(p.nombre); };
+document.addEventListener("pointerdown", e => { if (e.target.closest("[data-cambiar-clip]")) e.stopPropagation(); }, true);  // no elige tramo
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-cambiar-clip]"); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const p = piezaSel(); if (p) abrirToma(p.nombre, Number(b.dataset.cambiarClip));
+}, true);
 function pintarTl() {
   const p = piezaSel(), caja = $("tl"); if (!caja) return;
   if (!p) { caja.innerHTML = ""; return; }
@@ -4251,7 +4265,7 @@ function pintarTl() {
     regla += `<i class="${mayor ? "mayor" : ""}" style="left:${enRegla(t)}"></i>${mayor ? `<b style="left:${enRegla(t)}">${Math.round(t)}s</b>` : ""}`; }
   const nombres = (p.tomas || []).map(x => x.nombre);
   const clips = tlPartes.partes.map((c, i) => [c, i]).filter(([c]) => !conCortesTl() || tlVer(c.fin) - tlVer(c.ini) > .02).map(([c, i]) => `<div class="tl-blq clip" data-tl-a="${c.ini}" data-tl-b="${c.fin}" style="left:${pc(c.ini)};width:${ancho(c.ini, c.fin)}" title="${esc(c.texto)}">
-      <b>${tlPartes.clips ? `Clip ${i + 1}` : `Frase ${i + 1}`}</b>${esc(c.texto)}</div>`).join("") || `<span class="tl-vacio">${p.procesada ? "Un solo clip" : "Sin preparar"}</span>`;
+      <b>${tlPartes.clips ? `Clip ${i + 1}` : `Frase ${i + 1}`}</b>${esc(c.texto)}${tlPartes.clips ? `<button type="button" class="tl-cambiar" data-cambiar-clip="${i}" title="Cambiar este clip por otro sin asignar">↻</button>` : ""}</div>`).join("") || `<span class="tl-vacio">${p.procesada ? "Un solo clip" : "Sin preparar"}</span>`;
   const queda = (l, i) => {  // con cortes, solo las palabras que siguen sonando (si el texto no se corrigió a mano)
     const txt = lineasTmp[i] ?? l.texto;
     return conCortesTl() && txt === l.texto && l.palabras?.length ? l.palabras.filter(w => !quitadaW(w)).map(w => w.w).join(" ") : txt;
@@ -9600,29 +9614,34 @@ const tomasLibres = () => (E.checklist.sin_asignar || []);
 const opcionTomas = (lista, elegido) => `<option value="">Elige la toma nueva…</option>` + lista.map(c =>
   `<option value="${esc(c.rel)}" ${c.rel === elegido ? "selected" : ""}>${esc(c.nombre)}${c.pieza ? ` · parece ${esc(c.pieza)}${c.parecido ? ` ${Math.round(c.parecido * 100)}%` : ""}` : ""}${c.texto ? ` — «${esc(c.texto.split(/\s+/).slice(0, 8).join(" "))}…»` : ""}</option>`).join("");
 function videosQueUsan(nombre) { return E.salidas.filter(s => [s.hook, s.cuerpo, s.cta].includes(nombre)).length; }
-function abrirToma(nombre) {
+function abrirToma(nombre, soloParte = null) {
   const p = E.piezas.find(x => x.nombre === nombre); if (!p) return avisar("No encontré esa pieza.", "err");
   const libres = tomasLibres(), nom = verPieza(nombre), n = videosQueUsan(nombre);
   $("tmTit").textContent = `Cambiar la toma de ${nom}`;
   $("tmAyuda").innerHTML = libres.length
     ? `Elige la grabación nueva. Se rearman los <b>${plural(n, "video")}</b> que usan ${esc(nom)}, con los mismos hooks y CTA. Las imágenes y sonidos puestos en palabras se quedan; el subtítulo se rehace con lo que se dice en la toma nueva. La toma de antes vuelve a «Clips por identificar».`
     : `No hay tomas libres. Sube la toma nueva a la carpeta Clips de la sesión en Drive (o arrástrala en Faltantes → Clips por identificar) y vuelve aquí.`;
-  const primero = t => libres.slice().sort((a, b) => (b.pieza === t.nombre) - (a.pieza === t.nombre))[0];
-  $("tmCuerpo").innerHTML = (p.tomas || []).map(t => {
-    const sug = primero(t)?.pieza === t.nombre ? primero(t).rel : "";
-    return `<div class="toma"><div><b>${esc(t.nombre)}</b><video src="${esc(t.video)}" controls preload="metadata" playsinline></video>
+  // primero lo que la sala sugiere para ese clip (C22_P1, o su segunda parte C22_P1B), luego lo del mismo cuerpo, luego el resto
+  const base = n => String(n || "").toUpperCase().replace(/~[A-Z0-9]+/, "").replace(/B$/, "");
+  const cuerpo = n => base(n).split("_")[0];
+  const puntos = (c, t) => (c.pieza && base(c.pieza) === base(t.nombre) ? 3 : 0) + (c.pieza && cuerpo(c.pieza) === cuerpo(t.nombre) ? 1 : 0) + (c.parecido || 0);
+  const ordenados = t => libres.slice().sort((a, b) => puntos(b, t) - puntos(a, t));
+  $("tmCuerpo").innerHTML = (p.tomas || []).map((t, i) => {
+    const lista = ordenados(t), sug = lista[0] && puntos(lista[0], t) >= 3 ? lista[0].rel : "";
+    return `<div class="toma ${soloParte === i ? "esta" : ""}" data-toma-i="${i}"><div><b>${esc(t.nombre)}</b>${sug ? ` <span class="pill ok" style="font-size:11px">hay una sugerida</span>` : ""}<video src="${esc(t.video)}" poster="/api/vista_clip?rel=${encodeURIComponent(t.rel)}" controls preload="none" playsinline></video>
         <span class="muted" style="font-size:11.5px">Ahora: ${esc(t.rel.split("/").pop())}</span></div>
-      <div><label class="muted ev-campo">Cambiar por<select data-toma="${esc(t.nombre)}">${opcionTomas(libres, sug)}</select></label>
-        <video data-vista-toma="${esc(t.nombre)}" controls preload="metadata" playsinline ${sug ? `src="${esc(libres.find(c => c.rel === sug)?.video || "")}"` : "hidden"}></video>
+      <div><label class="muted ev-campo">Cambiar por<select data-toma="${esc(t.nombre)}">${opcionTomas(lista, sug)}</select></label>
+        <video data-vista-toma="${esc(t.nombre)}" controls preload="none" playsinline ${sug ? `src="${esc(libres.find(c => c.rel === sug)?.video || "")}" poster="${esc(libres.find(c => c.rel === sug)?.poster || "")}"` : "hidden"}></video>
         <button class="btn peq" type="button" data-usar-toma="${esc(t.nombre)}" ${sug ? "" : "disabled"}>Usar esta toma</button></div></div>`;
   }).join("") || `<p class="muted">Esta pieza no tiene tomas asignadas.</p>`;
   $("dlgToma").showModal();
+  if (soloParte !== null) setTimeout(() => $("tmCuerpo").querySelector(`[data-toma-i="${soloParte}"]`)?.scrollIntoView({ block: "center" }), 60);
 }
 $("tmCerrar").onclick = () => $("dlgToma").close();
 $("tmCuerpo").addEventListener("change", e => {
   const s = e.target.closest("[data-toma]"); if (!s) return;
   const v = $("tmCuerpo").querySelector(`[data-vista-toma="${CSS.escape(s.dataset.toma)}"]`), c = tomasLibres().find(x => x.rel === s.value);
-  v.hidden = !c; if (c) v.src = c.video || "";
+  v.hidden = !c; if (c) { v.poster = c.poster || ""; v.src = c.video || ""; }
   $("tmCuerpo").querySelector(`[data-usar-toma="${CSS.escape(s.dataset.toma)}"]`).disabled = !c;
 });
 $("tmCuerpo").addEventListener("click", async e => {
