@@ -343,6 +343,18 @@ body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
 #barraSel { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 19; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   padding: 8px 10px 8px 16px; border-radius: 14px; background: var(--flotante); border: 1px solid var(--line2); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
 #barraSel[hidden] { display: none; }
+/* Faltantes → Clips por identificar: con clips elegidos, una barra fija arriba (debajo de las pestañas) con lo que se
+   puede hacer con ellos, para no tener que volver a subir a buscar los botones */
+#barraClips { position: fixed; left: 50%; transform: translateX(-50%); z-index: 18; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  max-width: min(1100px, calc(100vw - 24px)); padding: 8px 10px 8px 14px; border-radius: 14px; background: var(--flotante);
+  border: 1px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,.35); backdrop-filter: blur(12px); }
+#barraClips[hidden] { display: none; }
+#barraClips b { font-size: 13px; white-space: nowrap; }
+#barraClips .bc-sep { width: 1px; align-self: stretch; background: var(--line2); }
+#barraClips input { min-width: 150px; flex: 1; }
+.asset.elegido { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pf-ficha .pf-omitir { font-size: 11.5px; color: var(--muted); justify-self: start; }
+.pf-ficha .pf-omitir:hover { color: var(--err); }
 .tarjeta .sel { position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 7px; border: 2px solid #fff; background: rgba(0,0,0,.35); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
 .tarjeta .sel:checked { border-color: #fff; }
 .tarjeta .nombre { padding: 7px 8px 0; font-size: 12px; font-weight: 600; line-height: 1.3; }
@@ -1969,6 +1981,9 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div class="fl-sec-cab"><h2 style="margin:0">🎬 Piezas por grabar <span class="pill" id="nPiezasFaltan"></span></h2>
         <span class="muted">Suelta el video grabado sobre su código: se guarda con el nombre correcto.</span></div>
       <div id="faltanPiezas"></div>
+      <details id="pfOmitidas" hidden style="margin-top:10px"><summary class="muted" style="cursor:pointer">No se grabaron <span class="pill" id="nOmitidas"></span></summary>
+        <p class="muted" style="font-size:12px;margin:6px 0">Siguen en el guion, pero ya no se piden. «Volver a pedir» las regresa a la lista.</p>
+        <div id="listaOmitidas" style="display:grid;gap:4px"></div></details>
     </div>
     <div class="caja" style="margin-bottom:14px" id="cajaSinAsignar">
       <div class="fila" style="justify-content:space-between">
@@ -1986,6 +2001,17 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn sec peq" id="descBorrar" type="button" disabled style="color:var(--err)">Descartar seleccionados</button></div>
       </div>
       <datalist id="codigosPiezas"></datalist>
+      <div id="barraClips" hidden role="toolbar" aria-label="Clips elegidos">
+        <b id="bcN"></b>
+        <button class="btn sec peq" type="button" id="bcTodos">Elegir todos</button>
+        <span class="bc-sep" aria-hidden="true"></span>
+        <input id="bcPieza" list="codigosPiezas" placeholder="Asignar a… C1_H2, C3_P4" aria-label="Pieza para el clip elegido">
+        <button class="btn peq" type="button" id="bcAsignar">✎ Asignar</button>
+        <button class="btn sec peq" type="button" id="bcSugerido" title="Pone cada clip elegido en la pieza que sugiere la sala">Poner lo sugerido</button>
+        <span class="bc-sep" aria-hidden="true"></span>
+        <button class="btn peq" type="button" id="bcDescartar" style="background:var(--err)">🗑 Descartar</button>
+        <button class="btn sec peq" type="button" id="bcQuitar">✕ Quitar selección</button>
+      </div>
       <div class="grid-assets" id="sinAsignar"></div>
     </div>
     <div class="caja" style="margin-bottom:14px" id="cajaDescartados" hidden>
@@ -4519,10 +4545,10 @@ function pintarSinAsignar() {
   });
   $("codigosPiezas").innerHTML = esperadas.map(([n, l]) => `<option value="${esc(n)}"${l ? ` label="${esc(l)}"` : ""}>`).join("");
   const visibles = lista.filter(c => !(ocultar && c.pieza && !c.mejor));
-  $("sinAsignar").innerHTML = visibles.map(c => `<div class="caja asset ${descElegidos.has(c.rel) ? "brilla" : ""}">
+  $("sinAsignar").innerHTML = visibles.map(c => `<div class="caja asset ${descElegidos.has(c.rel) ? "brilla elegido" : ""}">
       <div class="fila" style="justify-content:space-between"><label class="fila" style="margin:0"><input type="checkbox" data-desc="${esc(c.rel)}" ${descElegidos.has(c.rel) ? "checked" : ""}><h3 style="margin:0"><code>${esc(c.nombre)}</code></h3></label>
         <span class="muted" style="font-size:12px">${esc(c.carpeta || "Clips")}</span></div>
-      <video src="${c.video}" controls preload="none" style="width:100%;max-height:220px;background:#000;border-radius:8px"></video>
+      <video src="${c.video}" ${c.poster ? `poster="${c.poster}"` : ""} controls preload="none" style="width:100%;max-height:220px;background:#000;border-radius:8px;object-fit:contain"></video>
       ${c.texto != null ? `<p class="muted" style="margin:0;font-size:12px">«${esc(c.texto.slice(0, 180))}${c.texto.length > 180 ? "…" : ""}»</p>
         <button class="btn sec peq" type="button" data-buscar-guion="${esc(c.texto)}" title="Busca en el guion las palabras de este clip para ver a qué pieza pertenece" style="justify-self:start">Buscar en el guion</button>` : `<p class="muted" style="margin:0;font-size:12px">Sin escuchar todavía.</p>`}
       ${c.reemplazado ? `<span class="pill warn" title="Lo sacaste de ${esc(c.reemplazado.pieza)} al poner otro clip. Si ya no lo necesitas, márcalo y toca «Descartar seleccionados».">↺ Era ${esc(c.reemplazado.pieza)} · lo cambiaste por ${esc(c.reemplazado.por)}</span>` : ""}
@@ -4532,18 +4558,74 @@ function pintarSinAsignar() {
     || `<p class="muted">Todos los clips sugeridos están identificados.</p>`;
   $("descBorrar").disabled = !descElegidos.size;
   $("descBorrar").textContent = descElegidos.size ? `Descartar ${descElegidos.size} seleccionado${descElegidos.size === 1 ? "" : "s"}` : "Descartar seleccionados";
+  pintarBarraClips();
   const desc = E.checklist.descartados || [];
   $("cajaDescartados").hidden = !desc.length;
   $("nDescartados").textContent = desc.length;
   $("listaDescartados").innerHTML = desc.map(c => `<div class="fila-sonido"><span></span><span class="nom">${esc(c.nombre)}</span>
       <button class="btn sec peq" data-recuperar="${esc(c.rel)}">Recuperar</button></div>`).join("");
 }
+// «No se grabó»: la pieza deja de pedirse (sigue en el guion); «Volver a pedir» la regresa
+document.addEventListener("click", async e => {
+  const om = e.target.closest("[data-omitir]"), vp = e.target.closest("[data-volver-pedir]");
+  if (!om && !vp) return;
+  e.preventDefault(); e.stopPropagation();  // la ficha también es para soltar un video: el clic no debe abrir el selector
+  const n = (om || vp).dataset.omitir || (om || vp).dataset.volverPedir;
+  if (om && !await preguntar(`¿${n} no se grabó (o no se va a usar)?
+
+Deja de aparecer en «Piezas por grabar». Sigue en el guion y la puedes volver a pedir abajo, en «No se grabaron».`, "Sí, no se grabó")) return;
+  try { await post("/api/omitir_pieza", { pieza: n, omitir: !!om }); await cargar();
+    avisar(om ? `${n} ya no se pide.` : `${n} vuelve a «Piezas por grabar».`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}, true);
 const descElegidos = new Set();
+function pintarBarraClips() {
+  // los elegidos que ya no están (se asignaron o descartaron) dejan de contar
+  const hay = new Set((E?.checklist?.sin_asignar || []).map(c => c.rel));
+  [...descElegidos].forEach(r => { if (!hay.has(r)) descElegidos.delete(r); });
+  const n = descElegidos.size, bar = $("barraClips");
+  const enFaltantes = !document.querySelector('section[data-panel="faltan"]')?.hidden;
+  bar.hidden = !n || !enFaltantes;
+  if (bar.hidden) return;
+  const nav = document.querySelector("nav[role=tablist]");
+  bar.style.top = `${Math.max(8, (nav ? nav.getBoundingClientRect().bottom : 100) + 8)}px`;
+  const elegidos = (E.checklist.sin_asignar || []).filter(c => descElegidos.has(c.rel));
+  $("bcN").textContent = `${n} clip${n === 1 ? "" : "s"} elegido${n === 1 ? "" : "s"}`;
+  $("bcPieza").hidden = $("bcAsignar").hidden = n !== 1;  // asignar a mano: de a un clip
+  const conSug = elegidos.filter(c => c.pieza);
+  $("bcSugerido").hidden = !conSug.length;
+  $("bcSugerido").textContent = conSug.length === n ? "Poner lo sugerido" : `Poner lo sugerido (${conSug.length})`;
+  const total = document.querySelectorAll("[data-desc]").length;
+  $("bcTodos").hidden = n >= total;
+  $("bcTodos").textContent = `Elegir todos (${total})`;
+}
+addEventListener("scroll", () => { if (!$("barraClips").hidden) pintarBarraClips(); }, { passive: true });
+addEventListener("resize", () => { if (!$("barraClips").hidden) pintarBarraClips(); });
+$("bcTodos").onclick = () => $("descTodos").click();
+$("bcQuitar").onclick = () => { descElegidos.clear(); pintarSinAsignar(); };
+$("bcDescartar").onclick = () => $("descBorrar").click();
+$("bcAsignar").onclick = async () => {
+  const rel = [...descElegidos][0], pieza = $("bcPieza").value.trim().toUpperCase();
+  if (!pieza) { $("bcPieza").focus(); return avisar("Escribe la pieza (por ejemplo C3_P4 o C1_H2) o elígela de la lista.", "muted"); }
+  descElegidos.delete(rel); $("bcPieza").value = "";
+  await asignarClip(rel, pieza);
+};
+$("bcPieza").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("bcAsignar").click(); } });
+$("bcSugerido").onclick = async () => {
+  const elegidos = (E.checklist.sin_asignar || []).filter(c => descElegidos.has(c.rel) && c.pieza);
+  const tomas = elegidos.filter(c => !c.mejor).length;
+  if (!await preguntar(`Poner ${elegidos.length === 1 ? "este clip" : `estos ${elegidos.length} clips`} en la pieza que sugiere la sala:
+
+${elegidos.slice(0, 12).map(c => `• ${c.nombre} → ${c.pieza} (${Math.round(c.parecido * 100)} %)`).join("\n")}${elegidos.length > 12 ? "\n…" : ""}
+${tomas ? `\n${tomas === 1 ? "Uno es «otra toma»: reemplaza" : `${tomas} son «otra toma»: reemplazan`} al clip que esa pieza ya tiene (el anterior vuelve aquí).` : ""}`, "Sí, ponerlos")) return;
+  for (const c of elegidos) { descElegidos.delete(c.rel); await asignarClip(c.rel, c.pieza); }
+};
 document.addEventListener("change", e => {
   const c = e.target.closest("[data-desc]"); if (!c) return;
   c.checked ? descElegidos.add(c.dataset.desc) : descElegidos.delete(c.dataset.desc);
   pintarSinAsignar();
 });
+document.addEventListener("click", e => { if (e.target.closest("nav[role=tablist] [data-tab], nav[role=tablist] button")) setTimeout(pintarBarraClips, 50); });
 $("descTodos").onclick = () => { document.querySelectorAll("[data-desc]").forEach(c => descElegidos.add(c.dataset.desc)); pintarSinAsignar(); };
 $("descBorrar").onclick = async () => {
   if (!await preguntar(`¿Descartar ${descElegidos.size} clip${descElegidos.size === 1 ? "" : "s"}? Se mueven a Clips/_DESCARTADOS (en esta PC y en Drive) y dejan de aparecer. Se pueden recuperar.`)) return;
@@ -4667,8 +4749,13 @@ function pintarFaltan() {
   ch.piezas_faltan.forEach(n => { const g = /CTA/i.test(n) && !/^C\d/i.test(n) ? "CTA" : n.split("_")[0]; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(n); });
   $("faltanPiezas").innerHTML = [...grupos].map(([g, ns]) => `<div class="pf-grupo"><h3>${esc(g)} · ${plural(ns.length, "pieza")}</h3><div class="pf-fichas">${ns.map(n =>
       `<label class="soltar pf-ficha" tabindex="0" role="button" aria-label="Subir el video de ${esc(n)}" data-destino="${carpeta(n)}" data-nombre="${esc(n)}">
-        <code>${esc(n)}</code><small>${esc(((E.piezas_guion || {})[n] || E.piezas.find(p => p.nombre === n)?.info?.texto || "").slice(0, 90))}</small><span>⬇ Suelta aquí el video</span><input type="file" accept="video/*"></label>`).join("")}</div></div>`).join("")
+        <code>${esc(n)}</code><small>${esc(((E.piezas_guion || {})[n] || E.piezas.find(p => p.nombre === n)?.info?.texto || "").slice(0, 90))}</small><span>⬇ Suelta aquí el video</span><input type="file" accept="video/*">
+        <button type="button" class="btn-link pf-omitir" data-omitir="${esc(n)}" title="No se grabó (o no se va a usar): deja de pedirse. Sigue en el guion y se puede volver a pedir.">✕ No se grabó</button></label>`).join("")}</div></div>`).join("")
     || `<p class="muted" style="margin:0">✓ Todas las piezas del guion están grabadas.</p>`;
+  const om = ch.omitidas || [];
+  $("pfOmitidas").hidden = !om.length; $("nOmitidas").textContent = om.length;
+  $("listaOmitidas").innerHTML = om.map(n => `<div class="fila-sonido"><span></span><span class="nom"><code>${esc(n)}</code> <span class="muted">${esc(((E.piezas_guion || {})[n] || "").slice(0, 80))}</span></span>
+      <button class="btn sec peq" type="button" data-volver-pedir="${esc(n)}">Volver a pedir</button></div>`).join("");
   // imágenes y clips: galería; por defecto solo las que faltan (si falta alguna)
   const faltanA = ch.assets.filter(a => !a.listo).length;
   if (!filtroAssets) filtroAssets = faltanA ? "faltan" : "todas";

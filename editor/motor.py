@@ -436,6 +436,28 @@ def miniatura_sesion(nombre):
     return destino
 
 
+def vista_previa_clip(rel):
+    """Una imagen del clip (al segundo 1) para que su cuadro no se vea negro antes de darle play (en caché)."""
+    f = S.grab / rel
+    if not f.is_file():
+        return None
+    st = f.stat()
+    destino = DATOS / "miniaturas" / "clips" / S.semana / f"{hashlib.md5(f'{rel}-{st.st_size}-{int(st.st_mtime)}'.encode()).hexdigest()}.jpg"
+    if destino.exists():
+        return destino
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destino.with_suffix(".tmp.jpg")
+    for seg in ("1", "0"):  # un clip de menos de 1 s: el primer cuadro
+        try:
+            run([FFMPEG, "-hide_banner", "-y", "-ss", seg, "-i", str(f), "-frames:v", "1", "-vf", "scale=360:-2", "-q:v", "6", str(tmp)])
+        except RuntimeError:
+            continue
+        if tmp.exists() and tmp.stat().st_size:
+            os.replace(tmp, destino)
+            return destino
+    return None
+
+
 def semanas_disponibles():
     def es_sesion(d):
         return d.is_dir() and (es_nombre_sesion(d.name) or (d / "Clips").is_dir())
@@ -1202,6 +1224,29 @@ def aplicar_renombre(cambio):
 GUION_CANDADO = threading.RLock()  # leer, cambiar y escribir el guion de a uno (sala, importar, armar con lo grabado)
 
 
+def omitir_pieza(nombre, omitir=True):
+    """«No se grabó»: la pieza sigue en el guion, pero ya no se pide en «Piezas por grabar» (un hook o CTA que se
+    decidió no usar). Se guarda en el guion (produccion.json), así lo ven todas las PCs; se puede volver a pedir."""
+    with GUION_CANDADO:
+        f = next((x for x in (S.guion / "produccion.json", S.grab / "produccion.json") if x.exists()), None)
+        if not f:
+            raise ValueError("Esta sesión no tiene guion (produccion.json)")
+        prod = json.loads(f.read_text(encoding="utf-8"))
+        pz = prod.get("piezas", {}).get(nombre)
+        if pz is None:
+            raise ValueError(f"{nombre} no está en el guion")
+        if omitir:
+            pz["omitida"] = time.strftime("%Y-%m-%d %H:%M")
+        else:
+            pz.pop("omitida", None)
+        if f == S.guion / "produccion.json":
+            _guardar_produccion(prod)
+        else:
+            f.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
+            global _prod_cache
+            _prod_cache = None
+
+
 def editar_texto_pieza(nombre, texto, partes=None):
     """Cambia lo que dice una pieza en el guion (produccion.json): se ve en Guion, en el teleprompter y en el panel."""
     with GUION_CANDADO:
@@ -1721,6 +1766,7 @@ def informe_clips():
     con_cta = {h.split("_")[0] for h in hay if "CTA" in h.upper()}
     faltan = [n for n in esperadas if n not in hay and not any(h.startswith(n + "_P") for h in hay)
               and not (re.match(r".+_P\d+$", n) and n.rsplit("_P", 1)[0] in mitades)  # media frase de un hook: cuenta el hook
+              and not (produccion().get("piezas", {}).get(n) or {}).get("omitida")  # «No se grabó»
               and not (re.match(r".+_P\d+$", n) and n.rsplit("_P", 1)[0] in hay)
               and not ("CTA" in n.upper() and (n.split("_")[0] in con_cta or "_" not in n and con_cta))]
     # una frase que no está entre las grabadas (C2.1, C2.2, C2.3, C2.5): el video saltaría la 4
@@ -7231,7 +7277,8 @@ def checklist():
     p = produccion()
     hay = {x["nombre"] for x in piezas()}
     con_cta = {n.split("_")[0] for n in hay if "CTA" in n.upper()}  # los CTA valen como se grabaron
-    falta_piezas = [n for n in p.get("piezas", {}) if n not in hay
+    omitidas = [n for n, i in p.get("piezas", {}).items() if i.get("omitida") and n not in hay]  # «No se grabó»
+    falta_piezas = [n for n in p.get("piezas", {}) if n not in hay and n not in omitidas
                     and not ("CTA" in n.upper() and (n.split("_")[0] in con_cta or ("_" not in n and con_cta)))]
     assets = []
     for a in p.get("assets", []):
@@ -7246,7 +7293,7 @@ def checklist():
     sin = [{"rel": c["rel"], "nombre": c["ruta"].name, "carpeta": c["tipo_carpeta"], **sug.get(c["rel"], {}),
             **({"reemplazado": rp[c["rel"]]} if c["rel"] in rp else {})}
            for c in clips_sin_asignar()]
-    return {"piezas_faltan": falta_piezas, "assets": assets, "sin_asignar": sin, "musica": musica}
+    return {"piezas_faltan": falta_piezas, "omitidas": omitidas, "assets": assets, "sin_asignar": sin, "musica": musica}
 
 
 if __name__ == "__main__":

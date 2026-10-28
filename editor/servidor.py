@@ -164,9 +164,11 @@ def estado():
     notas = motor.DATOS / "correcciones.md"
     sfx = sorted(set(motor.CONFIG.get("sfx_mapa", {})) | {d.name for d in (motor.BIBLIO_BASE / "sfx").iterdir() if d.is_dir()})
     checklist = motor.checklist()
-    checklist["descartados"] = [{**c, "video": url_media(motor.S.grab / c["rel"])} for c in motor.clips_descartados()]
+    poster = lambda rel: "/api/vista_clip?rel=" + quote(rel)  # una imagen del clip mientras no se le da play
+    checklist["descartados"] = [{**c, "video": url_media(motor.S.grab / c["rel"]), "poster": poster(c["rel"])} for c in motor.clips_descartados()]
     for c in checklist["sin_asignar"]:
         c["video"] = url_media(motor.S.grab / c["rel"])
+        c["poster"] = poster(c["rel"])
     for m in checklist["musica"]:
         f = motor.buscar_musica(m["id"])
         m["url"] = url_media(f) if f else None
@@ -1378,6 +1380,15 @@ class H(BaseHTTPRequestHandler):
             self._archivo(f.parent, f.name)
         elif u.path == "/api/cuenta/carpetas":  # elegir la carpeta del proyecto (cuenta.js): las carpetas de la cuenta
             self._json({"ok": True, **cuenta.carpetas_para_elegir()})
+        elif u.path == "/api/vista_clip":  # la imagen de un clip (Faltantes → Clips por identificar)
+            rel = parse_qs(u.query).get("rel", [""])[0]
+            try:
+                f = motor.vista_previa_clip(rel) if rel and ".." not in rel else None
+            except Exception:  # noqa: BLE001 — sin imagen, el cuadro queda negro como antes
+                f = None
+            if not f:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
         elif u.path == "/api/miniatura_sesion":  # la imagen del cuadro de cada sesión en la pantalla de sesiones
             nombre = parse_qs(u.query).get("s", [""])[0]
             if not nombre or Path(nombre).name != nombre or not (motor.DATOS / "salidas" / nombre).is_dir():
@@ -2343,6 +2354,11 @@ class H(BaseHTTPRequestHandler):
                 r = motor.reasignar_por_guion(minimo)
                 subir_asignaciones()
                 self._json({"ok": True, "asignadas": r["asignados"], "cambiados": r["cambiados"], "sin_pieza": r["sin_pieza"]})
+            elif u.path == "/api/omitir_pieza":  # «No se grabó» / «Volver a pedir» en Faltantes → Piezas por grabar
+                b = self._cuerpo()
+                motor.omitir_pieza(str(b.get("pieza") or ""), bool(b.get("omitir", True)))
+                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                self._json({"ok": True})
             elif u.path == "/api/quitar_texto":
                 self._json({"ok": True, "codigos": motor.guardar_quitados(q["pieza"][0], self._cuerpo().get("rangos") or [])})
             elif u.path == "/api/marcas":

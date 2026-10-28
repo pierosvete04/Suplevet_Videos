@@ -1,3 +1,8 @@
+Versión 1.55.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Faltantes → Clips por identificar: barra fija arriba** al elegir clips (debajo de las pestañas, se queda al bajar): Asignar (un clip), Poner lo sugerido, 🗑 Descartar, Elegir todos y Quitar selección. La tarjeta elegida queda marcada.
+- **Vista previa en cada clip:** una imagen del video en vez del cuadro negro (al darle play se ve normal).
+- **«✕ No se grabó» en Piezas por grabar:** la pieza deja de pedirse (un hook o CTA que no se usó). Sigue en el guion y vuelve con «Volver a pedir» (lista «No se grabaron»). Se guarda en el guion, así lo ven todas las PCs.
+
 Versión 1.55.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Arreglado el desfase de audio:** en los cuerpos grabados frase por frase, al unir las frases la voz se iba adelantando (hasta 0,2 s en la mitad del cuerpo). Ahora queda pegada a la imagen. Las piezas preparadas antes se rehacen solas al preparar (con sus subtítulos; las marcas se quedan).
 - **Identificar clips ~10× más rápido** y más acertado: cuenta cuánto del guion se dijo (gana la retoma completa), une un hook o CTA dicho en dos clips, pone una frase dicha con otras palabras si cae entre la anterior y la siguiente, el relleno solo con tomas de menos de 20 minutos, cada celular grabando a la vez es su propio ángulo, y de dos tomas casi iguales gana la última.
