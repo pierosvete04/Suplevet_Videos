@@ -186,7 +186,7 @@ def estado():
     for p in ps:
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
     return {"version": motor.VERSION, "red": red(), "drive": dr, "drive_pendientes": drive.pendientes(), "marca": marca.resumen(),
-            "antigravity": bool(antigravity.exe()),
+            "antigravity": bool(antigravity.exe()), "ia": motor.CONFIG.get("ia") or "",
             "sin_carpeta": bool(cuenta._leer(cuenta.INFO).get("sin_carpeta")), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": {k: ({**v, "escala_activa": 108} if float(v.get("escala_activa") or 108) < 50 else v) for k, v in motor.plantillas().items()}, "plantilla": motor.id_plantilla(),  # las dañadas hasta la 1.47.8 (escala 3) se ven bien
@@ -501,6 +501,22 @@ def traer_descargas(dias=3):
     return traidos
 
 
+def traer_de_antigravity():
+    """Pasa a la sesión la música y los prompts que escribió Gemini en Antigravity, apenas estén listos."""
+    traidos = []
+    m = antigravity.traer_musica()
+    if m:
+        traidos.append({"t": time.time(), "archivo": "la música del guion (" + ", ".join(m["pistas"]) + ")", "id": "", "codigos": []})
+    try:
+        p = antigravity.traer_prompts()
+        traidos.append({"t": time.time(), "archivo": f"{p['nuevos']} prompts de Flow para el guion", "id": "", "codigos": []})
+    except ValueError:
+        pass
+    if traidos and drive.estado()["activo"]:
+        drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+    return traidos
+
+
 def vigilar_descargas():
     """Mientras la sala está abierta, lo que se baja de Flow, Flow Music o Suno con el nombre del guion pasa solo a la
     sesión (cada 20 s). Se apaga en Faltantes («Traer solos de Descargas»). Solo en la sala de verdad, no en una de prueba."""
@@ -511,10 +527,15 @@ def vigilar_descargas():
             # espera en lo que mueve o borra la carpeta de la sesión
             if not motor.CONFIG.get("auto_descargas", True) or (TRABAJO["activo"] and TRABAJO.get("accion") in CHOCAN_CON_DESCARGAS):
                 continue
+            r = []
+            try:  # lo que Gemini dejó en Antigravity: la música del guion y los prompts de Flow pasan solos
+                r += traer_de_antigravity()
+            except Exception:  # noqa: BLE001
+                pass
             try:
-                r = traer_descargas()
+                r += traer_descargas()
             except Exception:  # noqa: BLE001 — nunca debe tumbar la sala
-                continue
+                pass
             if r:
                 AUTO_DESC.extend(r)
                 del AUTO_DESC[:-50]
@@ -1769,6 +1790,12 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/prompts_antigravity":  # «Agregar los prompts» con Gemini, sin Claude
                 b = self._cuerpo()
                 self._json({"ok": True, **antigravity.armar_prompts(*(max(0, min(tope, int(float(b.get(k) or 0)))) for k, tope in TOPES_APOYO), abrir=True)})
+            elif u.path == "/api/ia":  # con qué IA trabaja esta PC: «claude» o «antigravity» (todo con una)
+                ia = str(self._cuerpo().get("ia") or "")
+                motor.guardar_config({"ia": ia if ia in ("claude", "antigravity") else ""})
+                self._json({"ok": True, "ia": motor.CONFIG["ia"]})
+            elif u.path == "/api/musica_antigravity":  # la música con Gemini: la escribe (si falta) y la genera en Flow Music
+                self._json({"ok": True, **antigravity.armar_musica(abrir=True)})
             elif u.path == "/api/traer_prompts_antigravity":
                 self._json({"ok": True, **antigravity.traer_prompts()})
             elif u.path == "/api/marca_plantilla":
@@ -1829,7 +1856,7 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 if "activo" in b:
                     motor.guardar_config({"auto_descargas": bool(b["activo"])})
-                traidos = traer_descargas() if b.get("ahora") else []
+                traidos = (traer_de_antigravity() + traer_descargas()) if b.get("ahora") else []
                 AUTO_DESC.extend(traidos)
                 self._json({"ok": True, "auto": bool(motor.CONFIG.get("auto_descargas", True)), "traidos": traidos})
             elif u.path == "/api/importar_descarga":

@@ -415,3 +415,138 @@ def traer_prompts():
     motor._prod_cache = None
     meta_f.unlink()
     return {"nuevos": nuevos}
+
+
+# ---------- Música con Antigravity: Gemini escribe las pistas (si el guion no las trae) y las genera en Flow Music ----------
+REGLAS_MUSICA = """# Reglas de la música de Suplevet
+
+## Música
+- Una pista por grupo de cuerpos con el mismo tono (2 a 4 pistas por guion). Siempre instrumental: sin voces ni letra.
+- Siempre con adrenalina: enérgica, de 120 a 150 BPM, percusión marcada, bajo fuerte, tensión que empuja
+  (trap, EDM, phonk, drum & bass, hip-hop enérgico). Nunca suave, acústica, cálida, relajada, lo-fi, ambiental ni «corporate».
+- Prompt en inglés, sin nombres de artistas ni de canciones. En «evitar»: soft, acoustic, calm, gentle, warm, lo-fi, ambient.
+
+## Prompts limpios
+- Nada de nombres de artistas, canciones, marcas ni personas reales. Nada de palabras de violencia.
+"""
+def _pistas_faltan():
+    return [{"id": m["id"], "uso": m.get("uso", ""), "prompt": _una_linea((m.get("prompt") or {}).get("prompt")),
+             "evitar": _una_linea((m.get("prompt") or {}).get("evitar"))}
+            for m in motor.checklist().get("musica", []) if not m.get("listo")]
+
+
+def armar_musica(abrir=False):
+    """Deja en Descargas el paquete de la música para Gemini en Antigravity: si el guion no tiene música, primero la
+    escribe en una copia del guion (con las mismas reglas que Claude); después genera cada pista en Google Flow Music y
+    la baja como MUS_A.mp3. La sala trae sola la copia del guion y los MP3 (vigilar_descargas)."""
+    import asistente
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise ValueError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    datos = json.loads(prod.read_text(encoding="utf-8"))
+    sesion, carpeta = _carpeta("Musica Antigravity")
+    carpeta.mkdir(parents=True, exist_ok=True)
+    escribir = not datos.get("musica")
+    if escribir:
+        try:
+            asistente.actualizar_conocimiento(lambda *_: None)
+        except RuntimeError:
+            pass
+        origen = asistente.CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+        copia, reglas = carpeta / "produccion.json", carpeta / "REGLAS_MUSICA.md"
+        shutil.copyfile(prod, copia)
+        if origen.exists():
+            shutil.copyfile(origen, reglas)
+        else:  # sin las skills de Drive (_SALA/claude): lo básico de la música, que el pedido ya repite
+            reglas.write_text(REGLAS_MUSICA, encoding="utf-8")
+        (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana}), encoding="utf-8")
+        pedido = asistente.pedido_musica(copia, reglas).replace("Usa Edit.", "Edita solo el produccion.json de esta carpeta.")
+        paso1 = f"""## Paso 1 · Escribir la música (sin navegador)
+
+{pedido}
+
+## Paso 2 · Generar las pistas en Google Flow Music
+
+Por cada pista de `musica` del produccion.json de esta carpeta (MUS_A, MUS_B…):"""
+        n = "las pistas que escribiste"
+    else:
+        faltan = _pistas_faltan()
+        if not faltan:
+            raise ValueError("Esta sesión ya tiene todas sus pistas de música")
+        (carpeta / "pistas.json").write_text(json.dumps(faltan, ensure_ascii=False, indent=1), encoding="utf-8")
+        for f in ("produccion.json", "_sala.json", "REGLAS_MUSICA.md"):
+            (carpeta / f).unlink(missing_ok=True)  # de un pedido anterior: el guion ya tiene su música
+        paso1 = f"""## Generar las pistas en Google Flow Music
+
+El guion ya trae la música. Faltan {len(faltan)} pistas, en `pistas.json` (id, prompt y lo que hay que evitar). Por cada una:"""
+        n = ", ".join(x["id"] for x in faltan)
+    texto = f"""# Música para Antigravity · {sesion}
+
+Trabaja solo con los archivos de esta carpeta ({carpeta}). Empieza una conversación nueva.
+
+{paso1}
+1. Entra a Google Flow (https://labs.google/flow) y toca el botón **«Flow Music»** de arriba (se abre flowmusic.app en
+   otra pestaña). La sesión de Google ya está abierta.
+2. En el cuadro «Vamos a crear…» (o «New session») pega el prompt de la pista empezando así:
+   «Instrumental only, no vocals, no lyrics. <prompt de la pista>. Avoid: <evitar>». Envíalo con la flecha.
+3. Cada pedido crea dos versiones en más o menos un minuto (salen de unos 3 minutos aunque se pida 60 s: está bien,
+   la sala la recorta). Quédate con una que no tenga voces.
+4. Bájala: menú «⋯» (More options) de esa canción → Download → **MP3**. Ojo: el menú se abre pegado a la fila de abajo;
+   revisa el nombre de la canción antes de elegir.
+5. En Descargas, cámbiale el nombre al archivo por el id de la pista: `MUS_A.mp3`, `MUS_B.mp3`… (con la terminal si hace falta).
+   La sala lo toma sola de Descargas.
+
+Si aparece un inicio de sesión, términos, un pago o un captcha: detente y avisa a la persona. No lo hagas tú.
+
+Al terminar, responde en 2 líneas: qué pistas bajaste y cuáles fallaron.
+"""
+    (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
+    (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")
+    # Igual que con las imágenes: el navegador de Antigravity solo se activa si una persona escribe «/browser».
+    mensaje = (f"/browser Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual"
+               + (": primero agrega la música editando el produccion.json de esa carpeta y después genera cada pista"
+                  if escribir else f": genera las pistas {n}")
+               + " en Google Flow Music (botón «Flow Music» en https://labs.google/flow), instrumental, y baja cada una "
+               "a Descargas como MP3 con el nombre de su id (MUS_A.mp3…). Al final responde en 2 líneas qué pistas bajaste "
+               "y cuáles fallaron.")
+    abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
+    return {"carpeta": str(carpeta), "escribir": escribir, "pistas": n, "mensaje": mensaje, "abierto": abierto,
+            "enviado": False, "porque": "", "instalado": bool(exe())}
+
+
+def traer_musica():
+    """Pasa al guion de la sesión la música que escribió Gemini en la copia (solo `musica`, `musica_por_defecto` y la
+    pista de cada pieza: lo demás del guion no se toca). None si no hay nada que traer."""
+    _, carpeta = _carpeta("Musica Antigravity")
+    meta_f, copia = carpeta / "_sala.json", carpeta / "produccion.json"
+    if not meta_f.exists() or not copia.exists():
+        return None
+    try:
+        meta = json.loads(meta_f.read_text(encoding="utf-8"))
+        datos = json.loads(copia.read_text(encoding="utf-8"))
+    except ValueError:
+        return None  # Gemini todavía lo está escribiendo
+    pistas = [m for m in datos.get("musica") or [] if isinstance(m, dict) and m.get("id")]
+    if meta.get("semana") != motor.S.semana or not pistas:
+        return None
+    prod = motor.S.guion / "produccion.json"
+    actual = json.loads(prod.read_text(encoding="utf-8"))
+    if actual.get("musica"):
+        meta_f.unlink()
+        return None
+    try:
+        import respaldos
+        respaldos.hacer("Antes de la música de Antigravity", auto=True)
+    except Exception:
+        pass
+    ids = {m["id"] for m in pistas}
+    actual["musica"] = pistas
+    defecto = datos.get("musica_por_defecto")
+    actual["musica_por_defecto"] = defecto if defecto in ids else pistas[0]["id"]
+    for nombre, info in (datos.get("piezas") or {}).items():
+        if isinstance(info, dict) and info.get("musica") in ids and nombre in actual.get("piezas", {}):
+            actual["piezas"][nombre]["musica"] = info["musica"]
+    prod.write_text(json.dumps(actual, ensure_ascii=False, indent=1), encoding="utf-8")
+    motor._prod_cache = None
+    meta_f.unlink()
+    return {"pistas": sorted(ids)}

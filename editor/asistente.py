@@ -295,16 +295,9 @@ Reglas de las imágenes (las mismas de siempre):
 
 Al terminar responde en 3 líneas: cuántas imágenes y cuántos clips agregaste y en qué cuerpos."""
 
-def generar_prompts_musica(avance=print):
-    """Agrega a produccion.json la música (prompts de Flow Music) y qué pista usa cada cuerpo, si el guion no la trae.
-    No cambia el texto, los tiempos ni lo que ya tiene el guion."""
-    actualizar_conocimiento(avance)
-    motor.usar_semana(motor.S.semana)
-    prod = motor.S.guion / "produccion.json"
-    if not prod.exists():
-        raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
-    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
-    prompt = f"""Lee el guion de la sesión «{motor.S.semana}»: {prod}
+def pedido_musica(ruta, reglas):
+    """El pedido para agregar la música a un produccion.json (lo usan Claude y Gemini en Antigravity)."""
+    return f"""Lee el guion de la sesión «{motor.S.semana}»: {ruta}
 Las reglas de la música están en la sección «Música» de {reglas}, y las palabras prohibidas en «Prompts limpios». Léelas antes de escribir.
 
 Este guion no tiene música. Agrega, sin cambiar nada más del archivo:
@@ -318,6 +311,18 @@ Este guion no tiene música. Agrega, sin cambiar nada más del archivo:
 3. `"musica_por_defecto": "<id de la pista más usada>"`.
 No toques `texto`, `partes`, `dicho`, `marcas`, `assets` ni nada de lo que ya existe. Usa Edit. Al final el archivo debe ser JSON válido.
 Al terminar responde en 2 líneas: cuántas pistas y qué cuerpo usa cada una."""
+
+
+def generar_prompts_musica(avance=print):
+    """Agrega a produccion.json la música (prompts de Flow Music) y qué pista usa cada cuerpo, si el guion no la trae.
+    No cambia el texto, los tiempos ni lo que ya tiene el guion."""
+    actualizar_conocimiento(avance)
+    motor.usar_semana(motor.S.semana)
+    prod = motor.S.guion / "produccion.json"
+    if not prod.exists():
+        raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    prompt = pedido_musica(prod, reglas)
     texto = correr(prompt, [motor.S.guion], avance=avance, max_turnos=25)
     try:
         datos = json.loads(prod.read_text(encoding="utf-8"))

@@ -1,3 +1,8 @@
+Versión 1.53.8 (se actualiza desde la app con «Actualizar ahora»):
+- **Todo con Claude o todo con Antigravity:** en Inicio, la tarjeta de la IA tiene «Trabajar con: Claude / Antigravity (Gemini)». Cada PC guarda su elección y todos los botones de imágenes, prompts y música la siguen (en Faltantes solo se ve la opción elegida). Si nadie elige, usa la que esté lista.
+- **🎵 Música con Antigravity:** si el guion no tiene música, Gemini la escribe con las reglas de la marca (adrenalina, 120 a 150 BPM); después la genera en Flow Music y baja cada pista como MUS_A.mp3. La sala abre Antigravity y deja copiado el mensaje con /browser.
+- **Entra solo:** la música y los prompts que escribe Gemini pasan solos al guion, y los MP3 de Descargas a la sesión (cada 20 s).
+
 Versión 1.53.7 (se actualiza desde la app con «Actualizar ahora»):
 - **«Hacerlo con Antigravity» con /browser:** la sala abre Antigravity y deja copiado el mensaje que empieza con «/browser» (enciende el navegador de Antigravity). Se pega en una conversación nueva y Gemini abre Google Flow, pega todos los prompts juntos y baja cada imagen con su nombre. Probado con las 18 imágenes de P05.
 - **Las imágenes y la música entran aunque la sala esté trabajando** (analizando, preparando o armando); solo esperan mientras se baja de Drive, se empieza de cero, se termina la sesión o se renombran clips.
