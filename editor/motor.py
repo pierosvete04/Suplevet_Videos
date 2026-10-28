@@ -1530,6 +1530,9 @@ def angulos_por_pasadas(pieza_de, por_rel):
                 juntas.append(pas)
             else:
                 juntas[-1] += pas
+        tope = max(1, int(CONFIG.get("angulos_maximos", 2)))  # con dos cámaras, una tercera pasada son tomas repetidas
+        if len(juntas) > tope:
+            juntas = juntas[:tope - 1] + [[r for pas in juntas[tope - 1:] for r in pas]]
         if len(juntas) > 1:
             for k, pas in enumerate(juntas):
                 out.update({r: "" if k == 0 else f"A{k + 1}" for r in pas})
@@ -3169,15 +3172,17 @@ def _combinaciones_sin_memoria():
     plan, eds = _leer_ediciones()["plan"], ediciones()
     for c in cuerpos:
         cb, ca = sin_angulo(c)
-        # Otro ángulo: usa sus propios hooks y CTA si se grabaron así; si no, los de frente (el mismo número de hook)
-        ctas_ang = [x for x in ctas if sin_angulo(x)[1] == ca]
-        ctas_c = ctas_ang if ctas_ang else [x for x in ctas if not sin_angulo(x)[1]]
+        # Otro ángulo: usa sus propios hooks y CTA si se grabaron así; si no, los de frente (el mismo número de hook),
+        # y si el CTA de este cuerpo solo se grabó en el otro ángulo, ese. Antes se miraba si había CTA en ese ángulo
+        # de CUALQUIER cuerpo: un cuerpo sin su CTA en ese ángulo se quedaba sin videos.
         # Un CTA con prefijo (P1_CTA1) es solo de ese cuerpo; uno sin prefijo (CTA-O) sirve para todos
-        propios = [x for x in ctas_c if "_" not in sin_angulo(x)[0] or sin_angulo(x)[0].split("_")[0] == cb]
+        ctas_de = lambda ang: [x for x in ctas if sin_angulo(x)[1] == ang
+                               and ("_" not in sin_angulo(x)[0] or sin_angulo(x)[0].split("_")[0] == cb)]
+        propios = ctas_de(ca) or ctas_de("") or next((l for l in map(ctas_de, sorted({sin_angulo(x)[1] for x in ctas})) if l), [])
         de_cuerpo = [h for h in hooks if sin_angulo(h)[0].split("_")[0] == cb]
         numeros = sorted({sin_angulo(h)[0] for h in de_cuerpo}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)])
         hooks_c = [next((h for h in de_cuerpo if sin_angulo(h) == (n, ca)), None) or next((h for h in de_cuerpo if sin_angulo(h) == (n, "")), None)
-                   for n in numeros]
+                   or next((h for h in de_cuerpo if sin_angulo(h)[0] == n), None) for n in numeros]
         for i, h in enumerate([h for h in hooks_c if h]):
             # los CTA que salieron de separar uno en partes (CTA1, CTA1B) se turnan: un video con cada uno
             elegidos, familias = [], set()

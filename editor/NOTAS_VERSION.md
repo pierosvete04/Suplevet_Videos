@@ -1,3 +1,9 @@
+Versión 1.53.5 (se actualiza desde la app con «Actualizar ahora»):
+- **Lo analizado pasa a la otra PC:** lo que la sala escuchó de cada clip se guarda en Drive (_SALA_PROYECTO/transcripciones) al analizar y al bajar; el editor no vuelve a escuchar los clips.
+- **La primera vez que una PC abre una sesión**, los subtítulos y lo editado del equipo se traen solos (sin tocar «Actualizar»).
+- **Dos ángulos:** si el CTA o un hook de un cuerpo solo se grabó en un ángulo, el otro ángulo también lo usa (antes se quedaba sin videos). Una tercera pasada del mismo cuerpo cuenta como tomas repetidas (config angulos_maximos, 2).
+- Al conectar Drive en una PC nueva, la sesión abierta pasa a la carpeta de Drive enseguida; la bajada automática no intenta bajar sesiones que no están en Drive.
+
 Versión 1.53.4 (se actualiza desde la app con «Actualizar ahora»):
 - **⬇ Bajar de Drive** en Inicio (tarjeta de la sesión): trae los clips nuevos y saca de la PC los que se borraron en Drive.
 - **↺ Empezar de cero:** guarda una copia, borra de la PC los clips y lo analizado (y qué pieza es cada clip, también en Drive) y vuelve a bajar los clips. El guion, lo editado y el estilo se quedan.

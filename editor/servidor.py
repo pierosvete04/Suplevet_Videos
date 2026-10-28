@@ -967,6 +967,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                 if accion == "bajar":
                     for m in motor.S.miembros:  # en un grupo, cada una de sus sesiones
                         drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
+                    drive.compartir_transcripciones(motor.S.drive, motor.S.transcripciones, avance=avance)
                 if accion == "subir_drive":
                     for m in motor.S.miembros:
                         drive.subir(motor.S.en_drive(m), avance=avance)
@@ -980,8 +981,11 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     if drive.estado()["activo"]:
                         for m in motor.S.miembros:
                             drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
+                        drive.compartir_transcripciones(motor.S.drive, motor.S.transcripciones, avance=avance)  # lo que ya escuchó otra PC
                     guion_de_carpeta()
                     motor.escuchar_clips(avance=avance)
+                    if drive.estado()["activo"]:
+                        drive.compartir_transcripciones(motor.S.drive, motor.S.transcripciones, avance=avance)  # y lo de aquí, para las otras
                     n = motor.aceptar_sugerencias()
                     if n and drive.estado()["activo"]:
                         for m in motor.S.miembros:
@@ -2292,6 +2296,7 @@ if __name__ == "__main__":
     def bajar_si_falta():  # la sesión abierta sin sus clips (recién instalada, o se borraron): se baja sola
         time.sleep(8)
         if (drive.estado()["activo"] and not TRABAJO["activo"] and motor.S.semana not in motor.archivadas()
+                and (motor.S.es_grupo or motor.S.semana in drive.sesiones_en_drive())
                 and not all(drive.bajada_completa(motor.S.en_drive(m)) for m in motor.S.miembros)):
             _sin_falla(lambda: lanzar("bajar"))
     if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):

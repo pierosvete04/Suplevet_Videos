@@ -203,6 +203,14 @@ def revisar():
             e["mias"] = sorted(mias)
         else:
             e["choque"], e["mias"] = [], []
+        if e.get("pendiente") and vl is None and not archivos:
+            # primera vez de esta sesión en esta PC (p. ej. el editor abre lo que analizó otra PC): no hay nada que
+            # pueda chocar, así que lo del equipo se trae solo, sin esperar a que alguien toque «Actualizar»
+            try:
+                r = traer()
+                e.update(pendiente=False, version_local=r.get("version"), traido_solo=True)
+            except Exception as err:  # noqa: BLE001 — queda el aviso de siempre para traerlo a mano
+                print("Proyecto: no se pudo traer solo:", err)
         ESTADO[sem] = e
         return e
 

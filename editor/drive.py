@@ -124,6 +124,8 @@ def asegurar_config(forzar=False):
     motor.guardar_config({"drive": {"activo": True, "carpeta_id": c["carpeta_id"], "link": c["link"],
                                     "credenciales_propias": bool(cuenta._leer(cuenta.INFO).get("cliente"))},
                           "carpeta_trabajo": str(CACHE), "biblioteca": str(CACHE / "SOUND FX")})
+    if Path(motor.S.base) != CACHE:  # la sesión abierta todavía apunta a la carpeta de antes de conectar Drive
+        motor.usar_semana(motor.S.semana)
     try:
         actualizar_lista()
     except Exception as e:  # sin internet: la lista se trae después
@@ -297,6 +299,24 @@ def quitar_borrados_en_drive(nombre, avance=print):
         avance(f"{n} clip{'s' if n != 1 else ''} que ya no {'están' if n != 1 else 'está'} en Drive "
                f"{'salieron' if n != 1 else 'salió'} de esta PC (en la papelera de la sala, por si acaso)")
     return quitados
+
+
+def compartir_transcripciones(nombre, local, avance=print):
+    """Lo que la sala escuchó de cada clip (datos/transcripciones/<sesión>) se comparte por Drive, en
+    <sesión>/_SALA_PROYECTO/transcripciones: sube lo de esta PC y baja lo de las otras. Así otra PC (el editor) no
+    vuelve a escuchar los clips que ya escuchó alguien (unos 10 s por clip). Son archivos chicos."""
+    remoto = f"{REMOTO}:{nombre}/_SALA_PROYECTO/transcripciones"
+    local = Path(local)
+    local.mkdir(parents=True, exist_ok=True)
+    try:
+        if any(local.glob("*.json")):
+            _rc("copy", local, remoto, "--update", "--include", "*.json", *RAPIDO, timeout=900)
+        _rc("copy", remoto, local, "--update", "--include", "*.json", *RAPIDO, timeout=900)
+        n = sum(1 for _ in local.glob("*.json"))
+        if n:
+            avance(f"Lo escuchado de {n} clips está al día con Drive")
+    except Exception:  # noqa: BLE001 — la primera vez no existe la carpeta en Drive, o no hay internet: no es grave
+        pass
 
 
 def bajada_completa(nombre):
