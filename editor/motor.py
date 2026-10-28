@@ -2142,6 +2142,98 @@ def reasignar_por_guion(minimo=0.5, guardar=True):
         llenas.sort(key=lambda pas: hora(pas["propios"][0]))
         for k, pas in enumerate(llenas[:tope]):  # con más pasadas que ángulos, las de sobra quedan como otras tomas
             elegir(pas, f"A{k + 1}" if k else "", cu if es_cuerpo else None, num if es_cuerpo else None)
+    # ---- Cuerpos dichos con otras palabras (un guion que cambió al grabar): manda el orden de grabación ----
+    # Una frase cambiada no se parece al guion, pero se grabó en su lugar: entre la frase anterior y la siguiente, o
+    # justo después de la última. El CTA va después del cuerpo y un hook que falta, justo antes del siguiente hook.
+    pos = {orden[i][0]["rel"]: i for i in range(len(orden))}
+    libre = lambda j: orden[j][0]["rel"] not in nuevo
+    basura = lambda j: largo(orden[j][1]) < 3
+    retoma = lambda j: max(orden[j][2].values(), default=0) >= 0.75  # casi igual a otra pieza: es otra toma
+    cta_re = re.compile(r"escr[ií]benos|whats ?app|necesitando (este apoyo|suplevet)|conoce (m[aá]s )?(de |sobre )?suplevet|"
+                        r"comun[ií]cate|solicita(r)? (m[aá]s )?informaci|mayor informaci", re.I)
+    es_cta = lambda j: bool(cta_re.search(orden[j][1])) or max((v for k, v in orden[j][2].items() if tipo_de(k) == "cta"), default=0) >= 0.7
+    pedacito = lambda j: largo(orden[j][1]) <= 7 and arranca_unido(orden[j][1])  # «Y recuperación.»: completa la de antes
+    mismo_cel = lambda a, b: not (modelo(a) and modelo(b) and modelo(a) != modelo(b))
+    arranca_unido = lambda t: bool(re.match(r"^(que|y|e|o|ni|pero|porque|con|para|además|también)\b", t.strip(" ¿¡«\"'"), re.I))
+    pasadas_cuerpo = {}
+    for rel, pieza in nuevo.items():
+        m = PARTE.match(pieza)
+        if m and tipo_de(pieza) == "cuerpo":
+            pasadas_cuerpo.setdefault(m.group(1).upper(), {}).setdefault(int(m.group(2)), []).append((pos[rel], bool(m.group(3))))
+    for clave, partes in pasadas_cuerpo.items():
+        cu = _cuerpo_de_pieza(sin_angulo(clave)[0])
+        total = partes_de.get(cu) or 0
+        if not total:
+            continue
+        ks = sorted(partes)
+        ultimo = lambda k: max(i for i, _ in partes[k])
+        primero = lambda k: min(i for i, _ in partes[k])
+        for a_, b_ in zip(ks, ks[1:]):
+            entre = [j for j in range(ultimo(a_) + 1, primero(b_)) if libre(j) and not basura(j) and not retoma(j) and not es_cta(j)
+                     and mismo_cel(j, ultimo(a_))]
+            faltan = b_ - a_ - 1
+            if faltan and len(entre) > faltan:  # los pedacitos que siguen a una frase no cuentan como frase
+                entre = [j for j in entre if not pedacito(j)]
+            if faltan and len(entre) == faltan:  # tantos clips como frases faltan: van en orden
+                for k, j in zip(range(a_ + 1, b_), entre):
+                    nuevo[orden[j][0]["rel"]] = f"{clave}_P{k}"
+                    partes[k] = [(j, False)]
+            elif not faltan and len(entre) == 1:  # ninguna falta: es la mitad de la frase de antes o de la de después
+                j = entre[0]
+                sig = next((i for i, b in partes[b_] if not b), None)
+                if sig is not None and not any(b for _, b in partes[b_]) and arranca_unido(orden[sig][1]):
+                    nuevo[orden[j][0]["rel"]] = f"{clave}_P{b_}"
+                    nuevo[orden[sig][0]["rel"]] = f"{clave}_P{b_}B"
+                elif arranca_unido(orden[j][1]) and not any(b for _, b in partes[a_]):
+                    nuevo[orden[j][0]["rel"]] = f"{clave}_P{a_}B"
+        # después de la última frase: las que faltan al final, en orden (hasta el CTA, otra pieza o una pausa de 3 min)
+        k = max(partes)
+        j, antes = ultimo(k) + 1, ultimo(k)
+        while k < total and j < len(orden) and hora(j) - hora(antes) <= 180 and mismo_cel(j, antes):
+            if not libre(j) or es_cta(j):
+                break
+            if not basura(j) and not retoma(j) and not pedacito(j):
+                k += 1
+                nuevo[orden[j][0]["rel"]] = f"{clave}_P{k}"
+                partes[k] = [(j, False)]
+            antes, j = j, j + 1
+    # el CTA de cada cuerpo: el llamado que se grabó justo después del cuerpo (uno o dos clips seguidos)
+    ctas = {n for n in esperadas if tipo_de(n) == "cta" and re.fullmatch(r"(?:C|P)\d+_CTA", n, re.I)}
+    puestas = {sin_angulo_codigo(x)[0].upper() for x in nuevo.values()} | {re.sub(r"_P\d+$", "", sin_angulo_codigo(x)[0].upper()) for x in nuevo.values()}
+    for cta in sorted(ctas):
+        if cta.upper() in puestas:
+            continue
+        cu = _cuerpo_de_pieza(cta)
+        fin = [pos[r] for r, x in nuevo.items() if tipo_de(x) == "cuerpo" and _cuerpo_de_pieza(sin_angulo_codigo(x)[0]) == cu]
+        if not fin:
+            continue
+        j, antes = max(fin) + 1, max(fin)
+        while j < len(orden) and hora(j) - hora(antes) <= 180 and libre(j) and (basura(j) or not es_cta(j)) and not retoma(j):
+            antes, j = j, j + 1
+        if j < len(orden) and hora(j) - hora(antes) <= 180 and libre(j) and es_cta(j):
+            sig = j + 1
+            if sig < len(orden) and libre(sig) and es_cta(sig) and hora(sig) - hora(j) <= 90 and not basura(sig):
+                nuevo[orden[j][0]["rel"]], nuevo[orden[sig][0]["rel"]] = f"{cta}_P1", f"{cta}_P2"
+            else:
+                nuevo[orden[j][0]["rel"]] = cta
+    # un hook que falta: el clip libre grabado justo antes del hook siguiente (o justo después del anterior)
+    hooks = sorted((n for n in esperadas if re.fullmatch(r"(?:C|P)\d+_H\d+", n, re.I)), key=_orden_natural)
+    puestas = {re.sub(r"_P\d+$", "", sin_angulo_codigo(x)[0].upper()) for x in nuevo.values()}
+    donde = {}
+    for r, x in nuevo.items():
+        donde.setdefault(re.sub(r"_P\d+$", "", sin_angulo_codigo(x)[0].upper()), []).append(pos[r])
+    for h in hooks:
+        if h.upper() in puestas:
+            continue
+        cu, k = h.upper().split("_H")
+        vecinos = [(min(donde[f"{cu}_H{int(k) + 1}"]) - 1, min(donde[f"{cu}_H{int(k) + 1}"]))] if f"{cu}_H{int(k) + 1}" in donde else []
+        vecinos += [(max(donde[f"{cu}_H{int(k) - 1}"]) + 1, max(donde[f"{cu}_H{int(k) - 1}"]))] if f"{cu}_H{int(k) - 1}" in donde else []
+        for j, ref in vecinos:
+            if 0 <= j < len(orden) and libre(j) and not basura(j) and not es_cta(j) and abs(hora(j) - hora(ref)) <= 120 \
+                    and (orden[j][2].get(h, 0) >= 0.3 or re.match(r"^(m[eé]dico )?veterinari|^doctor", orden[j][1].strip(" ¿¡«"), re.I)):
+                nuevo[orden[j][0]["rel"]] = h
+                donde[h.upper()] = [j]
+                break
     # Una frase dicha en dos clips seguidos: el clip de al lado (grabado enseguida, sin pieza propia) se une si juntos se
     # parecen claramente más a la frase del guion («La evaluación nutricional es importante.» + «Para acompañar sus
     # necesidades…»), o si es un pedacito que sigue al anterior («…mantener la masa muscular» + «Y recuperación.»)
