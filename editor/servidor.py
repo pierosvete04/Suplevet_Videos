@@ -464,6 +464,7 @@ def apartar_descarga(nombre):
 
 
 AUTO_DESC = []  # lo que llegó solo de Descargas: [{t, archivo, id, codigos}]
+CHOCAN_CON_DESCARGAS = {"bajar", "reiniciar", "terminar", "renombrar", "ordenar_todo", "conectar"}
 
 
 def traer_descargas(dias=3):
@@ -506,7 +507,9 @@ def vigilar_descargas():
     def revisar():
         while True:
             time.sleep(20)
-            if not motor.CONFIG.get("auto_descargas", True) or TRABAJO["activo"]:
+            # mientras analiza, prepara o arma, las imágenes y la música igual entran (no chocan con los clips); solo se
+            # espera en lo que mueve o borra la carpeta de la sesión
+            if not motor.CONFIG.get("auto_descargas", True) or (TRABAJO["activo"] and TRABAJO.get("accion") in CHOCAN_CON_DESCARGAS):
                 continue
             try:
                 r = traer_descargas()
@@ -1760,6 +1763,9 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/paquete_antigravity":
                 b = self._cuerpo()
                 self._json({"ok": True, **antigravity.armar(bool(b.get("todas")), bool(b.get("abrir")))})
+            elif u.path == "/api/chrome_flow":  # abre el Chrome aparte de Flow (para entrar la primera vez con la cuenta)
+                porque = antigravity.abrir_chrome_flow()
+                self._json({"ok": not porque, "porque": porque})
             elif u.path == "/api/prompts_antigravity":  # «Agregar los prompts» con Gemini, sin Claude
                 b = self._cuerpo()
                 self._json({"ok": True, **antigravity.armar_prompts(*(max(0, min(tope, int(float(b.get(k) or 0)))) for k, tope in TOPES_APOYO), abrir=True)})

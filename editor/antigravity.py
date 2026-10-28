@@ -247,12 +247,13 @@ Archivos de esta carpeta ({carpeta}):
 1. En el navegador, abre https://labs.google/flow (la sesión de Google ya está abierta).
 2. Abre o crea el proyecto **{sesion}**.
 3. En los ajustes del generador (ícono de deslizadores) elige **9:16** y **x1** (una imagen por prompt). Guarda.
-4. Para cada línea de `prompts.txt` que sea imagen: pega la línea completa (con su código, por ejemplo `C1_IMG2: …`) en el cuadro
-   de texto y envíala. **No esperes a que termine**: pega la siguiente enseguida. Flow las genera todas en paralelo.
+4. En la configuración del agente de Flow deja «Confirmar antes de generar» en **Nunca**. Después pega **todas** las líneas de
+   imagen de `prompts.txt` juntas en un solo mensaje (cada una con su código, por ejemplo `C1_IMG2: …`) y envíalo: Flow
+   las genera todas solo.
 5. Si Google rechaza un prompt, pega en su lugar el `plan_b` de ese código (en `prompts.json`), con el mismo código delante.
-6. Cuando ya no quede ninguna generándose, corre `bajar_flow.js` en la pestaña de Flow con la herramienta para ejecutar
-   JavaScript en la página. Baja cada imagen a Descargas como `CODIGO.jpg`. Revisa que la respuesta no tenga errores; si a
-   alguna le falta, bájala a mano con ese nombre.
+6. Cuando ya no quede ninguna generándose, baja cada imagen a Descargas como `CODIGO.jpg` (puedes usar `bajar_flow.js`).
+   Ojo: la galería de Flow ya no muestra el código de cada imagen; usa la descripción o el orden en que se pegaron los
+   prompts para saber cuál es cuál. Si a alguna le falta, bájala a mano con ese nombre.
 {f'''7. Clips en movimiento ({len(clips)}): cambia el generador a **Video** (9:16), pega cada línea de clip igual que las imágenes
    y, cuando terminen, baja cada video a Descargas con el nombre `CODIGO.mp4`.
 ''' if clips else ""}
@@ -261,6 +262,53 @@ Si aparece un inicio de sesión, términos o un captcha: detente y avisa a la pe
 Al terminar, responde en 2 líneas: cuántas bajaste y cuáles fallaron.
 Después, en la Sala de edición: Faltantes → «Poner en los videos» las pone en su lugar.
 """
+
+
+# ---------- El Chrome que maneja Gemini ----------
+# Gemini maneja el navegador por el «puerto de depuración» de Chrome (9222). Chrome no deja abrir así el perfil de
+# siempre, y tampoco conviene (tiene todas las cuentas): la sala abre un Chrome aparte, con su propio perfil
+# (datos/chrome_flow), solo para Flow. La primera vez hay que entrar a Flow con la cuenta que tiene los créditos;
+# después la sesión queda guardada en ese perfil.
+PUERTO_CHROME = 9222
+PERFIL_CHROME = motor.DATOS / "chrome_flow"
+
+
+def chrome_exe():
+    for base in (os.environ.get("ProgramFiles", ""), os.environ.get("ProgramFiles(x86)", ""), os.environ.get("LOCALAPPDATA", "")):
+        f = Path(base) / "Google" / "Chrome" / "Application" / "chrome.exe"
+        if base and f.exists():
+            return f
+    return None
+
+
+def chrome_flow_abierto():
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PUERTO_CHROME}/json/version", timeout=2) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
+def abrir_chrome_flow(esperar=20):
+    """Abre (si no está abierto) el Chrome de Flow con el puerto para Gemini. Devuelve "" si quedó listo o por qué no."""
+    if chrome_flow_abierto():
+        return ""
+    ch = chrome_exe()
+    if not ch:
+        return "No encontré Google Chrome en esta PC: instálalo para que Gemini pueda usar Flow"
+    PERFIL_CHROME.mkdir(parents=True, exist_ok=True)
+    try:
+        subprocess.Popen([str(ch), f"--remote-debugging-port={PUERTO_CHROME}", f"--user-data-dir={PERFIL_CHROME}",
+                          "--no-first-run", "--no-default-browser-check", "https://labs.google/flow"])
+    except OSError as e:
+        return f"No pude abrir Chrome: {e}"
+    fin = time.time() + esperar
+    while time.time() < fin:
+        if chrome_flow_abierto():
+            return ""
+        time.sleep(1)
+    return "Chrome se abrió pero no respondió a tiempo"
 
 
 def armar(todas=False, abrir=False):
@@ -277,10 +325,19 @@ def armar(todas=False, abrir=False):
     texto = instrucciones(sesion, carpeta, orden)
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
-    mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual, con el navegador. "
+    # Probado el 2026-10-27: lo que funciona es el navegador de Antigravity, que solo se activa cuando una persona
+    # escribe «/browser» en el chat (un mensaje mandado desde afuera no lo activa y Gemini se pone a escribir
+    # programas para manejar Chrome, lento). Por eso la sala abre Antigravity y deja el mensaje copiado con
+    # «/browser» delante, para pegarlo y enviarlo.
+    mensaje = (f"/browser Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo con el navegador. En Google Flow (https://labs.google/flow) "
+               f"abre o crea el proyecto {sesion}, en la configuración del agente deja «Confirmar antes de generar» en Nunca, "
+               "imágenes 9:16 y x1, y pega TODOS los prompts de "
+               f"{carpeta / 'prompts.txt'} juntos en un solo mensaje (cada línea con su código delante, por ejemplo «C1_IMG1: …»). "
                f"Son {len(nombres)} imágenes" + (f" y {len(orden) - len(nombres)} clips" if len(orden) > len(nombres) else "")
-               + " de Google Flow. Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
-    abierto, enviado, porque = _pasar(carpeta, mensaje, "flash", abrir)
+               + ". Cuando estén todas generadas, bájalas a Descargas con su nombre (C1_IMG1.jpg…). "
+               "Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
+    abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
+    enviado, porque = False, ""
     return {"carpeta": str(carpeta), "imagenes": len(nombres), "clips": len(orden) - len(nombres), "mensaje": mensaje,
             "abierto": abierto, "enviado": enviado, "porque": porque, "instalado": bool(exe())}
 

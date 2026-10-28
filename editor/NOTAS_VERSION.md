@@ -1,3 +1,9 @@
+Versión 1.53.7 (se actualiza desde la app con «Actualizar ahora»):
+- **«Hacerlo con Antigravity» con /browser:** la sala abre Antigravity y deja copiado el mensaje que empieza con «/browser» (enciende el navegador de Antigravity). Se pega en una conversación nueva y Gemini abre Google Flow, pega todos los prompts juntos y baja cada imagen con su nombre. Probado con las 18 imágenes de P05.
+- **Las imágenes y la música entran aunque la sala esté trabajando** (analizando, preparando o armando); solo esperan mientras se baja de Drive, se empieza de cero, se termina la sesión o se renombran clips.
+- Instrucciones para Gemini al día con el Flow nuevo («Confirmar antes de generar: Nunca», todos los prompts en un solo mensaje, la galería ya no muestra el código).
+- Por dentro: la sala sabe abrir un Chrome aparte para Flow (perfil propio, para cuando se automatice sin Antigravity).
+
 Versión 1.53.6 (se actualiza desde la app con «Actualizar ahora»):
 - **⬆ Subir a Drive** en Inicio, al lado de «⬇ Bajar de Drive»: sube en el momento todo lo de esta PC (guion, imágenes, música, lo escuchado de cada clip, lo editado, los videos finales y una copia de seguridad).
 - **Lo escuchado de cada clip se sube solo cada 5 minutos** (lo editado ya se subía cada minuto).

@@ -10719,9 +10719,10 @@ Instálalo desde antigravity.google, ábrelo una vez con tu cuenta de Google y e
     $("agPasos").innerHTML = (r.abierto
       ? [`Se abrió <b>Antigravity</b> con la carpeta del paquete (si no la ves, búscala en la barra de tareas).`]
       : [`Abre <b>Antigravity</b> y abre la carpeta del paquete (Archivo → Abrir carpeta): <code>${esc(r.carpeta)}</code>. ${r.instalado ? "" : "Si no lo tienes, instálalo desde antigravity.google."}`])
-      .concat([`En el panel del agente elige el modelo <b>Gemini Flash</b> y empieza una conversación nueva.`,
-        `Pega el mensaje de abajo (ya está copiado) y deja que trabaje: pega los prompts de corrido y al final baja todo con su nombre.`,
-        `Cuando termine, vuelve aquí y toca <b>3 · Poner en los videos</b>.`]).map(x => `<li>${x}</li>`).join("");
+      .concat([`Empieza una conversación nueva en Antigravity.`,
+        `Pega el mensaje (ya está copiado: empieza con <b>/browser</b>, que enciende el navegador de Antigravity) y envíalo. Si no se enciende el navegador, escribe <b>/browser</b> a mano, elígelo y vuelve a pegar el resto.`,
+        `Gemini abre Google Flow, pega todos los prompts juntos y baja cada imagen a Descargas con su nombre.`,
+        `La sala las trae sola y te avisa («Llegó de Descargas…»). Si no, toca <b>3 · Poner en los videos</b>.`]).map(x => `<li>${x}</li>`).join("");
     const copiado = await copiar(r.mensaje);
     avisar((r.porque ? `No pude pasárselo a Gemini solo (${r.porque}). ` : "") + (r.abierto ? "Antigravity abierto con el paquete." : "Paquete listo: ábrelo en Antigravity.")
       + (copiado ? " El mensaje para Gemini ya está copiado." : " No se pudo copiar el mensaje: tócalo en «Copiar»."), copiado ? "ok" : "muted");
