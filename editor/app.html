@@ -1914,6 +1914,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
           <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
           <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
+          <label class="fila muted" style="font-size:12px;gap:4px" title="Con el imán, el tramo se ajusta a palabras enteras (no corta una palabra a la mitad). Sin imán, cortas justo donde marcas: para quitar un silencio o un ruido pegado a una palabra. También: mantén Alt al arrastrar."><input type="checkbox" id="tlIman" checked> Imán a palabras</label>
           <button class="btn sec peq" type="button" id="tlCambiarClip" title="Cambia un clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar un clip</button>
         </div>
       </div>
@@ -3907,7 +3908,11 @@ function juntar(rs) {  // tramos ordenados y sin encimarse
 const bordeAntes = (pl, k) => { const w = pl[k], x = pl[k - 1]; return x && w.s - x.e < .35 ? (x.e + w.s) / 2 : Math.max(0, w.s - .04); };
 const bordeDespues = (pl, k) => { const w = pl[k], x = pl[k + 1]; return x && x.s - w.e < .35 ? (w.e + x.s) / 2 : w.e + .04; };
 // un tramo arrastrado en la línea de tiempo se acomoda al borde de las palabras (no corta una palabra por la mitad)
+let altTl = false;
+addEventListener("keydown", e => { if (e.key === "Alt") altTl = true; });
+addEventListener("keyup", e => { if (e.key === "Alt") altTl = false; });
 function ajustarTramo(p, a, b) {
+  if (($("tlIman") && !$("tlIman").checked) || altTl) return b - a >= .05 ? { a, b } : null;  // sin imán: justo donde se marcó
   const pl = planoPieza(p);
   const ka = pl.findIndex(w => a > w.s && a < w.e), kb = pl.findIndex(w => b > w.s && b < w.e);
   if (ka >= 0) a = a < (pl[ka].s + pl[ka].e) / 2 ? bordeAntes(pl, ka) : bordeDespues(pl, ka);

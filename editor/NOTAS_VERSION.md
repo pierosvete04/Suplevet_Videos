@@ -1,3 +1,10 @@
+Versión 1.55.7 (se actualiza desde la app con «Actualizar ahora»):
+- **Cuerpos sin CTA ya tienen videos:** si un cuerpo no grabó su CTA, usa el del cuerpo más cercano (antes se quedaba sin ningún video; en P05, C8 y C10: 22 videos más, de 210 a 232).
+- **Cada palabra empieza donde de verdad suena:** la transcripción estiraba la primera palabra sobre el silencio («Médico» de 0,00 s cuando la voz entra en 0,74 s). Se corrige con la onda del audio, también en los subtítulos ya hechos.
+- **Se corta solo lo suelto** antes de que empiece a hablar y después de terminar (un «ya», una cuenta, una palabra suelta seguida de silencio que no es del guion; los saludos «Médico veterinario» se respetan) **y las groserías**, estén donde estén.
+- **«Imán a palabras»** en la línea de tiempo: desmárcalo (o mantén Alt) para cortar justo donde marcas.
+- **Las imágenes ya no se pierden** si su palabra no se dijo: van en la más parecida o en un buen lugar del cuerpo.
+
 Versión 1.55.6 (se actualiza desde la app con «Actualizar ahora»):
 - **Faltantes explica su número:** cuenta solo lo que de verdad falta (piezas por grabar, clips sin identificar, imágenes o pistas por generar) y arriba dice «Faltan 7: 6 piezas por grabar · 1 clip sin identificar». Las otras tomas de frases que ya tienen clip no cuentan; se avisan aparte («1 + 14 otras tomas»).
 

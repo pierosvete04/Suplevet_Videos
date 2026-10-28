@@ -1452,6 +1452,97 @@ def corregir_texto(texto):
     return " ".join(w["w"] for w in corregir_palabras([{"w": x, "s": 0, "e": 0} for x in str(texto or "").split()]))
 
 
+# ---------- Dónde empieza y termina de verdad cada palabra ----------
+# La transcripción estira una palabra sobre el silencio de al lado (C11_H3: «Médico» de 0,00 a 1,08 s, pero la voz
+# entra en 0,74 s). Eso hace que al cortar el silencio del inicio se vaya también la palabra. Se corrige con la onda
+# del audio: el inicio de cada palabra pasa a donde empieza su tramo de voz, y el final a donde termina.
+AFINADO = 1  # versión del afinado guardada en el subtítulo (si cambia, se vuelve a afinar)
+
+
+def _tramos_de_voz(video, paso=0.02):
+    """[(desde, hasta)] donde suena la voz, con la energía del audio cada 20 ms (umbral según el ruido de fondo y la voz
+    de ESTE clip; pausas de menos de 0,12 s no cortan un tramo)."""
+    import numpy as np
+    r = subprocess.run([FFMPEG, "-v", "error", "-i", str(video), "-map", "0:a:0", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+                       capture_output=True)
+    a = np.frombuffer(r.stdout, np.int16).astype(np.float32) / 32768
+    v = int(16000 * paso)
+    if len(a) < v * 5:
+        return []
+    n = len(a) // v
+    db = 20 * np.log10(np.sqrt((a[:n * v].reshape(n, v) ** 2).mean(axis=1)) + 1e-9)
+    umbral = max(np.percentile(db, 10) + 12, np.percentile(db, 90) - 30)
+    voz = db > umbral
+    tramos, ini = [], None
+    for i, x in enumerate(voz):
+        if x and ini is None:
+            ini = i
+        elif not x and ini is not None:
+            tramos.append([ini * paso, i * paso])
+            ini = None
+    if ini is not None:
+        tramos.append([ini * paso, n * paso])
+    juntos = []
+    for t in tramos:
+        if juntos and t[0] - juntos[-1][1] < 0.12:
+            juntos[-1][1] = t[1]
+        else:
+            juntos.append(t)
+    return juntos
+
+
+def afinar_palabras(pal, tramos):
+    """Corre el inicio de cada palabra a donde empieza su tramo de voz (y el final a donde termina), solo si la
+    transcripción la estiró más de 0,12 s sobre un silencio. No cambia el texto ni el orden."""
+    if not tramos:
+        return pal
+    def tramo_en(t):
+        return next((x for x in tramos if x[0] <= t <= x[1]), None)
+
+    def callado(a, b):  # entre a y b no hay voz (a lo más un ruido corto: un clic, un roce)
+        return not any(x[0] < b and x[1] > a and min(x[1], b) - max(x[0], a) >= 0.3 for x in tramos)
+    out, prev_e = [], 0.0
+    for w in pal:
+        w = dict(w)
+        s, e = float(w["s"]), float(w["e"])
+        minimo = min(0.35, 0.045 * len(re.sub(r"\W", "", w.get("w", ""))))  # una palabra larga no puede durar casi nada
+        if e - s > 0.2:
+            tr = tramo_en(max(s, e - 0.06))  # el tramo donde termina la palabra es el de su voz
+            if tr and tr[0] > s + 0.12 and callado(s, tr[0] - 0.02):
+                s = min(max(s, prev_e, tr[0] - 0.04), e - minimo)
+            tr = tramo_en(min(e, s + 0.06))
+            if tr and tr[1] < e - 0.2 and callado(tr[1] + 0.02, e):
+                e = max(s + minimo, s + 0.08, tr[1] + 0.06)
+        w["s"], w["e"] = round(s, 3), round(max(e, s + 0.05), 3)
+        prev_e = w["e"]
+        out.append(w)
+    return out
+
+
+def afinar_subtitulo(nombre, tramos=None):
+    """Afina los tiempos de las palabras de un subtítulo ya hecho (el texto, las líneas y las marcas se quedan)."""
+    f, video = S.subs / f"{nombre}.json", S.proc / f"{nombre}.mp4"
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return False
+    if d.get("afinado") == AFINADO or not video.exists():
+        return False
+    tramos = _tramos_de_voz(video) if tramos is None else tramos
+    cambio = False
+    for ln in d.get("lineas", []):
+        pal = ln.get("palabras") or []
+        nuevas = afinar_palabras(pal, tramos)
+        if [(w["s"], w["e"]) for w in nuevas] != [(w["s"], w["e"]) for w in pal]:
+            cambio = True
+        ln["palabras"] = nuevas
+        if nuevas:
+            ln["s"], ln["e"] = nuevas[0]["s"], nuevas[-1]["e"]
+    d["afinado"] = AFINADO
+    f.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    return cambio
+
+
 def corregir_subtitulo(nombre):
     """Aplica las correcciones a un subtítulo ya hecho, sin rehacerlo (se quedan los tiempos, las líneas y las marcas).
     Solo los que salieron de la transcripción sin tocar a mano; se marca con qué correcciones se revisó."""
@@ -1578,14 +1669,18 @@ def procesar(forzar_subs=False, avance=print):
         mejorar = bool(viejo and viejo.get("automatico") and viejo.get("modelo") != modelo)
         if forzar_subs or not sub.exists() or mejorar:
             avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})" + (" con el modelo más fino" if mejorar else ""))
-            pal = transcribir(dest)
+            pal = afinar_palabras(transcribir(dest), _tramos_de_voz(dest))  # cada palabra donde de verdad suena
             heredadas = _marcas_apartadas(p["nombre"])
             marcas = ({"marcas": viejo["marcas"]} if (mejorar or forzar_subs) and viejo and "marcas" in viejo
                       else {"marcas": heredadas} if heredadas is not None else {})  # van por palabra: se quedan
             sub.write_text(json.dumps({"pieza": p["nombre"], "modelo": modelo, "automatico": True, "correcciones": firma_correcciones(),
+                                       "afinado": AFINADO,
                                        "lineas": agrupar_lineas(pal), **marcas}, ensure_ascii=False, indent=1), encoding="utf-8")
-        elif corregir_subtitulo(p["nombre"]):
-            avance(f"Corrigiendo palabras de {p['nombre']} ({n}/{len(ps)})")
+        else:
+            if corregir_subtitulo(p["nombre"]):
+                avance(f"Corrigiendo palabras de {p['nombre']} ({n}/{len(ps)})")
+            if afinar_subtitulo(p["nombre"]):
+                avance(f"Afinando dónde empieza cada palabra de {p['nombre']} ({n}/{len(ps)})")
 
 
 def _apartar_subs_viejos(nombre):
@@ -3669,11 +3764,33 @@ def resolver_marcas(pieza, lineas):
                 li, wi, _, dicho = cerca
                 out.append({**m, "linea": li, "indice": wi, "t": lineas[li]["palabras"][wi]["s"], "aproximada": dicho})
                 continue
+            # una imagen o un clip cuya palabra no se dijo para nada (el guion cambió después de escribir los prompts):
+            # no se pierde; va en una palabra larga cerca de un tercio de la pieza, donde no haya otra imagen
+            if m.get("asset") and (lugar := _lugar_para_imagen(lineas, out)):
+                li, wi = lugar
+                out.append({**m, "linea": li, "indice": wi, "t": lineas[li]["palabras"][wi]["s"],
+                            "aproximada": lineas[li]["palabras"][wi]["w"], "puesta_sola": True})
+                continue
             perdidas.append(f"{pieza}: «{m.get('palabra')}»")
             continue
         li, wi = pos
         out.append({**m, "linea": li, "indice": wi, "t": lineas[li]["palabras"][wi]["s"]})
     return out, perdidas
+
+
+def _lugar_para_imagen(lineas, ya):
+    """(línea, palabra) para una imagen sin palabra: la palabra más larga de la línea más cercana a un tercio de la
+    pieza, lejos (2 s o más) de las imágenes que ya hay. None si la pieza no tiene palabras."""
+    pal = [(li, wi, w) for li, ln in enumerate(lineas) for wi, w in enumerate(ln.get("palabras") or [])]
+    if not pal:
+        return None
+    fin = pal[-1][2]["e"]
+    tiempos = [e["t"] for e in ya if e.get("asset")]
+    libres = [x for x in pal if all(abs(x[2]["s"] - t) >= 2 for t in tiempos)] or pal
+    objetivo = fin / 3
+    li = min({x[0] for x in libres}, key=lambda k: abs(lineas[k]["s"] - objetivo))
+    li_, wi, _ = max((x for x in libres if x[0] == li), key=lambda x: len(re.sub(r"\W", "", x[2]["w"])))
+    return li_, wi
 
 
 # ---------- 2. Armar ----------
@@ -3852,6 +3969,13 @@ def _combinaciones_sin_memoria():
         ctas_de = lambda ang: [x for x in ctas if sin_angulo(x)[1] == ang
                                and ("_" not in sin_angulo(x)[0] or sin_angulo(x)[0].split("_")[0] == cb)]
         propios = ctas_de(ca) or ctas_de("") or next((l for l in map(ctas_de, sorted({sin_angulo(x)[1] for x in ctas})) if l), [])
+        if not propios and ctas:
+            # este cuerpo no grabó su CTA (y no hay uno general): antes se quedaba SIN videos (P05: C8 y C10, 22 videos).
+            # Usa el CTA del cuerpo más cercano (C7 o C9 para C8), de frente si hay; se puede cambiar en el editor.
+            num = lambda x: int(m[1]) if (m := re.match(r"[CP](\d+)", sin_angulo(x)[0], re.I)) else 999
+            yo = num(cb)
+            prestado = min(ctas, key=lambda x: (abs(num(x) - yo), sin_angulo(x)[1] != "", x))
+            propios = [prestado]
         de_cuerpo = [h for h in hooks if sin_angulo(h)[0].split("_")[0] == cb]
         numeros = sorted({sin_angulo(h)[0] for h in de_cuerpo}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)])
         hooks_c = [next((h for h in de_cuerpo if sin_angulo(h) == (n, ca)), None) or next((h for h in de_cuerpo if sin_angulo(h) == (n, "")), None)
@@ -4406,7 +4530,69 @@ def claquetas(nombre):
             j = fin + 1
             continue
         j += 1
+    return out + _sueltos(nombre, pal, out)
+
+
+# Palabras que se agregan a propósito al inicio de un hook (no son «sueltas» aunque vayan seguidas de una pausa)
+SALUDOS = {"medico", "medica", "veterinario", "veterinaria", "doctor", "doctora", "doc", "estimado", "estimada"}
+
+
+def _sueltos(nombre, pal, ya):
+    """Lo suelto antes de que empiece a hablar de verdad (y después de que termina), en cada frase grabada:
+    una o dos palabras cortas seguidas de un silencio («ya», «carajo», «listo», «a ver») que no son del guion.
+    Hablar de verdad = palabras seguidas, en oración. [(desde, hasta)] en s de la pieza."""
+    if not pal or not CONFIG.get("quitar_sueltos", True):
+        return []
+    guion = {norm(x) for x in info_pieza(nombre).get("texto", "").split()} - {""}
+    vale = lambda ws: any(len(norm(w["w"])) >= 3 and (norm(w["w"]) in guion or norm(w["w"]) in SALUDOS) for w in ws)
+    # cada clip grabado por separado (las duraciones de la preparación); un hook de un solo clip es un solo tramo
+    try:
+        durs = json.loads((S.proc / f"{nombre}.partes.json").read_text(encoding="utf-8")).get("duraciones") or []
+    except (FileNotFoundError, ValueError, AttributeError, OSError):
+        durs = []
+    tramos, t = [], 0.0
+    for d in durs:
+        tramos.append((t, t + d))
+        t += d
+    if not tramos:
+        tramos = [(0.0, pal[-1]["e"] + 1)]
+    tramos[-1] = (tramos[-1][0], max(tramos[-1][1], pal[-1]["e"] + 1))
+    ocupado = lambda a, b: any(x < b and y > a for x, y in ya)
+    out = []
+    for ini, fin in tramos:
+        ws = [w for w in pal if ini <= (w["s"] + w["e"]) / 2 < fin]
+        if len(ws) < 3:
+            continue
+        # tiras de palabras seguidas (una pausa de 0,35 s o más separa una tira de la otra)
+        tiras = [[ws[0]]]
+        for a, b in zip(ws, ws[1:]):
+            (tiras.append([b]) if b["s"] - a["e"] >= 0.35 else tiras[-1].append(b))
+        if len(tiras) < 2:
+            continue
+        primera, segunda = tiras[0], tiras[1]
+        if len(primera) <= 2 and primera[-1]["e"] - primera[0]["s"] <= 0.9 and not vale(primera):
+            desde = 0.0 if ini == 0.0 else max(ini, primera[0]["s"] - 0.05)
+            hasta = round(max(desde + 0.05, segunda[0]["s"] - 0.08), 2)
+            if not ocupado(desde, hasta):
+                out.append((round(desde, 2), hasta))
+        ultima, penultima = tiras[-1], tiras[-2]
+        if len(tiras) >= 2 and len(ultima) <= 2 and ultima[0]["s"] - penultima[-1]["e"] >= 0.5 and not vale(ultima):
+            desde, hasta = round(penultima[-1]["e"] + 0.08, 2), round(min(fin, ultima[-1]["e"] + 0.05), 2)
+            if hasta > desde and not ocupado(desde, hasta):
+                out.append((desde, hasta))
+    # una grosería se va siempre, esté donde esté (el resto de la frase se queda)
+    for w in pal:
+        if norm(w["w"]) in GROSERIAS:
+            desde, hasta = round(max(0.0, w["s"] - 0.03), 2), round(w["e"] + 0.05, 2)
+            if not ocupado(desde, hasta) and not any(x <= desde and hasta <= y for x, y in out):
+                out.append((desde, hasta))
     return out
+
+
+# Groserías e insultos que se escapan al grabar (sin tildes ni signos, como los deja norm)
+GROSERIAS = {"carajo", "carajos", "mierda", "mierdas", "puta", "putas", "puto", "putamadre", "chucha", "chuchasumadre",
+             "conchatumadre", "conchasumadre", "concha", "ctm", "csm", "huevon", "huevona", "webon", "weon", "cojudo",
+             "cojuda", "cojudez", "joder", "jodido", "pendejo", "pendeja", "cabron", "maldicion", "chuta", "verga", "pinche"}
 
 
 def _sin_claqueta(combo, v):
