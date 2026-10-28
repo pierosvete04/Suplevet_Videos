@@ -675,8 +675,9 @@ def info_pieza(nombre):
 # C1_H2 (hook), C1 (cuerpo), C1_P3 (parte 3 del cuerpo C1), CTA / CTA-A / C1_CTA1
 # C1_H2 (hook), C1_H2_P1 (parte 1 del hook 2), C1 (cuerpo), C1_P3 (parte 3 del cuerpo), CTA / CTA-A / C1_CTA1
 # CTA-1_P2 (parte 2 del CTA-1): un CTA también se puede grabar en partes
-CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+(?:_P\d+)?|(?:C|P)\d+(?:_P\d+)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*(?:_P\d+)?)$", re.I)
-PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?(?:~[A-Z0-9]+)?|(?:(?:C|P)\d+_)?CTA(?:-?[A-Z0-9]+?)?(?:~[A-Z0-9]+)?)_P(\d+)$", re.I)
+# «C22_P3B»: la frase 3 dicha en dos clips seguidos (el segundo completa al primero); va justo después de C22_P3
+CODIGO_PIEZA = re.compile(r"^((?:C|P)\d+_H\d+(?:_P\d+)?|(?:C|P)\d+(?:_P\d+B?)?|(?:(?:C|P)\d+_)?CTA[-_]?[A-Z0-9]*(?:_P\d+)?)$", re.I)
+PARTE = re.compile(r"^((?:C|P)\d+(?:_H\d+)?(?:~[A-Z0-9]+)?|(?:(?:C|P)\d+_)?CTA(?:-?[A-Z0-9]+?)?(?:~[A-Z0-9]+)?)_P(\d+)(B?)$", re.I)
 
 # Como nombra el equipo los archivos a mano (en carpetas C1/, C2/…, CTA/):
 #   C1-H1 · C1 H1 → C1_H1      C1-H1.2 → C1_H1_P2 (hook en partes)
@@ -926,7 +927,7 @@ def con_angulo(nombre, ang):
     if not nombre or not ang or "~" in nombre:
         return nombre
     m = PARTE.match(nombre)
-    return f"{m.group(1)}~{ang}_P{m.group(2)}" if m else f"{nombre}~{ang}"
+    return f"{m.group(1)}~{ang}_P{m.group(2)}{m.group(3)}" if m else f"{nombre}~{ang}"
 
 
 def sin_angulo(nombre):
@@ -1090,10 +1091,11 @@ def _piezas_sin_memoria():
     for nombre, c in por_nombre.items():
         m = PARTE.match(nombre)
         base, orden = (m.group(1).upper(), int(m.group(2))) if m else (nombre, 0)
-        agrupadas.setdefault(base, []).append((orden, c))
+        agrupadas.setdefault(base, []).append((orden, c, bool(m and m.group(3))))
     out = []
     for nombre, lista in agrupadas.items():
-        lista.sort(key=lambda x: x[0])
+        lista.sort(key=lambda x: (x[0], x[2]))  # C22_P3 y enseguida C22_P3B (la frase en dos clips)
+        lista = [(orden, c) for orden, c, _ in lista]
         partes = [c["ruta"] for _, c in lista]
         # qué frases cubren las partes (C2.1, C2.2, C2.3, C2.5 → falta la 4)
         cubre_rel = {c["rel"]: list(range(orden, max(orden, (leer_nombre(nombre_clip(c["ruta"]))[1] or (0, orden))[1]) + 1))
@@ -2140,6 +2142,49 @@ def reasignar_por_guion(minimo=0.5, guardar=True):
         llenas.sort(key=lambda pas: hora(pas["propios"][0]))
         for k, pas in enumerate(llenas[:tope]):  # con más pasadas que ángulos, las de sobra quedan como otras tomas
             elegir(pas, f"A{k + 1}" if k else "", cu if es_cuerpo else None, num if es_cuerpo else None)
+    # Una frase dicha en dos clips seguidos: el clip de al lado (grabado enseguida, sin pieza propia) se une si juntos se
+    # parecen claramente más a la frase del guion («La evaluación nutricional es importante.» + «Para acompañar sus
+    # necesidades…»), o si es un pedacito que sigue al anterior («…mantener la masa muscular» + «Y recuperación.»)
+    sigue = re.compile(r"^(y|e|o|ni|además|también|que|con|para|porque|pero|así|sin)\b", re.I)
+    usados = set(nuevo)
+    pos = {orden[i][0]["rel"]: i for i in range(len(orden))}
+    for rel, pieza in sorted(nuevo.items(), key=lambda x: pos[x[0]]):
+        m = PARTE.match(pieza)
+        es_parte = bool(m) and tipo_de(pieza) == "cuerpo" and not m.group(3)
+        es_entera = not m and tipo_de(pieza) in ("hook", "cta")
+        if not (es_parte or es_entera):
+            continue
+        i = pos[rel]
+        base_guion = (f"{_cuerpo_de_pieza(sin_angulo_codigo(pieza)[0])}_P{m.group(2)}" if es_parte else sin_angulo(pieza)[0]).upper()
+        base_guion = next((k for k in esperadas if k.upper() == base_guion), None)
+        if not base_guion:
+            continue
+        propio = orden[i][2].get(base_guion, 0)
+        for j, antes in ((i + 1, False), (i - 1, True)):
+            # justo al lado en el orden de grabación: hasta 1 min, o 2 min y medio para un pedacito que sigue (entre
+            # medio pudo haber tomas que se borraron)
+            if not 0 <= j < len(orden) or orden[j][0]["rel"] in usados or abs(hora(j) - hora(i)) > 150:
+                continue
+            if modelo(i) and modelo(j) and modelo(i) != modelo(j):
+                continue
+            tj = orden[j][1]
+            if largo(tj) < 1 or max(orden[j][2].values(), default=0) >= 0.75:
+                continue  # ese clip es otra frase entera: no se une
+            junto_txt = f"{tj} {orden[i][1]}" if antes else f"{orden[i][1]} {tj}"
+            junto = _puntajes(junto_txt, {base_guion: guion_toks[base_guion]})[base_guion]
+            completa = junto >= 0.6 and junto >= propio + 0.08 and abs(hora(j) - hora(i)) <= 60
+            pedacito = not antes and largo(tj) <= 7 and sigue.match(tj.strip(" ¿¡«\"'")) and max(orden[j][2].values(), default=0) < 0.5
+            if not (completa or pedacito):
+                continue
+            if es_parte:
+                primero, segundo = (orden[j][0]["rel"], rel) if antes else (rel, orden[j][0]["rel"])
+                nuevo[primero], nuevo[segundo] = pieza, pieza + "B"
+            else:  # un hook o CTA en dos clips: sus dos partes
+                primero, segundo = (orden[j][0]["rel"], rel) if antes else (rel, orden[j][0]["rel"])
+                nb, na = sin_angulo(pieza)
+                nuevo[primero], nuevo[segundo] = con_angulo(f"{nb}_P1", na), con_angulo(f"{nb}_P2", na)
+            usados.add(orden[j][0]["rel"])
+            break
     rels = [c["rel"] for c, _, _ in orden]
     cambiados = sum(1 for r in rels if (actuales.get(r) or "") != nuevo.get(r, ""))
     if guardar and cambiados:

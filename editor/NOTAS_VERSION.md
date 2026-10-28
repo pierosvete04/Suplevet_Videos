@@ -1,3 +1,6 @@
+Versión 1.55.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Una frase dicha en dos clips seguidos se une sola:** si juntos se parecen más a la frase del guion («La evaluación nutricional es importante.» + «Para acompañar sus necesidades…»), o si el segundo es un pedacito que sigue al anterior («…la masa muscular» + «Y recuperación.»). La segunda parte se llama C22_P3B y va justo después de C22_P3. En hooks y CTA queda como _P1 + _P2.
+
 Versión 1.55.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Faltantes → Clips por identificar: barra fija arriba** al elegir clips (debajo de las pestañas, se queda al bajar): Asignar (un clip), Poner lo sugerido, 🗑 Descartar, Elegir todos y Quitar selección. La tarjeta elegida queda marcada.
 - **Vista previa en cada clip:** una imagen del video en vez del cuadro negro (al darle play se ve normal).
