@@ -204,7 +204,7 @@ def estado():
             "archivadas": motor.archivadas(), "siguiente_produccion": motor.siguiente_produccion(),
             "carpeta": str(S.grab), "hay_produccion": bool(prod),
             "en_drive": [S.en_drive(m) for m in S.miembros],  # carpetas de Drive de donde «Analizar clips» trae los clips
-            "piezas": ps, "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
+            "piezas": ps, "n_clips": len(motor.clips()), "salidas": salidas, "assets": assets, "checklist": checklist, "musica_ids": musica_ids, "piezas_guion": {n: i.get("texto", "") for n, i in prod.get("piezas", {}).items()},
             "calendario": motor.calendario(), "auto_descargas": bool(motor.CONFIG.get("auto_descargas", True)), "exportar": motor.ajustes_exportar(), "silencios": motor.ajustes_silencios(), "cortes_voz": {**motor.ajustes_cortes_voz(), "acelerar": motor.ajustes_ritmo()["acelerar"]},
             "ediciones": motor.ediciones(), "plan": motor.plan_sesion(), "pistas_musica": [f.name for f in motor.pistas_musica()],
             "angulos": {a: motor.nombre_angulo(a) for a in sorted({p.get("angulo") or "" for p in ps} | {""})}, "estilo_edicion": motor.estilo_edicion(), "sonidos_nivel": {"normalizar": True, "objetivo_lufs": -20, **motor.CONFIG.get("sonidos_nivel", {})}, "sfx": sfx, "estilos": motor.ESTILOS_SUB,
@@ -851,6 +851,15 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
         motor.revisar_cancelado()
         TRABAJO["mensaje"] = msg
         TRABAJO["log"] = (TRABAJO["log"] + [msg])[-200:]
+        TRABAJO["log_t"] = (TRABAJO.get("log_t", []) + [time.time()])[-200:]
+        # «(136/186)»: cuántos van de cuántos, y desde cuándo, para calcular cuánto falta
+        if m := re.search(r"\((\d+)/(\d+)\)", msg):
+            n, total = int(m[1]), int(m[2])
+            av = TRABAJO.get("avance") or {}
+            if av.get("total") != total or n < av.get("n", 0):
+                av = {"n0": n, "t0": time.time(), "total": total}
+            av.update({"n": n, "t": time.time()})
+            TRABAJO["avance"] = av
 
     def renombrar_todo():
         plan = motor.plan_renombrar()["cambios"]
@@ -1234,8 +1243,9 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                 TRABAJO["cola"] = []
 
     motor.CANCELAR.clear()
-    TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "resultado": None,
-                    "cancelado": False, "inicio": time.time()})
+    motor.PAUSA.clear()
+    TRABAJO.update({"activo": True, "accion": accion, "mensaje": "Empezando…", "error": None, "log": [], "log_t": [], "resultado": None,
+                    "cancelado": False, "inicio": time.time(), "pausado": None, "avance": None})
     threading.Thread(target=correr, daemon=True).start()
 
 
@@ -1671,7 +1681,23 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/cancelar":
                 if TRABAJO["activo"]:
                     motor.cancelar()
+                    TRABAJO["pausado"] = None
                 return self._json({"ok": True})
+            if u.path == "/api/pausar":  # {pausa: true} pausa el trabajo en curso; {pausa: false} lo reanuda
+                if not TRABAJO["activo"]:
+                    return self._json({"ok": False, "error": "No hay ningún proceso corriendo"}, 400)
+                if self._cuerpo().get("pausa"):
+                    motor.PAUSA.set()
+                    TRABAJO["pausado"] = TRABAJO.get("pausado") or time.time()
+                else:
+                    motor.PAUSA.clear()
+                    if TRABAJO.get("pausado"):  # lo pausado no cuenta para calcular cuánto falta
+                        quieto = time.time() - TRABAJO["pausado"]
+                        if TRABAJO.get("avance"):
+                            TRABAJO["avance"]["t0"] += quieto
+                        TRABAJO["inicio_pausas"] = TRABAJO.get("inicio_pausas", 0) + quieto
+                    TRABAJO["pausado"] = None
+                return self._json({"ok": True, "pausado": TRABAJO["pausado"]})
             if u.path == "/api/entrar":  # entrar con Google: sesión común de las tres salas
                 e = cuenta.entrar(str(self._cuerpo().get("link", "")))
                 drive.asegurar_config(forzar=True)

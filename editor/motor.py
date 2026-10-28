@@ -436,6 +436,7 @@ def guardar_config(cambios):
 # ---------- Cancelar el trabajo en curso ----------
 import threading as _hilos
 CANCELAR = _hilos.Event()
+PAUSA = _hilos.Event()  # «Pausar» en Procesos: el trabajo se queda quieto al terminar el paso que está haciendo
 PROCESOS = set()  # ffmpeg, rclone o Claude corriendo ahora: se cortan al cancelar
 
 
@@ -449,11 +450,15 @@ _LOCAL = _hilos.local()  # .slot: carpeta de trabajo propia de cada hilo que arm
 
 def revisar_cancelado():
     yo = _hilos.get_ident()
-    if CANCELAR.is_set() and (yo == HILO_TRABAJO["id"] or yo in HILO_TRABAJO["ayudantes"]):
+    del_trabajo = yo == HILO_TRABAJO["id"] or yo in HILO_TRABAJO["ayudantes"]
+    while del_trabajo and PAUSA.is_set() and not CANCELAR.is_set():  # en pausa: espera aquí hasta «Reanudar»
+        time.sleep(0.3)
+    if CANCELAR.is_set() and del_trabajo:
         raise Cancelado("Cancelado")
 
 
 def cancelar():
+    PAUSA.clear()
     CANCELAR.set()
     for p in list(PROCESOS):
         try:

@@ -1022,6 +1022,16 @@ dialog.pop-notifs::backdrop, :root[data-tema] dialog.pop-notifs::backdrop { back
 .pn-vivo b { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pn-vivo .msg { overflow-wrap: anywhere; line-height: 1.4; }
 .pn-vivo small { color: var(--muted); font-size: 11.5px; }
+.pn-vivo .que b, .pn-vivo .cifras b { display: inline; }
+.pn-vivo .que { font-size: 12.5px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; line-height: 1.45; }
+.pn-vivo .barra-pn { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.pn-vivo .barra-pn i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s; }
+.pn-vivo.pausado .barra-pn i { background: var(--warn, #d9a400); }
+.pn-vivo .cifras { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.pn-vivo .botones { display: flex; gap: 6px; flex-wrap: wrap; }
+.pn-vivo ol.pn-log { margin: 0; padding: 0; list-style: none; max-height: 220px; overflow: auto; font-size: 12px; display: grid; gap: 2px; }
+.pn-vivo ol.pn-log li { display: grid; grid-template-columns: 44px 1fr; gap: 6px; }
+.pn-vivo ol.pn-log li span { color: var(--muted); font-variant-numeric: tabular-nums; }
 .pn-vivo details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .pn-vivo pre { margin: 6px 0 0; font: 11px/1.5 var(--mono); color: var(--muted); max-height: 180px; overflow: auto; white-space: pre-wrap; }
 .pn-pie.izq { display: block; font-size: 12px; color: var(--muted); line-height: 1.6; }
@@ -3125,9 +3135,12 @@ function pintarInicio() {
     + stat(viejos, "Por rearmar", viejos ? "warn" : "") + stat(faltan, "Imágenes y música por generar", faltan ? "warn" : "");
   const pasos = [
     [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : modoIA() === "antigravity" ? `<button class="btn peq blanco" data-clic="prepGuion">Subir el guion</button>` : `<button class="btn peq blanco" data-ir="claude">Escribir con Claude</button>`],
-    [E.piezas.length > 0 || sinId > 0, "Grabar y subir los clips a Drive", E.piezas.length || sinId ? `<span class="pill">${E.piezas.length + sinId} clips</span>` : `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
+    // antes decía «piezas + clips sueltos» como si fueran clips (un cuerpo de 8 clips contaba 1): ahora son los clips de verdad
+    [E.piezas.length > 0 || sinId > 0, "Grabar y subir los clips a Drive", E.piezas.length || sinId ? `<span class="pill" title="${E.piezas.length} piezas armadas con ellos (un cuerpo grabado frase por frase junta varios clips)">${E.n_clips ?? E.piezas.length + sinId} clips</span>` : `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
     [E.piezas.length > 0 && E.piezas.every(p => p.procesada), "Analizar los clips y corroborar con el guion", `<button class="btn sec peq" data-ir="guion">Ir a Guion</button>`],
-    [E.piezas.length > 0 && !sinId, "Identificar los clips", sinId ? `<button class="btn sec peq" data-ir="faltan">${sinId} por identificar</button>` : ""],
+    // la sala identifica sola cada clip al analizar; los que quedan sin pieza son otras tomas, frases fuera del guion o
+    // pruebas: no frenan nada, se pueden revisar en Faltantes
+    [E.piezas.length > 0, "Identificar los clips (lo hace la sala al analizar)", sinId ? `<button class="btn sec peq" data-ir="faltan" title="Otras tomas de frases que ya tienen clip, frases que no están en el guion o pruebas. No se usan en los videos; revísalos en Faltantes si quieres usar alguno.">${sinId} sin usar</button>` : ""],
     [E.hay_produccion && !faltan, "Imágenes de Flow y música", faltan ? `<button class="btn sec peq" data-ir="faltan">Faltan ${faltan}</button>` : ""],
     [vids.length > 0 && armados === vids.length && !viejos, "Armar los videos", vids.length ? `<button class="btn sec peq" data-ir="videos">${armados}/${vids.length}</button>` : ""],
     [vids.length > 0 && listos === vids.length, "Revisar y aprobar cada video, y exportar", vids.length ? `<button class="btn sec peq" data-ir="publicar">Exportar</button>` : ""],
@@ -4735,7 +4748,7 @@ function vigilar(t) {
     vigilando = setInterval(async () => {
       let j;
       try { j = await (await fetch("/api/trabajo")).json(); } catch (err) { return; }  // la sala se está reiniciando
-      $("trabajo").textContent = j.mensaje;
+      $("trabajo").textContent = (j.pausado ? "⏸ En pausa · " : "") + (j.mensaje || "") + faltaTxt(j);
       pintarBajada(j); pintarClaudeTrabajo(j);
       // al bajar de Drive: apenas llega el guion se muestra, sin esperar a los clips
       if (j.activo && j.accion === "bajar" && !guionYaLlego && /^Clips|Bajando los clips/.test(j.mensaje || "")) { guionYaLlego = true; cargar(); }
@@ -4762,6 +4775,13 @@ function vigilar(t) {
   }
 }
 let reabrir = null;  // al terminar de rearmar un video, se vuelve a abrir con el resultado
+// cuánto falta, redondeado (un cálculo, no un reloj): «~16 min», «~1 h 20 min», «menos de 1 min»
+const durAprox = s => s < 60 ? "menos de 1 min" : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
+function faltaTxt(j) {  // « · faltan ~12 min» al ritmo de lo que lleva
+  const av = j.avance; if (!j.activo || j.pausado || !av || !av.total) return "";
+  const hechos = av.n - av.n0, gastado = av.t - av.t0;
+  return hechos >= 2 && gastado > 0 ? ` · faltan ~${durAprox(gastado / hechos * (av.total - av.n))}` : "";
+}
 function avisarFin(j) {
   const h0 = (j.historial || [])[0], cuanto = h0 && h0.duracion ? ` (${durTxt(h0.duracion)}${h0.cantidad ? `, ${plural(h0.cantidad, "video")}` : ""})` : "";
   const nombre = NOMBRE_PROCESO[j.accion] || "El proceso";
@@ -5187,12 +5207,7 @@ const hora = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-
 async function pintarProcesos() {
   let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
   document.querySelectorAll("[data-pf]").forEach(b => b.setAttribute("aria-selected", b.dataset.pf === pestanaProc));
-  $("procActual").innerHTML = t.activo ? `<div class="pn-vivo">
-      <div class="fila"><b><span class="rueda" aria-hidden="true"></span>${esc(NOMBRE_PROCESO[t.accion] || t.accion)}</b>
-        <button class="btn peq" id="procCancelar" type="button" style="background:var(--err)" ${cancelPedido === t.inicio ? "disabled" : ""}>${cancelPedido === t.inicio ? "Cancelando…" : "Cancelar"}</button></div>
-      <span class="msg">${esc(t.mensaje || "")}</span>
-      <small>Empezó a las ${hora(t.inicio)} · lleva ${durTxt(Date.now() / 1000 - t.inicio)}</small>
-      <details ${detalleAbierto ? "open" : ""}><summary>Ver el detalle</summary><pre>${esc((t.log || []).slice(-25).join("\n"))}</pre></details></div>` : "";
+  $("procActual").innerHTML = t.activo ? pintarVivo(t) : "";
   const lista = pestanaProc === "todo" && historialProc ? historialProc : (t.historial || []);
   $("procResumen").textContent = t.activo ? "1 en curso" : lista.length ? "Nada corriendo ahora" : "";
   let dia = "";
@@ -5207,6 +5222,57 @@ async function pintarProcesos() {
     pie.innerHTML = Object.entries(prom).map(([a, p]) => `${esc(NOMBRE_PROCESO[a] || a)}: <b>${durTxt(p.s / p.n)}</b> por video`).join(" · ") || "Todavía no hay tiempos guardados.";
     pie.hidden = false;
   } else pie.hidden = true;
+}
+// Qué está haciendo, en palabras simples (para quien no conoce la sala)
+const QUE_HACE = [
+  [/^Procesando (\S+)/, n => `Preparando la pieza <b>${n}</b>: junta sus clips, corta el silencio del inicio y del final, iguala el volumen y la deja en el formato del video.`],
+  [/^Transcribiendo (\S+)/, n => `Pasando a texto lo que se dice en <b>${n}</b>: con eso salen los subtítulos y se compara con el guion.`],
+  [/^Escuchando (\S+)/, n => `Escuchando el clip <b>${n}</b> para saber qué frase del guion es.`],
+  [/^Ajustando (\S+)/, n => `Ajustando <b>${n}</b> para que el editor no se trabe al moverse por el video.`],
+  [/^(?:Antes de exportar: )?[Aa]rmando (\S+)/, n => `Armando el video <b>${n}</b>: hook + cuerpo + CTA, con subtítulos, imágenes, música y sonidos.`],
+  [/^Exportando/, () => `Exportando: guardando los videos terminados en la carpeta de salida (y en Drive si se pidió).`],
+  [/^Revisando calidad/, () => `Revisando la calidad de cada video (volumen, imágenes que faltan, subtítulos tapados…).`],
+  [/^Renombrando/, () => `Poniéndole a cada clip el nombre de su pieza (también en Drive).`],
+  [/^Comparando todos los clips/, () => `Comparando cada clip con el guion para saber de qué pieza es, en qué orden y de qué ángulo.`],
+  [/^Bajando|^Clips: \d+%/, () => `Bajando de Drive los clips y el guion de la sesión a esta PC.`],
+  [/^Subiendo/, () => `Subiendo a Drive lo hecho en esta PC.`],
+  [/^Portada/, () => `Haciendo las portadas de los videos.`],
+];
+function queHace(msg) {
+  for (const [re, f] of QUE_HACE) { const m = String(msg || "").match(re); if (m) return f(esc(m[1] || "")); }
+  return "";
+}
+const horaSeg = t => t ? new Date(t * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+function pintarVivo(t) {
+  const ahora = Date.now() / 1000, av = t.avance, pausa = !!t.pausado;
+  const lleva = (pausa ? t.pausado : ahora) - t.inicio - (t.inicio_pausas || 0);
+  let barra = "", cifras = `<span>Empezó a las ${hora(t.inicio)} · lleva <b>${durTxt(lleva)}</b></span>`;
+  if (av && av.total) {
+    const pct = Math.min(100, Math.round(av.n / av.total * 100));
+    barra = `<div class="barra-pn" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`;
+    // cuánto falta: al ritmo de lo que lleva esta parte (lo pausado no cuenta)
+    const hechos = av.n - av.n0, gastado = (pausa ? t.pausado : av.t) - av.t0;
+    const falta = hechos >= 2 && gastado > 0 ? gastado / hechos * (av.total - av.n) : null;
+    cifras = `<span><b>${av.n} de ${av.total}</b> · ${pct}%</span><span>Lleva <b>${durTxt(lleva)}</b>${falta != null
+      ? ` · faltan <b>~${durAprox(falta)}</b> (termina ~${hora(ahora + falta)})` : " · calculando cuánto falta…"}</span>`;
+  }
+  const log = (t.log || []).slice(-40).map((x, i, arr) => {
+    const tt = (t.log_t || []).slice(-arr.length)[i];
+    return `<li><span>${tt ? horaSeg(tt).slice(0, 5) : ""}</span>${esc(x)}</li>`;
+  }).reverse().join("");
+  const que = queHace(t.mensaje);
+  return `<div class="pn-vivo ${pausa ? "pausado" : ""}">
+    <div class="fila"><b>${pausa ? "⏸" : `<span class="rueda" aria-hidden="true"></span>`}${esc(NOMBRE_PROCESO[t.accion] || t.accion)}${pausa ? " · en pausa" : ""}</b></div>
+    <span class="msg">${esc(t.mensaje || "")}</span>
+    ${que ? `<div class="que">${que}</div>` : ""}
+    ${barra}<div class="cifras">${cifras}</div>
+    ${pausa ? `<small>En pausa desde las ${hora(t.pausado)}. La sala terminó el paso que estaba haciendo y espera.</small>` : ""}
+    <div class="botones">
+      ${pausa ? `<button class="btn peq" id="procReanudar" type="button">▶ Reanudar</button>`
+        : `<button class="btn sec peq" id="procPausar" type="button" title="Se detiene al terminar el paso que está haciendo; después sigue donde quedó">⏸ Pausar</button>`}
+      <button class="btn peq" id="procCancelar" type="button" style="background:var(--err)" ${cancelPedido === t.inicio ? "disabled" : ""}>${cancelPedido === t.inicio ? "Cancelando…" : "■ Cancelar"}</button>
+    </div>
+    <details ${detalleAbierto ? "open" : ""}><summary>Ver lo que va haciendo, paso a paso</summary><ol class="pn-log">${log}</ol></details></div>`;
 }
 function abrirProcesos() {
   const d = $("dlgProcesos"); if (d.open) return d.close();
@@ -5284,7 +5350,20 @@ function filaHistorial(h) {
 }
 $("dlgProcesos").addEventListener("close", () => clearInterval(procTimer));
 $("procActual").addEventListener("click", async e => {
+  if (e.target.id === "procPausar" || e.target.id === "procReanudar") {
+    const pausa = e.target.id === "procPausar"; e.target.disabled = true;
+    try { await post("/api/pausar", { pausa });
+      avisar(pausa ? "En pausa: la sala termina el paso que está haciendo y espera. Toca «Reanudar» para seguir." : "Sigue trabajando.", "muted"); }
+    catch (err) { avisar("Error: " + err.message, "err"); }
+    return pintarProcesos();
+  }
   if (e.target.id !== "procCancelar") return;
+  let t0 = null; try { t0 = await (await fetch("/api/trabajo")).json(); } catch (er) {}
+  if (!await preguntar(`¿Seguro que quieres cancelar «${NOMBRE_PROCESO[t0?.accion] || "el proceso"}»?
+
+Lo que ya hizo se queda guardado; lo que falta no se hace. Para seguir después tendrás que volver a empezarlo${t0?.avance?.total ? ` (va en ${t0.avance.n} de ${t0.avance.total})` : ""}.
+
+Si solo quieres que pare un rato, usa «Pausar».`, "Sí, cancelar")) return;
   e.target.disabled = true; e.target.textContent = "Cancelando…";
   try { const t = await (await fetch("/api/trabajo")).json(); cancelPedido = t.inicio; await post("/api/cancelar"); }
   catch (err) { cancelPedido = null; avisar("Error: " + err.message, "err"); }

@@ -1,3 +1,11 @@
+Versión 1.54.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Procesos (☰) explica qué está haciendo** en palabras simples (preparar una pieza, pasar a texto, armar un video…), con una barra «136 de 186 · 73 %».
+- **Cuánto falta:** «lleva 44 min · faltan ~17 min (termina ~11:09 p. m.)», calculado con el ritmo que lleva. También en la barra de abajo.
+- **⏸ Pausar y ▶ Reanudar:** la sala se detiene al terminar el paso que está haciendo y sigue donde quedó.
+- **■ Cancelar pregunta antes** («¿Seguro que quieres cancelar?»), dice en qué número va y sugiere Pausar.
+- **«Ver lo que va haciendo, paso a paso»**: cada paso con su hora.
+- **Inicio cuenta bien:** «Grabar y subir» muestra los clips de verdad (antes sumaba piezas); «Identificar los clips» ya no frena el avance y muestra los clips sin usar (otras tomas, frases fuera del guion).
+
 Versión 1.54.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Los clips se asignan bien siempre:** al analizar, la sala vuelve a comparar TODOS los clips con el guion de hoy (no solo los nuevos). Lo asignado con un guion anterior ya no se queda pegado ocupando piezas que no son.
 - **Nunca mezcla ángulos:** ordena los clips por la hora en que se grabaron y separa cada pasada del cuerpo (P1…P8 y otra vez P1…P8). Cada ángulo se arma solo con los clips de su pasada; de varias tomas de una frase queda la más parecida al guion.
