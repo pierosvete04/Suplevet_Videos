@@ -359,6 +359,9 @@ body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
 .tl-blq:hover .tl-cambiar, .tl-blq .tl-cambiar:focus-visible { opacity: 1; }
 @media (hover: none) { .tl-blq .tl-cambiar { opacity: 1; } }
 #tmCuerpo .toma.esta { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
+.fl-explica { margin: 2px 0 12px; font-size: 13px; line-height: 1.5; }
+.fl-explica b { white-space: nowrap; }
+.fl-explica .muted { font-size: 12.5px; }
 .pf-ficha .pf-omitir { font-size: 11.5px; color: var(--muted); justify-self: start; }
 .pf-ficha .pf-omitir:hover { color: var(--err); }
 .tarjeta .sel { position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 7px; border: 2px solid #fff; background: rgba(0,0,0,.35); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
@@ -1920,6 +1923,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 
   <section data-panel="faltan" hidden>
     <div class="fl-resumen" id="flResumen"></div>
+    <p class="fl-explica" id="flExplica"></p>
     <div class="fl-sigue" id="flSigue" hidden></div>
     <div class="caja fl-caja" id="cajaGenerar">
       <div class="fl-cab"><h2 style="margin:0">Imágenes, clips y música de Flow</h2>
@@ -4549,7 +4553,8 @@ function pintarSinAsignar() {
   const lista = E.checklist.sin_asignar || [];
   const ocultar = $("ocultarTomas").checked;
   $("cajaSinAsignar").hidden = !lista.length;
-  $("nSinAsignar").textContent = lista.length;
+  const nTomas = lista.filter(c => c.otra_toma).length;
+  $("nSinAsignar").textContent = nTomas ? `${lista.length - nTomas} + ${nTomas} otras tomas` : lista.length;
   $("numerarHooks").hidden = !lista.some(c => c.carpeta === "hook");
   // también las mitades de un hook o un CTA de dos oraciones (C1_H2_P1, C1_H2_P2): se unen solas en esa pieza
   const oraciones = t => String(t || "").trim().split(/(?<=[.!?…])\s+(?=[¿¡«A-ZÁÉÍÓÚÑ])/).filter(x => x.trim().length > 3);
@@ -4689,7 +4694,8 @@ function pintarMusica() {
 // Resumen de arriba y «Ahora sigue»: lo primero que hay que hacer, con su botón
 let filtroAssets = null;
 function pintarResumenFaltan() {
-  const ch = E.checklist, mus = ch.musica || [], as = ch.assets || [], sin = ch.sin_asignar || [];
+  const ch = E.checklist, mus = ch.musica || [], as = ch.assets || [], todos = ch.sin_asignar || [];
+  const sin = todos.filter(c => !c.otra_toma), tomas = todos.length - sin.length;  // otra toma = esa frase ya tiene clip
   const musOk = mus.filter(m => m.listo).length, asOk = as.filter(a => a.listo).length;
   const grab = E.piezas.length, total = grab + ch.piezas_faltan.length;
   const cuadro = (t, n, de, ir, pend) => `<button type="button" class="fl-cuadro ${pend ? "" : "ok"}" data-fl-ir="${ir}">
@@ -4700,6 +4706,13 @@ function pintarResumenFaltan() {
     cuadro("🖼 Imágenes y clips listos", asOk, as.length, "cajaAssets", asOk < as.length),
     cuadro("🎬 Piezas grabadas", grab, total, "cajaPiezasFaltan", ch.piezas_faltan.length > 0),
     cuadro("❓ Clips por identificar", sin.length, null, "cajaSinAsignar", sin.length > 0)].join("");
+  // el número de la pestaña, explicado: qué suma y qué no cuenta
+  const pPiezas = ch.piezas_faltan.length, pAssets = (as.length - asOk) + (mus.length - musOk), totalF = pPiezas + pAssets + sin.length;
+  const partes = [pPiezas && `<b>${plural(pPiezas, "pieza por grabar", "piezas por grabar")}</b> (${pPiezas === 1 ? "grábala o márcala" : "grábalas o márcalas"} «No se grabó»)`,
+    sin.length && `<b>${plural(sin.length, "clip sin identificar", "clips sin identificar")}</b> (${sin.length === 1 ? "asígnalo o descártalo" : "asígnalos o descártalos"})`,
+    pAssets && `<b>${plural(pAssets, "imagen o pista por generar", "imágenes o pistas por generar")}</b>`].filter(Boolean);
+  $("flExplica").innerHTML = (totalF ? `Faltan <b>${totalF}</b>: ${partes.join(" · ")}.` : `<b>✓ No falta nada.</b>`)
+    + (tomas ? ` <span class="muted">Además hay ${plural(tomas, "otra toma", "otras tomas")} de frases que ya tienen su clip: no se usan y no cuentan. Para verlas o descartarlas, en «Clips por identificar» desmarca «Ocultar otras tomas».</span>` : "");
   const sigue = sin.length ? [`Identificar ${plural(sin.length, "clip")} grabado${sin.length === 1 ? "" : "s"}`, "La sala los escucha y dice qué pieza es cada uno.", "cajaSinAsignar", "Ver los clips"]
     : mus.length && musOk < mus.length ? [`Crear la música: ${mus.filter(m => !m.listo).map(m => m.id).join(", ")}`, "Copia el prompt, genérala en Flow Music y suéltala en su cuadro.", "cajaMusica", "Ir a la música"]
     : asOk < as.length ? [`Generar ${plural(as.length - asOk, "imagen", "imágenes")} en Flow`, "Con Claude en Chrome o con Antigravity; después la sala las pone en su video.", "cajaGenerar", "Generarlas"]
@@ -4751,7 +4764,8 @@ function pintarFaltan() {
   $("generarFlow").disabled = !!$("generarFlow").dataset.nada || !!E.trabajo?.activo;
   pintarEstadoFlow();
   const faltaAssets = ch.assets.filter(a => !a.listo).length + (ch.musica || []).filter(m => !m.listo).length;
-  const sinId = (ch.sin_asignar || []).length;  // los clips sin identificar también son algo por hacer aquí
+  // los clips sin identificar también son algo por hacer aquí; las otras tomas de frases que ya tienen clip, no
+  const sinId = (ch.sin_asignar || []).filter(c => !c.otra_toma).length;
   const total = ch.piezas_faltan.length + faltaAssets + sinId;
   $("nFaltan").textContent = total || "✓"; $("nFaltan").className = "pill " + (total ? "warn" : "ok");
   $("nFaltan").title = total ? [ch.piezas_faltan.length && plural(ch.piezas_faltan.length, "pieza por grabar", "piezas por grabar"),

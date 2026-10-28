@@ -1,3 +1,6 @@
+Versión 1.55.6 (se actualiza desde la app con «Actualizar ahora»):
+- **Faltantes explica su número:** cuenta solo lo que de verdad falta (piezas por grabar, clips sin identificar, imágenes o pistas por generar) y arriba dice «Faltan 7: 6 piezas por grabar · 1 clip sin identificar». Las otras tomas de frases que ya tienen clip no cuentan; se avisan aparte («1 + 14 otras tomas»).
+
 Versión 1.55.5 (se actualiza desde la app con «Actualizar ahora»):
 - **Las palabras de los componentes salen siempre bien escritas en los subtítulos:** calostro bovino (no «ovino», «vino»), lactoferrina, suero lácteo y proteína de suero (no «suelo»), leucina, FOS, omega 3 y 6, osteoartritis, parvovirus, inmunoglobulinas y Suplevet. Se corrige al transcribir y también en los subtítulos ya hechos (al preparar, sin rehacerlos: se quedan tiempos, líneas y marcas; lo corregido a mano no se toca).
 
