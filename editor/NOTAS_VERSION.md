@@ -1,3 +1,6 @@
+Versión 1.55.5 (se actualiza desde la app con «Actualizar ahora»):
+- **Las palabras de los componentes salen siempre bien escritas en los subtítulos:** calostro bovino (no «ovino», «vino»), lactoferrina, suero lácteo y proteína de suero (no «suelo»), leucina, FOS, omega 3 y 6, osteoartritis, parvovirus, inmunoglobulinas y Suplevet. Se corrige al transcribir y también en los subtítulos ya hechos (al preparar, sin rehacerlos: se quedan tiempos, líneas y marcas; lo corregido a mano no se toca).
+
 Versión 1.55.4 (se actualiza desde la app con «Actualizar ahora»):
 - **Cuerpos dichos con otras palabras (un guion que cambió al grabar) se completan por el orden de grabación:** una frase que no se parece al guion pero cae entre la anterior y la siguiente (o justo después de la última) va en su lugar; una frase en dos clips («Suplevet aporta…» + «Que contribuyen…») se une; el CTA es el llamado grabado justo después del cuerpo (en uno o dos clips) y un hook que falta es el clip grabado justo antes del siguiente. En P05: 491 clips con pieza (antes 472); C19, C20 y C23 completos.
 

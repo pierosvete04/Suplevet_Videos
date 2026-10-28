@@ -1368,24 +1368,113 @@ def transcribir(video):
     return corregir_palabras(out)
 
 
+# Lo que la transcripción escribe mal de los componentes de Suplevet, siempre corregido (además de lo que se agregue en
+# config transcripcion.correcciones). Hasta 5 palabras seguidas; la corrección puede tener varias palabras.
+CORRECCIONES_MARCA = {
+    # calostro: Suplevet lleva calostro BOVINO; la voz se oye «ovino», «vino», «de vino», «o vino»
+    "calostro ovino": "calostro bovino", "calostro vino": "calostro bovino", "calostro bobino": "calostro bovino",
+    "calostro de vino": "calostro bovino", "calostro o vino": "calostro bovino", "calostro y vino": "calostro bovino",
+    "calostro de bovino": "calostro bovino", "calostros ovino": "calostro bovino",
+    # lactoferrina
+    "lactoferrino": "lactoferrina", "lactoferina": "lactoferrina", "lacto ferrina": "lactoferrina", "lactoferin": "lactoferrina",
+    "lactoferrin": "lactoferrina", "lactofermina": "lactoferrina", "lactoferrinas": "lactoferrina",
+    # proteína de suero (Whey)
+    "suelo lacteo": "suero lácteo", "suelo y lacteo": "suero lácteo", "suero y lacteo": "suero lácteo", "suelos lacteo": "suero lácteo",
+    "proteina de suelo": "proteína de suero", "proteinas de suelo": "proteínas de suero", "proteina del suelo": "proteína de suero",
+    "suero lacteo way": "suero lácteo Whey", "suero lacteo wey": "suero lácteo Whey", "suero lacteo guey": "suero lácteo Whey",
+    # leucina, FOS, omegas
+    "laucina": "leucina", "leusina": "leucina", "la usina": "la leucina", "la lucina": "la leucina", "incluida la usina": "incluida la leucina",
+    "fos": "FOS", "foss": "FOS", "phos": "FOS", "los fos": "los FOS", "el fos": "el FOS",
+    "omega tres": "omega 3", "omegas tres": "omegas 3", "omega seis": "omega 6", "omegas seis": "omegas 6",
+    "omega 3 y seis": "omega 3 y 6", "omegas 3 y seis": "omegas 3 y 6", "tres y seis": "3 y 6",
+    "omega tres y seis": "omega 3 y 6", "omegas tres y seis": "omegas 3 y 6",
+    "proteina de suelo y lacteo": "proteína de suero lácteo", "proteinas de suelo y lacteo": "proteínas de suero lácteo",
+    "proteina de suelo lacteo": "proteína de suero lácteo", "proteinas de suelo lacteo": "proteínas de suero lácteo",
+    "proteina de suero y lacteo": "proteína de suero lácteo", "proteinas de suero y lacteo": "proteínas de suero lácteo",
+    # nombres de enfermedades que se oyen mal
+    "osteotritis": "osteoartritis", "osteoarthritis": "osteoartritis", "osteo artritis": "osteoartritis", "osteartritis": "osteoartritis",
+    "parvovidus": "parvovirus", "parvo virus": "parvovirus", "parvobirus": "parvovirus",
+    "inmunoglobolinas": "inmunoglobulinas", "inmunoglobinas": "inmunoglobulinas", "inmuno globulinas": "inmunoglobulinas",
+    # la marca
+    "supevet": "Suplevet", "suplet": "Suplevet", "suplevit": "Suplevet", "supleve": "Suplevet", "suplevete": "Suplevet",
+}
+
+
+_TABLA_CORR = {"de": None, "tabla": {}}
+
+
+def _tabla_correcciones():
+    """{palabras normalizadas: corrección}: las de la marca + las de config (las de config mandan). Se arma una vez."""
+    todas = {**CORRECCIONES_MARCA, **(CONFIG.get("transcripcion", {}).get("correcciones") or {})}
+    if _TABLA_CORR["de"] != todas:
+        _TABLA_CORR.update(de=todas, tabla={" ".join(norm(x) for x in k.split()): v for k, v in todas.items()})
+    return _TABLA_CORR["tabla"]
+
+
+def firma_correcciones():
+    return hashlib.md5(json.dumps(_tabla_correcciones(), sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:10]
+
+
 def corregir_palabras(pal):
-    """Arregla lo que la transcripción escribe mal siempre igual (config transcripcion.correcciones: «suplebet»,
-    «su plebet» → Suplevet). Una corrección de dos palabras las junta en una, con el tiempo de las dos."""
-    tabla = {" ".join(norm(x) for x in k.split()): v for k, v in (CONFIG["transcripcion"].get("correcciones") or {}).items()}
+    """Arregla lo que la transcripción escribe mal siempre igual («suplebet» → Suplevet, «calostro ovino» → calostro
+    bovino, «laucina» → leucina…). Si la corrección tiene varias palabras, el tiempo se reparte entre ellas; la
+    puntuación de la última y la mayúscula del principio se quedan."""
+    tabla = _tabla_correcciones()
     out, i = [], 0
     while i < len(pal):
-        for largo in (2, 1):
+        for largo in (5, 4, 3, 2, 1):
             grupo = pal[i:i + largo]
-            clave = " ".join(norm(w["w"]) for w in grupo)
+            clave = " ".join(_norm_palabra(w["w"]) for w in grupo)
             if len(grupo) == largo and clave in tabla:
                 cola = re.search(r"[.,;:?!…]*$", grupo[-1]["w"]).group(0)  # la puntuación de la última se queda
-                out.append({"w": tabla[clave] + cola, "s": grupo[0]["s"], "e": grupo[-1]["e"]})
+                cabeza = re.match(r"^[¿¡«\"']*", grupo[0]["w"]).group(0)
+                nuevas = tabla[clave].split()
+                if grupo[0]["w"].lstrip("¿¡«\"'")[:1].isupper():
+                    nuevas[0] = nuevas[0][:1].upper() + nuevas[0][1:]
+                s0, e0 = grupo[0]["s"], grupo[-1]["e"]
+                pesos = [max(1, len(x)) for x in nuevas]
+                t = s0
+                for k, w in enumerate(nuevas):
+                    fin = e0 if k == len(nuevas) - 1 else t + (e0 - s0) * pesos[k] / sum(pesos)
+                    out.append({**grupo[min(k, len(grupo) - 1)], "w": (cabeza if k == 0 else "") + w + (cola if k == len(nuevas) - 1 else ""),
+                                "s": round(t, 3), "e": round(fin, 3)})
+                    t = fin
                 i += largo
                 break
         else:
             out.append(pal[i])
             i += 1
     return out
+
+
+def corregir_texto(texto):
+    """Lo mismo, para un texto suelto (lo que se escuchó de un clip)."""
+    return " ".join(w["w"] for w in corregir_palabras([{"w": x, "s": 0, "e": 0} for x in str(texto or "").split()]))
+
+
+def corregir_subtitulo(nombre):
+    """Aplica las correcciones a un subtítulo ya hecho, sin rehacerlo (se quedan los tiempos, las líneas y las marcas).
+    Solo los que salieron de la transcripción sin tocar a mano; se marca con qué correcciones se revisó."""
+    f = S.subs / f"{nombre}.json"
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return False
+    firma = firma_correcciones()
+    if d.get("correcciones") == firma or not d.get("automatico", True):
+        return False
+    cambio = False
+    for ln in d.get("lineas", []):
+        pal = ln.get("palabras") or []
+        nuevas = corregir_palabras(pal)
+        if [w["w"] for w in nuevas] != [w["w"] for w in pal]:
+            cambio = True
+            ln["palabras"] = nuevas
+            if ln.get("texto", "") == " ".join(w["w"] for w in pal):  # el texto no se tocó a mano: se rehace con lo corregido
+                ln["texto"] = " ".join(w["w"] for w in nuevas)
+    d["correcciones"] = firma
+    f.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    return cambio
 
 
 def agrupar_lineas(palabras):
@@ -1493,8 +1582,10 @@ def procesar(forzar_subs=False, avance=print):
             heredadas = _marcas_apartadas(p["nombre"])
             marcas = ({"marcas": viejo["marcas"]} if (mejorar or forzar_subs) and viejo and "marcas" in viejo
                       else {"marcas": heredadas} if heredadas is not None else {})  # van por palabra: se quedan
-            sub.write_text(json.dumps({"pieza": p["nombre"], "modelo": modelo, "automatico": True,
+            sub.write_text(json.dumps({"pieza": p["nombre"], "modelo": modelo, "automatico": True, "correcciones": firma_correcciones(),
                                        "lineas": agrupar_lineas(pal), **marcas}, ensure_ascii=False, indent=1), encoding="utf-8")
+        elif corregir_subtitulo(p["nombre"]):
+            avance(f"Corrigiendo palabras de {p['nombre']} ({n}/{len(ps)})")
 
 
 def _apartar_subs_viejos(nombre):
@@ -1970,6 +2061,7 @@ def reasignar_por_guion(minimo=0.5, guardar=True):
         texto = transcripcion_clip(c, crear=False)
         if texto is None:
             continue  # sin escuchar: se queda como está
+        texto = corregir_texto(texto)
         k = (texto, firma)
         if k not in _CACHE_PUNTAJES:
             _CACHE_PUNTAJES[k] = _puntajes(texto, guion_toks)
