@@ -1,3 +1,10 @@
+Versión 1.54.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Los clips se asignan bien siempre:** al analizar, la sala vuelve a comparar TODOS los clips con el guion de hoy (no solo los nuevos). Lo asignado con un guion anterior ya no se queda pegado ocupando piezas que no son.
+- **Nunca mezcla ángulos:** ordena los clips por la hora en que se grabaron y separa cada pasada del cuerpo (P1…P8 y otra vez P1…P8). Cada ángulo se arma solo con los clips de su pasada; de varias tomas de una frase queda la más parecida al guion.
+- **Al subir un guion nuevo**, la sala vuelve a asignar sola los clips ya grabados y prepara lo que cambió.
+- **↻ Volver a asignar con el guion** (pestaña Guion): lo mismo, cuando se quiera.
+- **Lo asignado o quitado a mano se respeta:** el análisis ya no lo cambia.
+
 Versión 1.53.9 (se actualiza desde la app con «Actualizar ahora»):
 - **Ventana de pasos para Antigravity:** al tocar «Imágenes con Antigravity», «Música con Antigravity» o los prompts, se abre una ventana con los pasos numerados (abrir Antigravity, conversación nueva, pegar el mensaje con /browser, qué hace Gemini, qué hacer si Google pide iniciar sesión, «Armar todo» al final), el mensaje para Gemini en un cuadro y los botones «📋 Copiar mensaje» y «🪐 Abrir Antigravity».
 - **El mensaje no se pierde:** mientras el pedido no termina, en Faltantes queda «⏳ Pedido de … a Gemini» con «📋 Ver pasos y mensaje» (aunque se cierre la sala).

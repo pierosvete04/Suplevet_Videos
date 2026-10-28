@@ -1708,12 +1708,209 @@ def informe_clips():
 
 
 def aceptar_sugerencias(minimo=0.5):
-    hechas = 0
-    for rel, sug in sugerencias().items():
-        if sug["mejor"] and sug["parecido"] >= minimo and not sug.get("lejos") and not sug.get("a_revisar"):
-            guardar_asignacion(rel, sug["pieza"])
-            hechas += 1
-    return hechas
+    """Después de escuchar: vuelve a decidir de qué pieza es cada clip (ver reasignar_por_guion). Devuelve cuántos
+    clips quedaron con pieza."""
+    return reasignar_por_guion(minimo)["asignados"]
+
+
+# ---------- Asignar todo de nuevo con el guion de hoy ----------
+# Antes solo se miraban los clips sin pieza: lo que se asignó con un guion anterior (otra versión, otra numeración)
+# se quedaba para siempre, ocupaba las piezas y dejaba sin clip a las de verdad (P05: los clips del guion viejo de
+# traumatología seguían en C2 y los nuevos de C2 quedaban sueltos). Ahora, cada vez que se analiza, todos los clips
+# sueltos se vuelven a comparar con el guion actual. Solo se respeta lo asignado a mano y lo ordenado en carpetas.
+
+def _asig_mano_archivo(sesion):
+    return DATOS / "asignaciones" / f"{S.en_drive(sesion)}.a_mano.json"
+
+
+def marcar_a_mano(rel, si=True):
+    """Lo que alguien asignó a mano no lo vuelve a cambiar el análisis."""
+    sesion = S.semana
+    if S.es_grupo:
+        sesion, rel = rel.split("/", 1)
+    f = _asig_mano_archivo(sesion)
+    try:
+        d = set(json.loads(f.read_text(encoding="utf-8")))
+    except (FileNotFoundError, ValueError, OSError):
+        d = set()
+    (d.add if si else d.discard)(rel)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(sorted(d), ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def asignados_a_mano():
+    out = set()
+    for m in S.miembros:
+        try:
+            rels = json.loads(_asig_mano_archivo(m).read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError, OSError):
+            continue
+        out |= {f"{m}/{r}" if S.es_grupo else r for r in rels}
+    return out
+
+
+def _esperadas():
+    """({pieza o frase: texto}, {hook o CTA de varias oraciones: cuántas}). Como en sugerencias()."""
+    esperadas, mitades = {}, {}
+    for n, i in produccion().get("piezas", {}).items():
+        if not i.get("texto"):
+            continue
+        esperadas[n] = i["texto"]
+        if i.get("tipo") == "cuerpo" and len(i.get("partes") or []) > 1:
+            for k, frase in enumerate(i["partes"], 1):
+                esperadas[f"{n}_P{k}"] = frase
+        elif i.get("tipo") in ("hook", "cta") and len(fr := oraciones(i["texto"])) > 1:
+            mitades[n] = len(fr)
+            for k, frase in enumerate(fr, 1):
+                esperadas[f"{n}_P{k}"] = frase
+    return esperadas, mitades
+
+
+def reasignar_por_guion(minimo=0.5, guardar=True):
+    """Decide de nuevo, con el guion de hoy, la pieza de cada clip suelto (los de carpetas ordenadas y los asignados a
+    mano no se tocan). Cómo:
+    1. Cada clip se compara con cada pieza y con cada frase del guion.
+    2. Los clips se ordenan por la hora en que se grabaron: un clip dudoso (media frase) va con el cuerpo que se estaba
+       grabando (el de los clips seguros de antes y de después).
+    3. Cada cuerpo se separa en pasadas (todo el cuerpo de un tirón; cuando vuelve a empezar, o pasa más de media hora,
+       es otra pasada = otro ángulo). Un cuerpo se arma SOLO con clips de su pasada: nunca se mezclan ángulos. Una
+       pasada corta (unas frases repetidas) solo rellena lo que le falta a la anterior, sin quitarle nada.
+    4. En cada pasada, de varias tomas de la misma frase gana la más parecida al guion (si empatan, la última).
+    5. Lo que no se parece lo suficiente, o es de otro cuerpo que todo lo que lo rodea, queda sin pieza para revisar.
+    Devuelve {asignados, cambiados, sin_pieza, nuevo: {rel: pieza}}."""
+    esperadas, mitades = _esperadas()
+    if not esperadas:
+        return {"asignados": 0, "cambiados": 0, "sin_pieza": 0, "nuevo": {}}
+    manual, actuales = asignados_a_mano(), leer_asignaciones()
+    todos = clips()
+    libres = [c for c in todos if not c.get("a_mano") and c["rel"] not in manual]
+    ocupadas = set()
+    for c in todos:
+        if c.get("a_mano") or c["rel"] in manual:
+            p = actuales.get(c["rel"]) or nombre_automatico(c)
+            if p:
+                ocupadas.add(p.upper())
+    orden = []
+    for c in libres:
+        texto = transcripcion_clip(c, crear=False)
+        if texto is None:
+            continue  # sin escuchar: se queda como está
+        orden.append((c, texto, {n: _parecido(texto, t) for n, t in esperadas.items()}))
+    orden.sort(key=lambda x: (fecha_grabacion(x[0]), _orden_natural(x[0]["rel"])))
+    cuerpo_de = lambda n: _cuerpo_de_pieza(n) if n and re.match(r"[CP]\d+", n, re.I) else None
+    seguros = {}
+    for i, (_, _, pts) in enumerate(orden):
+        n, v = max(pts.items(), key=lambda x: x[1], default=(None, 0))
+        # seguro = casi igual a una pieza y sin empate con otro cuerpo (la misma frase en dos guiones no marca nada)
+        otro = max((x for k, x in pts.items() if cuerpo_de(k) != cuerpo_de(n)), default=0)
+        if v >= 0.75 and cuerpo_de(n) and v - otro >= 0.05:
+            seguros[i] = cuerpo_de(n)
+    cand = {}  # i → (pieza del guion, parecido real)
+    for i, (c, _, pts) in enumerate(orden):
+        antes = next((seguros[j] for j in range(i - 1, max(-1, i - 9), -1) if j in seguros), None)
+        despues = next((seguros[j] for j in range(i + 1, min(len(orden), i + 9)) if j in seguros), None)
+        bono = lambda n, v: v + 0.1 * ((cuerpo_de(n) == antes) + (cuerpo_de(n) == despues)) if cuerpo_de(n) else v
+        n, _ = max(((n, bono(n, v)) for n, v in pts.items()), key=lambda x: x[1], default=(None, 0))
+        if not n or pts[n] < 0.35:
+            continue
+        # una mitad de hook o CTA, si el clip trae la frase entera (su largo se acerca más al de la pieza que al de la
+        # mitad), es la pieza entera
+        largo = lambda t: len(t.split())
+        if (m := re.match(r"^(.+)_P\d+$", n)) and m[1] in mitades and pts.get(m[1], 0) >= 0.6 \
+                and abs(largo(orden[i][1]) - largo(esperadas[m[1]])) < abs(largo(orden[i][1]) - largo(esperadas[n])):
+            n = m[1]
+        # de otro cuerpo que lo que se grabó antes y después: no se pone solo, salvo que sea casi igual al guion
+        lejos = cuerpo_de(n) and antes and despues and cuerpo_de(n) not in (antes, despues) and pts[n] < 0.85
+        cand[i] = (n, pts[n], bool(lejos))
+    # solo lo que de verdad se parece arma las pasadas (un clip dudoso no debe partir ni abrir una pasada)
+    cand = {i: x for i, x in cand.items() if x[1] >= minimo and not x[2]}
+    tope = max(1, int(CONFIG.get("angulos_maximos", 2)))
+    hora = lambda i: fecha_grabacion(orden[i][0])
+    nuevo = {}
+
+    def pasadas_de(idx, num):
+        """Parte una lista (en el orden en que se grabó) en pasadas. num(i) → número de frase (cuerpo) o None.
+        Otra pasada empieza cuando se vuelve atrás dos o más frases a una que ya está (P8 → P1), o cuando una pieza
+        vuelve después de otras tres (hooks: H6 → H1), o tras más de media hora sin grabar ese cuerpo."""
+        pasadas = [[]]
+        for i in idx:
+            actual = pasadas[-1]
+            if actual and hora(i) - hora(actual[-1]) > 1800:
+                pasadas.append([])
+            elif actual:
+                vistas = [cand[x][0] for x in actual]
+                p, k, ult = cand[i][0], num(i), num(actual[-1])
+                if k is not None and ult is not None:
+                    otra = k in {num(x) for x in actual} and ult - k >= 2
+                else:
+                    otra = p in vistas and vistas[-1] != p and len(set(vistas[vistas.index(p) + 1:]) - {p}) >= 3
+                if otra:
+                    pasadas.append([])
+            pasadas[-1].append(i)
+        pasadas = [x for x in pasadas if x]
+        # una pasada con menos de la mitad de las piezas de la más completa son tomas repetidas: rellenan la pasada
+        # completa más cercana en el tiempo (solo lo que le falta)
+        largo = max((len({cand[x][0] for x in pas}) for pas in pasadas), default=0)
+        llenas = [{"propios": pas, "relleno": []} for pas in pasadas if 2 * len({cand[x][0] for x in pas}) >= largo]
+        for pas in pasadas:
+            if 2 * len({cand[x][0] for x in pas}) < largo:
+                medio = (hora(pas[0]) + hora(pas[-1])) / 2
+                cerca = min(llenas, key=lambda j: min(abs(medio - hora(j["propios"][0])), abs(medio - hora(j["propios"][-1]))))
+                cerca["relleno"] += pas
+        return llenas
+
+    def elegir(pas, ang):
+        elegido = {}
+        for grupo in ("propios", "relleno"):
+            for i in pas[grupo]:
+                n, v, _ = cand[i]
+                if grupo == "relleno" and n in elegido and elegido[n][2] == "propios":
+                    continue  # el relleno no reemplaza lo de la pasada
+                if n not in elegido or (v, i) >= elegido[n][:2]:
+                    elegido[n] = (v, i, grupo)
+        # hook o CTA en dos clips: solo si están todas las mitades y no hay una toma entera buena
+        for base, cuantas in mitades.items():
+            partes = [f"{base}_P{j}" for j in range(1, cuantas + 1)]
+            if any(x in elegido for x in partes):
+                if (base in elegido and elegido[base][0] >= 0.5) or not all(x in elegido for x in partes):
+                    for x in partes:
+                        elegido.pop(x, None)
+        for n, (v, i, _) in elegido.items():
+            pieza = con_angulo(n, ang).upper() if ang else n.upper()
+            if pieza not in ocupadas:
+                nuevo[orden[i][0]["rel"]] = pieza
+
+    # cada cuerpo: sus frases (C10, C10_P1…) por un lado y sus hooks y CTA por otro. Un cuerpo de otro ángulo es
+    # otra pasada; los hooks se cuentan aparte (casi siempre se graban una sola vez, antes del cuerpo).
+    grupos = {}
+    for i, (n, _, _) in cand.items():
+        cu = _cuerpo_de_pieza(n)
+        es_cuerpo = re.fullmatch(rf"{re.escape(cu)}(?:_P\d+)?", n, re.I) is not None
+        grupos.setdefault((cu, es_cuerpo), []).append(i)
+    for (cu, es_cuerpo), idx in grupos.items():
+        if es_cuerpo:
+            num = lambda i: int(m[1]) if (m := re.search(r"_P(\d+)$", cand[i][0])) else 0
+        else:
+            num = lambda i: None
+        llenas = pasadas_de(idx, num)
+        for k, pas in enumerate(llenas[:tope]):  # con más pasadas que ángulos, las de sobra quedan como otras tomas
+            elegir(pas, f"A{k + 1}" if k else "")
+    rels = [c["rel"] for c, _, _ in orden]
+    cambiados = sum(1 for r in rels if (actuales.get(r) or "") != nuevo.get(r, ""))
+    if guardar and cambiados:
+        por_sesion = {}
+        for r in rels:
+            sesion, rr = r.split("/", 1) if S.es_grupo else (S.semana, r)
+            por_sesion.setdefault(sesion, {})[rr] = nuevo.get(r, "")
+        for sesion, cambios in por_sesion.items():
+            d = _leer_asig(sesion)
+            d.update(cambios)
+            _escribir_asig(sesion, d)
+            rp = _leer_reemp(sesion)
+            if any(rp.pop(r, None) for r in list(cambios)):
+                _reemp_archivo(sesion).write_text(json.dumps(rp, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"asignados": sum(1 for r in rels if nuevo.get(r)), "cambiados": cambiados,
+            "sin_pieza": sum(1 for r in rels if not nuevo.get(r)), "nuevo": nuevo}
 
 
 # ---------- Director: comparar lo grabado con el guion y aplicar el plan ----------

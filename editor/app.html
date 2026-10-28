@@ -1789,7 +1789,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <button class="btn sec" id="gCorroborar"><b>1</b> Ver cambios contra el guion</button>
         <span class="flecha" aria-hidden="true">→</span>
         <button class="btn sec" id="gRevisar"><b>2</b> Que Claude reacomode la edición</button>
-        <button class="btn sec" id="gEmparejar" title="Asigna cada clip analizado que quedó sin pieza a la pieza del guion que más se le parece (40 % o más; si dos tomas se parecen a la misma pieza, va la más parecida)">Emparejar lo que falta</button>
+        <button class="btn sec" id="gEmparejar" title="Vuelve a comparar todos los clips con este guion: cada frase en su cuerpo, cada pasada en su ángulo (sin mezclar) y la mejor toma de cada frase. Lo que asignaste a mano no se toca.">↻ Volver a asignar con el guion</button>
       </div>
       <p class="muted" id="gEstado" style="font-size:12px;margin:8px 0 0"></p>
     </div>
@@ -5176,7 +5176,7 @@ $("subirFuente").onchange = async e => {
 $("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("analizar"); };
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
 const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Rearmar videos de una pieza", uno: "Rearmar un video",
-  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", exportar: "Exportar por día", portadas: "Rehacer portadas",
+  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", reasignar: "Volver a asignar con el guion", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   terminar: "Terminar sesión (todo a Drive)", reiniciar: "Empezar de cero (clips y análisis)", conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
@@ -5357,7 +5357,7 @@ $("numerarHooks").onclick = async () => {
 };
 $("ocultarTomas").onchange = pintarSinAsignar;
 $("aceptarSug").onclick = async () => {
-  try { const r = await post("/api/aceptar_sugerencias"); avisar(`${r.asignadas} clips identificados.`, "ok"); await cargar(); }
+  try { const r = await post("/api/aceptar_sugerencias"); avisar(`Clips revisados con el guion: ${r.asignadas} con pieza, ${r.cambiados} cambiaron.`, "ok"); await cargar(); }
   catch (e) { avisar("Error: " + e.message, "err"); }
 };
 $("subirPanel").onclick = () => trabajo("panel");
@@ -9233,7 +9233,13 @@ async function subirGuionArchivo(f, hayGuion) {
     const quita = q.length ? ` Se quitarían ${plural(q.length, "pieza")} que no están en el archivo: ${q.slice(0, 12).join(", ")}${q.length > 12 ? "…" : ""}.` : " No se quita ninguna pieza.";
     if (!await preguntar(`${trae}${quita} ¿Reemplazo el guion de la sesión? (el anterior queda guardado como copia)`)) return null;
   }
-  return post(url, f, true);
+  const r = await post(url, f, true);
+  if (r.reasignar_en_cola !== undefined) {  // con clips ya grabados, la sala los vuelve a comparar con el guion nuevo
+    try { vigilar(await (await fetch("/api/trabajo")).json()); } catch (e) {}
+    setTimeout(() => avisar(r.reasignar_en_cola ? "Cuando la sala termine lo que está haciendo, vuelve a asignar los clips con este guion (☰ Procesos)."
+      : "La sala está volviendo a asignar los clips con este guion… lo ves en Procesos (☰).", "muted"), 2500);
+  }
+  return r;
 }
 $("prepGuion").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -9997,15 +10003,15 @@ $("gAnalizar").onclick = async () => { if (!(await confirmarAnalizar())) return;
 $("gEmparejar").onclick = async () => {
   const sin = E.checklist.sin_asignar || [];
   if (!sin.length && !E.piezas.length) return avisar("Todavía no hay clips: sube las grabaciones y toca «Analizar clips».", "muted");
-  if (!sin.length) return avisar("No hay clips sin pieza: todos los clips analizados ya están emparejados.", "ok");
   if (sin.some(c => c.texto == null)) return avisar("Hay clips sin analizar: toca primero «Analizar clips».", "err");
-  try {
-    const r = await post("/api/aceptar_sugerencias", { minimo: 0.4 });
-    await cargar(); await pintarGuion();
-    const quedan = (E.checklist.sin_asignar || []).length;
-    avisar(`${r.asignadas} clip${r.asignadas === 1 ? "" : "s"} emparejado${r.asignadas === 1 ? "" : "s"} con su pieza.` + (quedan
-      ? ` Quedan ${quedan} que no se parecen a ninguna pieza o son otra toma de una pieza que ya tiene clip: revísalos en Faltantes o con el buscador.` : ""), "ok");
-  } catch (err) { avisar("Error: " + err.message, "err"); }
+  if (!await preguntar(`La sala vuelve a comparar todos los clips con este guion:
+
+• cada frase va a su cuerpo, y cada pasada a su ángulo (nunca mezcla dos ángulos en un cuerpo);
+• de varias tomas de una frase queda la más parecida al guion;
+• lo que asignaste a mano no se toca.
+
+Después prepara las piezas que cambiaron. Tarda unos minutos. ¿Seguir?`, "Volver a asignar")) return;
+  corroborado = false; trabajo("reasignar");
 };
 // Versiones del guion: para el host (solo lo que se dice) y de producción (todo: estilos, imágenes, música, sonidos)
 let gVersion = "revision", gDocTexto = "", gHostVista = "combinacion";

@@ -881,8 +881,23 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
         if r and r.get("leido"):
             s = r["leido"]
             avance(f"Leí el guion «{r['archivo']}»: {s['cuerpos']} cuerpos, {s['hooks']} hooks y {s['ctas']} CTA")
+            if accion not in ("ordenar_todo", "producir", "escuchar"):  # esas reasignan después de escuchar
+                reasignar_y_preparar(preparar=False)
         elif r and r.get("error"):
             avance(f"Ojo: no pude leer el guion «{r['archivo']}»: {r['error']}")
+
+    def reasignar_y_preparar(preparar=True):
+        """Vuelve a comparar todos los clips con el guion de hoy (motor.reasignar_por_guion) y prepara lo que cambió."""
+        avance("Comparando todos los clips con el guion (lo asignado a mano no se toca)…")
+        r = motor.reasignar_por_guion()
+        if r["cambiados"]:
+            subir_asignaciones()
+        avance(f"Clips revisados con el guion: {r['asignados']} con pieza, {r['cambiados']} cambiaron"
+               + (f", {r['sin_pieza']} sin pieza (otras tomas o frases que no están en el guion)" if r["sin_pieza"] else ""))
+        TRABAJO["resultado"] = {k: v for k, v in r.items() if k != "nuevo"}
+        if preparar and r["cambiados"]:
+            motor.procesar(avance=avance)
+            avance("Listo: las piezas que cambiaron ya están preparadas. Toca «Armar todo» para rearmar los videos.")
 
     def guion_si_falta():
         """Sin guion: lo arma con lo que se dijo en cada pieza (y lo sube a Drive y al panel)."""
@@ -910,6 +925,8 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                 if accion == "armar_sel":
                     hechos_a = motor.armar(avance=avance, codigos=extra["codigos"])
                     avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}")
+                if accion == "reasignar":  # el guion cambió (o se pidió a mano): todos los clips de nuevo con el guion
+                    reasignar_y_preparar()
                 if accion == "ordenar_todo":  # analizar, asignar lo seguro y renombrar, todo de una vez
                     motor.escuchar_clips(avance=avance)
                     n = motor.aceptar_sugerencias(0.5)
@@ -1692,6 +1709,8 @@ class H(BaseHTTPRequestHandler):
                     return self._json({"ok": True, **motor.probar_guion(q["nombre"][0], self.rfile.read(n))})
                 r = motor.subir_guion(q["nombre"][0], self.rfile.read(n))
                 drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+                if motor.clips():  # con clips ya grabados: se vuelven a comparar con el guion nuevo
+                    r["reasignar_en_cola"] = bool(lanzar("reasignar", en_cola=True))
                 if motor.CONFIG.get("panel", {}).get("token"):
                     threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
                 self._json({"ok": True, **r})
@@ -2132,6 +2151,7 @@ class H(BaseHTTPRequestHandler):
                 if b.get("modo") == "toma":
                     pieza = motor.siguiente_toma_de_cuerpo(cuerpo)
                     motor.guardar_asignacion(str(b.get("rel") or ""), pieza)
+                    motor.marcar_a_mano(str(b.get("rel") or ""))
                     subir_asignaciones()
                     lanzar("procesar", en_cola=True)
                     cods = [c["codigo"] for c in motor.combinaciones() if c["cuerpo"] == pieza]
@@ -2253,6 +2273,7 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/asignar":
                 b = self._cuerpo()
                 motor.guardar_asignacion(b["rel"], b.get("pieza") or "")
+                motor.marcar_a_mano(b["rel"])  # lo decidió una persona: el análisis ya no lo cambia
                 subir_asignaciones()
                 # la pieza con su clip nuevo se prepara y se vuelve a escuchar (lo que se dijo se actualiza);
                 # con otro trabajo corriendo, queda en la cola
@@ -2282,9 +2303,9 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/aceptar_sugerencias":
                 # «Emparejar lo que falta» del Guion usa un mínimo más bajo; Faltantes, el de siempre (50 %)
                 minimo = min(0.9, max(0.3, float(self._cuerpo().get("minimo") or 0.5)))
-                n = motor.aceptar_sugerencias(minimo)
+                r = motor.reasignar_por_guion(minimo)
                 subir_asignaciones()
-                self._json({"ok": True, "asignadas": n})
+                self._json({"ok": True, "asignadas": r["asignados"], "cambiados": r["cambiados"], "sin_pieza": r["sin_pieza"]})
             elif u.path == "/api/quitar_texto":
                 self._json({"ok": True, "codigos": motor.guardar_quitados(q["pieza"][0], self._cuerpo().get("rangos") or [])})
             elif u.path == "/api/marcas":
