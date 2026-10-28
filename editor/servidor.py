@@ -1302,6 +1302,8 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(b)
         elif u.path == "/api/estado":
             self._json(estado())
+        elif u.path == "/api/pedidos_antigravity":  # lo que se le pidió a Gemini y sigue sin terminar, con su mensaje
+            self._json({"pedidos": antigravity.pedidos()})
         elif u.path == "/api/terminar_info":  # antes de «Terminar sesión»: cuánto ocupa y qué videos no se exportaron
             raices, _, peso = sesion_en_pc()
             self._json({"ok": True, "sesion": motor.S.semana, "peso": peso, "carpetas": raices, "sin_exportar": sin_exportar(),
@@ -1794,6 +1796,8 @@ class H(BaseHTTPRequestHandler):
                 ia = str(self._cuerpo().get("ia") or "")
                 motor.guardar_config({"ia": ia if ia in ("claude", "antigravity") else ""})
                 self._json({"ok": True, "ia": motor.CONFIG["ia"]})
+            elif u.path == "/api/abrir_antigravity":  # «Abrir Antigravity» en la ventana de los pasos
+                self._json({"ok": True, "abierto": antigravity.abrir_pedido(str(self._cuerpo().get("tipo") or ""))})
             elif u.path == "/api/musica_antigravity":  # la música con Gemini: la escribe (si falta) y la genera en Flow Music
                 self._json({"ok": True, **antigravity.armar_musica(abrir=True)})
             elif u.path == "/api/traer_prompts_antigravity":

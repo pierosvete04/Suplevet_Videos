@@ -72,6 +72,34 @@ async () => {
 """
 
 
+MENSAJE = "MENSAJE_PARA_GEMINI.txt"
+PEDIDOS = {"imagenes": "Paquete Antigravity", "musica": "Musica Antigravity", "prompts": "Prompts Antigravity"}
+
+
+def pedidos():
+    """Los pedidos a Antigravity de esta sesión que siguen sin terminar, con su mensaje (para volver a copiarlo)."""
+    ck = motor.checklist()
+    hecho = {"imagenes": not any(not a.get("listo") for a in ck.get("assets", [])),
+             "musica": bool(ck.get("musica")) and all(m.get("listo") for m in ck["musica"]),
+             "prompts": not (_carpeta(PEDIDOS["prompts"])[1] / "_sala.json").exists()}
+    out = []
+    for tipo, que in PEDIDOS.items():
+        carpeta = _carpeta(que)[1]
+        f = carpeta / MENSAJE
+        if f.exists() and not hecho[tipo]:
+            out.append({"tipo": tipo, "carpeta": str(carpeta), "mensaje": f.read_text(encoding="utf-8"),
+                        "fecha": f.stat().st_mtime, "instalado": bool(exe()), "abierto": bool(_servidor())})
+    return out
+
+
+def abrir_pedido(tipo):
+    """Abre Antigravity con la carpeta del pedido (o la carpeta en el Explorador si no está instalado)."""
+    carpeta = _carpeta(PEDIDOS.get(tipo, "Paquete Antigravity"))[1]
+    if not carpeta.is_dir():
+        raise ValueError("Ese pedido ya no está en Descargas: vuelve a tocar el botón de Antigravity")
+    return _abrir(carpeta, True)
+
+
 def _carpeta(que):
     """(nombre de la producción, carpeta del paquete en Descargas). No la crea."""
     sesion = motor.produccion().get("semana") or motor.S.semana  # el nombre de la producción (también en un grupo)
@@ -336,6 +364,7 @@ def armar(todas=False, abrir=False):
                f"Son {len(nombres)} imágenes" + (f" y {len(orden) - len(nombres)} clips" if len(orden) > len(nombres) else "")
                + ". Cuando estén todas generadas, bájalas a Descargas con su nombre (C1_IMG1.jpg…). "
                "Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
+    (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala
     abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
     enviado, porque = False, ""
     return {"carpeta": str(carpeta), "imagenes": len(nombres), "clips": len(orden) - len(nombres), "mensaje": mensaje,
@@ -382,6 +411,7 @@ Cuando termines, en la Sala de edición se toca «Traer los prompts»: la sala r
                                                     "mtime": prod.stat().st_mtime}), encoding="utf-8")
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual: agrega los prompts de Flow editando el produccion.json "
                "de esa carpeta. Al final responde en 3 líneas cuántas imágenes y clips agregaste y en qué piezas.")
+    (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")
     abierto, enviado, porque = _pasar(carpeta, mensaje, "pro", abrir)  # aquí hay que escribir bien: el que piensa más
     return {"carpeta": str(carpeta), "mensaje": mensaje, "abierto": abierto, "enviado": enviado, "porque": porque,
             "instalado": bool(exe())}
@@ -509,6 +539,7 @@ Al terminar, responde en 2 líneas: qué pistas bajaste y cuáles fallaron.
                + " en Google Flow Music (botón «Flow Music» en https://labs.google/flow), instrumental, y baja cada una "
                "a Descargas como MP3 con el nombre de su id (MUS_A.mp3…). Al final responde en 2 líneas qué pistas bajaste "
                "y cuáles fallaron.")
+    (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala
     abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
     return {"carpeta": str(carpeta), "escribir": escribir, "pistas": n, "mensaje": mensaje, "abierto": abierto,
             "enviado": False, "porque": "", "instalado": bool(exe())}

@@ -1,3 +1,7 @@
+Versión 1.53.9 (se actualiza desde la app con «Actualizar ahora»):
+- **Ventana de pasos para Antigravity:** al tocar «Imágenes con Antigravity», «Música con Antigravity» o los prompts, se abre una ventana con los pasos numerados (abrir Antigravity, conversación nueva, pegar el mensaje con /browser, qué hace Gemini, qué hacer si Google pide iniciar sesión, «Armar todo» al final), el mensaje para Gemini en un cuadro y los botones «📋 Copiar mensaje» y «🪐 Abrir Antigravity».
+- **El mensaje no se pierde:** mientras el pedido no termina, en Faltantes queda «⏳ Pedido de … a Gemini» con «📋 Ver pasos y mensaje» (aunque se cierre la sala).
+
 Versión 1.53.8 (se actualiza desde la app con «Actualizar ahora»):
 - **Todo con Claude o todo con Antigravity:** en Inicio, la tarjeta de la IA tiene «Trabajar con: Claude / Antigravity (Gemini)». Cada PC guarda su elección y todos los botones de imágenes, prompts y música la siguen (en Faltantes solo se ve la opción elegida). Si nadie elige, usa la que esté lista.
 - **🎵 Música con Antigravity:** si el guion no tiene música, Gemini la escribe con las reglas de la marca (adrenalina, 120 a 150 BPM); después la genera en Flow Music y baja cada pista como MUS_A.mp3. La sala abre Antigravity y deja copiado el mensaje con /browser.

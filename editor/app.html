@@ -811,6 +811,8 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
 /* Faltantes: paquete para Antigravity */
 .ag-caja { display: grid; gap: 8px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
 .ag-pasos { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; }
+.ag-pasos-grande { gap: 8px; font-size: 13.5px; line-height: 1.45; }
+.ag-pendiente { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--accent); font-size: 12.5px; }
 .ag-msg { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
 .ag-msg code { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; }
 /* Faltantes: cuántas imágenes por cuerpo y por hook */
@@ -1903,7 +1905,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <div class="fl-op-cab"><b>Con Antigravity (Gemini)</b><span class="pill" id="flEstAg"></span></div>
             <small>La sala abre Antigravity con todo listo: Gemini pega los prompts en Flow y baja cada imagen con su nombre; la música la hace en Flow Music. Lo que baja entra solo a la sesión.</small>
             <button class="btn sec fl-btn" id="paqueteAg" type="button">🪐 Imágenes con Antigravity</button>
-            <button class="btn sec fl-btn" id="musicaAg" type="button">🎵 Música con Antigravity</button></div>
+            <button class="btn sec fl-btn" id="musicaAg" type="button">🎵 Música con Antigravity</button>
+            <div id="agPendientes" style="display:grid;gap:6px"></div></div>
         </section>
       </div>
       <div class="fl-tira" id="flTira">
@@ -2427,6 +2430,18 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 <dialog id="dlgPregunta" class="pregunta" aria-labelledby="pqTexto">
   <div class="pq"><p id="pqTexto"></p><input id="pqCampo" hidden autocomplete="off">
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" type="button" id="pqNo">Cancelar</button><button class="btn" type="button" id="pqSi">Sí, seguir</button></div></div>
+</dialog>
+<dialog id="dlgAg" aria-labelledby="dlgAgTit" style="width:min(640px,94vw)">
+  <div class="dlg-cab"><h2 id="dlgAgTit" style="margin:0">🪐 Antigravity</h2><button class="btn sec peq" id="dlgAgCerrar" aria-label="Cerrar">✕</button></div>
+  <div style="padding:16px;display:grid;gap:12px">
+    <p class="muted" id="dlgAgInfo" style="margin:0;font-size:13px"></p>
+    <ol class="ag-pasos ag-pasos-grande" id="dlgAgPasos"></ol>
+    <label style="display:grid;gap:6px;font-size:13px"><b>Mensaje para Gemini</b>
+      <textarea id="dlgAgMsg" readonly rows="6" style="width:100%;font:12.5px/1.45 ui-monospace,Consolas,monospace;resize:vertical"></textarea></label>
+    <div class="fila"><button class="btn" type="button" id="dlgAgCopiar">📋 Copiar mensaje</button>
+      <button class="btn sec" type="button" id="dlgAgAbrir">🪐 Abrir Antigravity</button>
+      <span class="muted" style="font-size:12px">Esta ventana se vuelve a abrir desde Faltantes → «Ver pasos y mensaje».</span></div>
+  </div>
 </dialog>
 <dialog id="dlgProducir" aria-labelledby="prodTit" style="width:min(560px,94vw)">
   <div class="dlg-cab"><h2 id="prodTit" style="margin:0">Producir todo</h2><button class="btn sec peq" id="prodCerrar" aria-label="Cerrar">✕</button></div>
@@ -4594,6 +4609,7 @@ function pintarEstadoFlow() {
     : modo === "antigravity" ? "Los escribe Gemini en Antigravity." : "Conecta Claude (Inicio → Claude) o instala Antigravity.";
   $("apConAg").hidden = true;  // todo con una sola IA: la que se eligió en Inicio
   $("flOpClaude").hidden = modo === "antigravity"; $("flOpAg").hidden = modo === "claude";
+  if (modo !== "claude") pintarPedidosAg();
   $("flQuien").textContent = modo ? `Las hace ${modo === "claude" ? "Claude" : "Gemini en Antigravity"} (se cambia en Inicio → «Trabajar con»). Usan los créditos de tu plan de Google Flow.` : "Elige quién las hace. Las dos usan los créditos de tu plan de Google Flow.";
   ["paqueteAg", "musicaAg"].forEach(id => $(id).classList.toggle("sec", modo !== "antigravity"));
 }
@@ -10730,36 +10746,74 @@ async function pintarCalidad() {
 }
 $("calRevisar").onclick = pintarCalidad;
 // Paquete para Antigravity: sin Claude, Gemini Flash pega los prompts en Flow de corrido y baja todo con su nombre
+// Antigravity: la sala arma el pedido en Descargas y muestra una ventana con los pasos y el mensaje para copiar.
+// Pensado para quien no conoce la sala: cada paso dice qué tocar.
+const AG_TIT = { imagenes: "🪐 Imágenes con Antigravity", musica: "🎵 Música con Antigravity", prompts: "🪐 Prompts con Antigravity" };
+let agActual = null;
+function pasosAg(tipo, r) {
+  const abrir = !r.instalado ? `Antigravity no está instalado en esta PC: descárgalo de <b>antigravity.google</b>, ábrelo y entra con tu cuenta de Google. Después toca <b>«Abrir Antigravity»</b> aquí abajo.`
+    : r.abierto ? `Antigravity ya está abierto (si no lo ves, búscalo en la barra de tareas de Windows o toca <b>«Abrir Antigravity»</b> aquí abajo).`
+    : `Toca <b>«Abrir Antigravity»</b> aquí abajo.`;
+  if (tipo === "prompts") {
+    if (r.enviado) return [`La sala ya le pasó el pedido a Gemini en Antigravity: está escribiendo los prompts. <b>No hace falta pegar nada.</b>`,
+      `Cuando Gemini diga que terminó, la sala trae sola los prompts y te avisa («Llegó de Descargas…»).`,
+      `Después toca <b>«Imágenes con Antigravity»</b> para generarlas en Flow.`];
+    return [abrir, `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>. Elige el modelo de Gemini que piensa más (no Flash).`,
+      `Toca <b>«📋 Copiar mensaje»</b> aquí abajo, pégalo en el chat de Antigravity con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
+      `Gemini escribe los prompts en una copia del guion. No hace falta navegador.`,
+      `Cuando termine, la sala trae sola los prompts y te avisa («Llegó de Descargas…»). Después toca <b>«Imágenes con Antigravity»</b>.`];
+  }
+  const que = tipo === "musica"
+    ? (r.escribir ? `Gemini primero escribe la música del guion (sin navegador) y después abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`
+      : `Gemini abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`) + ` Cada pista tarda uno o dos minutos.`
+    : `Gemini abre Google Flow, pega todos los prompts juntos, espera a que se generen y baja cada imagen con su nombre (<code>C1_IMG1.jpg</code>…).`;
+  return [abrir,
+    `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>.`,
+    `Toca <b>«📋 Copiar mensaje»</b> aquí abajo y pégalo en el chat de Antigravity con <b>Ctrl+V</b>. El mensaje empieza con <b>/browser</b>: eso le da a Gemini el navegador.`,
+    `Envíalo con <b>Enter</b>. Si Gemini no abre el navegador: borra lo pegado, escribe <b>/browser</b>, elige «browser» en la lista que aparece, pega el mensaje detrás y envíalo.`,
+    `${que} No cierres Antigravity ni la ventana del navegador que abre.`,
+    `Si Google pide iniciar sesión, aceptar términos o resolver un captcha, hazlo tú en esa ventana y escríbele a Gemini «listo, sigue».`,
+    `En la sala no tienes que hacer nada: lo que Gemini baja a Descargas entra solo y la sala avisa <b>«Llegó de Descargas…»</b>. Si algo no llega, en Faltantes toca <b>«Buscar en Descargas»</b>.`,
+    `Cuando esté todo, toca <b>«Armar todo»</b> (arriba) para rearmar los videos con ${tipo === "musica" ? "la música" : "las imágenes"}.`];
+}
+async function mostrarPedidoAg(tipo, r, copiarYa = true) {
+  agActual = { tipo, ...r };
+  $("dlgAgTit").textContent = AG_TIT[tipo] || "🪐 Antigravity";
+  $("dlgAgInfo").innerHTML = (tipo === "imagenes" && r.imagenes != null ? `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""} · ` : "")
+    + (tipo === "musica" && r.pistas ? (r.escribir ? "Gemini escribe la música y la genera · " : `Pistas: ${esc(r.pistas)} · `) : "")
+    + `Carpeta del pedido: <code>${esc(r.carpeta)}</code>`;
+  $("dlgAgPasos").innerHTML = pasosAg(tipo, r).map(x => `<li>${x}</li>`).join("");
+  $("dlgAgMsg").value = r.mensaje || "";
+  $("dlgAgAbrir").hidden = !!r.enviado;
+  if (!$("dlgAg").open) $("dlgAg").showModal();
+  if (copiarYa && !r.enviado) { const ok = await copiar(r.mensaje); if (ok) avisar("El mensaje para Gemini ya está copiado: pégalo en Antigravity (Ctrl+V).", "ok"); }
+  pintarPedidosAg();
+}
+$("dlgAgCerrar").onclick = () => $("dlgAg").close();
+$("dlgAgCopiar").onclick = () => { $("dlgAgMsg").select(); copiar($("dlgAgMsg").value, "Mensaje copiado: pégalo en el chat de Antigravity con Ctrl+V."); };
+$("dlgAgAbrir").onclick = async () => {
+  try { const r = await post("/api/abrir_antigravity", { tipo: agActual?.tipo });
+    avisar(r.abierto ? "Abriendo Antigravity… (puede tardar unos segundos)" : "Antigravity no está instalado: se abrió la carpeta del pedido.", r.abierto ? "ok" : "muted"); }
+  catch (err) { avisar(err.message, "err"); }
+};
+// lo pedido a Gemini que sigue sin terminar: para volver a ver los pasos y copiar el mensaje
+async function pintarPedidosAg() {
+  if (!$("agPendientes")) return;
+  let ps = [];
+  try { ps = (await (await fetch("/api/pedidos_antigravity")).json()).pedidos || []; } catch (e) {}
+  const nombre = { imagenes: "las imágenes", musica: "la música", prompts: "los prompts" };
+  $("agPendientes").innerHTML = ps.map(p => `<div class="ag-pendiente"><span>⏳ Pedido de <b>${nombre[p.tipo]}</b> a Gemini</span>
+    <button class="btn peq" type="button" data-ver-ag="${p.tipo}">📋 Ver pasos y mensaje</button></div>`).join("");
+  pintarPedidosAg.lista = ps;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ver-ag]"); if (!b) return;
+  const p = (pintarPedidosAg.lista || []).find(x => x.tipo === b.dataset.verAg); if (!p) return;
+  mostrarPedidoAg(p.tipo, { ...p, escribir: false }, false);
+});
 $("paqueteAg").onclick = async () => {
-  if (!E.antigravity && !await preguntar(`Antigravity no está instalado en esta PC.
-
-Instálalo desde antigravity.google, ábrelo una vez con tu cuenta de Google y empieza una conversación; después vuelve aquí y toca este botón otra vez.
-
-¿Armar igual el paquete (en Descargas) para pasarlo a otra PC?`, "Armar el paquete")) return;
-  try {
-    const r = await post("/api/paquete_antigravity", { abrir: true });
-    $("agCaja").hidden = false; $("agTraerFila").hidden = true;
-    $("agCaja").querySelector("b").textContent = "🪐 Antigravity: paquete listo";
-    $("agInfo").textContent = `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""} · ${r.carpeta}`;
-    $("agMsg").textContent = r.mensaje;
-    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    if (r.enviado) {  // la sala ya le pasó el mensaje a Gemini: no hay nada que pegar
-      $("agPasos").innerHTML = [`La sala le pasó el paquete a <b>Gemini Flash</b> en Antigravity: ya está pegando los prompts en Flow (puedes mirarlo en Antigravity).`,
-        `Al final baja todo con su nombre a Descargas.`,
-        `Cuando termine, vuelve aquí y toca <b>3 · Poner en los videos</b>.`].map(x => `<li>${x}</li>`).join("");
-      return avisar("Gemini ya está trabajando en Antigravity. No hace falta pegar nada.", "ok");
-    }
-    $("agPasos").innerHTML = (r.abierto
-      ? [`Se abrió <b>Antigravity</b> con la carpeta del paquete (si no la ves, búscala en la barra de tareas).`]
-      : [`Abre <b>Antigravity</b> y abre la carpeta del paquete (Archivo → Abrir carpeta): <code>${esc(r.carpeta)}</code>. ${r.instalado ? "" : "Si no lo tienes, instálalo desde antigravity.google."}`])
-      .concat([`Empieza una conversación nueva en Antigravity.`,
-        `Pega el mensaje (ya está copiado: empieza con <b>/browser</b>, que enciende el navegador de Antigravity) y envíalo. Si no se enciende el navegador, escribe <b>/browser</b> a mano, elígelo y vuelve a pegar el resto.`,
-        `Gemini abre Google Flow, pega todos los prompts juntos y baja cada imagen a Descargas con su nombre.`,
-        `La sala las trae sola y te avisa («Llegó de Descargas…»). Si no, toca <b>3 · Poner en los videos</b>.`]).map(x => `<li>${x}</li>`).join("");
-    const copiado = await copiar(r.mensaje);
-    avisar((r.porque ? `No pude pasárselo a Gemini solo (${r.porque}). ` : "") + (r.abierto ? "Antigravity abierto con el paquete." : "Paquete listo: ábrelo en Antigravity.")
-      + (copiado ? " El mensaje para Gemini ya está copiado." : " No se pudo copiar el mensaje: tócalo en «Copiar»."), copiado ? "ok" : "muted");
-  } catch (err) { avisar(err.message, "err"); }
+  try { mostrarPedidoAg("imagenes", await post("/api/paquete_antigravity", { abrir: true })); }
+  catch (err) { avisar(err.message, "err"); }
 };
 $("agCopiar").onclick = () => copiar($("agMsg").textContent, "Mensaje copiado.");
 
@@ -10799,55 +10853,15 @@ function resumenApoyo() {
 $("apRec").onclick = () => { const r = AP?.recomendado; if (!r) return; $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; resumenApoyo(); };
 const pedidoApoyo = () => ({ por_cuerpo: valApoyo("apCuerpo"), clips: valApoyo("apClips"), por_hook: valApoyo("apHook") });
 async function promptsConAntigravity() {
-  try {
-    const r = await post("/api/prompts_antigravity", pedidoApoyo());
-    $("agCaja").hidden = false; $("agTraerFila").hidden = false;
-    $("agCaja").querySelector("b").textContent = "🪐 Antigravity: escribir los prompts";
-    $("agInfo").textContent = r.carpeta;
-    $("agMsg").textContent = r.mensaje;
-    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    if (r.enviado) {  // la sala ya le pasó el mensaje a Gemini: no hay nada que pegar
-      $("agPasos").innerHTML = [`La sala le pasó el pedido a <b>Gemini</b> (el que piensa más) en Antigravity: ya está escribiendo los prompts (puedes mirarlo en Antigravity).`,
-        `Cuando Gemini diga que terminó, toca <b>«Gemini terminó: traer los prompts»</b>. La sala revisa lo que escribió y lo pasa a la sesión.`].map(x => `<li>${x}</li>`).join("");
-      return avisar("Gemini ya está escribiendo los prompts en Antigravity. No hace falta pegar nada.", "ok");
-    }
-    $("agPasos").innerHTML = (r.abierto ? [`Se abrió <b>Antigravity</b> con la carpeta de los prompts (si no la ves, búscala en la barra de tareas).`]
-      : [`Abre <b>Antigravity</b> y abre esta carpeta (Archivo → Abrir carpeta): <code>${esc(r.carpeta)}</code>. ${r.instalado ? "" : "Si no lo tienes, instálalo desde antigravity.google."}`])
-      .concat([`En el panel del agente elige el modelo de <b>Gemini que piensa más</b> (aquí hay que escribir bien) y empieza una conversación nueva.`,
-        `Pega el mensaje de abajo (ya está copiado) y deja que trabaje.`,
-        `Cuando Gemini diga que terminó, toca <b>«Gemini terminó: traer los prompts»</b>. La sala revisa lo que escribió y lo pasa a la sesión.`]).map(x => `<li>${x}</li>`).join("");
-    const copiado = await copiar(r.mensaje);
-    avisar((r.porque ? `No pude pasárselo a Gemini solo (${r.porque}). ` : "") + (r.abierto ? "Antigravity abierto." : "Carpeta lista: ábrela en Antigravity.")
-      + (copiado ? " El mensaje para Gemini ya está copiado." : " No se pudo copiar el mensaje: tócalo en «Copiar»."), copiado ? "ok" : "muted");
-  } catch (err) { avisar(err.message, "err"); }
+  try { mostrarPedidoAg("prompts", await post("/api/prompts_antigravity", pedidoApoyo())); }
+  catch (err) { avisar(err.message, "err"); }
 }
 $("apConAg").onclick = promptsConAntigravity;
 // La música sin Claude: Gemini la escribe en una copia del guion (si falta), la genera en Flow Music y baja cada
 // pista como MUS_A.mp3. La sala trae sola la música del guion y los MP3 (cada 20 s).
 async function musicaConAntigravity() {
-  if (!E.antigravity && !await preguntar(`Antigravity no está instalado en esta PC.
-
-Instálalo desde antigravity.google, ábrelo una vez con tu cuenta de Google y vuelve a tocar este botón.
-
-¿Armar igual la carpeta de la música (en Descargas)?`, "Armar la carpeta")) return;
-  try {
-    const r = await post("/api/musica_antigravity", {});
-    irTab("faltan");
-    $("agCaja").hidden = false; $("agTraerFila").hidden = true;
-    $("agCaja").querySelector("b").textContent = "🪐 Antigravity: la música";
-    $("agInfo").textContent = (r.escribir ? "Gemini escribe la música y la genera" : `Pistas: ${r.pistas}`) + ` · ${r.carpeta}`;
-    $("agMsg").textContent = r.mensaje;
-    $("agPasos").innerHTML = (r.abierto ? [`Se abrió <b>Antigravity</b> (si no lo ves, búscalo en la barra de tareas).`]
-      : [`Abre <b>Antigravity</b> y abre esta carpeta (Archivo → Abrir carpeta): <code>${esc(r.carpeta)}</code>. ${r.instalado ? "" : "Si no lo tienes, instálalo desde antigravity.google."}`])
-      .concat([`Empieza una conversación nueva en Antigravity.`,
-        `Pega el mensaje (ya está copiado: empieza con <b>/browser</b>, que enciende el navegador de Antigravity) y envíalo. Si no se enciende el navegador, escribe <b>/browser</b> a mano, elígelo y vuelve a pegar el resto.`,
-        (r.escribir ? `Gemini escribe la música del guion (con adrenalina, como pide la marca) y después ` : `Gemini `) + `entra a Google Flow → <b>Flow Music</b>, genera cada pista y la baja a Descargas como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`,
-        `La sala trae sola ${r.escribir ? "la música del guion y " : ""}las pistas, y te avisa («Llegó de Descargas…»). Después rearma los videos.`]).map(x => `<li>${x}</li>`).join("");
-    $("agCaja").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    const copiado = await copiar(r.mensaje);
-    avisar((r.abierto ? "Antigravity abierto." : "Carpeta lista: ábrela en Antigravity.")
-      + (copiado ? " El mensaje para Gemini ya está copiado: pégalo en Antigravity." : " No se pudo copiar el mensaje: tócalo en «Copiar»."), copiado ? "ok" : "muted");
-  } catch (err) { avisar(err.message, "err"); }
+  try { irTab("faltan"); mostrarPedidoAg("musica", await post("/api/musica_antigravity", {})); }
+  catch (err) { avisar(err.message, "err"); }
 }
 $("musicaAg").onclick = musicaConAntigravity;
 $("agTraer").onclick = async () => {
