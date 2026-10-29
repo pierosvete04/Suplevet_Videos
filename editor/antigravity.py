@@ -267,6 +267,24 @@ def pendientes(todas=False):
 
 
 TANDA_IMG, TANDA_CLIP = 10, 5  # prompts por mensaje a Flow: imágenes y clips en movimiento (los clips tardan más)
+FALTAN = "FALTAN.txt"  # lo que todavía no llegó a la sesión: la sala lo reescribe cada vez que revisa Descargas
+
+
+def anotar_faltan(ids):
+    """Escribe en la carpeta del pedido de imágenes qué códigos todavía no llegaron a la sesión. Gemini lo usa para
+    saber qué bajar: la sala se lleva cada archivo de Descargas apenas llega, así que mirar Descargas no sirve (con
+    P05, Gemini pasó 27 minutos volviendo a bajar fotos que la sala ya había tomado)."""
+    carpeta = _carpeta("Paquete Antigravity")[1]
+    if not (carpeta / "INSTRUCCIONES.md").exists():
+        return
+    texto = ("No falta nada: la sala ya tiene todas las imágenes y clips. Terminaste.\n" if not ids else
+             f"Faltan {len(ids)} (la sala revisa Descargas cada 20 s y actualiza esta lista):\n" + "\n".join(sorted(ids)) + "\n")
+    try:
+        f = carpeta / FALTAN
+        if not f.exists() or f.read_text(encoding="utf-8") != texto:
+            f.write_text(texto, encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _tandas_flow(orden):
@@ -325,13 +343,16 @@ Archivos de esta carpeta ({carpeta}):
    c. Bájalas a Descargas como `CODIGO.jpg` corriendo `bajar_tanda_XX.js` en la pestaña de Flow (si a alguna le falta,
       bájala a mano con ese nombre; la galería no muestra el código: usa el orden en que se pegaron).
    d. Recién ahí sigue con la tanda siguiente. La sala pone sola en los videos lo que va llegando a Descargas.
+   e. **Para saber qué falta, NO mires Descargas:** la sala se lleva cada archivo apenas llega, así que ahí parece que
+   falta todo. Lee `FALTAN.txt` en esta carpeta (la sala lo actualiza cada 20 segundos) y baja solo esos códigos.
+   Cuando diga «No falta nada», terminaste. No vuelvas a bajar nada que no esté en `FALTAN.txt`.
 6. Si Google rechaza un prompt, pega en su lugar el `plan_b` de ese código (en `prompts.json`), con el mismo código delante.
 {f'''7. Clips en movimiento ({len(clips)}, {", ".join(t_clip)}): cambia el generador a **Video** (9:16) y haz lo mismo, de {TANDA_CLIP} en {TANDA_CLIP}.
    Cuando terminen, baja cada video a Descargas con el nombre `CODIGO.mp4`.
 ''' if clips else ""}
 Si aparece un inicio de sesión, términos o un captcha: detente y avisa a la persona. No lo hagas tú.
 
-Al terminar, responde en 2 líneas: cuántas bajaste y cuáles fallaron.
+Al terminar (cuando `FALTAN.txt` diga «No falta nada»), responde en 2 líneas: cuántas bajaste y cuáles fallaron.
 Después, en la Sala de edición: Faltantes → «Poner en los videos» las pone en su lugar.
 """
 
@@ -423,7 +444,9 @@ def armar(todas=False, abrir=False):
                f"Son {len(nombres)} imágenes en {sum(1 for _, g in tandas if g[0]['tipo'] == 'imagen')} tandas"
                + (f" y {len(orden) - len(nombres)} clips (con el generador en Video, de {TANDA_CLIP} en {TANDA_CLIP}, se bajan como .mp4)"
                   if len(orden) > len(nombres) else "")
-               + ". Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
+               + ". Para saber qué falta NO mires Descargas (la sala se lleva cada archivo apenas llega): lee FALTAN.txt de "
+               "esa carpeta y baja solo esos; cuando diga «No falta nada», terminaste. "
+               "Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala
     abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
     enviado, porque = False, ""

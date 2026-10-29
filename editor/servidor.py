@@ -266,10 +266,21 @@ def importar_descarga(nombre, aid, destino):
     carpeta = motor.S.musica if destino == "musica" else motor.S.assets
     carpeta.mkdir(parents=True, exist_ok=True)
     tmp = carpeta / f".{aid}{ext}.part"
-    shutil.copy2(f, tmp)
+    if destino == "assets" and ext in motor.EXT_VID:
+        sin_audio(f, tmp)  # los clips de Flow (Veo) traen sonido: en el video solo va su imagen
+    else:
+        shutil.copy2(f, tmp)
     apartar_viejos(carpeta, aid)
     os.replace(tmp, carpeta / f"{aid}{ext}")
     return f"{aid}{ext}", carpeta
+
+
+def sin_audio(origen, destino):
+    """Copia un clip sin su pista de sonido (la imagen no se vuelve a comprimir). Si ffmpeg falla, lo copia tal cual."""
+    r = subprocess.run([motor.FFMPEG, "-v", "error", "-y", "-i", str(origen), "-map", "0:v:0", "-c", "copy", "-an",
+                        "-f", "mp4", str(destino)], capture_output=True, **({"creationflags": 0x08000000} if os.name == "nt" else {}))
+    if r.returncode or not Path(destino).is_file() or not Path(destino).stat().st_size:
+        shutil.copy2(origen, destino)
 
 
 def apartar_viejos(carpeta, nombre):
@@ -522,6 +533,7 @@ def traer_descargas(dias=3):
         # lanzaba cientos de subidas a la vez
         DRIVE_PENDIENTE.add((motor.S.drive, carpeta.relative_to(motor.S.principal).as_posix()))
         traidos.append({"t": time.time(), "archivo": archivo, "id": aid, "destino": destino, "codigos": []})
+    antigravity.anotar_faltan(faltan["assets"])  # para que Gemini sepa qué bajar sin mirar Descargas
     for destino in ("assets", "musica"):  # qué videos usa cada una: una sola pasada por todos los videos
         ids = [x["id"] for x in traidos if x["destino"] == destino]
         if ids:

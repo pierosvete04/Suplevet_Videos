@@ -1,3 +1,7 @@
+Versión 1.56.4 (se actualiza desde la app con «Actualizar ahora»):
+- **Los clips de Flow entran sin sonido:** Veo los genera con audio; la sala se lo quita al traerlos de Descargas (la imagen no se vuelve a comprimir). En el video solo va su imagen.
+- **Gemini ya no se queda dando vueltas al final:** como la sala se lleva cada foto de Descargas apenas llega, Gemini creía que faltaban y las volvía a bajar (con P05, 27 minutos de más). Ahora la sala escribe FALTAN.txt en la carpeta del pedido con lo que de verdad falta, y Gemini baja solo eso; cuando dice «No falta nada», termina.
+
 Versión 1.56.3 (se actualiza desde la app con «Actualizar ahora»):
 - **Las fotos de Flow entran a la sesión de golpe:** antes la sala tardaba 20-28 segundos por cada foto en averiguar qué videos la usan (revisaba los 232 videos foto por foto), y entraban a unas 7 por minuto. Ahora revisa todas juntas en menos de un segundo.
 - **Primero todo en la PC, Drive al final:** lo que llega de Descargas se pone en la sesión y en los videos al momento; cuando dejan de llegar archivos, se sube a Drive de una sola vez, en segundo plano (antes lanzaba una subida por cada foto).
