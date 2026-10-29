@@ -500,6 +500,14 @@ AUTO_DESC = []  # lo que llegó solo de Descargas: [{t, archivo, id, codigos}]
 CHOCAN_CON_DESCARGAS = {"bajar", "reiniciar", "terminar", "renombrar", "ordenar_todo", "conectar"}
 
 
+def anotar_faltan_gemini(ck, faltan):
+    """FALTAN.txt en las carpetas de los pedidos a Gemini: qué imágenes y pistas todavía no llegaron a la sesión."""
+    antigravity.anotar_faltan(faltan["assets"])
+    antigravity.anotar_faltan(faltan["musica"], antigravity.PEDIDOS["musica"],
+                              "" if ck.get("musica") else "Todavía no: la sala espera la música del guion (el produccion.json de "
+                              "esta carpeta). Escríbela primero; apenas llegue, aquí aparecen las pistas que faltan.")
+
+
 def traer_descargas(dias=3):
     """Pasa a la sesión los archivos de Descargas que se llaman como una imagen, clip o pista que FALTA (nunca reemplaza
     lo que ya está). Devuelve lo que trajo."""
@@ -510,6 +518,7 @@ def traer_descargas(dias=3):
     faltan = {"musica": [m["id"] for m in ck.get("musica", []) if not m.get("listo")],
               "assets": [a["id"] for a in ck.get("assets", []) if not a.get("listo")]}
     if not faltan["musica"] and not faltan["assets"]:
+        anotar_faltan_gemini(ck, faltan)
         return []
     traidos, limite = [], time.time() - dias * 86400
     for f in sorted(base.iterdir(), key=lambda x: -x.stat().st_mtime if x.is_file() else 0):
@@ -533,7 +542,7 @@ def traer_descargas(dias=3):
         # lanzaba cientos de subidas a la vez
         DRIVE_PENDIENTE.add((motor.S.drive, carpeta.relative_to(motor.S.principal).as_posix()))
         traidos.append({"t": time.time(), "archivo": archivo, "id": aid, "destino": destino, "codigos": []})
-    antigravity.anotar_faltan(faltan["assets"])  # para que Gemini sepa qué bajar sin mirar Descargas
+    anotar_faltan_gemini(ck, faltan)
     for destino in ("assets", "musica"):  # qué videos usa cada una: una sola pasada por todos los videos
         ids = [x["id"] for x in traidos if x["destino"] == destino]
         if ids:

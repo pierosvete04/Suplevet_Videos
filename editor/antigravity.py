@@ -270,14 +270,17 @@ TANDA_IMG, TANDA_CLIP = 10, 5  # prompts por mensaje a Flow: imágenes y clips e
 FALTAN = "FALTAN.txt"  # lo que todavía no llegó a la sesión: la sala lo reescribe cada vez que revisa Descargas
 
 
-def anotar_faltan(ids):
-    """Escribe en la carpeta del pedido de imágenes qué códigos todavía no llegaron a la sesión. Gemini lo usa para
-    saber qué bajar: la sala se lleva cada archivo de Descargas apenas llega, así que mirar Descargas no sirve (con
-    P05, Gemini pasó 27 minutos volviendo a bajar fotos que la sala ya había tomado)."""
-    carpeta = _carpeta("Paquete Antigravity")[1]
+def anotar_faltan(ids, que="Paquete Antigravity", esperando=""):
+    """Escribe en la carpeta del pedido (imágenes o música) qué códigos todavía no llegaron a la sesión. Gemini lo usa
+    para saber qué bajar: la sala se lleva cada archivo de Descargas apenas llega, así que mirar Descargas no sirve (con
+    P05, Gemini pasó 27 minutos volviendo a bajar fotos que la sala ya había tomado). `esperando`: la sala todavía no
+    puede saber qué falta (la música que Gemini escribe aún no llegó al guion)."""
+    carpeta = _carpeta(que)[1]
     if not (carpeta / "INSTRUCCIONES.md").exists():
         return
-    texto = ("No falta nada: la sala ya tiene todas las imágenes y clips. Terminaste.\n" if not ids else
+    lo = "toda la música" if que == PEDIDOS["musica"] else "todas las imágenes y clips"
+    texto = (esperando + "\n" if esperando else
+             f"No falta nada: la sala ya tiene todas {lo}. Terminaste.\n" if not ids else
              f"Faltan {len(ids)} (la sala revisa Descargas cada 20 s y actualiza esta lista):\n" + "\n".join(sorted(ids)) + "\n")
     try:
         f = carpeta / FALTAN
@@ -791,11 +794,13 @@ Trabaja solo con los archivos de esta carpeta ({carpeta}). Empieza una conversac
 4. Bájala: menú «⋯» (More options) de esa canción → Download → **MP3**. Ojo: el menú se abre pegado a la fila de abajo;
    revisa el nombre de la canción antes de elegir.
 5. En Descargas, cámbiale el nombre al archivo por el id de la pista: `MUS_A.mp3`, `MUS_B.mp3`… (con la terminal si hace falta).
-   La sala lo toma sola de Descargas.
+   La sala lo toma sola de Descargas y lo pasa a la carpeta del proyecto en segundos: por eso después ya no está ahí.
+6. **Para saber qué falta, NO mires Descargas:** lee `FALTAN.txt` en esta carpeta (la sala lo actualiza cada 20 segundos)
+   y haz solo esas pistas. Cuando diga «No falta nada», terminaste. No vuelvas a bajar una pista que no esté en la lista.
 
 Si aparece un inicio de sesión, términos, un pago o un captcha: detente y avisa a la persona. No lo hagas tú.
 
-Al terminar, responde en 2 líneas: qué pistas bajaste y cuáles fallaron.
+Al terminar (cuando `FALTAN.txt` diga «No falta nada»), responde en 2 líneas: qué pistas bajaste y cuáles fallaron.
 """
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")
@@ -804,7 +809,8 @@ Al terminar, responde en 2 líneas: qué pistas bajaste y cuáles fallaron.
                + (": primero agrega la música editando el produccion.json de esa carpeta y después genera cada pista"
                   if escribir else f": genera las pistas {n}")
                + " en Google Flow Music (botón «Flow Music» en https://labs.google/flow), instrumental, y baja cada una "
-               "a Descargas como MP3 con el nombre de su id (MUS_A.mp3…). Al final responde en 2 líneas qué pistas bajaste "
+               "a Descargas como MP3 con el nombre de su id (MUS_A.mp3…). La sala se lleva cada MP3 de Descargas apenas llega: "
+               "para saber qué falta lee FALTAN.txt de esa carpeta, no Descargas. Al final responde en 2 líneas qué pistas bajaste "
                "y cuáles fallaron.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala
     abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())

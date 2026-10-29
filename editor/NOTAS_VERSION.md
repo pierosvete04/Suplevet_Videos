@@ -1,3 +1,6 @@
+Versión 1.56.5 (se actualiza desde la app con «Actualizar ahora»):
+- **La música también va directo al proyecto y Gemini no se pierde:** el MP3 que Gemini baja de Flow Music pasa en segundos a la carpeta Musica de la sesión en esta PC (y a Drive al final, de una vez). Como ya no queda en Descargas, la carpeta del pedido de música también tiene su FALTAN.txt: Gemini hace solo las pistas que faltan y termina cuando dice «No falta nada».
+
 Versión 1.56.4 (se actualiza desde la app con «Actualizar ahora»):
 - **Los clips de Flow entran sin sonido:** Veo los genera con audio; la sala se lo quita al traerlos de Descargas (la imagen no se vuelve a comprimir). En el video solo va su imagen.
 - **Gemini ya no se queda dando vueltas al final:** como la sala se lleva cada foto de Descargas apenas llega, Gemini creía que faltaban y las volvía a bajar (con P05, 27 minutos de más). Ahora la sala escribe FALTAN.txt en la carpeta del pedido con lo que de verdad falta, y Gemini baja solo eso; cuando dice «No falta nada», termina.
