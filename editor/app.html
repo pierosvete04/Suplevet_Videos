@@ -5372,6 +5372,7 @@ async function pintarProcesos() {
 const QUE_HACE = [
   [/^Procesando (\S+)/, n => `Preparando la pieza <b>${n}</b>: junta sus clips, corta el silencio del inicio y del final, iguala el volumen y la deja en el formato del video.`],
   [/^Transcribiendo (\S+)/, n => `Pasando a texto lo que se dice en <b>${n}</b>: con eso salen los subtítulos y se compara con el guion.`],
+  [/^Subtítulos de (\S+) con lo ya escuchado/, n => `Armando los subtítulos de <b>${n}</b> con lo que ya se escuchó de sus clips al analizar (sin volver a escuchar).`],
   [/^Escuchando (\S+)/, n => `Escuchando el clip <b>${n}</b> para saber qué frase del guion es.`],
   [/^Ajustando (\S+)/, n => `Ajustando <b>${n}</b> para que el editor no se trabe al moverse por el video.`],
   [/^(?:Antes de exportar: )?[Aa]rmando (\S+)/, n => `Armando el video <b>${n}</b>: hook + cuerpo + CTA, con subtítulos, imágenes, música y sonidos.`],

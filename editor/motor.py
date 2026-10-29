@@ -1644,10 +1644,11 @@ def procesar(forzar_subs=False, avance=print):
         if (not dest.exists() or vieja != lista or formato_viejo != formato() or desfasada
                 or dest.stat().st_mtime < max(x.stat().st_mtime for x in p["partes"])):
             avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
-            trozos = []
+            trozos, cortes = [], []
             W, H = lienzo()
             for k, parte in enumerate(p["partes"]):
                 ini, fin = limites_de_voz(parte)
+                cortes.append([round(ini, 3), round(fin, 3)])  # para ubicar las palabras del clip en la pieza
                 sola = len(lista) == 1
                 t = dest if sola else S.proc / f"_{p['nombre']}_{k}.mov"  # en partes: audio sin comprimir hasta unir
                 run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
@@ -1664,8 +1665,8 @@ def procesar(forzar_subs=False, avance=print):
                      "-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "192k", dest.name], cwd=S.proc)
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
-            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "formato": formato(), "gop": GOP_EDITOR[1],
-                                         "union": UNION_PARTES}, ensure_ascii=False), encoding="utf-8")
+            firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "cortes": cortes, "formato": formato(),
+                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES}, ensure_ascii=False), encoding="utf-8")
             if vieja is not None and (vieja != lista or desfasada):  # con la voz en su lugar, los tiempos cambian
                 # otra toma: el subtítulo se rehace con lo que se dice ahora, pero las marcas (imágenes, sonidos,
                 # resaltados) se quedan porque van por palabra; el subtítulo viejo se guarda por si se quiere volver
@@ -1691,8 +1692,12 @@ def procesar(forzar_subs=False, avance=print):
         # de ahora, que entiende mejor; uno corregido a mano no se toca nunca
         mejorar = bool(viejo and viejo.get("automatico") and viejo.get("modelo") != modelo)
         if forzar_subs or not sub.exists() or mejorar:
-            avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})" + (" con el modelo más fino" if mejorar else ""))
-            pal = afinar_palabras(transcribir(dest), _tramos_de_voz(dest))  # cada palabra donde de verdad suena
+            ya_oido = None if mejorar else palabras_de_pieza(p["nombre"])  # lo que se escuchó de sus clips al analizar
+            if ya_oido:
+                avance(f"Subtítulos de {p['nombre']} con lo ya escuchado ({n}/{len(ps)})")
+            else:
+                avance(f"Transcribiendo {p['nombre']} ({n}/{len(ps)})" + (" con el modelo más fino" if mejorar else ""))
+            pal = afinar_palabras(ya_oido or transcribir(dest), _tramos_de_voz(dest))  # cada palabra donde de verdad suena
             heredadas = _marcas_apartadas(p["nombre"])
             marcas = ({"marcas": viejo["marcas"]} if (mejorar or forzar_subs) and viejo and "marcas" in viejo
                       else {"marcas": heredadas} if heredadas is not None else {})  # van por palabra: se quedan
@@ -1748,10 +1753,55 @@ def transcripcion_clip(c, crear=True):
             return d["texto"]
     if not crear:
         return None
-    texto = " ".join(p["w"] for p in transcribir(c["ruta"]))
+    pal = transcribir(c["ruta"])
+    texto = " ".join(p["w"] for p in pal)
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps({"firma": firma, "texto": texto}, ensure_ascii=False), encoding="utf-8")
+    # las palabras con sus tiempos también: al preparar la pieza, sus subtítulos salen de aquí sin volver a escuchar
+    f.write_text(json.dumps({"firma": firma, "texto": texto, "palabras": pal}, ensure_ascii=False), encoding="utf-8")
     return texto
+
+
+def palabras_clip(ruta):
+    """Las palabras (con sus tiempos dentro del clip) que se guardaron al escuchar ese clip, o None si no están
+    (el clip se escuchó con una versión vieja o cambió después)."""
+    c = next((x for x in clips() if Path(x["ruta"]) == Path(ruta)), None)
+    if not c:
+        return None
+    f = _archivo_transcripcion(c)
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+        st = Path(ruta).stat()
+    except (OSError, ValueError):
+        return None
+    if d.get("firma") != f"{st.st_size}-{int(st.st_mtime)}" or not isinstance(d.get("palabras"), list):
+        return None
+    return d["palabras"]
+
+
+def palabras_de_pieza(nombre):
+    """Las palabras de una pieza ya preparada, armadas con lo que se escuchó de cada clip al analizar: de cada parte,
+    lo que cae entre donde se cortó (inicio y fin de la voz), corrido a donde quedó esa parte en la pieza. None si falta
+    algo (entonces se transcribe la pieza como antes). Así preparar no vuelve a escuchar cada pieza: era la mitad del
+    tiempo de «Analizar clips»."""
+    try:
+        firma = json.loads((S.proc / f"{nombre}.partes.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    partes, cortes, durs = firma.get("partes") or [], firma.get("cortes"), firma.get("duraciones")
+    if not partes or not cortes or not durs or not len(partes) == len(cortes) == len(durs):
+        return None
+    out, offset = [], 0.0
+    for ruta, (ini, fin), dur in zip(partes, cortes, durs):
+        pal = palabras_clip(ruta)
+        if pal is None:
+            return None
+        for w in pal:
+            s, e = float(w["s"]) - ini, float(w["e"]) - ini
+            if e <= 0.02 or s >= (fin - ini) - 0.02:  # quedó fuera de lo que se cortó
+                continue
+            out.append({"w": w["w"], "s": round(offset + max(0.0, s), 2), "e": round(offset + min(e, dur), 2)})
+        offset += dur
+    return corregir_palabras(out) if out else None
 
 
 def escuchar_clips(avance=print):

@@ -1,3 +1,6 @@
+Versión 1.57.3 (se actualiza desde la app con «Actualizar ahora»):
+- **«Analizar clips» más rápido: la sala ya no escucha dos veces.** Al escuchar cada clip ahora guarda sus palabras con sus tiempos, y al preparar la pieza arma los subtítulos con eso en vez de volver a transcribirla (de 11 a 60 segundos por pieza a menos de 1 segundo). Probado con piezas de P05: el mismo texto y cada palabra en el mismo lugar (diferencia típica de 0,01 a 0,06 s); en los cuerpos de varias partes sale incluso más fiel (una toma repetida dentro del clip ya no se pierde, así la sala puede cortarla). Se nota desde la próxima sesión que se analice: los clips de P05 se escucharon antes de este cambio.
+
 Versión 1.57.2 (se actualiza desde la app con «Actualizar ahora»):
 - **La música entra a la sesión pista por pista:** Flow Music baja cada canción con su propio título («Tense Shadow Drive.mp3») y Gemini las renombraba recién al final, así que la sala no podía tomar ninguna hasta que terminaba todo. Ahora el pedido le dice que renombre cada pista (MUS_TENSION.mp3…) apenas se baja, antes de pedir la siguiente.
 
