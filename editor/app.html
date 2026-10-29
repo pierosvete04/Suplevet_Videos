@@ -1649,7 +1649,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     </div>
     <div class="cab-acciones">
       <a class="btn sec" href="/teleprompter" target="_blank" title="Abrir el teleprompter" aria-label="Teleprompter"><span aria-hidden="true">📜</span><span class="txt-largo"> Teleprompter</span></a>
-      <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todos</span></button>
+      <button class="btn sec" id="todo" title="Prepara los clips y arma los videos de la sesión para verlos en la sala. Solo arma los que cambiaron (una foto, una pista, un subtítulo…): los que ya están al día se saltan. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todos</span></button>
       <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir<span class="txt-largo"> todo</span></button>
     </div>
   </div>
@@ -5376,6 +5376,7 @@ const QUE_HACE = [
   [/^Escuchando (\S+)/, n => `Escuchando el clip <b>${n}</b> para saber qué frase del guion es.`],
   [/^Ajustando (\S+)/, n => `Ajustando <b>${n}</b> para que el editor no se trabe al moverse por el video.`],
   [/^(?:Antes de exportar: )?[Aa]rmando (\S+)/, n => `Armando el video <b>${n}</b>: hook + cuerpo + CTA, con subtítulos, imágenes, música y sonidos.`],
+  [/^Revisando qué videos cambiaron/, () => `Comparando cada video con lo que usa hoy (piezas, subtítulos, fotos, música, ajustes) para armar solo los que cambiaron.`],
   [/^Exportando/, () => `Exportando: guardando los videos terminados en la carpeta de salida (y en Drive si se pidió).`],
   [/^Revisando calidad/, () => `Revisando la calidad de cada video (volumen, imágenes que faltan, subtítulos tapados…).`],
   [/^Renombrando/, () => `Poniéndole a cada clip el nombre de su pieza (también en Drive).`],

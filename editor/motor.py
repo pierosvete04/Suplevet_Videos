@@ -7064,6 +7064,7 @@ def armar_uno(combo, n_musica=None, extras=None):
         n_musica = n_musica_de(combo)
     for d in (S.salida, S.recetas):
         d.mkdir(parents=True, exist_ok=True)
+    huella = huella_video(combo)  # al empezar: si algo cambia mientras se arma, la próxima vez se rehace
     trabajo = carpeta_trabajo()
     orden = [combo["hook"], combo["cuerpo"], combo["cta"]]
     if viejas := piezas_en_otro_formato(orden):
@@ -7248,7 +7249,8 @@ def armar_uno(combo, n_musica=None, extras=None):
               "pistas": [{"t0": round(t["t0"], 2), "t1": round(t["t1"], 2), "desde": t["desde"], "archivo": str(t["archivo"]),
                           "id": t["id"], "vol": round(ganancia_musica(t["archivo"], t["desde"], t["t1"] - t["t0"]), 3)} for t in tramos],
               "volumen_musica": CONFIG["musica"]["volumen"], "silenciar": mudo,
-              "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas}
+              "faltan_assets": sorted(set(faltan)), "marcas_sin_encontrar": perdidas,
+              "huella": None if extras else huella}  # con elementos por separado no se compara
     (S.recetas / f"{combo['codigo']}.json").write_text(json.dumps(receta, ensure_ascii=False, indent=1), encoding="utf-8")
     for v in (base, limpio):
         v.unlink(missing_ok=True)
@@ -7419,10 +7421,101 @@ def piezas_en_otro_formato(nombres=None):
     return out
 
 
-def armar(pieza=None, avance=print, codigos=None):
+# ---------- Armar solo lo que cambió ----------
+# Cada video guarda en su receta una «huella» de todo lo que usa: sus tres piezas y sus subtítulos, lo que dice el
+# guion de ellas (texto, marcas, ánimo, música), sus recortes y ajustes, las fotos, clips y pistas que usa, la plantilla,
+# el estilo de su edición y los sonidos. «Armar todos los videos» salta los que tienen la huella igual: cambiar una foto
+# o una pista ya no rehace los 232 videos, solo los que la usan. Si cambia cómo se arma, se sube ARMADO.
+ARMADO = 1
+_HUELLA_SFX = {"t": 0, "v": None}
+
+
+def _estado_archivo(f):
+    try:
+        st = os.stat(f)
+        return [st.st_size, st.st_mtime_ns]
+    except (OSError, TypeError):
+        return None
+
+
+def _huella_biblioteca_sfx():
+    """Cambia si se agrega, quita o edita un sonido de la biblioteca (se mira a lo sumo cada 30 s)."""
+    if time.time() - _HUELLA_SFX["t"] > 30:
+        partes = []
+        for base in (BIBLIO / "sfx", BIBLIO_BASE / "sfx"):
+            if base.is_dir():
+                partes += [(d.name, d.stat().st_mtime_ns) for d in sorted(base.iterdir()) if d.is_dir()]
+        _HUELLA_SFX.update(t=time.time(), v=partes)
+    return _HUELLA_SFX["v"]
+
+
+def huella_video(combo):
+    """La huella de todo lo que entra en un video (ver arriba)."""
+    piezas3 = [combo["hook"], combo["cuerpo"], combo["cta"]]
+    infos = {n: info_pieza(n) for n in piezas3}
+    ed = _edicion_guardada(combo)
+    assets = sorted({m.get("asset") for i in infos.values() for m in i.get("marcas", []) if m.get("asset")}
+                    | {str(x.get("id")) for cs in (ed.get("capas") or {}).values() for x in (cs or []) if x.get("id")})
+    prod = produccion()
+    musicas = sorted({x for x in [musica_de_pieza(n) for n in piezas3] + [prod.get("musica_por_defecto"),
+                      (prod.get("videos") or {}).get(combo["codigo"], {}).get("musica")]
+                      + [m.get("musica") for i in infos.values() for m in i.get("marcas", [])] if x})
+    datos = {"armado": ARMADO, "lienzo": lienzo(),
+             "piezas": {n: [_estado_archivo(S.proc / f"{n}.mp4"), _estado_archivo(S.subs / f"{n}.json")] for n in piezas3},
+             "guion": infos, "edicion": ed, "editado": editado_en(combo),
+             "assets": {a: _estado_archivo(buscar_asset(a)) for a in assets},
+             "musica": {m: [_estado_archivo(buscar_musica(m)), info_musica(m)] for m in musicas},
+             "musica_general": [f.name for f in pistas_musica()],
+             "estilo": [ediciones().get(letra_edicion(combo)), estilo_edicion(combo), plantilla_sub(combo)],
+             "video": [ajustes_video(combo["codigo"]), ajustes_portada(combo["codigo"]), combo.get("version")],
+             "config": [CONFIG.get("sonidos"), CONFIG.get("musica"), CONFIG.get("sfx_mapa")], "sfx": _huella_biblioteca_sfx()}
+    return hashlib.md5(json.dumps(datos, sort_keys=True, default=str, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def video_al_dia(combo):
+    """True si el video ya está armado con todo lo que usa hoy (su huella no cambió). Un video armado antes de las
+    huellas (1.57.5) se da por al día si es más nuevo que todo lo que usa, y desde ahí queda con su huella."""
+    salida = S.salida / f"{combo['archivo']}.mp4"
+    rec_f = S.recetas / f"{combo['codigo']}.json"
+    if not salida.exists() or not rec_f.exists():
+        return False
+    try:
+        rec = json.loads(rec_f.read_text(encoding="utf-8"))
+    except ValueError:
+        return False
+    huella = huella_video(combo)
+    if rec.get("huella"):
+        return rec["huella"] == huella
+    # sin huella: más nuevo que sus piezas, subtítulos, fotos, música, guion y ajustes
+    usados = [S.proc / f"{n}.mp4" for n in (combo["hook"], combo["cuerpo"], combo["cta"])]
+    usados += [S.subs / f"{n}.json" for n in (combo["hook"], combo["cuerpo"], combo["cta"])]
+    usados += [buscar_asset(i["asset"]) for i in rec.get("imagenes", [])] + [p.get("archivo") for p in rec.get("pistas", [])]
+    usados += [S.guion / "produccion.json"]
+    t = max([editado_en(combo)] + [(_estado_archivo(f) or [0, 0])[1] / 1e9 for f in usados if f])
+    if salida.stat().st_mtime <= t + 1:
+        return False
+    rec["huella"] = huella  # desde ahora se compara por huella
+    rec_f.write_text(json.dumps(rec, ensure_ascii=False, indent=1), encoding="utf-8")
+    return True
+
+
+def armar(pieza=None, avance=print, codigos=None, solo_cambios=False):
+    """Arma los videos (todos, los de una pieza o los códigos pedidos). Con solo_cambios («Armar todos los videos»)
+    salta los que ya están al día (video_al_dia)."""
     hechos = []
     todos = [c for c in combinaciones() if (not pieza or pieza in (c["hook"], c["cuerpo"], c["cta"]))
              and (codigos is None or c["codigo"] in codigos)]
+    if solo_cambios:
+        avance("Revisando qué videos cambiaron")
+        antes = len(todos)
+        todos = [c for c in todos if not video_al_dia(c)]
+        armar.saltados = antes - len(todos)
+        if armar.saltados:
+            avance(f"{armar.saltados} de {antes} videos ya están al día: se arman solo {len(todos)}")
+        if not todos:
+            return hechos
+    else:
+        armar.saltados = 0
     if piezas_en_otro_formato():  # se cambió el formato: primero las piezas con el tamaño nuevo
         avance("Preparando las piezas en el formato nuevo")
         procesar(avance=avance)

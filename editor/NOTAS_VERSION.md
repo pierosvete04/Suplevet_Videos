@@ -1,3 +1,6 @@
+Versión 1.57.5 (se actualiza desde la app con «Actualizar ahora»):
+- **«Armar todos los videos» arma solo los que cambiaron:** cada video guarda una huella de todo lo que usa (sus piezas y subtítulos, lo que dice el guion de ellas, sus recortes y ajustes, las fotos, clips y pistas, la plantilla y el estilo). Al tocar el botón, la sala compara y salta los que ya están al día. Probado con P05: cambiar una foto rearma solo los 12 videos que la usan; corregir un subtítulo de un hook, solo sus 2 videos. Los videos ya armados antes se reconocen solos (no hace falta rearmar todo una vez).
+
 Versión 1.57.4 (se actualiza desde la app con «Actualizar ahora»):
 - **«Armar todos los videos» un 25 % más rápido, con el video idéntico:** cada video de P05 pasó de unos 62 a 46 segundos. Las fotos de Flow se agrandaban (al triple, para que el acercamiento sea suave) en cada uno de sus 45 cuadros; ahora se agrandan una sola vez. Y las medidas de los sonidos y las duraciones se recuerdan en vez de leerse del disco cientos de veces por video. Comprobado con un video de P05: los 1438 cuadros y el audio salen iguales al armado anterior.
 

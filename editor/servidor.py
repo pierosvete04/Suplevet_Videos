@@ -995,8 +995,11 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                 if accion == "guion_grabado" and not motor.guion_desde_grabado() and motor._guion_propio().get("origen") != "grabado":
                     avance("Esta sesión ya tiene guion: no lo cambié")
                 if accion in ("todo", "armar"):
-                    hechos_a = motor.armar(pieza, avance=avance)
-                    avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}")
+                    # «Armar todos los videos»: solo los que cambiaron (los demás ya están al día)
+                    hechos_a = motor.armar(pieza, avance=avance, solo_cambios=accion == "todo")
+                    sal = getattr(motor.armar, "saltados", 0)
+                    avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}"
+                           + (f" ({sal} ya estaban al día)" if sal else ""))
                 if accion == "armar_sel":
                     hechos_a = motor.armar(avance=avance, codigos=extra["codigos"])
                     avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}")
@@ -1023,7 +1026,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     motor.procesar(avance=avance)
                     guion_si_falta()
                     avance("4/6 · Armando los videos")
-                    res["armados"] = len(motor.armar(avance=avance))
+                    res["armados"] = len(motor.armar(avance=avance, solo_cambios=True))
                     avance("5/6 · Revisando la calidad")
                     calidad = motor.revisar_calidad(avance=avance)
                     res["con_problemas"] = sorted(k for k, v in calidad.items() if any(p["nivel"] == "err" for p in v["problemas"]))
