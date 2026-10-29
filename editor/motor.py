@@ -6852,6 +6852,10 @@ def filtro_broll(i, ov):
     n = max(1, int(dur * 30))
     if ov["es_imagen"]:
         mov = ov.get("mov", "zoom_in")
+        # estilo «zoom_imagenes»: «subir» (lo de siempre desde la 1.57.8) = toda imagen se acerca despacio de principio a
+        # fin, para llamar la atención; «alternar» = como dice el guion (una se acerca, la otra se aleja)
+        if mov == "zoom_out" and estilo_edicion().get("zoom_imagenes", "subir") == "subir":
+            mov = "zoom_in"
         # zoom lento (10 % en toda la duración). Se agranda 3 veces antes del zoompan para que el movimiento
         # sea suave (zoompan mueve de a pixel entero: en tamaño normal la imagen tiembla). La foto entra como UN
         # cuadro (sin -loop) y zoompan saca de él los n cuadros (d=n): así se agranda una sola vez y no en cada
@@ -7486,7 +7490,7 @@ def piezas_en_otro_formato(nombres=None):
 # guion de ellas (texto, marcas, ánimo, música), sus recortes y ajustes, las fotos, clips y pistas que usa, la plantilla,
 # el estilo de su edición y los sonidos. «Armar todos los videos» salta los que tienen la huella igual: cambiar una foto
 # o una pista ya no rehace los 232 videos, solo los que la usan. Si cambia cómo se arma, se sube ARMADO.
-ARMADO = 2  # 2: voz nivelada (compresor + dos pasadas) y música unos 20 dB debajo de la voz
+ARMADO = 3  # 2: voz nivelada y música de fondo · 3: las imágenes siempre se acercan despacio
 _HUELLA_SFX = {"t": 0, "v": None}
 
 

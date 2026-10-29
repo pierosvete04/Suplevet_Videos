@@ -1,3 +1,9 @@
+Versión 1.57.8 (se actualiza desde la app con «Actualizar ahora»):
+- **«🔁 Repetir» en el editor de video (tecla R):** repite una y otra vez el pedazo elegido (o el pedazo donde está el cabezal) mientras lo ajustas. Si recortas el pedazo mientras se repite, se repite con su largo nuevo. Tócalo otra vez para parar.
+- **«🔁 Repetir» en Piezas y subtítulos:** en la línea de tiempo, repite el tramo elegido (o la frase donde está la línea roja).
+- **Alargar o acortar una imagen jalando su borde derecho** en la línea de tiempo de Piezas y subtítulos (de 0,5 a 10 s). Se guarda con «Guardar» de la pieza.
+- **Las imágenes siempre se acercan despacio** de principio a fin (antes una se acercaba y la siguiente se alejaba), en el video y en la vista del editor.
+
 Versión 1.57.7 (se actualiza desde la app con «Actualizar ahora»):
 - **La vista del editor muestra los subtítulos igual que el video:** dibujaba siempre la segunda línea con otra letra (Anton, más grande) aunque la plantilla la tuviera apagada; el video armado no. Si quieres ese estilo de dos letras, enciéndelo en Plantillas: «La frase va en dos líneas, la de abajo con otra fuente» → «Sí, dos líneas».
 - **Música de fondo:** unos 20 dB debajo de la voz (antes unos 12): se oye, pero no compite con lo que dices.

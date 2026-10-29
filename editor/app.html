@@ -1173,6 +1173,8 @@ dialog.galeria { width: min(900px, 96vw); }
 .tl-blq.img { padding: 0; background: #000 center/cover; border: 2px solid var(--accent2); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
 .tl-blq.img span { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 4px; background: rgba(0,0,0,.65); color: #fff; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; }
 .tl-blq.img.sel, .tl-pin.sel { outline: 2px solid #ffd23f; outline-offset: 1px; }
+.tl-blq.img .tl-dur { position: absolute; top: 0; right: 0; bottom: 0; width: 8px; cursor: ew-resize; background: linear-gradient(90deg, transparent, rgba(255,210,63,.9)); opacity: .7; }
+.tl-blq.img:hover .tl-dur, .tl-blq.img .tl-dur.arrastrando { opacity: 1; }
 .tl-pin { position: absolute; top: 3px; bottom: 3px; transform: translateX(-50%); min-width: 26px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; font-size: 12px; cursor: pointer;
   background: color-mix(in srgb, var(--accent2) 22%, var(--surface)); border: 1px solid var(--accent2); white-space: nowrap; }
 .tl-pin.musica { background: color-mix(in srgb, #a855f7 22%, var(--surface)); border-color: #a855f7; }
@@ -1915,6 +1917,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
           <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
           <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
+          <button class="btn sec peq" type="button" id="tlRepetir" aria-pressed="false" title="Repite una y otra vez el tramo elegido mientras lo ajustas (si no eliges uno, la frase donde está la línea roja). Tócalo otra vez para parar">🔁 Repetir</button>
           <label class="fila muted" style="font-size:12px;gap:4px" title="Con el imán, el tramo se ajusta a palabras enteras (no corta una palabra a la mitad). Sin imán, cortas justo donde marcas: para quitar un silencio o un ruido pegado a una palabra. También: mantén Alt al arrastrar."><input type="checkbox" id="tlIman" checked> Imán a palabras</label>
           <button class="btn sec peq" type="button" id="tlCambiarClip" title="Cambia un clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar un clip</button>
         </div>
@@ -2755,6 +2758,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div><kbd>Alt</kbd>+<kbd>←</kbd> <kbd>→</kbd><span>Mover la frase antes o después</span></div>
       <div><kbd>C</kbd><span>Ver sin cortes / con cortes</span></div>
       <div><kbd>K</kbd><span>Marca de encuadre (zoom)</span></div>
+      <div><kbd>R</kbd><span>Repetir el pedazo elegido una y otra vez</span></div>
       <div><kbd>M</kbd><span>Mover y escalar el video con el mouse</span></div>
       <div><kbd>I</kbd><span>Imagen en el cabezal</span></div>
       <div><kbd>Ctrl</kbd>+rueda<span>Acercar o alejar la línea de tiempo</span></div>
@@ -2910,6 +2914,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="ev-grupo ev-reproducir" id="evReproducir" role="group" aria-label="Reproducir">
           <button class="ev-btn" id="evInicio" type="button" title="Vuelve al inicio del video y reproduce desde ahí"><span aria-hidden="true">⏮</span><b>Inicio</b><kbd>Inicio</kbd></button>
           <button class="ev-btn prim" id="evPlay" type="button" aria-pressed="false" title="Reproducir o pausar"><span aria-hidden="true">▶</span><b>Reproducir</b><kbd>Espacio</kbd></button>
+          <button class="ev-btn" id="evRepetir" type="button" aria-pressed="false" title="Repite una y otra vez el pedazo elegido (o el pedazo donde está el cabezal) mientras lo ajustas. Tócalo otra vez para dejar de repetir"><span aria-hidden="true">🔁</span><b>Repetir</b><kbd>R</kbd></button>
           <span id="evTiempo" class="ev-tiempo" title="Segundo y cuadro del cabezal">0.00 s</span>
         </div>
         <div class="ev-grupo" role="group" aria-label="Deshacer y rehacer">
@@ -4286,7 +4291,7 @@ function pintarTl() {
   const conPos = marcasTmp.map(m => ({ m, pos: ubicarComoVideo(p, m.palabra || "", m.n) })).filter(x => x.pos);
   const esSel = pos => marcaSel && pos.li === marcaSel.li && pos.wi === marcaSel.wi;
   const imgs = conPos.filter(x => x.m.asset).map(({ m, pos }) => { const a = urlAsset(m.asset), d = m.dur || 1.5;
-    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${Math.max(.6, parseFloat(ancho(pos.t, Math.min(D0, pos.t + d))))}%;${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s"><span>${a ? (a.es_video ? "🎬 " : "") : "⚠ Falta · "}${esc(m.asset)}</span></div>`; }).join("")
+    return `<div class="tl-blq img ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)};width:${Math.max(.6, parseFloat(ancho(pos.t, Math.min(D0, pos.t + d))))}%;${a && !a.es_video ? `background-image:url('${esc(a.url)}')` : ""}" title="${esc(m.asset)} en «${esc(m.palabra)}» · ${d} s · jala el borde derecho para que dure más o menos"><span>${a ? (a.es_video ? "🎬 " : "") : "⚠ Falta · "}${esc(m.asset)}</span><i class="tl-dur" data-tl-dur="${marcasTmp.indexOf(m)}" title="Jala para que dure más o menos"></i></div>`; }).join("")
     || `<span class="tl-vacio">Sin imágenes: toca una palabra del texto y elige una</span>`;
   const sons = conPos.filter(x => x.m.sfx || x.m.musica).map(({ m, pos }) =>
     `${m.sfx ? `<div class="tl-pin ${esSel(pos) ? "sel" : ""}" data-tl-w="${pos.li}-${pos.wi}" style="left:${pc(pos.t)}" title="♪ ${esc(nombreSonido(m.sfx))} en «${esc(m.palabra)}»">♪</div>` : ""}
@@ -4332,6 +4337,29 @@ function cabezalTl() { const p = piezaSel(), c = $("tlCabezal"); if (!p || !c) r
   c.style.left = (Math.min(1, tlVer($("vPieza").currentTime || 0) / D) * 100) + "%"; }
 const tiempoTl = e => { const z = $("tlZona").getBoundingClientRect(), p = piezaSel(), D0 = durTl(p);
   return tlGrabado(Math.max(0, Math.min(1, (e.clientX - z.left) / z.width)) * (conCortesTl() ? tlComprimido(D0) : D0)); };
+// Jalar el borde derecho de una imagen: dura más o menos (de 0,5 a 10 s). Se guarda con «Guardar» de la pieza
+let tlDur = null;
+$("tl").addEventListener("pointerdown", e => {
+  const h = e.target.closest("[data-tl-dur]"); if (!h || e.button) return;
+  e.preventDefault(); e.stopPropagation();
+  const m = marcasTmp[Number(h.dataset.tlDur)], p = piezaSel(); if (!m || !p) return;
+  const z = $("tlZona").getBoundingClientRect(), D0 = durTl(p), D = conCortesTl() ? tlComprimido(D0) : D0;
+  tlDur = { m, h, x0: e.clientX, d0: Number(m.dur || 1.5), sxp: D / z.width };
+  h.classList.add("arrastrando"); h.setPointerCapture(e.pointerId);
+}, true);
+$("tl").addEventListener("pointermove", e => {
+  if (!tlDur) return;
+  const d = Math.round(Math.max(.5, Math.min(10, tlDur.d0 + (e.clientX - tlDur.x0) * tlDur.sxp)) * 10) / 10;
+  if (d === tlDur.m.dur) return;
+  tlDur.m.dur = d;
+  const blq = tlDur.h.closest(".tl-blq"); blq.style.width = `calc(${blq.style.width} + 0px)`;  // se redibuja al soltar
+  blq.title = `${tlDur.m.asset} · ${d} s`; avisar(`${tlDur.m.asset}: ${d} s`, "muted");
+}, true);
+$("tl").addEventListener("pointerup", () => {
+  if (!tlDur) return;
+  tlDur.h.classList.remove("arrastrando"); tlDur = null;
+  pintarTl(); pintarMarcas(); pintarSucia();
+}, true);
 $("tl").addEventListener("pointerdown", e => {
   if (!e.target.closest("#tlZona") || e.button) return;
   const ct = e.target.closest("[data-tl-corte]");
@@ -4382,6 +4410,25 @@ function marcarTramo(a, b) {  // el tramo elegido, dentro del video, en orden y 
   if (b - a < .1) b = Math.min(D, a + .1);
   tlSel = ajustarTramo(p, a, b); pintarTl();
 }
+// «Repetir» en Piezas y subtítulos: el tramo elegido (o la frase donde está la línea roja) se repite en la vista
+let tlRepetir = null;
+$("tlRepetir").onclick = () => {
+  const v = $("vPieza");
+  if (tlRepetir) { tlRepetir = null; $("tlRepetir").setAttribute("aria-pressed", "false"); return; }
+  const p = piezaSel(); if (!p) return;
+  const t = v.currentTime, l = (p.lineas || []).find(x => t >= x.s - .05 && t <= x.e + .05);
+  tlRepetir = tlSel ? { a: tlSel.a, b: tlSel.b, propio: false } : l ? { a: l.s, b: l.e, propio: true } : null;
+  if (!tlRepetir) return avisar("Elige un tramo en la línea de tiempo (arrastra sobre ella) o pon la línea roja sobre una frase.", "muted");
+  $("tlRepetir").setAttribute("aria-pressed", "true");
+  v.currentTime = tlRepetir.a; v.play().catch(() => {});
+  const vuelta = () => {
+    if (!tlRepetir) return;
+    if (!tlRepetir.propio && tlSel) { tlRepetir.a = tlSel.a; tlRepetir.b = tlSel.b; }  // si ajustas el tramo, se repite el nuevo
+    if (!v.paused && (v.currentTime >= tlRepetir.b || v.currentTime < tlRepetir.a - .3)) v.currentTime = tlRepetir.a;
+    requestAnimationFrame(vuelta);
+  };
+  requestAnimationFrame(vuelta);
+};
 $("tlIni").onclick = () => { const t = $("vPieza").currentTime; marcarTramo(t, tlSel && tlSel.b > t ? tlSel.b : t + 1); };
 $("tlFin").onclick = () => { const t = $("vPieza").currentTime; marcarTramo(tlSel && tlSel.a < t ? tlSel.a : t - 1, t); };
 $("tlQuitar").onclick = async () => {
@@ -7594,7 +7641,8 @@ function vistaCapa(pz, tp) {  // la imagen o escena que toca en ese segundo, enc
   el.className = "ev-capa-vista" + (ven ? " ventana" : "");
   const [W, H] = E.lienzo || [1080, 1920];
   el.style.cssText = ven ? `left:${cp.x / W * 100}%;top:${cp.y / H * 100}%;width:${cp.ancho / W * 100}%;aspect-ratio:1` : "inset:0";
-  const p = Math.min(1, Math.max(0, (tp - cp.t) / cp.dur)), z = cp.mov === "zoom_in" ? 1 + .12 * p : cp.mov === "zoom_out" ? 1.12 - .12 * p : 1;
+  const mov = cp.mov === "zoom_out" && (E.estilo_edicion?.zoom_imagenes ?? "subir") === "subir" ? "zoom_in" : cp.mov;  // como el video armado
+  const p = Math.min(1, Math.max(0, (tp - cp.t) / cp.dur)), z = mov === "zoom_in" ? 1 + .1 * p : mov === "zoom_out" ? 1.1 - .1 * p : 1;
   const media = el.firstElementChild; if (media) media.style.transform = `scale(${z.toFixed(3)})`;
   // fundido al entrar y al salir, como en el video armado (estilo «fundido», 0,3 s)
   const fd = Math.min(Number(E.estilo_edicion?.fundido ?? .3), cp.dur / 3);
@@ -8181,6 +8229,7 @@ $("dlgEditor").addEventListener("keydown", e => {
   }
   else if (tecla === "s") { e.preventDefault(); pararEditor(); cortarEnCabezal(); }
   else if (tecla === "k") { e.preventDefault(); $("evPunto").click(); }
+  else if (tecla === "r") { e.preventDefault(); $("evRepetir").click(); }
   else if (tecla === "m") { e.preventDefault(); modoMover(); }
   else if (tecla === "c") { e.preventDefault(); ponerVista(ed.vista === "sin" ? "con" : "sin"); }
   else if (tecla === "i") { e.preventDefault(); $("evImagen").click(); }
@@ -8467,11 +8516,32 @@ $("evSub").addEventListener("pointerup", () => {
   $("vidSubsGuardar").focus();
 });
 function moverCabezal() { $("evCabezal").style.left = (78 + xDeTiempo(ed?.t || 0)) + "px"; }
+// «Repetir»: el pedazo elegido (o el del cabezal al encenderlo) suena una y otra vez. Se guarda la clave del pedazo,
+// así si lo recortas mientras se repite, se repite con su largo nuevo
+let evRepetir = null;
+function tramoRepetir() {
+  const s = evRepetir && segmentosEd().find(x => x.key === evRepetir);
+  return s ? { a: s.g0, b: s.g0 + (s.b - s.a) } : null;
+}
+$("evRepetir").onclick = () => {
+  if (evRepetir) { evRepetir = null; $("evRepetir").setAttribute("aria-pressed", "false"); return; }
+  const segs = segmentosEd(), s = segs.find(x => x.key === ed.sel) || segs[evSeg];
+  if (!s) return;
+  evRepetir = s.key; $("evRepetir").setAttribute("aria-pressed", "true");
+  avisar(`Repitiendo ${s.t} (${(s.b - s.a).toFixed(1)} s). Toca «Repetir» otra vez para parar.`, "muted");
+  irA(s.g0);
+  if (!evReproduciendo) $("evPlay").click();
+};
 function bucleEd() {
   if (!evReproduciendo) return;
+  const r = tramoRepetir();
+  if (r && (ed.t >= r.b - .04 || ed.t < r.a - .3)) { irA(r.a); if (evReproduciendo) $("evVideo").play().catch(() => {}); requestAnimationFrame(bucleEd); return; }
   const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
   if (s && v.currentTime >= s.b - .02) {
-    if (evSeg + 1 >= segs.length) { pararEditor(); irA(segs.reduce((a, x) => a + x.b - x.a, 0)); return; }
+    if (evSeg + 1 >= segs.length) {
+      if (r) { irA(r.a); $("evVideo").play().catch(() => {}); requestAnimationFrame(bucleEd); return; }  // repite hasta el final
+      pararEditor(); irA(segs.reduce((a, x) => a + x.b - x.a, 0)); return;
+    }
     evSeg++; const n = segs[evSeg];
     if (!n.pieza.url) { pararEditor(); return; }  // pieza sin preparar: no hay video que seguir
     if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; if (evReproduciendo) v.play().catch(() => {}); }, { once: true }); }
