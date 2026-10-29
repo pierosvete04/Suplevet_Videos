@@ -1087,11 +1087,14 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     for m in motor.S.miembros:  # en un grupo, cada una de sus sesiones
                         drive.bajar_sesion(motor.S.en_drive(m), avance=avance)
                     drive.compartir_transcripciones(motor.S.drive, motor.S.transcripciones, avance=avance)
+                    # las piezas que otra PC ya preparó: así aquí no hay que prepararlas («Armar» va directo a armar)
+                    drive.bajar_piezas(motor.S.drive, motor.S.proc, avance=avance)
                 if accion == "subir_drive":  # «⬆ Subir a Drive»: todo lo de esta PC, ahora
                     for m in motor.S.miembros:
                         drive.subir(motor.S.en_drive(m), avance=avance)
                     avance("Subiendo lo que se escuchó de cada clip…")
                     drive.subir_transcripciones(motor.S.drive, motor.S.transcripciones)
+                    drive.subir_piezas(motor.S.drive, motor.S.proc, avance=avance)  # para que otra PC no las prepare
                     if proyecto.disponible() and proyecto._cambie_aqui() and not proyecto.revisar().get("pendiente"):
                         avance("Subiendo lo editado (subtítulos, cortes, imágenes)…")
                         proyecto.publicar("subido a mano")
@@ -1251,6 +1254,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     raices, locales, peso = sesion_en_pc()
                     for r in raices:
                         drive.subir_todo(r, avance=avance)
+                    drive.subir_piezas(motor.S.drive, motor.S.proc, avance=avance)  # al volver a abrirla no hay que prepararlas
                     avance("Comprobando en Drive, archivo por archivo…")
                     faltan = [f"{r}/{x}" for r in raices for x in drive.faltan_en_drive(r)]
                     if faltan:

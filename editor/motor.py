@@ -1656,7 +1656,9 @@ def procesar(forzar_subs=False, avance=print):
         if isinstance(vieja, dict):
             vieja = vieja.get("partes")
         desfasada = len(lista) > 1 and union_vieja != UNION_PARTES  # unida a la manera vieja: la voz se adelantaba
-        if (not dest.exists() or vieja != lista or formato_viejo != formato() or desfasada
+        # las mismas partes aunque la pieza se haya preparado en otra PC (bajada de Drive, con sus rutas)
+        mismas = isinstance(vieja, list) and [_rel_parte(x) for x in vieja] == [_rel_parte(x) for x in lista]
+        if (not dest.exists() or not mismas or formato_viejo != formato() or desfasada
                 or dest.stat().st_mtime < max(x.stat().st_mtime for x in p["partes"])):
             avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
             trozos, cortes = [], []
@@ -1682,7 +1684,7 @@ def procesar(forzar_subs=False, avance=print):
                     t.unlink(missing_ok=True)
             firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "cortes": cortes, "formato": formato(),
                                          "gop": GOP_EDITOR[1], "union": UNION_PARTES}, ensure_ascii=False), encoding="utf-8")
-            if vieja is not None and (vieja != lista or desfasada):  # con la voz en su lugar, los tiempos cambian
+            if vieja is not None and (not mismas or desfasada):  # con la voz en su lugar, los tiempos cambian
                 # otra toma: el subtítulo se rehace con lo que se dice ahora, pero las marcas (imágenes, sonidos,
                 # resaltados) se quedan porque van por palabra; el subtítulo viejo se guarda por si se quiere volver
                 _apartar_subs_viejos(p["nombre"])
@@ -1793,6 +1795,21 @@ def palabras_clip(ruta):
     return d["palabras"]
 
 
+def _rel_parte(ruta):
+    """Una parte (clip grabado) relativa a la carpeta de la sesión: «Clips/IMG_1346.MOV». Sirve para comparar piezas
+    preparadas en otra PC, cuyas rutas empiezan con la carpeta de esa PC."""
+    p = Path(ruta)
+    try:
+        return p.relative_to(S.grab).as_posix()
+    except ValueError:
+        partes = [x.lower() for x in p.parts]
+        nombre = S.grab.name.lower()
+        if nombre in partes:
+            i = len(partes) - 1 - partes[::-1].index(nombre)
+            return "/".join(p.parts[i + 1:])
+        return p.as_posix()
+
+
 def palabras_de_pieza(nombre):
     """Las palabras de una pieza ya preparada, armadas con lo que se escuchó de cada clip al analizar: de cada parte,
     lo que cae entre donde se cortó (inicio y fin de la voz), corrido a donde quedó esa parte en la pieza. None si falta
@@ -1807,7 +1824,7 @@ def palabras_de_pieza(nombre):
         return None
     out, offset = [], 0.0
     for ruta, (ini, fin), dur in zip(partes, cortes, durs):
-        pal = palabras_clip(ruta)
+        pal = palabras_clip(S.grab / _rel_parte(ruta))  # la pieza pudo prepararse en otra PC
         if pal is None:
             return None
         for w in pal:

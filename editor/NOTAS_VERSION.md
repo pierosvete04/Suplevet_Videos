@@ -1,3 +1,6 @@
+Versión 1.57.6 (se actualiza desde la app con «Actualizar ahora»):
+- **Las piezas preparadas viajan por Drive:** «⬆ Subir a Drive» (y «Terminar sesión») también sube las piezas ya preparadas de la sesión (en P05, 3,6 GB; la primera vez tarda, después solo sube lo que cambió). En la PC del editor, «⬇ Bajar de Drive» las trae, así «Armar todos los videos» va directo a armar sin preparar nada. La sala reconoce que son las mismas piezas aunque en la otra PC las carpetas se llamen distinto.
+
 Versión 1.57.5 (se actualiza desde la app con «Actualizar ahora»):
 - **«Armar todos los videos» arma solo los que cambiaron:** cada video guarda una huella de todo lo que usa (sus piezas y subtítulos, lo que dice el guion de ellas, sus recortes y ajustes, las fotos, clips y pistas, la plantilla y el estilo). Al tocar el botón, la sala compara y salta los que ya están al día. Probado con P05: cambiar una foto rearma solo los 12 videos que la usan; corregir un subtítulo de un hook, solo sus 2 videos. Los videos ya armados antes se reconocen solos (no hace falta rearmar todo una vez).
 

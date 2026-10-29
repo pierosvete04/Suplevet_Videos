@@ -330,6 +330,40 @@ def subir_transcripciones(nombre, local):
         pass
 
 
+_PIEZAS = ["--max-depth", "1", "--exclude", "_*", "--include", "*.mp4", "--include", "*.partes.json", "--include", "*.onda.json",
+           "--exclude", "*"]
+
+
+def subir_piezas(nombre, local, avance=print):
+    """Las piezas preparadas (datos/procesado/<sesión>: el .mp4 de cada pieza, sus partes y su onda) se comparten por
+    Drive en <sesión>/_SALA_PROYECTO/piezas. Así otra PC (el editor) las baja y no tiene que prepararlas otra vez
+    (en P05: 3,6 GB). Solo sube lo nuevo o lo que cambió."""
+    local = Path(local)
+    if not local.is_dir() or not any(local.glob("*.mp4")):
+        return
+    with _candado:
+        avance(f"Subiendo a Drive las piezas preparadas de «{nombre}» (la primera vez tarda: son videos)…")
+        _rc("copy", local, f"{REMOTO}:{nombre}/_SALA_PROYECTO/piezas", *_PIEZAS, *RAPIDO, avance=avance,
+            prefijo="Piezas preparadas: ", timeout=None)
+
+
+def bajar_piezas(nombre, local, avance=print):
+    """Trae las piezas preparadas que subió otra PC (si las hay). Lo de esta PC que sea más nuevo se queda."""
+    local = Path(local)
+    local.mkdir(parents=True, exist_ok=True)
+    try:
+        hay = json.loads(_rc("lsjson", f"{REMOTO}:{nombre}/_SALA_PROYECTO/piezas", "--files-only", "--include", "*.mp4", timeout=300) or "[]")
+    except Exception:  # noqa: BLE001 — nadie las subió todavía, o sin internet: se preparan aquí
+        return 0
+    if not hay:
+        return 0
+    with _candado:
+        avance(f"Bajando las {len(hay)} piezas ya preparadas de «{nombre}» (así no hay que prepararlas en esta PC)…")
+        _rc("copy", f"{REMOTO}:{nombre}/_SALA_PROYECTO/piezas", local, "--update", *_PIEZAS, *RAPIDO, avance=avance,
+            prefijo="Piezas preparadas: ", timeout=None)
+    return len(hay)
+
+
 def bajada_completa(nombre):
     return (CACHE / nombre / ".bajada").exists()
 
