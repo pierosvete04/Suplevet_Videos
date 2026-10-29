@@ -518,9 +518,28 @@ def traer_descargas(dias=3):
             continue
         apartar_descarga(f.name)
         faltan[destino].remove(aid)
-        drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
-        traidos.append({"t": time.time(), "archivo": archivo, "id": aid, "codigos": motor.videos_que_usan(aid, destino)})
+        # Drive va después, de una sola vez (ver vigilar_descargas): con cientos de fotos, subir la carpeta por cada una
+        # lanzaba cientos de subidas a la vez
+        DRIVE_PENDIENTE.add((motor.S.drive, carpeta.relative_to(motor.S.principal).as_posix()))
+        traidos.append({"t": time.time(), "archivo": archivo, "id": aid, "destino": destino, "codigos": []})
+    for destino in ("assets", "musica"):  # qué videos usa cada una: una sola pasada por todos los videos
+        ids = [x["id"] for x in traidos if x["destino"] == destino]
+        if ids:
+            usan = motor.videos_que_usan_varios(ids, destino)
+            for x in traidos:
+                if x["destino"] == destino:
+                    x["codigos"] = usan[x["id"]]
     return traidos
+
+
+DRIVE_PENDIENTE = set()  # (sesión en Drive, carpeta) por subir cuando dejen de llegar archivos a Descargas
+
+
+def subir_pendiente_a_drive():
+    """Sube a Drive, en segundo plano y una vez por carpeta, lo que llegó de Descargas."""
+    while DRIVE_PENDIENTE:
+        sesion, carpeta = DRIVE_PENDIENTE.pop()
+        drive.subir_en_segundo_plano(sesion, [carpeta])
 
 
 def traer_de_antigravity():
@@ -562,6 +581,8 @@ def vigilar_descargas():
             if r:
                 AUTO_DESC.extend(r)
                 del AUTO_DESC[:-50]
+            elif DRIVE_PENDIENTE:  # ya no llega nada nuevo: todo está en la PC, ahora sí se sube a Drive de una vez
+                subir_pendiente_a_drive()
     threading.Thread(target=revisar, daemon=True).start()
 
 
@@ -1949,6 +1970,7 @@ class H(BaseHTTPRequestHandler):
                 if "activo" in b:
                     motor.guardar_config({"auto_descargas": bool(b["activo"])})
                 traidos = (traer_de_antigravity() + traer_descargas()) if b.get("ahora") else []
+                subir_pendiente_a_drive()  # «Buscar en Descargas» a mano: lo traído se sube de una vez
                 AUTO_DESC.extend(traidos)
                 self._json({"ok": True, "auto": bool(motor.CONFIG.get("auto_descargas", True)), "traidos": traidos})
             elif u.path == "/api/importar_descarga":

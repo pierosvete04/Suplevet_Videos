@@ -1,3 +1,7 @@
+Versión 1.56.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Las fotos de Flow entran a la sesión de golpe:** antes la sala tardaba 20-28 segundos por cada foto en averiguar qué videos la usan (revisaba los 232 videos foto por foto), y entraban a unas 7 por minuto. Ahora revisa todas juntas en menos de un segundo.
+- **Primero todo en la PC, Drive al final:** lo que llega de Descargas se pone en la sesión y en los videos al momento; cuando dejan de llegar archivos, se sube a Drive de una sola vez, en segundo plano (antes lanzaba una subida por cada foto).
+
 Versión 1.56.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Descargas ya no se llena:** lo que baja Gemini (o tú) desde Flow solo pasa por Descargas unos segundos; apenas la sala lo pone en su video, lo saca de Descargas y lo guarda en sus propios datos. Ya no se acumula en «Descargas › Usados por la sala» (lo que había ahí también se muda).
 

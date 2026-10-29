@@ -6539,22 +6539,35 @@ def info_musica(mid):
 def videos_que_usan(aid, tipo):
     """Códigos de los videos que usan esa música (tipo «musica») o esa imagen o clip de Flow (tipo «assets»):
     por el guion, por las marcas editadas en la sala o por la pista «Imágenes» del editor."""
-    aid_l = aid.lower()
+    return videos_que_usan_varios([aid], tipo)[aid]
+
+
+def videos_que_usan_varios(ids, tipo):
+    """{id: [códigos de video]} para varios a la vez: recorre las piezas y los videos UNA sola vez. Con P05 (232 videos)
+    preguntar foto por foto tardaba 20-28 s cada una y las 400 fotos de Flow entraban a 7 por minuto.
+    Las capas puestas a mano salen de la edición guardada (_edicion_guardada): edicion_de() además calcula cortes y
+    silencios, que aquí no hacen falta y eran lo lento."""
+    ids_l = {str(i).lower(): i for i in ids}
+    out = {i: [] for i in ids}
+    if not ids_l:
+        return out
     prod = produccion().get("piezas", {})
-    usan = set()
+    usan = {}  # pieza → ids (en minúsculas) que usa
     for n in {p["nombre"] for p in piezas()}:
         ms = marcas_de(n) or []
         if tipo == "musica":
-            if (prod.get(n, {}).get("musica") or "").lower() == aid_l or any((m.get("musica") or "").lower() == aid_l for m in ms):
-                usan.add(n)
-        elif any((m.get("asset") or "").lower() == aid_l for m in ms):
-            usan.add(n)
-    out = []
+            hay = {(prod.get(n, {}).get("musica") or "").lower()} | {(m.get("musica") or "").lower() for m in ms}
+        else:
+            hay = {(m.get("asset") or "").lower() for m in ms}
+        hay &= ids_l.keys()
+        if hay:
+            usan[n] = hay
     for c in combinaciones():
-        if {c["hook"], c["cuerpo"], c["cta"]} & usan:
-            out.append(c["codigo"])
-        elif tipo != "musica" and any(x["id"].lower() == aid_l for cs in (edicion_de(c).get("capas") or {}).values() for x in cs):
-            out.append(c["codigo"])
+        hay = set().union(*(usan.get(c[k], set()) for k in ("hook", "cuerpo", "cta")))
+        if tipo != "musica":
+            hay |= {str(x.get("id", "")).lower() for cs in (_edicion_guardada(c).get("capas") or {}).values() for x in cs} & ids_l.keys()
+        for i in hay:
+            out[ids_l[i]].append(c["codigo"])
     return out
 
 
