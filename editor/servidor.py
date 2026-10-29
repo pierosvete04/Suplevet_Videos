@@ -382,7 +382,7 @@ def generar_en_flow(avance):
     return {"hechos": hechos, "pendientes": pendientes}
 
 
-USADOS = "Usados por la sala"  # subcarpeta de Descargas donde quedan los archivos que ya pasaron a una sesión
+USADOS = "Usados por la sala"  # carpeta vieja de Descargas (hasta la 1.56.1): lo que tenga se muda a los datos de la sala
 
 
 def id_de_archivo(nombre, ids):
@@ -446,15 +446,35 @@ def descargas_recientes(dias=7, todos=False):
             "auto": bool(motor.CONFIG.get("auto_descargas", True))}
 
 
+def _usados():
+    """Dónde quedan los archivos de Descargas que ya pasaron a una sesión: en los datos de la sala, fuera de Descargas
+    (con cientos de imágenes de Flow, «Descargas/Usados por la sala» llenaba Descargas). Lo que quedó en esa carpeta
+    vieja se muda aquí la primera vez."""
+    d = motor.DATOS / "descargas_usadas" / motor.S.semana
+    d.mkdir(parents=True, exist_ok=True)
+    viejo = carpeta_descargas() / USADOS
+    if viejo.is_dir():
+        for f in viejo.iterdir():
+            try:
+                if f.is_file() and not (d / f.name).exists():
+                    shutil.move(str(f), str(d / f.name))
+            except OSError:
+                pass
+        try:
+            viejo.rmdir()  # solo si quedó vacía
+        except OSError:
+            pass
+    return d
+
+
 def apartar_descarga(nombre):
-    """El archivo de Descargas que ya pasó a la sesión se guarda en «Descargas/Usados por la sala» (no se borra):
-    así Descargas queda limpio y no se vuelve a ofrecer."""
+    """El archivo de Descargas que ya pasó a la sesión sale de Descargas y se guarda en los datos de la sala (no se
+    borra): así Descargas queda limpio y no se vuelve a ofrecer."""
     base = carpeta_descargas()
     f = base / nombre
     if not f.is_file():
         return
-    d = base / USADOS
-    d.mkdir(exist_ok=True)
+    d = _usados()
     destino, n = d / f.name, 2
     while destino.exists():
         destino = d / f"{f.stem} ({n}){f.suffix}"

@@ -1,3 +1,6 @@
+Versión 1.56.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Descargas ya no se llena:** lo que baja Gemini (o tú) desde Flow solo pasa por Descargas unos segundos; apenas la sala lo pone en su video, lo saca de Descargas y lo guarda en sus propios datos. Ya no se acumula en «Descargas › Usados por la sala» (lo que había ahí también se muda).
+
 Versión 1.56.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Flow genera en vez de preguntar:** cada tanda que Gemini pega en el asistente de Flow empieza con la orden «Generate these 10 images now… Do not ask anything». Antes le pegaba solo la lista y Flow respondía «¿Cómo quieres trabajar con esto?» sin generar nada. Si igual pregunta, Gemini sabe responderle «Generate all of them now» y esperar a que arranque, sin elegir opciones del menú.
 
