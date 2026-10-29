@@ -1647,7 +1647,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     </div>
     <div class="cab-acciones">
       <a class="btn sec" href="/teleprompter" target="_blank" title="Abrir el teleprompter" aria-label="Teleprompter"><span aria-hidden="true">📜</span><span class="txt-largo"> Teleprompter</span></a>
-      <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todo</span></button>
+      <button class="btn sec" id="todo" title="Prepara los clips y arma todos los videos de la sesión para verlos en la sala. No exporta: eso se hace en Exportar cuando decidas publicar">Armar<span class="txt-largo"> todos los videos</span><span class="txt-corto"> todos</span></button>
       <button class="btn" id="producir" title="De los clips subidos a los videos exportados en un solo paso: identificar, renombrar, preparar, armar, revisar la calidad y exportar">▶ Producir<span class="txt-largo"> todo</span></button>
     </div>
   </div>
@@ -4065,7 +4065,7 @@ function pintarMarcas() {
   }
   // el texto dicho, línea por línea: cada palabra se toca; ✎ corrige el subtítulo de esa línea
   const elegidas = new Set(seleccionW(p).map(w => `${w.li}-${w.wi}`));
-  if (!p.lineas.length) html += `<p class="muted">${p.procesada ? "Esta pieza no tiene voz." : "Esta pieza aún no se prepara. Usa «Armar todo» (arriba)."}</p>`;
+  if (!p.lineas.length) html += `<p class="muted">${p.procesada ? "Esta pieza no tiene voz." : "Esta pieza aún no se prepara. Usa «Armar todos los videos» (arriba)."}</p>`;
   else html += `<div class="transcripcion">${p.lineas.map((l, li) => {
     const corr = lineasTmp[li] !== l.texto;
     const palabras = l.palabras.map((w, wi) => {
@@ -4747,8 +4747,10 @@ function pintarEstadoFlow() {
   $("flEstClaude").textContent = claudeOk ? "● Conectado" : "Sin conectar"; $("flEstClaude").className = "pill " + (claudeOk ? "ok" : "warn");
   $("flEstAg").textContent = E.antigravity ? "● Instalado" : "No instalado"; $("flEstAg").className = "pill " + (E.antigravity ? "ok" : "");
   const modo = modoIA();
-  $("apQuien").textContent = modo === "claude" ? (claudeOk ? "Los escribe Claude." : "Los escribe Claude: conéctalo en Inicio → Claude.")
-    : modo === "antigravity" ? "Los escribe Gemini en Antigravity." : "Conecta Claude (Inicio → Claude) o instala Antigravity.";
+  // solo imágenes y clips: la música se escribe y se genera aparte («Música con Antigravity» / «Crear la música…»)
+  $("apQuien").textContent = (modo === "claude" ? (claudeOk ? "Los escribe Claude" : "Los escribe Claude (conéctalo en Inicio → Claude)")
+    : modo === "antigravity" ? "Los escribe Gemini en Antigravity" : "Conecta Claude (Inicio → Claude) o instala Antigravity")
+    + ". Solo las imágenes y los clips de Flow: la música va aparte, en el paso 2.";
   $("apConAg").hidden = true;  // todo con una sola IA: la que se eligió en Inicio
   $("flOpClaude").hidden = modo === "antigravity"; $("flOpAg").hidden = modo === "claude";
   if (modo !== "claude") pintarPedidosAg();
@@ -5142,11 +5144,11 @@ function pintarExport() {
       <button type="button" class="${s.portada ? "img" : "img vacia"}" data-ex-ver="${esc(s.codigo)}" title="Ver el video" ${s.portada ? `style="background-image:url('${s.portada}')"` : ""}>
         <span class="ex-play" aria-hidden="true">▶</span><span>${esc(s.codigo)}</span></button>
       <label class="pie" for="${id}">${s.receta ? `<span class="pill">${s.receta.duracion} s</span>` : ""}${s.desactualizado ? '<span class="pill warn">⟳ Rearmar</span>' : ""}${s.estado === "listo" ? '<span class="pill ok">Aprobado</span>' : ""}</label></div>`; }).join("")
-    || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todo».</div>`;
+    || `<div class="sin-nada" style="grid-column:1/-1">Todavía no hay videos armados en esta sesión. Ármalos con «Armar todos los videos».</div>`;
   // sin videos armados no hay nada que exportar ni revisar (vigilar() también respeta «nada»)
   $("exTodo").dataset.nada = hechos.length ? "" : "1";
   $("exTodo").disabled = !hechos.length || !!E.trabajo?.activo;
-  $("exTodo").title = hechos.length ? "" : "Todavía no hay videos armados: ármalos con «Armar todo» en Inicio";
+  $("exTodo").title = hechos.length ? "" : "Todavía no hay videos armados: ármalos con «Armar todos los videos» en Inicio";
   $("cajaCalidad").dataset.vacia = hechos.length ? "" : "1";
   if (!hechos.length) { $("cajaCalidad").open = false; $("calResumen").innerHTML = "<b>Revisión de calidad</b>: se puede cuando haya videos armados"; }
   $("cajaCalidad").querySelector(".cal-ver").hidden = !hechos.length;
@@ -5546,7 +5548,7 @@ Antes se guarda una copia de cómo está ahora, por si quieres volver. Lo restau
   if (!await dejarPieza()) return;
   b.disabled = true; b.textContent = "Restaurando…";
   try { const r = await post("/api/respaldos", { accion: "restaurar", archivo: b.dataset.resp }); piezaPintada = null; await cargar(); pintarRespaldos(); revisarProyecto(true);
-    avisar(`Listo: la sesión quedó como el ${b.dataset.fecha}${r.version_proyecto ? ` y se subió como versión ${r.version_proyecto} del proyecto` : ""}. Toca «Armar todo» para verla en los videos.`, "ok"); }
+    avisar(`Listo: la sesión quedó como el ${b.dataset.fecha}${r.version_proyecto ? ` y se subió como versión ${r.version_proyecto} del proyecto` : ""}. Toca «Armar todos los videos» para verla en los videos.`, "ok"); }
   catch (er) { avisar("Error: " + er.message, "err"); pintarRespaldos(); }
 });
 // El menú de la cuenta (tu foto arriba a la derecha) lleva a cada página de configuración
@@ -5584,7 +5586,7 @@ $("rearmarUno").onclick = async () => {
   const sinGrabar = [actual.hook, actual.cuerpo, actual.cta].filter(n => n && !pz(n));
   if (sinGrabar.length) return avisar(`Falta grabar ${sinGrabar.join(", ")}: súbelo en Faltantes y vuelve a armar.`, "err");
   const sinPreparar = [actual.hook, actual.cuerpo, actual.cta].filter(n => n && !pz(n).procesada);
-  if (sinPreparar.length) return avisar(`Primero prepara los clips de ${sinPreparar.join(", ")}: toca «Analizar» o «Armar todo» en Inicio.`, "err");
+  if (sinPreparar.length) return avisar(`Primero prepara los clips de ${sinPreparar.join(", ")}: toca «Analizar» o «Armar todos los videos» en Inicio.`, "err");
   const cod = actual.codigo; if (!await cerrarVideo()) return; trabajo("uno", cod);
 };
 $("cerrar").onclick = cerrarVideo;
@@ -8359,7 +8361,7 @@ $("evVideo").addEventListener("error", () => {  // un clip que no carga: se dice
   if (!ed || !$("dlgEditor").open && !$("dlg").open) return;
   ed.cargando = false;
   const s = segmentosEd()[evSeg];
-  avisar(`No se pudo cargar el clip de ${s ? s.t : "esta parte"}. Revisa que la pieza esté preparada (Inicio → «Armar todo»).`, "err");
+  avisar(`No se pudo cargar el clip de ${s ? s.t : "esta parte"}. Revisa que la pieza esté preparada (Inicio → «Armar todos los videos»).`, "err");
 });
 function vistaEd() {
   const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
@@ -10645,7 +10647,7 @@ function pintarEstiloEdicion() {
       const que = queMuestra(Object.keys(cambio)[0]);
       if (que && muestraEncendida(que, guardado)) verMuestraEstilo(que);
       const n = (r.codigos || []).length;
-      avisar(`Estilo de edición guardado.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar: toca «Armar todo» cuando quieras.` : ""}`, "ok");
+      avisar(`Estilo de edición guardado.${n ? ` ${plural(n, "video queda", "videos quedan")} por rearmar: toca «Armar todos los videos» cuando quieras.` : ""}`, "ok");
     } catch (e) { avisar("Error: " + e.message, "err"); pintarEstiloEdicion(); }
   };
   $("esZoom").onchange = e => guardar({ zoom_alterno: e.target.checked });
@@ -11007,13 +11009,14 @@ function pasosAg(tipo, r) {
     : r.abierto ? `Antigravity ya está abierto (si no lo ves, búscalo en la barra de tareas de Windows o toca <b>«Abrir Antigravity»</b> aquí abajo).`
     : `Toca <b>«Abrir Antigravity»</b> aquí abajo.`;
   if (tipo === "prompts") {
-    if (r.enviado) return [`La sala ya le pasó el pedido a Gemini en Antigravity: está escribiendo los prompts. <b>No hace falta pegar nada.</b>`,
-      `Cuando Gemini diga que terminó, la sala trae sola los prompts y te avisa («Llegó de Descargas…»).`,
-      `Después toca <b>«Imágenes con Antigravity»</b> para generarlas en Flow.`];
-    return [abrir, `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>. Elige el modelo de Gemini que piensa más (no Flash).`,
+    if (r.enviado) return [`La sala ya le pasó el pedido a Gemini en Antigravity. Mira Antigravity: en el chat de la derecha debe verse este mensaje y a Gemini trabajando.`,
+      `<b>Si no ves eso</b> (Antigravity no se abrió, el chat está vacío o Gemini no hace nada en 1 minuto): toca <b>«🪐 Abrir Antigravity»</b> aquí abajo, empieza una <b>conversación nueva</b> con el botón <b>+</b>, toca <b>«📋 Copiar mensaje»</b>, pégalo en el chat con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
+      `Gemini llena una hoja a la vez. Cada hoja que termina entra sola a la sesión y la sala avisa («Llegó de Descargas…»): no hay que esperar a que acabe todo.`,
+      `Cuando entren todas, toca <b>«Imágenes con Antigravity»</b> para generarlas en Flow.`];
+    return [abrir, `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>. Elige <b>Gemini Flash</b> (el rápido).`,
       `Toca <b>«📋 Copiar mensaje»</b> aquí abajo, pégalo en el chat de Antigravity con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
-      `Gemini escribe los prompts en una copia del guion. No hace falta navegador.`,
-      `Cuando termine, la sala trae sola los prompts y te avisa («Llegó de Descargas…»). Después toca <b>«Imágenes con Antigravity»</b>.`];
+      `Gemini llena una hoja a la vez. No hace falta navegador. Cada hoja que termina entra sola a la sesión y la sala avisa («Llegó de Descargas…»).`,
+      `Cuando entren todas, toca <b>«Imágenes con Antigravity»</b>.`];
   }
   const que = tipo === "musica"
     ? (r.escribir ? `Gemini primero escribe la música del guion (sin navegador) y después abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`
@@ -11026,17 +11029,17 @@ function pasosAg(tipo, r) {
     `${que} No cierres Antigravity ni la ventana del navegador que abre.`,
     `Si Google pide iniciar sesión, aceptar términos o resolver un captcha, hazlo tú en esa ventana y escríbele a Gemini «listo, sigue».`,
     `En la sala no tienes que hacer nada: lo que Gemini baja a Descargas entra solo y la sala avisa <b>«Llegó de Descargas…»</b>. Si algo no llega, en Faltantes toca <b>«Buscar en Descargas»</b>.`,
-    `Cuando esté todo, toca <b>«Armar todo»</b> (arriba) para rearmar los videos con ${tipo === "musica" ? "la música" : "las imágenes"}.`];
+    `Cuando esté todo, toca <b>«Armar todos los videos»</b> (arriba) para rearmar los videos con ${tipo === "musica" ? "la música" : "las imágenes"}.`];
 }
 async function mostrarPedidoAg(tipo, r, copiarYa = true) {
   agActual = { tipo, ...r };
   $("dlgAgTit").textContent = AG_TIT[tipo] || "🪐 Antigravity";
-  $("dlgAgInfo").innerHTML = (tipo === "imagenes" && r.imagenes != null ? `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""} · ` : "")
+  $("dlgAgInfo").innerHTML = (["imagenes", "prompts"].includes(tipo) && r.imagenes != null ? `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""}${r.hojas ? ` en ${plural(r.hojas, "hoja")}` : ""} · ` : "")
     + (tipo === "musica" && r.pistas ? (r.escribir ? "Gemini escribe la música y la genera · " : `Pistas: ${esc(r.pistas)} · `) : "")
     + `Carpeta del pedido: <code>${esc(r.carpeta)}</code>`;
   $("dlgAgPasos").innerHTML = pasosAg(tipo, r).map(x => `<li>${x}</li>`).join("");
   $("dlgAgMsg").value = r.mensaje || "";
-  $("dlgAgAbrir").hidden = !!r.enviado;
+  $("dlgAgAbrir").hidden = false;  // también si la sala ya lo mandó: es el plan B cuando Antigravity no lo recibió
   if (!$("dlgAg").open) $("dlgAg").showModal();
   if (copiarYa && !r.enviado) { const ok = await copiar(r.mensaje); if (ok) avisar("El mensaje para Gemini ya está copiado: pégalo en Antigravity (Ctrl+V).", "ok"); }
   pintarPedidosAg();

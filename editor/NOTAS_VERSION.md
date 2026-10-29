@@ -1,3 +1,9 @@
+Versión 1.55.8 (se actualiza desde la app con «Actualizar ahora»):
+- **«✦ Agregar los prompts» con Antigravity mucho más rápido:** Gemini ya no edita el guion entero (se iba más de 10 minutos explorándolo sin escribir nada). La sala le da hojas cortas (3 cuerpos con sus hooks) con el texto de cada pieza y los códigos que faltan, y Gemini Flash solo escribe una línea por imagen. **Cada hoja va en su propia conversación y todas trabajan a la vez**, con un nombre claro en Antigravity («Prompts P05 · hoja 1 de 8») en vez de «Sala de edición». Cada hoja que termina entra sola a la sesión y la sala avisa cuántos faltan.
+- **Ese botón es solo para imágenes y clips de Flow:** lo dice debajo del botón y en el pedido a Gemini. La música va aparte, con «🎵 Música con Antigravity».
+- **Plan B en la ventana de Antigravity:** si la sala ya mandó el pedido pero Antigravity no lo muestra (no se abrió o el chat está vacío), la ventana dice cómo hacerlo a mano: «🪐 Abrir Antigravity», conversación nueva con +, «📋 Copiar mensaje», Ctrl+V y Enter.
+- Los avisos dicen siempre «Armar todos los videos», el nombre del botón (antes algunos decían «Armar todo»).
+
 Versión 1.55.7 (se actualiza desde la app con «Actualizar ahora»):
 - **Cuerpos sin CTA ya tienen videos:** si un cuerpo no grabó su CTA, usa el del cuerpo más cercano (antes se quedaba sin ningún video; en P05, C8 y C10: 22 videos más, de 210 a 232).
 - **Cada palabra empieza donde de verdad suena:** la transcripción estiraba la primera palabra sobre el silencio («Médico» de 0,00 s cuando la voz entra en 0,74 s). Se corrige con la onda del audio, también en los subtítulos ya hechos.

@@ -511,7 +511,8 @@ def traer_de_antigravity():
         traidos.append({"t": time.time(), "archivo": "la música del guion (" + ", ".join(m["pistas"]) + ")", "id": "", "codigos": []})
     try:
         p = antigravity.traer_prompts()
-        traidos.append({"t": time.time(), "archivo": f"{p['nuevos']} prompts de Flow para el guion", "id": "", "codigos": []})
+        traidos.append({"t": time.time(), "archivo": f"{p['nuevos']} prompts de Flow para el guion"
+                        + (f" (Gemini sigue: faltan {p['faltan']})" if p.get("faltan") else " (ya están todos)"), "id": "", "codigos": []})
     except ValueError:
         pass
     if traidos and drive.estado()["activo"]:

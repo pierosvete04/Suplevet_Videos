@@ -121,14 +121,15 @@ def _abrir(carpeta, abrir):
     return False
 
 
-def _pasar(carpeta, mensaje, modelo, abrir):
-    """Le pasa el mensaje a Gemini en Antigravity. Si Antigravity está cerrado, lo abre con la carpeta del paquete.
-    Devuelve (abierto, enviado, por qué no se pudo enviar)."""
+def _pasar(carpeta, mensaje, modelo, abrir, titulo=None, pedidos=None):
+    """Le pasa el mensaje a Gemini en Antigravity (o varios: `pedidos` = [(título, mensaje)], una conversación cada uno).
+    Si Antigravity está cerrado, lo abre con la carpeta del paquete. Devuelve (abierto, enviado, por qué no se pudo enviar)."""
     if not abrir:
         return False, False, ""
     ya_estaba = bool(_servidor())
     abierto = ya_estaba or _abrir(carpeta, True)
-    porque = enviar(mensaje, modelo) if abierto else "Antigravity no está instalado"
+    porque = (enviar_varios(pedidos or [(titulo or f"Sala · {motor.S.semana}", mensaje)], modelo) if abierto
+              else "Antigravity no está instalado")
     if porque and ya_estaba:  # para pegarlo a mano: la carpeta del paquete a la vista
         _abrir(carpeta, True)
     return abierto, not porque, porque
@@ -197,8 +198,14 @@ def _proyecto(srv, env):
     return None
 
 
-def enviar(mensaje, modelo="flash", esperar=45):
+def enviar(mensaje, modelo="flash", esperar=45, titulo=None):
     """Abre una conversación de Gemini en el Antigravity abierto con el mensaje. Devuelve "" si se pudo o por qué no."""
+    return enviar_varios([(titulo or f"Sala · {motor.S.semana}", mensaje)], modelo, esperar)
+
+
+def enviar_varios(pedidos, modelo="flash", esperar=45):
+    """Una conversación de Gemini por cada (título, mensaje), todas a la vez (cada una trabaja en paralelo).
+    Devuelve "" si se mandaron todas o por qué no."""
     fin = time.time() + esperar
     srv = _servidor()
     while not srv and time.time() < fin:  # se acaba de abrir: su servidor tarda unos segundos en arrancar
@@ -221,11 +228,14 @@ def enviar(mensaje, modelo="flash", esperar=45):
         proyecto = _proyecto(srv, env)
         if not proyecto:
             return "Antigravity no tiene ningún proyecto (ábrelo una vez y empieza una conversación)"
-        r = _agentapi(srv, {**env, "ANTIGRAVITY_PROJECT_ID": proyecto}, "new-conversation", f"--model={modelo}",
-                      "--title=Sala de edición", mensaje)
+        for titulo, mensaje in pedidos:
+            r = _agentapi(srv, {**env, "ANTIGRAVITY_PROJECT_ID": proyecto}, "new-conversation", f"--model={modelo}",
+                          f"--title={titulo}", mensaje)
+            if not (r.get("response") or {}).get("newConversation"):
+                return str(r.get("error") or "no respondió")[:200]
     except (OSError, subprocess.SubprocessError) as e:
         return str(e)[:200]
-    return "" if (r.get("response") or {}).get("newConversation") else str(r.get("error") or "no respondió")[:200]
+    return ""
 
 
 def exe():
@@ -371,13 +381,9 @@ def armar(todas=False, abrir=False):
             "abierto": abierto, "enviado": enviado, "porque": porque, "instalado": bool(exe())}
 
 
-def armar_prompts(por_cuerpo=3, clips=1, por_hook=0, abrir=False):
-    """«Agregar los prompts» sin Claude: Gemini, en Antigravity, agrega los prompts de Flow a una copia del guion
-    (produccion.json) en Descargas, con las mismas reglas que sigue Claude. Luego traer_prompts() la pasa a la sesión."""
+def _limpios():
+    """La sección «Prompts limpios» de las reglas de la skill (lo único que hace falta para escribir prompts de Flow)."""
     import asistente
-    prod = motor.S.guion / "produccion.json"
-    if not prod.exists():
-        raise ValueError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
     try:
         asistente.actualizar_conocimiento(lambda *_: None)
     except RuntimeError:
@@ -385,47 +391,235 @@ def armar_prompts(por_cuerpo=3, clips=1, por_hook=0, abrir=False):
     origen = asistente.CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
     if not origen.exists():
         raise ValueError("Faltan las reglas para escribir los prompts (las skills de la sala, en Drive _SALA/claude). Conecta Drive y vuelve a intentar.")
+    m = re.search(r"^### Prompts limpios.*?(?=^#{1,3} )", origen.read_text(encoding="utf-8"), re.S | re.M)
+    texto = m.group(0) if m else ""
+    return "\n".join(ln for ln in texto.splitlines() if "Música (Flow Music" not in ln)  # la música va en su propio pedido
+
+
+TANDA = 3  # cuerpos por hoja, cada uno con sus hooks (~50 líneas): Flash la escribe en 2-3 minutos; cada hoja va en su
+# propia conversación y todas trabajan a la vez (una hoja de 6 cuerpos, ~100 líneas, se quedó trabada sin escribir)
+
+
+def _huecos(por_cuerpo, clips, por_hook):
+    """Lo que falta en cada cuerpo y cada hook, con los códigos nuevos ya numerados:
+    [{"pieza", "tipo", "texto", "usadas": [palabras con imagen], "ids": [(código, "imagen"|"clip")]}]."""
+    prod = motor.produccion()
+    piezas, assets = prod.get("piezas") or {}, prod.get("assets") or []
+    tomados = {a["id"] for a in assets}
+    out = []
+    for f in motor.apoyo_visual()["piezas"]:
+        info = piezas.get(f["pieza"]) or {}
+        img = max(0, (por_cuerpo if f["tipo"] == "cuerpo" else por_hook) - f["imagenes"])
+        cl = max(0, clips - f["clips"]) if f["tipo"] == "cuerpo" else 0
+        ids = []
+        for clase, cuantos, tipo in (("IMG", img, "imagen"), ("CLIP", cl, "clip")):
+            n = 1
+            while cuantos:
+                cod = f"{f['pieza']}_{clase}{n}"
+                if cod not in tomados:
+                    ids.append((cod, tipo))
+                    tomados.add(cod)
+                    cuantos -= 1
+                n += 1
+        if ids:
+            out.append({"pieza": f["pieza"], "tipo": f["tipo"], "texto": str(info.get("texto") or ""),
+                        "usadas": [x["palabra"] for x in info.get("marcas", []) if x.get("asset") and x.get("palabra")], "ids": ids})
+    return out
+
+
+def _hoja(n, total, grupo, sesion):
+    filas = [f"# Hoja {n} de {total} · {sesion}", "",
+             f"Escribe RESPUESTA_{n}.jsonl con UNA línea por cada código de abajo (ni más ni menos), en este formato:", ""]
+    for p in grupo:
+        filas += ["", f"## {p['pieza']} · {p['tipo']}", f"Texto: «{p['texto']}»"]
+        if p["usadas"]:
+            filas.append("Ya tiene imagen en: " + ", ".join(f"«{u}»" for u in p["usadas"]) + " (no las repitas)")
+        fotos = [c for c, t in p["ids"] if t == "imagen"]
+        movs = [c for c, t in p["ids"] if t == "clip"]
+        filas.append("Faltan: " + " · ".join(x for x in (
+            ", ".join(fotos) + (" (fotos" + (", en las primeras palabras)" if p["tipo"] == "hook" else ", repartidas en todo el cuerpo)")) if fotos else "",
+            ", ".join(movs) + " (clip en movimiento de 4 a 6 s)" if movs else "") if x))
+    return "\n".join(filas[:4] + [EJEMPLO_LINEA] + filas[4:]) + "\n"
+
+
+EJEMPLO_LINEA = ('{"id": "C1_IMG2", "palabra": "defensas", "prompt": "Photorealistic vertical 9:16 photo of a happy energetic '
+                 'puppy playing with a ball on green grass in a sunny backyard, soft natural light, shallow depth of field.", '
+                 '"plan_b": "Photorealistic vertical 9:16 shot of a playful puppy running on a lawn, warm daylight.", '
+                 '"que_muestra": "Cachorro jugando con energía en el jardín"}')
+
+
+def armar_prompts(por_cuerpo=3, clips=1, por_hook=0, abrir=False):
+    """«Agregar los prompts» sin Claude. La sala le da a Gemini hojas cortas (TANDA cuerpos con sus hooks, con el texto y
+    los códigos que faltan) y Gemini solo escribe una línea por imagen en RESPUESTA_<n>.jsonl. traer_prompts() las mete al
+    guion apenas aparecen. Antes Gemini editaba el produccion.json entero (80 KB) y se iba 10 minutos explorándolo."""
+    if not (motor.S.guion / "produccion.json").exists():
+        raise ValueError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
+    huecos = _huecos(por_cuerpo, clips, por_hook)
+    if not huecos:
+        raise ValueError("Cada cuerpo y cada hook ya tienen esa cantidad de imágenes: sube los números para agregar más")
+    limpios = _limpios()
+    import asistente
     sesion, carpeta = _carpeta("Prompts Antigravity")
+    if carpeta.exists():
+        shutil.rmtree(carpeta, ignore_errors=True)  # el pedido anterior: sus respuestas ya no sirven
     carpeta.mkdir(parents=True, exist_ok=True)
-    copia, reglas = carpeta / "produccion.json", carpeta / "REGLAS_PROMPTS.md"
-    shutil.copyfile(prod, copia)
-    shutil.copyfile(origen, reglas)
-    try:
-        pedido = asistente.pedido_apoyo_visual(por_cuerpo, clips, por_hook, ruta=copia, reglas=reglas)
-    except RuntimeError as e:
-        raise ValueError(str(e))
-    pedido = pedido.replace("Usa Edit para cambiar el archivo.", "Edita solo el produccion.json de esta carpeta.")
-    texto = f"""# Prompts de Flow para Antigravity · {sesion}
+    # tandas: cada cuerpo con sus hooks (C1, C1_H1…), TANDA cuerpos por hoja
+    def cuerpo_de(p):
+        return p["pieza"].split("_")[0]
+    orden = list(dict.fromkeys(cuerpo_de(p) for p in huecos))
+    tandas = [[p for p in huecos if cuerpo_de(p) in orden[i:i + TANDA]] for i in range(0, len(orden), TANDA)]
+    for n, grupo in enumerate(tandas, 1):
+        (carpeta / f"HOJA_{n}.md").write_text(_hoja(n, len(tandas), grupo, sesion), encoding="utf-8")
+    n_img = sum(1 for p in huecos for _, t in p["ids"] if t == "imagen")
+    n_clip = sum(1 for p in huecos for _, t in p["ids"] if t == "clip")
+    texto = f"""# Prompts de Flow · {sesion}
 
-Trabaja solo con los archivos de esta carpeta ({carpeta}). Aquí hay que escribir bien, así que usa el modelo de
-Gemini que piensa más (no Flash). Empieza una conversación nueva.
+Hay {len(tandas)} hojas (HOJA_1.md … HOJA_{len(tandas)}.md) con {n_img} fotos y {n_clip} clips por escribir.
+Cada conversación llena SOLO la hoja que dice su mensaje: lee HOJA_<n>.md y escribe RESPUESTA_<n>.jsonl en esta
+carpeta ({carpeta}), de una sola vez, con la herramienta de escribir archivos. Las otras hojas las hacen otras
+conversaciones a la vez. (Si el mensaje no dice qué hoja, hazlas todas, en orden.)
 
-{pedido}
+PROHIBIDO, para ir rápido: leer otros archivos, buscar en otras carpetas, escribir scripts o correr comandos.
+Todo lo que necesitas está aquí y en la hoja. La sala revisa las respuestas y las pone sola en el guion.
 
-Cuando termines, en la Sala de edición se toca «Traer los prompts»: la sala revisa el archivo y lo pasa a la sesión.
+## Cada línea de RESPUESTA_<n>.jsonl
+Un JSON por línea (sin corchetes, sin comas entre líneas, sin ```):
+{EJEMPLO_LINEA}
+- `id`: el código de la hoja, tal cual. Uno por línea; no inventes otros.
+- `palabra`: 1 a 3 palabras que aparecen tal cual en el texto de ESA pieza, en minúsculas. Ahí aparece la imagen.
+  En un hook, en las primeras palabras. En un cuerpo, repartidas al principio, medio y final, en lo que más se puede ver
+  (el problema, la mascota, la comida, el resultado). Nunca dos en la misma frase ni en una palabra que ya tiene imagen.
+- `prompt` y `plan_b`: en inglés, fotorrealistas, «vertical 9:16». El plan B es otra escena parecida por si Flow rechaza la primera.
+  En un clip, un plano corto con un movimiento simple de la mascota o de la cámara (por ejemplo «a happy dog running
+  toward the camera in a sunny garden, slow motion»).
+- `que_muestra`: en español, qué se ve, en pocas palabras.
+
+## Reglas de las imágenes
+- Siempre hay una mascota: cada imagen o clip muestra a un perro o gato real, nunca solo un objeto o una persona sin animal.
+- La mascota muestra el estado que dice la frase (tranquila y descansando si la frase habla de un problema, activa y
+  contenta si habla del resultado). Lo interno (defensas, digestión, piel, pelo) se muestra en el animal, nunca células,
+  órganos, intestinos ni microscopios.
+{asistente.COMIDA}
+- Sin texto, sin logos ni envases con marca. Solo imágenes y clips: nada de música.
+
+{limpios}
+
+Al terminar responde en 1 línea cuántas líneas escribiste.
 """
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
-    antes = len(json.loads(prod.read_text(encoding="utf-8")).get("assets") or [])
-    (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana, "assets_antes": antes,
-                                                    "mtime": prod.stat().st_mtime}), encoding="utf-8")
-    mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual: agrega los prompts de Flow editando el produccion.json "
-               "de esa carpeta. Al final responde en 3 líneas cuántas imágenes y clips agregaste y en qué piezas.")
+    esperados = {c: [p["pieza"], t, p["tipo"]] for p in huecos for c, t in p["ids"]}
+    (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana, "esperados": esperados, "puestos": []},
+                                                   ensure_ascii=False), encoding="utf-8")
+    mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual: para cada HOJA_<n>.md de esa carpeta escribe su "
+               "RESPUESTA_<n>.jsonl. No leas nada más, no escribas scripts ni corras comandos. "
+               "Al final responde en 2 líneas cuántas líneas escribiste.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")
-    abierto, enviado, porque = _pasar(carpeta, mensaje, "pro", abrir)  # aquí hay que escribir bien: el que piensa más
+    # una conversación por hoja, todas a la vez: 8 hojas tardan lo que tarda una (~2-3 min) y no 20 minutos en fila.
+    # El mensaje de todas juntas queda para pegarlo a mano si la sala no pudo mandarlas.
+    pedidos = [(f"Prompts {sesion} · hoja {n} de {len(tandas)}",
+                f"Lee {carpeta / 'INSTRUCCIONES.md'} y llena solo la hoja {n}: lee {carpeta / f'HOJA_{n}.md'} y escribe "
+                f"{carpeta / f'RESPUESTA_{n}.jsonl'}. No leas nada más, no escribas scripts ni corras comandos.")
+               for n in range(1, len(tandas) + 1)]
+    abierto, enviado, porque = _pasar(carpeta, mensaje, "flash", abrir, pedidos=pedidos)  # tarea guiada: el rápido alcanza
     return {"carpeta": str(carpeta), "mensaje": mensaje, "abierto": abierto, "enviado": enviado, "porque": porque,
-            "instalado": bool(exe())}
+            "instalado": bool(exe()), "hojas": len(tandas), "imagenes": n_img, "clips": n_clip}
+
+
+def _lineas_respuesta(carpeta):
+    """Las líneas JSON de todas las RESPUESTA_*.jsonl (una mal escrita no tumba las demás)."""
+    out = []
+    for f in sorted(carpeta.glob("RESPUESTA_*.json*")):
+        try:
+            texto = f.read_text(encoding="utf-8-sig")
+        except OSError:
+            continue
+        for ln in texto.splitlines():
+            ln = ln.strip().rstrip(",")
+            if not ln.startswith("{"):
+                continue
+            try:
+                d = json.loads(ln)
+            except ValueError:
+                continue
+            if isinstance(d, dict) and d.get("id"):
+                out.append(d)
+    return out
 
 
 def traer_prompts():
-    """Pasa a la sesión el guion con los prompts que escribió Gemini, si es JSON válido y tiene prompts nuevos."""
+    """Pone en el guion de la sesión las líneas que Gemini ya escribió (aunque falten hojas): cada una como asset de
+    Flow con su marca en la pieza. Lo puesto queda anotado en _sala.json para no repetirlo."""
     _, carpeta = _carpeta("Prompts Antigravity")
-    meta_f, copia = carpeta / "_sala.json", carpeta / "produccion.json"
-    if not meta_f.exists() or not copia.exists():
+    meta_f = carpeta / "_sala.json"
+    if not meta_f.exists():
         raise ValueError("No hay prompts de Antigravity pendientes para esta sesión: primero toca «Agregar los prompts» con Antigravity")
     meta = json.loads(meta_f.read_text(encoding="utf-8"))
     if meta.get("semana") != motor.S.semana:
         raise ValueError("Esos prompts son de otra sesión: abre esa sesión en la sala para traerlos")
+    if "esperados" not in meta:
+        return _traer_prompts_copia(carpeta, meta_f, meta)
+    esperados, puestos = meta["esperados"], set(meta.get("puestos") or [])
+    nuevas = {}
+    for d in _lineas_respuesta(carpeta):
+        cod = str(d["id"]).strip()
+        if cod in esperados and cod not in puestos and str(d.get("prompt") or "").strip():
+            nuevas[cod] = d  # si Gemini reescribió una línea, vale la última
+    if not nuevas:
+        raise ValueError("Gemini todavía no escribió prompts. Espera a que termine una hoja en Antigravity y vuelve a tocar el botón")
+    prod_f = motor.S.guion / "produccion.json"
+    prod = json.loads(prod_f.read_text(encoding="utf-8"))
+    piezas, assets = prod.setdefault("piezas", {}), prod.setdefault("assets", [])
+    ya = {a["id"] for a in assets}
+    try:
+        import respaldos
+        respaldos.hacer("Antes de los prompts de Antigravity", auto=True)
+    except Exception:
+        pass
+    puestos_ahora = 0
+    for cod, d in nuevas.items():
+        pieza, tipo, tipo_pieza = esperados[cod]
+        info = piezas.get(pieza)
+        if info is None or cod in ya:
+            puestos.add(cod)
+            continue
+        palabra = re.sub(r"\s+", " ", str(d.get("palabra") or "")).strip(" .,;:¡!¿?«»\"").lower()
+        clip = tipo == "clip"
+        assets.append({"id": cod, "tipo": tipo, "pieza": pieza, "palabra": palabra, "flow": {
+            "herramienta": "Google Flow · Video" if clip else "Google Flow · Imagen",
+            "formato": "9:16 vertical, 4 a 6 segundos" if clip else "9:16 vertical",
+            "prompt": str(d.get("prompt") or "").strip(), "plan_b": str(d.get("plan_b") or "").strip(),
+            "que_muestra": str(d.get("que_muestra") or "").strip(),
+            "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style" + (", fast cuts" if clip else "")}})
+        marcas = info.setdefault("marcas", [])
+        n_img = sum(1 for x in marcas if x.get("asset"))
+        marcas.append({"palabra": palabra, "asset": cod, "modo": "completa",
+                       "dur": 2.5 if clip else (1.2 if tipo_pieza == "hook" else 1.5),
+                       "mov": "fijo" if clip else ("zoom_in" if n_img % 2 == 0 else "zoom_out")})
+        ya.add(cod)
+        puestos.add(cod)
+        puestos_ahora += 1
+    if puestos_ahora:
+        tmp = prod_f.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
+        os.replace(tmp, prod_f)
+        motor._prod_cache = None
+    faltan = len(esperados) - len(puestos & set(esperados))
+    if faltan:
+        meta["puestos"] = sorted(puestos)
+        meta_f.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    else:
+        meta_f.unlink()  # ya está todo: no se vuelve a mirar
+    if not puestos_ahora:
+        raise ValueError("Gemini todavía no escribió prompts nuevos")
+    return {"nuevos": puestos_ahora, "faltan": faltan}
+
+
+def _traer_prompts_copia(carpeta, meta_f, meta):
+    """Pedidos de antes de las hojas (1.55.7 o anterior): Gemini editaba una copia del guion entero."""
+    copia = carpeta / "produccion.json"
+    if not copia.exists():
+        raise ValueError("No hay prompts de Antigravity pendientes para esta sesión: primero toca «Agregar los prompts» con Antigravity")
     try:
         datos = json.loads(copia.read_text(encoding="utf-8"))
     except ValueError as e:
