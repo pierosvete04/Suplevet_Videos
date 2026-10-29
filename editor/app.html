@@ -373,6 +373,9 @@ body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
 .ev-arriba { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr); gap: 14px; align-items: start; }
 .ev-visor { position: relative; aspect-ratio: 9/16; background: #000; border-radius: 12px; overflow: hidden; container-type: inline-size; border: 1px solid var(--line); }
 .ev-visor video { width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 38%; }
+.ev-visor > video { position: absolute; inset: 0; }  /* los dos videos del editor, uno encima del otro */
+.ev-visor > video.ev-espera { visibility: hidden; }
+.ev-barra-seg { flex: 1 1 160px; min-width: 120px; accent-color: var(--accent); cursor: pointer; }
 .ev-visor .sub { position: absolute; left: 2%; right: 2%; top: auto; transform: none; cursor: ns-resize; pointer-events: auto; border-radius: 6px; touch-action: none; }
 .ev-visor .sub:hover, .ev-visor .sub.arrastrando { outline: 1.5px dashed var(--accent2); outline-offset: 3px; }
 .ev-visor .pista-pos { position: absolute; left: 6px; top: 6px; font: 600 10px var(--mono); color: #fff; background: rgba(0,0,0,.55); padding: 2px 6px; border-radius: 6px; pointer-events: none; }
@@ -2894,6 +2897,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <div class="ev-arriba">
         <div class="ev-visor" id="evVisor">
           <video id="evVideo" playsinline preload="auto" muted></video>
+          <video id="evVideoB" class="ev-espera" playsinline preload="auto" muted aria-hidden="true"></video>
           <canvas id="evCongelado" class="ev-congelado" hidden></canvas>
           <div class="sub sublinea" id="evSub" title="Arrastra para subir o bajar el subtítulo"></div>
           <span class="pista-pos" id="evPos" hidden></span>
@@ -2916,6 +2920,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="ev-btn prim" id="evPlay" type="button" aria-pressed="false" title="Reproducir o pausar"><span aria-hidden="true">▶</span><b>Reproducir</b><kbd>Espacio</kbd></button>
           <button class="ev-btn" id="evRepetir" type="button" aria-pressed="false" title="Repite una y otra vez el pedazo elegido (o el pedazo donde está el cabezal) mientras lo ajustas. Tócalo otra vez para dejar de repetir"><span aria-hidden="true">🔁</span><b>Repetir</b><kbd>R</kbd></button>
           <span id="evTiempo" class="ev-tiempo" title="Segundo y cuadro del cabezal">0.00 s</span>
+          <input type="range" id="evBarra" class="ev-barra-seg" min="0" max="1" step="0.01" value="0" aria-label="Moverse por el video" title="Arrastra para ir a cualquier segundo del video">
         </div>
         <div class="ev-grupo" role="group" aria-label="Deshacer y rehacer">
           <button class="ev-btn" id="evDeshacer" type="button" disabled title="Deshace el último cambio"><span aria-hidden="true">↶</span><b>Deshacer</b><kbd>Ctrl+Z</kbd></button>
@@ -8416,14 +8421,44 @@ function irA(t) {
     v.addEventListener("loadedmetadata", irA.pend, { once: true });
   }
   else { ed.cargando = false; v.currentTime = destino; }
-  vistaEd();
+  vistaEd(); prepararSiguiente();
 }
-$("evVideo").addEventListener("error", () => {  // un clip que no carga: se dice (antes quedaba «cargando» para siempre)
+// Dos videos: mientras uno suena, el otro espera ya ubicado en el pedazo siguiente. En cada corte se cambia de uno a otro
+// en vez de buscar en el mismo video: buscar obligaba a decodificar desde el último cuadro clave y la vista daba un tirón
+// en cada corte (con los silencios quitados, cada uno o dos segundos). El que suena siempre se llama «evVideo».
+// Barra de segundos: arrastrar para ir rápido a cualquier parte del video (mientras se arrastra, la vista sigue al dedo)
+let evBarraArr = false;
+$("evBarra").addEventListener("pointerdown", () => { evBarraArr = true; });
+$("evBarra").addEventListener("input", e => { evBarraArr = true; irA(Number(e.target.value)); });
+$("evBarra").addEventListener("change", e => { irA(Number(e.target.value)); evBarraArr = false; });
+$("evBarra").addEventListener("pointerup", () => { evBarraArr = false; });
+function prepararSiguiente() {
+  const segs = segmentosEd(), s = segs[evSeg], n = segs[evSeg + 1], w = $("evVideoB");
+  if (!s || !n || !n.pieza.url) return;
+  if (n.pieza.url === s.pieza.url && Math.abs(n.a - s.b) <= .06) return;  // sigue de corrido: no hace falta
+  const fijar = () => { if (Math.abs(w.currentTime - n.a) > .02) w.currentTime = n.a; w.dataset.a = String(n.a); };
+  if (!w.src.includes(n.pieza.url.split("?")[0])) { w.src = n.pieza.url; w.dataset.a = ""; w.addEventListener("loadedmetadata", fijar, { once: true }); }
+  else if (w.dataset.a !== String(n.a) && w.readyState >= 1) fijar();
+}
+function cambiarAlSiguiente(n) {  // true si el que esperaba ya está listo en ese pedazo: pasa a ser el que suena
+  const v = $("evVideo"), w = $("evVideoB");
+  if (!w.src.includes(n.pieza.url.split("?")[0]) || w.dataset.a !== String(n.a) || w.readyState < 2 || w.seeking
+      || Math.abs(w.currentTime - n.a) > .05) return false;
+  w.muted = v.muted; w.playbackRate = n.vel || 1;
+  w.style.transformOrigin = v.style.transformOrigin; w.style.transform = v.style.transform;
+  v.id = "evVideoB"; w.id = "evVideo";
+  w.classList.remove("ev-espera"); v.classList.add("ev-espera");
+  if (evReproduciendo) w.play().catch(() => {});
+  v.pause(); v.muted = true; v.dataset.a = "";
+  return true;
+}
+["evVideo", "evVideoB"].forEach(id => $(id).addEventListener("error", e => {  // un clip que no carga: se dice (antes quedaba «cargando» para siempre)
+  if (e.target.id !== "evVideo") return;
   if (!ed || !$("dlgEditor").open && !$("dlg").open) return;
   ed.cargando = false;
   const s = segmentosEd()[evSeg];
   avisar(`No se pudo cargar el clip de ${s ? s.t : "esta parte"}. Revisa que la pieza esté preparada (Inicio → «Armar todos los videos»).`, "err");
-});
+}));
 function vistaEd() {
   const segs = segmentosEd(), s = segs[evSeg], v = $("evVideo");
   if (!s) return;
@@ -8441,6 +8476,7 @@ function vistaEd() {
   if (Math.abs(v.playbackRate - (s.vel || 1)) > .001) v.playbackRate = s.vel || 1;  // el navegador mantiene el tono de la voz
   ed.t = s.g0 + Math.max(0, ct - s.a);
   $("evTiempo").textContent = `${ed.t.toFixed(2)} s · cuadro ${Math.floor(ed.t * 30 + 1e-6) + 1}`;
+  if (!evBarraArr) { const b = $("evBarra"), tot = segs.reduce((a, x) => a + x.b - x.a, 0); if (+b.max !== +tot.toFixed(2)) b.max = tot.toFixed(2); b.value = ed.t.toFixed(2); }
   moverCabezal();
   // encuadre: fotogramas clave; si la pieza no tiene, el zoom automático de antes (hacia la cara)
   let en = encuadreEn(s.pz, ct) || encuadreTramosViejos(s.pz, ct);
@@ -8544,14 +8580,18 @@ function bucleEd() {
     }
     evSeg++; const n = segs[evSeg];
     if (!n.pieza.url) { pararEditor(); return; }  // pieza sin preparar: no hay video que seguir
-    if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; if (evReproduciendo) v.play().catch(() => {}); }, { once: true }); }
-    else if (Math.abs(v.currentTime - n.a) > .06) v.currentTime = n.a;  // si sigue de corrido (sin nada quitado en medio) no salta: no se traba
+    const seguido = v.src.includes(n.pieza.url.split("?")[0]) && Math.abs(v.currentTime - n.a) <= .06;
+    if (!seguido && !cambiarAlSiguiente(n)) {  // el que esperaba no llegó a estar listo: se busca en el mismo, como antes
+      if (!v.src.includes(n.pieza.url.split("?")[0])) { v.src = n.pieza.url; v.addEventListener("loadedmetadata", () => { v.currentTime = n.a; if (evReproduciendo) v.play().catch(() => {}); }, { once: true }); }
+      else v.currentTime = n.a;
+    }
+    prepararSiguiente();
   }
   vistaEd(); sonarPrevia(); sonarVozAparte();
   requestAnimationFrame(bucleEd);
 }
 function pararEditor() {
-  evReproduciendo = false; $("evVideo").pause(); evMusica.pause(); evFxPrev = null; pintarPlay();
+  evReproduciendo = false; $("evVideo").pause(); $("evVideoB").pause(); evMusica.pause(); evFxPrev = null; pintarPlay();
   Object.values(vocesAparte).forEach(a => a.pause());
   sonidosPrevia.splice(0).forEach(a => a.pause());
   $("evCapa").querySelector("video")?.pause();
@@ -8640,7 +8680,7 @@ function pintarPlay() {
 }
 $("evPlay").onclick = () => {
   if (evReproduciendo) return pararEditor();
-  evReproduciendo = true; $("evVideo").muted = mudoEd("voz"); $("evVideo").play().catch(() => {}); pintarPlay(); bucleEd();
+  evReproduciendo = true; $("evVideo").muted = mudoEd("voz"); $("evVideo").play().catch(() => {}); pintarPlay(); prepararSiguiente(); bucleEd();
 };
 // Arriba del editor siempre se ve si hay algo sin guardar, y el botón de guardar (antes había que bajar hasta el final)
 let estadoPendiente = false, edAlcanceTxt = "";

@@ -1,3 +1,7 @@
+Versión 1.57.9 (se actualiza desde la app con «Actualizar ahora»):
+- **El editor de video ya no se traba al reproducir:** en cada corte (con los silencios quitados, cada uno o dos segundos) el video tenía que buscar el punto nuevo y la vista daba un tirón. Ahora hay dos videos: mientras uno suena, el otro ya espera listo en el pedazo siguiente, y en el corte solo se cambia de uno a otro.
+- **Barra de segundos en «Editar video»:** al lado de ▶ Reproducir. Arrástrala para ir rápido a cualquier parte del video; mientras la arrastras, la vista te sigue.
+
 Versión 1.57.8 (se actualiza desde la app con «Actualizar ahora»):
 - **«🔁 Repetir» en el editor de video (tecla R):** repite una y otra vez el pedazo elegido (o el pedazo donde está el cabezal) mientras lo ajustas. Si recortas el pedazo mientras se repite, se repite con su largo nuevo. Tócalo otra vez para parar.
 - **«🔁 Repetir» en Piezas y subtítulos:** en la línea de tiempo, repite el tramo elegido (o la frase donde está la línea roja).
