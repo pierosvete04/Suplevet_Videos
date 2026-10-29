@@ -280,7 +280,7 @@ def anotar_faltan(ids, que="Paquete Antigravity", esperando=""):
         return
     lo = "toda la música" if que == PEDIDOS["musica"] else "todas las imágenes y clips"
     texto = (esperando + "\n" if esperando else
-             f"No falta nada: la sala ya tiene todas {lo}. Terminaste.\n" if not ids else
+             f"No falta nada: la sala ya tiene {lo}. Terminaste.\n" if not ids else
              f"Faltan {len(ids)} (la sala revisa Descargas cada 20 s y actualiza esta lista):\n" + "\n".join(sorted(ids)) + "\n")
     try:
         f = carpeta / FALTAN
@@ -476,92 +476,117 @@ TANDA = 3  # cuerpos por hoja, cada uno con sus hooks (~50 líneas): Flash la es
 # propia conversación y todas trabajan a la vez (una hoja de 6 cuerpos, ~100 líneas, se quedó trabada sin escribir)
 
 
+def _grupo_de(pieza):
+    """El cuerpo al que pertenece una pieza (C1_H3 → C1, C1_CTA → C1); un CTA suelto va aparte."""
+    m = re.match(r"(C\d+)", pieza)
+    return m.group(1) if m else pieza
+
+
 def _huecos(por_cuerpo, clips, por_hook):
-    """Lo que falta en cada cuerpo y cada hook, con los códigos nuevos ya numerados:
-    [{"pieza", "tipo", "texto", "usadas": [palabras con imagen], "ids": [(código, "imagen"|"clip")]}]."""
+    """Lo que le falta a cada hook, cuerpo y CTA para estar completo: imágenes y clips (con los códigos nuevos ya
+    numerados), su estado de ánimo (para la música) y, en un cuerpo, el golpe de silencio.
+    [{"pieza", "tipo", "texto", "usadas", "ids": [(código, "imagen"|"clip")], "animo": bool, "sfx": bool}]."""
     prod = motor.produccion()
     piezas, assets = prod.get("piezas") or {}, prod.get("assets") or []
     tomados = {a["id"] for a in assets}
+    fotos = {f["pieza"]: f for f in motor.apoyo_visual()["piezas"]}
     out = []
-    for f in motor.apoyo_visual()["piezas"]:
-        info = piezas.get(f["pieza"]) or {}
-        img = max(0, (por_cuerpo if f["tipo"] == "cuerpo" else por_hook) - f["imagenes"])
-        cl = max(0, clips - f["clips"]) if f["tipo"] == "cuerpo" else 0
+    for n in motor._orden_piezas(prod):
+        info = piezas.get(n) or {}
+        tipo = "cuerpo" if info.get("tipo") == "cuerpo" else motor.tipo_de(n)
+        if tipo not in ("cuerpo", "hook", "cta"):
+            continue
+        f = fotos.get(n)
+        img = max(0, (por_cuerpo if tipo == "cuerpo" else por_hook) - f["imagenes"]) if f else 0
+        cl = max(0, clips - f["clips"]) if f and tipo == "cuerpo" else 0
         ids = []
-        for clase, cuantos, tipo in (("IMG", img, "imagen"), ("CLIP", cl, "clip")):
-            n = 1
+        for clase, cuantos, t in (("IMG", img, "imagen"), ("CLIP", cl, "clip")):
+            k = 1
             while cuantos:
-                cod = f"{f['pieza']}_{clase}{n}"
+                cod = f"{n}_{clase}{k}"
                 if cod not in tomados:
-                    ids.append((cod, tipo))
+                    ids.append((cod, t))
                     tomados.add(cod)
                     cuantos -= 1
-                n += 1
-        if ids:
-            out.append({"pieza": f["pieza"], "tipo": f["tipo"], "texto": str(info.get("texto") or ""),
-                        "usadas": [x["palabra"] for x in info.get("marcas", []) if x.get("asset") and x.get("palabra")], "ids": ids})
+                k += 1
+        animo = info.get("animo") not in motor.ANIMOS
+        sfx = tipo == "cuerpo" and not any(m.get("sfx") == "corte_silencio" for m in info.get("marcas", []))
+        if ids or animo or sfx:
+            out.append({"pieza": n, "tipo": tipo, "texto": str(info.get("texto") or ""), "ids": ids, "animo": animo, "sfx": sfx,
+                        "usadas": [x["palabra"] for x in info.get("marcas", []) if x.get("asset") and x.get("palabra")]})
     return out
 
 
 def _hoja(n, total, grupo, sesion):
     filas = [f"# Hoja {n} de {total} · {sesion}", "",
-             f"Escribe RESPUESTA_{n}.jsonl con UNA línea por cada código de abajo (ni más ni menos), en este formato:", ""]
+             f"Escribe RESPUESTA_{n}.jsonl con UNA línea por cada código de abajo (ni más ni menos). Ejemplos de cada tipo:",
+             "", EJEMPLO_LINEA, EJEMPLO_ANIMO, EJEMPLO_SFX]
     for p in grupo:
         filas += ["", f"## {p['pieza']} · {p['tipo']}", f"Texto: «{p['texto']}»"]
+        if p["animo"]:
+            filas.append(f"Ánimo: ANIMO_{p['pieza']} (uno de: {', '.join(motor.ANIMOS)})")
         if p["usadas"]:
             filas.append("Ya tiene imagen en: " + ", ".join(f"«{u}»" for u in p["usadas"]) + " (no las repitas)")
         fotos = [c for c, t in p["ids"] if t == "imagen"]
         movs = [c for c, t in p["ids"] if t == "clip"]
-        filas.append("Faltan: " + " · ".join(x for x in (
-            ", ".join(fotos) + (" (fotos" + (", en las primeras palabras)" if p["tipo"] == "hook" else ", repartidas en todo el cuerpo)")) if fotos else "",
-            ", ".join(movs) + " (clip en movimiento de 4 a 6 s)" if movs else "") if x))
-    return "\n".join(filas[:4] + [EJEMPLO_LINEA] + filas[4:]) + "\n"
+        if fotos or movs:
+            filas.append("Imágenes: " + " · ".join(x for x in (
+                ", ".join(fotos) + (" (fotos" + (", en las primeras palabras)" if p["tipo"] == "hook" else ", repartidas en todo el cuerpo)")) if fotos else "",
+                ", ".join(movs) + " (clip en movimiento de 4 a 6 s)" if movs else "") if x))
+        if p["sfx"]:
+            filas.append(f"Golpe de silencio: SFX_{p['pieza']} (la palabra de la frase clave)")
+    return "\n".join(filas) + "\n"
 
 
 EJEMPLO_LINEA = ('{"id": "C1_IMG2", "palabra": "defensas", "prompt": "Photorealistic vertical 9:16 photo of a happy energetic '
                  'puppy playing with a ball on green grass in a sunny backyard, soft natural light, shallow depth of field.", '
                  '"plan_b": "Photorealistic vertical 9:16 shot of a playful puppy running on a lawn, warm daylight.", '
                  '"que_muestra": "Cachorro jugando con energía en el jardín"}')
+EJEMPLO_ANIMO = '{"id": "ANIMO_C1", "animo": "tension"}'
+EJEMPLO_SFX = '{"id": "SFX_C1", "palabra": "suplevet"}'
 
 
 def armar_prompts(por_cuerpo=3, clips=1, por_hook=0, abrir=False):
-    """«Agregar los prompts» sin Claude. La sala le da a Gemini hojas cortas (TANDA cuerpos con sus hooks, con el texto y
-    los códigos que faltan) y Gemini solo escribe una línea por imagen en RESPUESTA_<n>.jsonl. traer_prompts() las mete al
-    guion apenas aparecen. Antes Gemini editaba el produccion.json entero (80 KB) y se iba 10 minutos explorándolo."""
+    """«Completar el guion» sin Claude: lo que le falta a cada pieza para que el video salga completo, en un solo pedido.
+    La sala le da a Gemini hojas cortas (TANDA cuerpos con sus hooks y su CTA, con el texto y lo que falta) y Gemini
+    escribe una línea por cosa en RESPUESTA_<n>.jsonl: imágenes y clips de Flow, el estado de ánimo de cada pieza (de
+    ahí sale la música: una pista por ánimo, ver motor.ANIMOS) y el golpe de silencio de cada cuerpo. traer_prompts()
+    las mete al guion apenas aparecen. Antes Gemini editaba el produccion.json entero (80 KB) y se iba 10 minutos
+    explorándolo, y la música iba en otro pedido."""
     if not (motor.S.guion / "produccion.json").exists():
         raise ValueError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
     huecos = _huecos(por_cuerpo, clips, por_hook)
     if not huecos:
-        raise ValueError("Cada cuerpo y cada hook ya tienen esa cantidad de imágenes: sube los números para agregar más")
+        raise ValueError("El guion ya está completo: cada pieza tiene sus imágenes, su ánimo y su sonido. Sube los números para agregar más imágenes")
     limpios = _limpios()
     import asistente
     sesion, carpeta = _carpeta("Prompts Antigravity")
     if carpeta.exists():
         shutil.rmtree(carpeta, ignore_errors=True)  # el pedido anterior: sus respuestas ya no sirven
     carpeta.mkdir(parents=True, exist_ok=True)
-    # tandas: cada cuerpo con sus hooks (C1, C1_H1…), TANDA cuerpos por hoja
-    def cuerpo_de(p):
-        return p["pieza"].split("_")[0]
-    orden = list(dict.fromkeys(cuerpo_de(p) for p in huecos))
-    tandas = [[p for p in huecos if cuerpo_de(p) in orden[i:i + TANDA]] for i in range(0, len(orden), TANDA)]
+    orden = list(dict.fromkeys(_grupo_de(p["pieza"]) for p in huecos))
+    tandas = [[p for p in huecos if _grupo_de(p["pieza"]) in orden[i:i + TANDA]] for i in range(0, len(orden), TANDA)]
     for n, grupo in enumerate(tandas, 1):
         (carpeta / f"HOJA_{n}.md").write_text(_hoja(n, len(tandas), grupo, sesion), encoding="utf-8")
     n_img = sum(1 for p in huecos for _, t in p["ids"] if t == "imagen")
     n_clip = sum(1 for p in huecos for _, t in p["ids"] if t == "clip")
-    texto = f"""# Prompts de Flow · {sesion}
+    n_animo = sum(1 for p in huecos if p["animo"])
+    animos = "\n".join(f"  - `{k}`: {v[0]}" for k, v in motor.ANIMOS.items())
+    texto = f"""# Completar el guion · {sesion}
 
-Hay {len(tandas)} hojas (HOJA_1.md … HOJA_{len(tandas)}.md) con {n_img} fotos y {n_clip} clips por escribir.
-Cada conversación llena SOLO la hoja que dice su mensaje: lee HOJA_<n>.md y escribe RESPUESTA_<n>.jsonl en esta
-carpeta ({carpeta}), de una sola vez, con la herramienta de escribir archivos. Las otras hojas las hacen otras
-conversaciones a la vez. (Si el mensaje no dice qué hoja, hazlas todas, en orden.)
+Hay {len(tandas)} hojas (HOJA_1.md … HOJA_{len(tandas)}.md): {n_img} fotos y {n_clip} clips de Flow por escribir y
+{n_animo} piezas sin estado de ánimo. Cada conversación llena SOLO la hoja que dice su mensaje: lee HOJA_<n>.md y escribe
+RESPUESTA_<n>.jsonl en esta carpeta ({carpeta}), de una sola vez, con la herramienta de escribir archivos. Las otras hojas
+las hacen otras conversaciones a la vez. (Si el mensaje no dice qué hoja, hazlas todas, en orden.)
 
 PROHIBIDO, para ir rápido: leer otros archivos, buscar en otras carpetas, escribir scripts o correr comandos.
 Todo lo que necesitas está aquí y en la hoja. La sala revisa las respuestas y las pone sola en el guion.
 
 ## Cada línea de RESPUESTA_<n>.jsonl
-Un JSON por línea (sin corchetes, sin comas entre líneas, sin ```):
+Un JSON por línea (sin corchetes, sin comas entre líneas, sin ```). Hay tres tipos:
+
+**Imagen o clip** (códigos `…_IMG<n>` y `…_CLIP<n>`):
 {EJEMPLO_LINEA}
-- `id`: el código de la hoja, tal cual. Uno por línea; no inventes otros.
 - `palabra`: 1 a 3 palabras que aparecen tal cual en el texto de ESA pieza, en minúsculas. Ahí aparece la imagen.
   En un hook, en las primeras palabras. En un cuerpo, repartidas al principio, medio y final, en lo que más se puede ver
   (el problema, la mascota, la comida, el resultado). Nunca dos en la misma frase ni en una palabra que ya tiene imagen.
@@ -570,13 +595,24 @@ Un JSON por línea (sin corchetes, sin comas entre líneas, sin ```):
   toward the camera in a sunny garden, slow motion»).
 - `que_muestra`: en español, qué se ve, en pocas palabras.
 
+**Estado de ánimo** (códigos `ANIMO_<pieza>`): de él sale la música. Cada video junta un hook, un cuerpo y un CTA, y la
+música cambia solo donde cambia el ánimo; por eso elige el que domina en ESA pieza, uno de:
+{animos}
+{EJEMPLO_ANIMO}
+Guía: un hook casi siempre es `tension` (un problema) o `revelacion` (un dato, una pregunta); un cuerpo, el ánimo que más
+dura en su texto (si cuenta un problema y la mayor parte es la solución, `solucion`); un CTA, `urgencia` o `solucion`.
+
+**Golpe de silencio** (códigos `SFX_<cuerpo>`): la música se corta medio segundo antes de esa palabra y vuelve con un
+golpe. Uno por cuerpo, en la frase clave (normalmente donde entra Suplevet o el resultado). `palabra` va tal cual en el texto.
+{EJEMPLO_SFX}
+
 ## Reglas de las imágenes
 - Siempre hay una mascota: cada imagen o clip muestra a un perro o gato real, nunca solo un objeto o una persona sin animal.
 - La mascota muestra el estado que dice la frase (tranquila y descansando si la frase habla de un problema, activa y
   contenta si habla del resultado). Lo interno (defensas, digestión, piel, pelo) se muestra en el animal, nunca células,
   órganos, intestinos ni microscopios.
 {asistente.COMIDA}
-- Sin texto, sin logos ni envases con marca. Solo imágenes y clips: nada de música.
+- Sin texto, sin logos ni envases con marca.
 
 {limpios}
 
@@ -585,21 +621,23 @@ Al terminar responde en 1 línea cuántas líneas escribiste.
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
     esperados = {c: [p["pieza"], t, p["tipo"]] for p in huecos for c, t in p["ids"]}
-    (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana, "esperados": esperados, "puestos": []},
-                                                   ensure_ascii=False), encoding="utf-8")
+    esperados.update({f"ANIMO_{p['pieza']}": [p["pieza"], "animo", p["tipo"]] for p in huecos if p["animo"]})
+    opcionales = {f"SFX_{p['pieza']}": [p["pieza"], "sfx", p["tipo"]] for p in huecos if p["sfx"]}
+    (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana, "esperados": esperados, "opcionales": opcionales,
+                                                    "puestos": []}, ensure_ascii=False), encoding="utf-8")
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual: para cada HOJA_<n>.md de esa carpeta escribe su "
                "RESPUESTA_<n>.jsonl. No leas nada más, no escribas scripts ni corras comandos. "
                "Al final responde en 2 líneas cuántas líneas escribiste.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")
     # una conversación por hoja, todas a la vez: 8 hojas tardan lo que tarda una (~2-3 min) y no 20 minutos en fila.
     # El mensaje de todas juntas queda para pegarlo a mano si la sala no pudo mandarlas.
-    pedidos = [(f"Prompts {sesion} · hoja {n} de {len(tandas)}",
+    pedidos = [(f"Completar guion {sesion} · hoja {n} de {len(tandas)}",
                 f"Lee {carpeta / 'INSTRUCCIONES.md'} y llena solo la hoja {n}: lee {carpeta / f'HOJA_{n}.md'} y escribe "
                 f"{carpeta / f'RESPUESTA_{n}.jsonl'}. No leas nada más, no escribas scripts ni corras comandos.")
                for n in range(1, len(tandas) + 1)]
     abierto, enviado, porque = _pasar(carpeta, mensaje, "flash", abrir, pedidos=pedidos)  # tarea guiada: el rápido alcanza
     return {"carpeta": str(carpeta), "mensaje": mensaje, "abierto": abierto, "enviado": enviado, "porque": porque,
-            "instalado": bool(exe()), "hojas": len(tandas), "imagenes": n_img, "clips": n_clip}
+            "instalado": bool(exe()), "hojas": len(tandas), "imagenes": n_img, "clips": n_clip, "animos": n_animo}
 
 
 def _lineas_respuesta(carpeta):
@@ -623,58 +661,104 @@ def _lineas_respuesta(carpeta):
     return out
 
 
+def _limpiar_palabra(p):
+    return re.sub(r"\s+", " ", str(p or "")).strip(" .,;:¡!¿?«»\"").lower()
+
+
+def ordenar_musica_por_animo(prod):
+    """Con los ánimos puestos, la música del guion queda una pista por ánimo: crea en `musica` la de cada ánimo usado,
+    quita la pista a mano de una pieza si esa pista todavía no se generó (manda su ánimo) y borra de la lista las
+    pistas sin archivo que ya nadie usa. Lo que ya se generó (tiene su MP3) se respeta. Devuelve si cambió algo."""
+    piezas, lista = prod.get("piezas") or {}, prod.setdefault("musica", [])
+    if not any(p.get("animo") in motor.ANIMOS for p in piezas.values()):
+        return False
+    antes = json.dumps([lista, {n: p.get("musica") for n, p in piezas.items()}, prod.get("musica_por_defecto")], sort_keys=True)
+    tiene_mp3 = {m["id"]: bool(motor.buscar_musica(m["id"])) for m in lista}
+    for p in piezas.values():
+        if p.get("animo") in motor.ANIMOS and p.get("musica") and not tiene_mp3.get(p["musica"]):
+            del p["musica"]
+    # solo los ánimos que de verdad suenan: una pieza con su pista ya generada (a mano) no necesita la de su ánimo
+    usados = {p["animo"] for p in piezas.values() if p.get("animo") in motor.ANIMOS and not p.get("musica")}
+    hay = {m.get("animo") for m in lista}
+    lista += [motor.pista_para_animo(a) for a in motor.ANIMOS if a in usados and a not in hay]
+    tiene_mp3.update({m["id"]: bool(motor.buscar_musica(m["id"])) for m in lista if m["id"] not in tiene_mp3})
+    en_uso = {p.get("musica") for p in piezas.values()} | {m.get("musica") for p in piezas.values() for m in p.get("marcas", [])}
+    en_uso |= {v.get("musica") for v in (prod.get("videos") or {}).values() if isinstance(v, dict)}
+    prod["musica"] = [m for m in lista if tiene_mp3.get(m["id"]) or m["id"] in en_uso or m.get("animo") in usados]
+    cuerpos = [p["animo"] for p in piezas.values() if p.get("tipo") == "cuerpo" and p.get("animo") in motor.ANIMOS]
+    if cuerpos:
+        mas = max(set(cuerpos), key=cuerpos.count)
+        prod["musica_por_defecto"] = next(m["id"] for m in prod["musica"] if m.get("animo") == mas)
+    return antes != json.dumps([prod["musica"], {n: p.get("musica") for n, p in piezas.items()}, prod.get("musica_por_defecto")], sort_keys=True)
+
+
 def traer_prompts():
-    """Pone en el guion de la sesión las líneas que Gemini ya escribió (aunque falten hojas): cada una como asset de
-    Flow con su marca en la pieza. Lo puesto queda anotado en _sala.json para no repetirlo."""
+    """Pone en el guion de la sesión las líneas que Gemini ya escribió (aunque falten hojas): cada imagen o clip como
+    asset de Flow con su marca en la pieza, cada ánimo en su pieza (y la música queda una pista por ánimo) y cada golpe
+    de silencio como marca. Lo puesto queda anotado en _sala.json para no repetirlo."""
     _, carpeta = _carpeta("Prompts Antigravity")
     meta_f = carpeta / "_sala.json"
     if not meta_f.exists():
-        raise ValueError("No hay prompts de Antigravity pendientes para esta sesión: primero toca «Agregar los prompts» con Antigravity")
+        raise ValueError("No hay nada de Antigravity pendiente para esta sesión: primero toca «Completar el guion» con Antigravity")
     meta = json.loads(meta_f.read_text(encoding="utf-8"))
     if meta.get("semana") != motor.S.semana:
-        raise ValueError("Esos prompts son de otra sesión: abre esa sesión en la sala para traerlos")
+        raise ValueError("Ese pedido es de otra sesión: abre esa sesión en la sala para traerlo")
     if "esperados" not in meta:
         return _traer_prompts_copia(carpeta, meta_f, meta)
-    esperados, puestos = meta["esperados"], set(meta.get("puestos") or [])
+    esperados, opcionales, puestos = meta["esperados"], meta.get("opcionales") or {}, set(meta.get("puestos") or [])
+    todos = {**opcionales, **esperados}
     nuevas = {}
     for d in _lineas_respuesta(carpeta):
         cod = str(d["id"]).strip()
-        if cod in esperados and cod not in puestos and str(d.get("prompt") or "").strip():
+        if cod not in todos or cod in puestos:
+            continue
+        clase = todos[cod][1]
+        vale = (str(d.get("animo") or "").strip().lower() in motor.ANIMOS if clase == "animo"
+                else bool(_limpiar_palabra(d.get("palabra"))) if clase == "sfx" else bool(str(d.get("prompt") or "").strip()))
+        if vale:
             nuevas[cod] = d  # si Gemini reescribió una línea, vale la última
     if not nuevas:
-        raise ValueError("Gemini todavía no escribió prompts. Espera a que termine una hoja en Antigravity y vuelve a tocar el botón")
+        raise ValueError("Gemini todavía no escribió nada. Espera a que termine una hoja en Antigravity y vuelve a tocar el botón")
     prod_f = motor.S.guion / "produccion.json"
     prod = json.loads(prod_f.read_text(encoding="utf-8"))
     piezas, assets = prod.setdefault("piezas", {}), prod.setdefault("assets", [])
     ya = {a["id"] for a in assets}
     try:
         import respaldos
-        respaldos.hacer("Antes de los prompts de Antigravity", auto=True)
+        respaldos.hacer("Antes de completar el guion con Antigravity", auto=True)
     except Exception:
         pass
-    puestos_ahora = 0
+    puestos_ahora, animos_ahora = 0, 0
     for cod, d in nuevas.items():
-        pieza, tipo, tipo_pieza = esperados[cod]
+        pieza, clase, tipo_pieza = todos[cod]
         info = piezas.get(pieza)
-        if info is None or cod in ya:
-            puestos.add(cod)
-            continue
-        palabra = re.sub(r"\s+", " ", str(d.get("palabra") or "")).strip(" .,;:¡!¿?«»\"").lower()
-        clip = tipo == "clip"
-        assets.append({"id": cod, "tipo": tipo, "pieza": pieza, "palabra": palabra, "flow": {
-            "herramienta": "Google Flow · Video" if clip else "Google Flow · Imagen",
-            "formato": "9:16 vertical, 4 a 6 segundos" if clip else "9:16 vertical",
-            "prompt": str(d.get("prompt") or "").strip(), "plan_b": str(d.get("plan_b") or "").strip(),
-            "que_muestra": str(d.get("que_muestra") or "").strip(),
-            "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style" + (", fast cuts" if clip else "")}})
-        marcas = info.setdefault("marcas", [])
-        n_img = sum(1 for x in marcas if x.get("asset"))
-        marcas.append({"palabra": palabra, "asset": cod, "modo": "completa",
-                       "dur": 2.5 if clip else (1.2 if tipo_pieza == "hook" else 1.5),
-                       "mov": "fijo" if clip else ("zoom_in" if n_img % 2 == 0 else "zoom_out")})
-        ya.add(cod)
         puestos.add(cod)
+        if info is None:
+            continue
+        if clase == "animo":
+            info["animo"] = str(d["animo"]).strip().lower()
+            animos_ahora += 1
+        elif clase == "sfx":
+            if not any(m.get("sfx") == "corte_silencio" for m in info.get("marcas", [])):
+                info.setdefault("marcas", []).append({"palabra": _limpiar_palabra(d.get("palabra")), "sfx": "corte_silencio"})
+        elif cod not in ya:
+            palabra = _limpiar_palabra(d.get("palabra"))
+            clip = clase == "clip"
+            assets.append({"id": cod, "tipo": clase, "pieza": pieza, "palabra": palabra, "flow": {
+                "herramienta": "Google Flow · Video" if clip else "Google Flow · Imagen",
+                "formato": "9:16 vertical, 4 a 6 segundos" if clip else "9:16 vertical",
+                "prompt": str(d.get("prompt") or "").strip(), "plan_b": str(d.get("plan_b") or "").strip(),
+                "que_muestra": str(d.get("que_muestra") or "").strip(),
+                "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style" + (", fast cuts" if clip else "")}})
+            marcas = info.setdefault("marcas", [])
+            n_img = sum(1 for x in marcas if x.get("asset"))
+            marcas.append({"palabra": palabra, "asset": cod, "modo": "completa",
+                           "dur": 2.5 if clip else (1.2 if tipo_pieza == "hook" else 1.5),
+                           "mov": "fijo" if clip else ("zoom_in" if n_img % 2 == 0 else "zoom_out")})
+            ya.add(cod)
         puestos_ahora += 1
+    if animos_ahora:
+        ordenar_musica_por_animo(prod)
     if puestos_ahora:
         tmp = prod_f.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(prod, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -687,8 +771,8 @@ def traer_prompts():
     else:
         meta_f.unlink()  # ya está todo: no se vuelve a mirar
     if not puestos_ahora:
-        raise ValueError("Gemini todavía no escribió prompts nuevos")
-    return {"nuevos": puestos_ahora, "faltan": faltan}
+        raise ValueError("Gemini todavía no escribió nada nuevo")
+    return {"nuevos": puestos_ahora, "faltan": faltan, "animos": animos_ahora}
 
 
 def _traer_prompts_copia(carpeta, meta_f, meta):
@@ -744,7 +828,16 @@ def armar_musica(abrir=False):
     if not prod.exists():
         raise ValueError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
     datos = json.loads(prod.read_text(encoding="utf-8"))
+    # con los ánimos ya puestos («Completar el guion»), la música es una pista por ánimo: la sala la escribe sola y
+    # Gemini solo la genera (no hace falta que la invente pieza por pieza)
+    if ordenar_musica_por_animo(datos):
+        tmp = prod.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
+        os.replace(tmp, prod)
+        motor._prod_cache = None
     sesion, carpeta = _carpeta("Musica Antigravity")
+    if carpeta.exists():
+        shutil.rmtree(carpeta, ignore_errors=True)  # un pedido viejo no debe volver a meter su música al guion
     carpeta.mkdir(parents=True, exist_ok=True)
     escribir = not datos.get("musica")
     if escribir:

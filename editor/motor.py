@@ -2511,7 +2511,7 @@ def dossier():
             "duracion": round(duracion(proc), 2) if proc.exists() else None,
             "guion": guion, "dicho": dicho, "parecido": round(difflib.SequenceMatcher(None, a, b).ratio(), 2) if a and b else None,
             "cambios": cambios, "palabras": palabras, "marcas": marcas_de(p["nombre"]),
-            "musica": info_pieza(p["nombre"]).get("musica")}
+            "musica": musica_de_pieza(p["nombre"]), "animo": info_pieza(p["nombre"]).get("animo")}
     return out
 
 
@@ -2916,7 +2916,9 @@ def apoyo_visual():
     rec = {"cuerpo": max(2, min(10, round(seg_c / 4))), "clips": 1 if seg_c >= 15 else 0, "hook": 2 if seg_h > 6 else 1}
     razon = (f"Los cuerpos duran unos {seg_c:.0f} s: una imagen cada 4 s mantiene la atención sin tapar a la persona. "
              f"Los hooks duran unos {seg_h:.0f} s: {'dos imágenes rápidas en los primeros segundos enganchan' if rec['hook'] == 2 else 'una imagen en los primeros segundos engancha'}.")
-    return {"piezas": filas, "recomendado": rec, "razon": razon}
+    sin_animo = sum(1 for n, i in ps.items() if (i.get("tipo") == "cuerpo" or tipo_de(n) in ("hook", "cta"))
+                    and i.get("animo") not in ANIMOS)
+    return {"piezas": filas, "recomendado": rec, "razon": razon, "sin_animo": sin_animo}
 
 
 SALTO_DE_HOJA = "<<<SALTO>>>"  # en el Word, aquí empieza una hoja nueva
@@ -2978,9 +2980,12 @@ def documento_guion(version="host", vista="combinacion"):
                 f"**Voz:** {info.get('texto', '')}", ""]
         if info.get("portada"):
             out.append(f"**Portada:** {info['portada'].replace('*', '')}")
-        if info.get("musica"):
-            m = musica.get(info["musica"], {})
-            out.append(f"**Música:** {info['musica']}" + (f" — {m.get('uso', '')}" if m else ""))
+        mid = info.get("musica") or next((x["id"] for x in prod.get("musica") or [] if info.get("animo") and x.get("animo") == info["animo"]), None)
+        if info.get("animo") in ANIMOS:
+            out.append(f"**Ánimo:** {ANIMOS[info['animo']][0]}")
+        if mid:
+            m = musica.get(mid, {})
+            out.append(f"**Música:** {mid}" + (f" — {m.get('uso', '')}" if m else ""))
         estilos = [m for m in info.get("marcas", []) if m.get("sub")]
         if estilos:
             out.append("**Subtítulos:** " + " · ".join(f"«{m['palabra']}» → {m['sub'].replace('_', ' ')}" for m in estilos))
@@ -6556,7 +6561,7 @@ def videos_que_usan_varios(ids, tipo):
     for n in {p["nombre"] for p in piezas()}:
         ms = marcas_de(n) or []
         if tipo == "musica":
-            hay = {(prod.get(n, {}).get("musica") or "").lower()} | {(m.get("musica") or "").lower() for m in ms}
+            hay = {(musica_de_pieza(n) or "").lower()} | {(m.get("musica") or "").lower() for m in ms}
         else:
             hay = {(m.get("asset") or "").lower() for m in ms}
         hay &= ids_l.keys()
@@ -6581,6 +6586,48 @@ def buscar_musica(mid):
     return None
 
 
+# ---------- Música por estado de ánimo ----------
+# Cada pieza (hook, cuerpo, CTA) lleva su «animo» en el guion y la sesión tiene una pista por ánimo. Como cada video
+# junta un hook, un cuerpo y un CTA cualquiera, la música cambia justo donde cambia el ánimo (con fundido) y no en
+# cada pieza. Todas con adrenalina (regla de la marca): cambia el color, nunca a algo suave.
+_SIEMPRE = ("instrumental, no vocals, no lyrics, background music for voiceover, starts with full energy, no intro, "
+            "steady energy, no sudden drops")
+ANIMOS = {
+    "tension": ("Tensión (el problema)", "Dark high-energy electronic trap, 135 BPM, heavy 808 sub-bass, punchy drums, tense "
+                "minor-key synth stabs, suspenseful and driving"),
+    "revelacion": ("Revelación (el dato, la ciencia)", "Driving modern electronic groove, 128 BPM, crisp punchy drums, bright "
+                   "plucked synth arpeggios, deep bass, curious and intriguing forward momentum"),
+    "solucion": ("Solución (Suplevet)", "Uplifting energetic EDM-pop, 128 BPM, four-on-the-floor kick, bright supersaw chords, "
+                 "strong bassline, confident and optimistic, powerful drive"),
+    "triunfo": ("Triunfo (el resultado)", "Euphoric high-energy electro house, 130 BPM, big punchy kick, soaring synth lead, "
+                "pumping bass, triumphant and celebratory hype"),
+    "urgencia": ("Urgencia (el llamado a actuar)", "Fast energetic drum and bass, 140 BPM, rolling breakbeat, deep reese bass, "
+                 "urgent and propulsive, high adrenaline"),
+}
+EVITAR_MUSICA = "soft, acoustic, calm, gentle, warm, cozy, relaxed, lo-fi, ambient, piano ballad, vocals, singing"
+
+
+def pista_de_animo(animo):
+    """El id de la pista de la sesión para ese estado de ánimo (o None)."""
+    if not animo:
+        return None
+    return next((m["id"] for m in produccion().get("musica") or [] if m.get("animo") == animo), None)
+
+
+def musica_de_pieza(nombre):
+    """La pista de una pieza: la que el guion le pone a mano, o la de su estado de ánimo."""
+    info = info_pieza(nombre)
+    return info.get("musica") or pista_de_animo(info.get("animo"))
+
+
+def pista_para_animo(animo):
+    """La entrada de `musica` del guion para un estado de ánimo, lista para generar en Flow Music."""
+    nombre, prompt = ANIMOS[animo]
+    return {"id": f"MUS_{animo.upper()}", "animo": animo, "uso": nombre, "desde": 0,
+            "prompt": {"herramienta": "Google Flow Music", "prompt": f"{prompt}, {_SIEMPRE}.", "evitar": EVITAR_MUSICA,
+                       "duracion": "60 s"}}
+
+
 def planear_musica(combo, offs, total, marcas, n_musica=0):
     """Tramos de música [{id, archivo, t0, t1, desde}]. Una pista por video (la del cuerpo); solo cambia donde
     el guion lo pide: el hook o el CTA con su propia pista, o una marca {"palabra", "musica"}."""
@@ -6595,12 +6642,13 @@ def planear_musica(combo, offs, total, marcas, n_musica=0):
             archivo = rotacion[(n_musica + letra * max(1, len(rotacion) // 3)) % len(rotacion)]
         return ([{"id": None, "archivo": archivo, "t0": 0.0, "t1": total, "desde": 0.0}] if archivo else []), []
     base = (produccion().get("videos", {}).get(combo["codigo"], {}).get("musica")
-            or info_pieza(cuerpo).get("musica") or produccion().get("musica_por_defecto"))
-    cambios = [(0.0, info_pieza(hook).get("musica") or base)]
+            or musica_de_pieza(cuerpo) or produccion().get("musica_por_defecto"))
+    # el hook y el CTA suenan con la pista de su estado de ánimo; si es el mismo que el del cuerpo, no cambia nada
+    cambios = [(0.0, musica_de_pieza(hook) or base)]
     if base:
         cambios.append((offs[1], base))
-    if info_pieza(cta).get("musica"):
-        cambios.append((offs[2], info_pieza(cta)["musica"]))
+    if musica_de_pieza(cta):
+        cambios.append((offs[2], musica_de_pieza(cta)))
     for off, ms in zip(offs, marcas):
         cambios += [(off + m["t"], m["musica"]) for m in ms if m.get("musica")]
     cambios.sort(key=lambda x: x[0])

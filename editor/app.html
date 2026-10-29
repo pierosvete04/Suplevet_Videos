@@ -4748,9 +4748,13 @@ function pintarEstadoFlow() {
   $("flEstAg").textContent = E.antigravity ? "● Instalado" : "No instalado"; $("flEstAg").className = "pill " + (E.antigravity ? "ok" : "");
   const modo = modoIA();
   // solo imágenes y clips: la música se escribe y se genera aparte («Música con Antigravity» / «Crear la música…»)
-  $("apQuien").textContent = (modo === "claude" ? (claudeOk ? "Los escribe Claude" : "Los escribe Claude (conéctalo en Inicio → Claude)")
-    : modo === "antigravity" ? "Los escribe Gemini en Antigravity" : "Conecta Claude (Inicio → Claude) o instala Antigravity")
-    + ". Solo las imágenes y los clips de Flow: la música va aparte, en el paso 2.";
+  // con Antigravity el botón completa todo el guion (imágenes, ánimo de cada pieza para la música y golpe de silencio);
+  // con Claude sigue siendo solo imágenes y clips
+  $("masApoyo").textContent = modo === "antigravity" ? "✦ Completar el guion" : "✦ Agregar los prompts";
+  $("apQuien").textContent = modo === "antigravity"
+    ? "Gemini completa lo que le falta al guion: las imágenes y clips de Flow, el estado de ánimo de cada hook, cuerpo y CTA (de ahí sale la música: una pista por ánimo, que cambia solo cuando cambia el ánimo) y el golpe de silencio de cada cuerpo. Las pistas se generan después, en el paso 2."
+    : (modo === "claude" ? (claudeOk ? "Los escribe Claude" : "Los escribe Claude (conéctalo en Inicio → Claude)") : "Conecta Claude (Inicio → Claude) o instala Antigravity")
+      + ". Solo las imágenes y los clips de Flow: la música va aparte, en el paso 2.";
   $("apConAg").hidden = true;  // todo con una sola IA: la que se eligió en Inicio
   $("flOpClaude").hidden = modo === "antigravity"; $("flOpAg").hidden = modo === "claude";
   if (modo !== "claude") pintarPedidosAg();
@@ -11002,7 +11006,7 @@ $("calRevisar").onclick = pintarCalidad;
 // Paquete para Antigravity: sin Claude, Gemini Flash pega los prompts en Flow de corrido y baja todo con su nombre
 // Antigravity: la sala arma el pedido en Descargas y muestra una ventana con los pasos y el mensaje para copiar.
 // Pensado para quien no conoce la sala: cada paso dice qué tocar.
-const AG_TIT = { imagenes: "🪐 Imágenes con Antigravity", musica: "🎵 Música con Antigravity", prompts: "🪐 Prompts con Antigravity" };
+const AG_TIT = { imagenes: "🪐 Imágenes con Antigravity", musica: "🎵 Música con Antigravity", prompts: "✦ Completar el guion con Antigravity" };
 let agActual = null;
 function pasosAg(tipo, r) {
   const abrir = !r.instalado ? `Antigravity no está instalado en esta PC: descárgalo de <b>antigravity.google</b>, ábrelo y entra con tu cuenta de Google. Después toca <b>«Abrir Antigravity»</b> aquí abajo.`
@@ -11035,7 +11039,7 @@ function pasosAg(tipo, r) {
 async function mostrarPedidoAg(tipo, r, copiarYa = true) {
   agActual = { tipo, ...r };
   $("dlgAgTit").textContent = AG_TIT[tipo] || "🪐 Antigravity";
-  $("dlgAgInfo").innerHTML = (["imagenes", "prompts"].includes(tipo) && r.imagenes != null ? `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""}${r.hojas ? ` en ${plural(r.hojas, "hoja")}` : ""} · ` : "")
+  $("dlgAgInfo").innerHTML = (["imagenes", "prompts"].includes(tipo) && r.imagenes != null ? `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""}${r.animos ? ` · ${plural(r.animos, "pieza", "piezas")} por darles ánimo` : ""}${r.hojas ? ` en ${plural(r.hojas, "hoja")}` : ""} · ` : "")
     + (tipo === "musica" && r.pistas ? (r.escribir ? "Gemini escribe la música y la genera · " : `Pistas: ${esc(r.pistas)} · `) : "")
     + `Carpeta del pedido: <code>${esc(r.carpeta)}</code>`;
   $("dlgAgPasos").innerHTML = pasosAg(tipo, r).map(x => `<li>${x}</li>`).join("");
@@ -11098,10 +11102,13 @@ function resumenApoyo() {
   AP.piezas.forEach(f => { img += Math.max(0, (f.tipo === "cuerpo" ? c : h) - f.imagenes); if (f.tipo === "cuerpo") clips += Math.max(0, cl - f.clips); });
   const ya = AP.piezas.reduce((s, f) => s + f.imagenes + f.clips, 0), nc = AP.piezas.filter(f => f.tipo === "cuerpo").length, nh = AP.piezas.length - nc;
   const donde = [nc && plural(nc, "cuerpo"), nh && plural(nh, "hook")].filter(Boolean).join(" y ") || "el guion";
-  $("apResumen").innerHTML = img + clips ? `Hoy hay <b>${plural(ya, "imagen o clip", "imágenes o clips")}</b> en ${donde}. Se agregan <b>${plural(img, "imagen", "imágenes")}</b>${clips ? ` y <b>${plural(clips, "clip")}</b>` : ""}; las que ya hay se quedan.`
+  const animos = modoIA() === "antigravity" ? (AP.sin_animo || 0) : 0;  // solo «Completar el guion» pone los ánimos
+  const hay = img + clips + animos;
+  $("apResumen").innerHTML = hay ? (img + clips ? `Hoy hay <b>${plural(ya, "imagen o clip", "imágenes o clips")}</b> en ${donde}. Se agregan <b>${plural(img, "imagen", "imágenes")}</b>${clips ? ` y <b>${plural(clips, "clip")}</b>` : ""}; las que ya hay se quedan.` : "Las imágenes ya están.")
+      + (animos ? ` <b>${plural(animos, "pieza", "piezas")} sin estado de ánimo</b>: Gemini se lo pone y la música sale de ahí.` : "")
     : "Cada cuerpo y cada hook ya tienen esa cantidad: sube los números para agregar más.";
-  $("masApoyo").dataset.nada = img + clips ? "" : "1";  // vigilar() también lo mira
-  $("masApoyo").disabled = !(img + clips) || !!E?.trabajo?.activo;
+  $("masApoyo").dataset.nada = hay ? "" : "1";  // vigilar() también lo mira
+  $("masApoyo").disabled = !hay || !!E?.trabajo?.activo;
 }
 ["apCuerpo", "apClips", "apHook"].forEach(id => {
   $(id).addEventListener("input", resumenApoyo);

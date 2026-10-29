@@ -1,3 +1,8 @@
+Versión 1.57.0 (se actualiza desde la app con «Actualizar ahora»):
+- **«✦ Completar el guion» (con Antigravity):** reemplaza a «Agregar los prompts». En un solo pedido, Gemini le pone al guion todo lo que le falta: las imágenes y clips de Flow, el **estado de ánimo** de cada hook, cuerpo y CTA, y el **golpe de silencio** de cada cuerpo. Va en hojas y en paralelo: con P05 (188 piezas), 3 minutos y medio.
+- **La música sigue el ánimo:** hay cinco ánimos (tensión, revelación, solución, triunfo y urgencia) y una pista por ánimo, todas con adrenalina. Como cada video junta un hook, un cuerpo y un CTA distintos, la música cambia (con fundido) solo donde cambia el ánimo: por ejemplo, un hook de tensión, un cuerpo de solución y un CTA de urgencia. Si una pieza ya tiene su pista generada, se respeta. La sala escribe sola los prompts de cada pista; «🎵 Música con Antigravity» solo las genera, y son menos pistas que una por cuerpo.
+- La guía de producción del guion muestra el ánimo y la pista de cada pieza.
+
 Versión 1.56.5 (se actualiza desde la app con «Actualizar ahora»):
 - **La música también va directo al proyecto y Gemini no se pierde:** el MP3 que Gemini baja de Flow Music pasa en segundos a la carpeta Musica de la sesión en esta PC (y a Drive al final, de una vez). Como ya no queda en Descargas, la carpeta del pedido de música también tiene su FALTAN.txt: Gemini hace solo las pistas que faltan y termina cuando dice «No falta nada».
 
