@@ -834,6 +834,8 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
 .ag-pasos { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; }
 .ag-pasos-grande { gap: 8px; font-size: 13.5px; line-height: 1.45; }
 .ag-pendiente { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--accent); font-size: 12.5px; }
+.ag-acc { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: -2px 0 4px; font-size: 12.5px; }
+.ag-acc .muted { margin-right: 2px; }
 .ag-msg { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
 .ag-msg code { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; }
 /* Faltantes: cuántas imágenes por cuerpo y por hook */
@@ -1941,6 +1943,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn-link" type="button" id="apRec">Usar lo recomendado</button>
           <p class="fl-txt" id="apResumen"></p>
           <button class="btn fl-btn" id="masApoyo" type="button">✦ Agregar los prompts</button>
+          <div class="ag-acc" data-ag-acc="prompts" hidden></div>
           <p class="muted fl-txt" style="margin:-4px 0 0;font-size:12px"><span id="apQuien"></span> <button class="btn-link" type="button" id="apConAg" hidden>Hacerlo con Antigravity</button></p>
         </section>
         <section class="fl-paso">
@@ -1954,8 +1957,9 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <div class="fl-op-cab"><b>Con Antigravity (Gemini)</b><span class="pill" id="flEstAg"></span></div>
             <small>La sala abre Antigravity con todo listo: Gemini pega los prompts en Flow y baja cada imagen con su nombre; la música la hace en Flow Music. Lo que baja entra solo a la sesión.</small>
             <button class="btn sec fl-btn" id="paqueteAg" type="button">🪐 Imágenes con Antigravity</button>
+            <div class="ag-acc" data-ag-acc="imagenes" hidden></div>
             <button class="btn sec fl-btn" id="musicaAg" type="button">🎵 Música con Antigravity</button>
-            <div id="agPendientes" style="display:grid;gap:6px"></div></div>
+            <div class="ag-acc" data-ag-acc="musica" hidden></div></div>
         </section>
       </div>
       <div class="fl-tira" id="flTira">
@@ -11061,15 +11065,29 @@ $("dlgAgAbrir").onclick = async () => {
   catch (err) { avisar(err.message, "err"); }
 };
 // lo pedido a Gemini que sigue sin terminar: para volver a ver los pasos y copiar el mensaje
+// lo pedido a Gemini que sigue sin terminar: debajo de SU botón, «Ver pasos y mensaje» y «Cancelar»
 async function pintarPedidosAg() {
-  if (!$("agPendientes")) return;
   let ps = [];
   try { ps = (await (await fetch("/api/pedidos_antigravity")).json()).pedidos || []; } catch (e) {}
-  const nombre = { imagenes: "las imágenes", musica: "la música", prompts: "los prompts" };
-  $("agPendientes").innerHTML = ps.map(p => `<div class="ag-pendiente"><span>⏳ Pedido de <b>${nombre[p.tipo]}</b> a Gemini</span>
-    <button class="btn peq" type="button" data-ver-ag="${p.tipo}">📋 Ver pasos y mensaje</button></div>`).join("");
+  document.querySelectorAll("[data-ag-acc]").forEach(d => {
+    const p = ps.find(x => x.tipo === d.dataset.agAcc);
+    d.hidden = !p;
+    d.innerHTML = p ? `<span class="muted">⏳ Pedido en curso</span>
+      <button class="btn sec peq" type="button" data-ver-ag="${p.tipo}">📋 Ver pasos y mensaje</button>
+      <button class="btn sec peq" type="button" data-cancelar-ag="${p.tipo}">✕ Cancelar</button>` : "";
+  });
   pintarPedidosAg.lista = ps;
 }
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-cancelar-ag]"); if (!b) return;
+  const nombre = { imagenes: "las imágenes", musica: "la música", prompts: "completar el guion" }[b.dataset.cancelarAg];
+  if (!await preguntar(`¿Cancelar el pedido de ${nombre}?
+
+La sala deja de esperarlo y borra su carpeta en Descargas. Si ya lo pegaste en Antigravity, detén también esa conversación allá (botón ■ del chat).`)) return;
+  try { await post("/api/cancelar_pedido_antigravity", { tipo: b.dataset.cancelarAg }); avisar("Pedido cancelado.", "ok"); }
+  catch (err) { avisar(err.message, "err"); }
+  pintarPedidosAg();
+});
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-ver-ag]"); if (!b) return;
   const p = (pintarPedidosAg.lista || []).find(x => x.tipo === b.dataset.verAg); if (!p) return;
@@ -11089,7 +11107,12 @@ async function pintarApoyo() {
   $("apoyoCaja").hidden = !AP.piezas.length;
   $("apRazon").textContent = AP.razon;
   $("apRecCuerpo").textContent = `Recomendado: ${r.cuerpo}`; $("apRecClips").textContent = `Recomendado: ${r.clips}`; $("apRecHook").textContent = `Recomendado: ${r.hook}`;
-  if ($("apCuerpo").value === "") { $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; }
+  // los números que puso el editor en esta sesión se recuerdan (antes, al actualizar la sala volvían al recomendado,
+  // y «Completar el guion» pidió 115 fotos de más en P05)
+  if ($("apCuerpo").value === "") {
+    let g = null; try { g = JSON.parse(localStorage.getItem("apoyo:" + E.semana) || "null"); } catch (e) {}
+    $("apCuerpo").value = g?.por_cuerpo ?? r.cuerpo; $("apClips").value = g?.clips ?? r.clips; $("apHook").value = g?.por_hook ?? r.hook;
+  }
   resumenApoyo();
 }
 // los mismos topes que el formulario y el servidor; enteros y sin negativos (99 daba «490 imágenes»)
@@ -11112,6 +11135,7 @@ function resumenApoyo() {
 }
 ["apCuerpo", "apClips", "apHook"].forEach(id => {
   $(id).addEventListener("input", resumenApoyo);
+  $(id).addEventListener("change", () => { try { localStorage.setItem("apoyo:" + E.semana, JSON.stringify(pedidoApoyo())); } catch (e) {} });
   $(id).addEventListener("change", () => {  // al salir del campo, el número queda dentro de lo permitido
     const v = valApoyo(id);
     if (String(v) !== $(id).value) { $(id).value = v; avisar(`Ese número va de 0 a ${LIM_APOYO[id]}: quedó en ${v}.`, "muted"); resumenApoyo(); }
@@ -11120,6 +11144,16 @@ function resumenApoyo() {
 $("apRec").onclick = () => { const r = AP?.recomendado; if (!r) return; $("apCuerpo").value = r.cuerpo; $("apClips").value = r.clips; $("apHook").value = r.hook; resumenApoyo(); };
 const pedidoApoyo = () => ({ por_cuerpo: valApoyo("apCuerpo"), clips: valApoyo("apClips"), por_hook: valApoyo("apHook") });
 async function promptsConAntigravity() {
+  // antes de mandar nada: cuánto se va a agregar (que no pase de nuevo lo de las 115 fotos de más)
+  const c = valApoyo("apCuerpo"), cl = valApoyo("apClips"), h = valApoyo("apHook");
+  let img = 0, clips = 0;
+  (AP?.piezas || []).forEach(f => { img += Math.max(0, (f.tipo === "cuerpo" ? c : h) - f.imagenes); if (f.tipo === "cuerpo") clips += Math.max(0, cl - f.clips); });
+  const animos = AP?.sin_animo || 0;
+  const que = [img && plural(img, "foto nueva", "fotos nuevas"), clips && plural(clips, "clip nuevo", "clips nuevos"),
+    animos && `el ánimo de ${plural(animos, "pieza", "piezas")}`].filter(Boolean);
+  if (!await preguntar(`Gemini va a completar el guion con: ${que.join(", ") || "los golpes de silencio que falten"}.`
+    + (img + clips ? `\n\nCon ${c} por cuerpo, ${cl} ${cl === 1 ? "clip" : "clips"} por cuerpo y ${h} por hook. Después hay que generarlas en Flow (gasta créditos).` : "")
+    + "\n\n¿Seguir?")) return;
   try { mostrarPedidoAg("prompts", await post("/api/prompts_antigravity", pedidoApoyo())); }
   catch (err) { avisar(err.message, "err"); }
 }

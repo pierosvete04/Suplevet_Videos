@@ -92,6 +92,17 @@ def pedidos():
     return out
 
 
+def cancelar_pedido(tipo):
+    """Deja de esperar un pedido a Gemini: borra su carpeta en Descargas (con su mensaje, sus hojas y su FALTAN.txt),
+    así no sale como «en curso» y la sala no trae nada de él. Lo que ya entró a la sesión se queda."""
+    if tipo not in PEDIDOS:
+        raise ValueError("Ese pedido no existe")
+    carpeta = _carpeta(PEDIDOS[tipo])[1]
+    if carpeta.is_dir():
+        shutil.rmtree(carpeta, ignore_errors=True)
+    return not carpeta.exists()
+
+
 def abrir_pedido(tipo):
     """Abre Antigravity con la carpeta del pedido (o la carpeta en el Explorador si no está instalado)."""
     carpeta = _carpeta(PEDIDOS.get(tipo, "Paquete Antigravity"))[1]

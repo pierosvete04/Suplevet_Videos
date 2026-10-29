@@ -1316,10 +1316,33 @@ def clips_sin_asignar():
 def buscar_asset(aid):
     """El archivo de Flow con ese id. Si hay dos (C1_IMG1.jpg y C1_IMG1.png, uno traído de vuelta por Drive),
     el más nuevo: antes salía el primero en orden alfabético, que solía ser el viejo."""
-    if not S.assets.exists():
-        return None
-    cands = [f for f in S.assets.iterdir() if f.is_file() and f.stem.lower() == aid.lower() and f.suffix.lower() in EXT_IMG | EXT_VID]
-    return max(cands, key=lambda f: f.stat().st_mtime, default=None)
+    return _indice_assets().get(str(aid).lower())
+
+
+_INDICE_ASSETS = {"clave": None, "mapa": {}}
+
+
+def _indice_assets():
+    """{id en minúsculas: archivo más nuevo} de la carpeta Flow, leída una sola vez mientras no cambie (su fecha de
+    modificación cambia al entrar, salir o renombrarse un archivo). Antes buscar_asset() recorría la carpeta entera por
+    cada imagen: con 414 fotos, checklist() hacía 219 000 consultas al disco y tardaba ~30 s."""
+    try:
+        st = S.assets.stat()
+    except OSError:
+        return {}
+    clave = (str(S.assets), st.st_mtime_ns)
+    if _INDICE_ASSETS["clave"] != clave:
+        mapa, fechas = {}, {}
+        with os.scandir(S.assets) as it:
+            for e in it:
+                ext = os.path.splitext(e.name)[1].lower()
+                if ext not in EXT_IMG | EXT_VID or not e.is_file():
+                    continue
+                k, t = os.path.splitext(e.name)[0].lower(), e.stat().st_mtime
+                if k not in fechas or t > fechas[k]:
+                    mapa[k], fechas[k] = Path(e.path), t
+        _INDICE_ASSETS.update(clave=clave, mapa=mapa)
+    return _INDICE_ASSETS["mapa"]
 
 
 # ---------- 1. Procesar ----------

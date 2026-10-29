@@ -1927,6 +1927,8 @@ class H(BaseHTTPRequestHandler):
                 ia = str(self._cuerpo().get("ia") or "")
                 motor.guardar_config({"ia": ia if ia in ("claude", "antigravity") else ""})
                 self._json({"ok": True, "ia": motor.CONFIG["ia"]})
+            elif u.path == "/api/cancelar_pedido_antigravity":  # «✕ Cancelar» al lado del botón del pedido
+                self._json({"ok": antigravity.cancelar_pedido(str(self._cuerpo().get("tipo") or ""))})
             elif u.path == "/api/abrir_antigravity":  # «Abrir Antigravity» en la ventana de los pasos
                 self._json({"ok": True, "abierto": antigravity.abrir_pedido(str(self._cuerpo().get("tipo") or ""))})
             elif u.path == "/api/musica_antigravity":  # la música con Gemini: la escribe (si falta) y la genera en Flow Music

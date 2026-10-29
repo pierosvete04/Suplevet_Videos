@@ -1,3 +1,9 @@
+Versión 1.57.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Cada pedido a Gemini tiene sus botones al lado:** debajo de «✦ Completar el guion», «🪐 Imágenes con Antigravity» y «🎵 Música con Antigravity», mientras hay un pedido en curso, salen «📋 Ver pasos y mensaje» y «✕ Cancelar». Cancelar borra el pedido de Descargas y la sala deja de esperarlo (si ya lo pegaste en Antigravity, detén esa conversación allá). Ya no hay una lista aparte de «Pedido de… a Gemini».
+- **«Completar el guion» pregunta antes:** dice cuántas fotos, clips y ánimos va a agregar, con los números que tienes puestos. Y esos números se recuerdan por sesión: al actualizar la sala ya no vuelven al recomendado (así se pidieron 115 fotos de más en P05).
+- **Los botones de Antigravity y Faltantes responden más rápido:** la sala buscaba cada imagen recorriendo toda la carpeta Flow (con 414 fotos, unos 40 s); ahora la lee una vez (4 s, y 1 s las siguientes).
+- Arreglado el aviso final de FALTAN.txt («ya tiene toda la música»).
+
 Versión 1.57.0 (se actualiza desde la app con «Actualizar ahora»):
 - **«✦ Completar el guion» (con Antigravity):** reemplaza a «Agregar los prompts». En un solo pedido, Gemini le pone al guion todo lo que le falta: las imágenes y clips de Flow, el **estado de ánimo** de cada hook, cuerpo y CTA, y el **golpe de silencio** de cada cuerpo. Va en hojas y en paralelo: con P05 (188 piezas), 3 minutos y medio.
 - **La música sigue el ánimo:** hay cinco ánimos (tensión, revelación, solución, triunfo y urgencia) y una pista por ánimo, todas con adrenalina. Como cada video junta un hook, un cuerpo y un CTA distintos, la música cambia (con fundido) solo donde cambia el ánimo: por ejemplo, un hook de tensión, un cuerpo de solución y un CTA de urgencia. Si una pieza ya tiene su pista generada, se respeta. La sala escribe sola los prompts de cada pista; «🎵 Música con Antigravity» solo las genera, y son menos pistas que una por cuerpo.
