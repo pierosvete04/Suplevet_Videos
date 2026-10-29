@@ -1,3 +1,6 @@
+Versión 1.56.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Flow genera en vez de preguntar:** cada tanda que Gemini pega en el asistente de Flow empieza con la orden «Generate these 10 images now… Do not ask anything». Antes le pegaba solo la lista y Flow respondía «¿Cómo quieres trabajar con esto?» sin generar nada. Si igual pregunta, Gemini sabe responderle «Generate all of them now» y esperar a que arranque, sin elegir opciones del menú.
+
 Versión 1.56.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Imágenes de Flow por tandas:** «🪐 Imágenes con Antigravity» ya no le pide a Gemini pegar todos los prompts de golpe (con cientos, Flow se traba y no se sabe cuál imagen es cuál). Ahora pega de 10 en 10 (los clips de 5 en 5): genera una tanda, la baja a Descargas con su nombre y recién ahí sigue con la siguiente. Lo que baja entra a los videos mientras Gemini sigue con la otra tanda.
 

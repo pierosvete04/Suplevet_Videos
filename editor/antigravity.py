@@ -278,6 +278,19 @@ def _tandas_flow(orden):
     return [(f"TANDA_{k:02d}", g) for k, g in enumerate(out, 1)]
 
 
+def _orden_flow(grupo):
+    """La primera línea de cada tanda: la orden para el asistente de Flow. Sin ella, al pegarle solo la lista, Flow
+    responde «¿cómo quieres trabajar con esto?» y no genera nada (pasó con P05 el 2026-10-28)."""
+    n = len(grupo)
+    if grupo[0]["tipo"] == "clip":
+        return (f"Generate these {n} videos now: one video per line, vertical 9:16, 4 to 6 seconds each. Do not ask anything "
+                "and do not suggest options: start generating right away. Each line starts with its code (like C1_CLIP1): "
+                "use that code as the name of its video.")
+    return (f"Generate these {n} images now: one image per line, vertical 9:16, exactly 1 image per line. Do not ask anything "
+            "and do not suggest options: start generating right away. Each line starts with its code (like C1_IMG2): "
+            "use that code as the name of its image.")
+
+
 def instrucciones(sesion, carpeta, items, tandas=None):
     imgs = [x for x in items if x["tipo"] == "imagen"]
     clips = [x for x in items if x["tipo"] == "clip"]
@@ -303,8 +316,12 @@ Archivos de esta carpeta ({carpeta}):
 3. En los ajustes del generador (ícono de deslizadores) elige **9:16** y **x1** (una imagen por prompt). Guarda.
 4. En la configuración del agente de Flow deja «Confirmar antes de generar» en **Nunca**.
 5. **Por tandas, nunca todo junto** ({len(t_img)} tandas de imágenes: {t_img[0] if t_img else ""} … {t_img[-1] if t_img else ""}). Para cada tanda, en orden:
-   a. Pega las líneas de `TANDA_XX.txt` juntas en un solo mensaje (cada una con su código, por ejemplo `C1_IMG2: …`) y envíalo.
-   b. Espera a que terminen de generarse esas imágenes.
+   a. Pega `TANDA_XX.txt` COMPLETO en un solo mensaje al asistente de Flow y envíalo. Su primera línea es la orden
+      («Generate these 10 images now…»): nunca la quites. Debajo van los prompts, cada uno con su código (`C1_IMG2: …`).
+   b. Comprueba que Flow empezó a generar (aparecen tarjetas cargando). Si el asistente responde con preguntas, un menú de
+      opciones («How would you like to work with these?») o «I can help you…», NO elijas opciones: respóndele
+      «Generate all of them now, one image per line, 9:16, 1 image each.» y espera a que arranque.
+      Espera a que terminen de generarse esas imágenes.
    c. Bájalas a Descargas como `CODIGO.jpg` corriendo `bajar_tanda_XX.js` en la pestaña de Flow (si a alguna le falta,
       bájala a mano con ese nombre; la galería no muestra el código: usa el orden en que se pegaron).
    d. Recién ahí sigue con la tanda siguiente. La sala pone sola en los videos lo que va llegando a Descargas.
@@ -385,7 +402,8 @@ def armar(todas=False, abrir=False):
         f.unlink()
     tandas = _tandas_flow(orden)
     for nombre, grupo in tandas:
-        (carpeta / f"{nombre}.txt").write_text("\n".join(f"{x['codigo']}: {x['prompt']}" for x in grupo) + "\n", encoding="utf-8")
+        (carpeta / f"{nombre}.txt").write_text(_orden_flow(grupo) + "\n" + "\n".join(f"{x['codigo']}: {x['prompt']}" for x in grupo) + "\n",
+                                               encoding="utf-8")
         if grupo[0]["tipo"] == "imagen":
             (carpeta / f"bajar_{nombre.lower()}.js").write_text(BAJAR.replace("__NOMBRES__", json.dumps([x["codigo"] for x in grupo])),
                                                                 encoding="utf-8")
@@ -398,8 +416,9 @@ def armar(todas=False, abrir=False):
     # la sala abre Antigravity y deja el mensaje copiado SIN «/browser»: la persona elige «browser» y lo pega detrás.
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo con el navegador. En Google Flow (https://labs.google/flow) "
                f"abre o crea el proyecto {sesion}, en la configuración del agente deja «Confirmar antes de generar» en Nunca, "
-               f"imágenes 9:16 y x1. Pega los prompts POR TANDAS, nunca todos juntos: los {TANDA_IMG} de TANDA_01.txt en un solo "
-               "mensaje (cada línea con su código delante, por ejemplo «C1_IMG2: …»), espera a que se generen esas, bájalas a "
+               f"imágenes 9:16 y x1. Pega los prompts POR TANDAS, nunca todos juntos: TANDA_01.txt completo en un solo "
+               "mensaje (su primera línea es la orden «Generate these 10 images now…», no la quites; si Flow responde con "
+               "preguntas u opciones en vez de generar, contéstale «Generate all of them now»), espera a que se generen, bájalas a "
                "Descargas con su nombre (C1_IMG2.jpg…) corriendo bajar_tanda_01.js, y recién ahí sigue con TANDA_02.txt, y así. "
                f"Son {len(nombres)} imágenes en {sum(1 for _, g in tandas if g[0]['tipo'] == 'imagen')} tandas"
                + (f" y {len(orden) - len(nombres)} clips (con el generador en Video, de {TANDA_CLIP} en {TANDA_CLIP}, se bajan como .mp4)"
