@@ -539,8 +539,23 @@ def run(cmd, cwd=None):
     return subprocess.CompletedProcess(cmd, p.returncode, out, err)
 
 
+_DURACIONES = {}
+
+
 def duracion(p):
-    return float(run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout.strip())
+    """Duración de un archivo (ffprobe), recordada mientras el archivo no cambie: el armado preguntaba lo mismo
+    decenas de veces por video."""
+    try:
+        st = os.stat(p)
+        clave = (str(p), st.st_size, st.st_mtime_ns)
+    except OSError:
+        clave = None
+    if clave and clave in _DURACIONES:
+        return _DURACIONES[clave]
+    d = float(run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout.strip())
+    if clave:
+        _DURACIONES[clave] = d
+    return d
 
 
 def norm(w):
@@ -2746,14 +2761,17 @@ def parte_grave(f):
     f = Path(f)
     cache = DATOS / "ondas" / "graves.json"
     try:
-        tabla = json.loads(cache.read_text(encoding="utf-8"))
-    except (FileNotFoundError, ValueError):
-        tabla = {}
-    try:
         firma = f"{f}|{f.stat().st_size}|{int(f.stat().st_mtime)}"
     except OSError:
         return 0.0
+    if firma in _GRAVES_MEM:
+        return _GRAVES_MEM[firma]
+    try:
+        tabla = json.loads(cache.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        tabla = {}
     if firma in tabla:
+        _GRAVES_MEM[firma] = tabla[firma]
         return tabla[firma]
     pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", "22050",
                           "-t", "4", "-f", "s16le", "-"], capture_output=True).stdout
@@ -2766,7 +2784,14 @@ def parte_grave(f):
     tabla[firma] = valor
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(tabla), encoding="utf-8")
+    _GRAVES_MEM[firma] = valor
     return valor
+
+
+# en memoria: al armar, cada video volvía a leer del disco las mismas ondas y la tabla de graves cientos de veces
+# (975 lecturas por video en P05, ~5 s). Se rehacen solas si el archivo cambia (la firma lleva tamaño y fecha).
+_ONDAS_MEM = {}
+_GRAVES_MEM = {}
 
 
 def onda_archivo(f, por_seg=50):
@@ -2776,11 +2801,14 @@ def onda_archivo(f, por_seg=50):
     if not f.is_file():
         return {"por_seg": por_seg, "picos": [], "dur": 0}
     firma = f"{f.stat().st_size}-{int(f.stat().st_mtime)}-{por_seg}"
+    if (d := _ONDAS_MEM.get((str(f), firma))) is not None:  # ya leída en esta sesión de la sala
+        return d
     cache = DATOS / "ondas" / (hashlib.md5(str(f).encode("utf-8")).hexdigest() + ".json")
     if cache.exists():
         try:
             d = json.loads(cache.read_text(encoding="utf-8"))
             if d.get("firma") == firma:
+                _ONDAS_MEM[(str(f), firma)] = d
                 return d
         except ValueError:
             pass
@@ -2796,6 +2824,7 @@ def onda_archivo(f, por_seg=50):
     d = {"firma": firma, "por_seg": por_seg, "dur": round(len(x) / sr, 3), "picos": [round(float(v), 3) for v in picos]}
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(d), encoding="utf-8")
+    _ONDAS_MEM[(str(f), firma)] = d
     return d
 
 
@@ -6765,11 +6794,13 @@ def filtro_broll(i, ov):
     if ov["es_imagen"]:
         mov = ov.get("mov", "zoom_in")
         # zoom lento (10 % en toda la duración). Se agranda 3 veces antes del zoompan para que el movimiento
-        # sea suave (zoompan mueve de a pixel entero: en tamaño normal la imagen tiembla)
+        # sea suave (zoompan mueve de a pixel entero: en tamaño normal la imagen tiembla). La foto entra como UN
+        # cuadro (sin -loop) y zoompan saca de él los n cuadros (d=n): así se agranda una sola vez y no en cada
+        # cuadro (con -loop eran 45 agrandadas a 3240×5760 por foto). La imagen sale idéntica.
         z = {"zoom_in": f"1+0.10*on/{n}", "zoom_out": f"1.10-0.10*on/{n}"}.get(mov, "1")
         cadena = (f"[{i}:v]scale={W * 3}:{H * 3}:force_original_aspect_ratio=increase,"
                   f"crop={W * 3}:{H * 3},zoompan=z='{z}':x='trunc(iw/2-(iw/zoom/2))':y='trunc(ih/2-(ih/zoom/2))'"
-                  f":d=1:s={W}x{H}:fps=30,setsar=1")
+                  f":d={n}:s={W}x{H}:fps=30,setsar=1")
     else:
         cadena = f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1"
     if modo != "completa":
@@ -7113,7 +7144,7 @@ def armar_uno(combo, n_musica=None, extras=None):
         v_prev = "vcol"
     for ov in overlays:
         if ov["es_imagen"]:
-            cmd += ["-loop", "1", "-framerate", "30", "-t", f"{ov['dur']:.2f}", "-i", str(ov["archivo"])]
+            cmd += ["-i", str(ov["archivo"])]  # un solo cuadro: filtro_broll lo alarga con zoompan (d=cuadros)
         else:
             cmd += ["-t", f"{ov['dur']:.2f}", "-i", str(ov["archivo"])]
         cadena, x, y = filtro_broll(idx, ov)

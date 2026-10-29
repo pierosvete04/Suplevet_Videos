@@ -1,3 +1,6 @@
+Versión 1.57.4 (se actualiza desde la app con «Actualizar ahora»):
+- **«Armar todos los videos» un 25 % más rápido, con el video idéntico:** cada video de P05 pasó de unos 62 a 46 segundos. Las fotos de Flow se agrandaban (al triple, para que el acercamiento sea suave) en cada uno de sus 45 cuadros; ahora se agrandan una sola vez. Y las medidas de los sonidos y las duraciones se recuerdan en vez de leerse del disco cientos de veces por video. Comprobado con un video de P05: los 1438 cuadros y el audio salen iguales al armado anterior.
+
 Versión 1.57.3 (se actualiza desde la app con «Actualizar ahora»):
 - **«Analizar clips» más rápido: la sala ya no escucha dos veces.** Al escuchar cada clip ahora guarda sus palabras con sus tiempos, y al preparar la pieza arma los subtítulos con eso en vez de volver a transcribirla (de 11 a 60 segundos por pieza a menos de 1 segundo). Probado con piezas de P05: el mismo texto y cada palabra en el mismo lugar (diferencia típica de 0,01 a 0,06 s); en los cuerpos de varias partes sale incluso más fiel (una toma repetida dentro del clip ya no se pierde, así la sala puede cortarla). Se nota desde la próxima sesión que se analice: los clips de P05 se escucharon antes de este cambio.
 
