@@ -897,8 +897,10 @@ Trabaja solo con los archivos de esta carpeta ({carpeta}). Empieza una conversac
    la sala la recorta). Quédate con una que no tenga voces.
 4. Bájala: menú «⋯» (More options) de esa canción → Download → **MP3**. Ojo: el menú se abre pegado a la fila de abajo;
    revisa el nombre de la canción antes de elegir.
-5. En Descargas, cámbiale el nombre al archivo por el id de la pista: `MUS_A.mp3`, `MUS_B.mp3`… (con la terminal si hace falta).
-   La sala lo toma sola de Descargas y lo pasa a la carpeta del proyecto en segundos: por eso después ya no está ahí.
+5. **Apenas se baje, ANTES de pedir la pista siguiente**, cámbiale el nombre en Descargas por el id de la pista: `MUS_A.mp3`,
+   `MUS_B.mp3`… (con la terminal si hace falta). Flow Music la baja con su propio título («Tense Shadow Drive.mp3») y con
+   ese nombre la sala no sabe qué pista es: no dejes los nombres para el final. Ya renombrada, la sala la toma sola y la
+   pasa a la carpeta del proyecto en segundos: por eso después ya no está en Descargas.
 6. **Para saber qué falta, NO mires Descargas:** lee `FALTAN.txt` en esta carpeta (la sala lo actualiza cada 20 segundos)
    y haz solo esas pistas. Cuando diga «No falta nada», terminaste. No vuelvas a bajar una pista que no esté en la lista.
 
@@ -913,7 +915,8 @@ Al terminar (cuando `FALTAN.txt` diga «No falta nada»), responde en 2 líneas:
                + (": primero agrega la música editando el produccion.json de esa carpeta y después genera cada pista"
                   if escribir else f": genera las pistas {n}")
                + " en Google Flow Music (botón «Flow Music» en https://labs.google/flow), instrumental, y baja cada una "
-               "a Descargas como MP3 con el nombre de su id (MUS_A.mp3…). La sala se lleva cada MP3 de Descargas apenas llega: "
+               "a Descargas como MP3 y, apenas se baje y antes de pedir la siguiente, renómbrala con su id (MUS_A.mp3…). "
+               "La sala se lleva cada MP3 de Descargas apenas tiene su nombre: "
                "para saber qué falta lee FALTAN.txt de esa carpeta, no Descargas. Al final responde en 2 líneas qué pistas bajaste "
                "y cuáles fallaron.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala

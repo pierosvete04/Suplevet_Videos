@@ -1,3 +1,6 @@
+Versión 1.57.2 (se actualiza desde la app con «Actualizar ahora»):
+- **La música entra a la sesión pista por pista:** Flow Music baja cada canción con su propio título («Tense Shadow Drive.mp3») y Gemini las renombraba recién al final, así que la sala no podía tomar ninguna hasta que terminaba todo. Ahora el pedido le dice que renombre cada pista (MUS_TENSION.mp3…) apenas se baja, antes de pedir la siguiente.
+
 Versión 1.57.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Cada pedido a Gemini tiene sus botones al lado:** debajo de «✦ Completar el guion», «🪐 Imágenes con Antigravity» y «🎵 Música con Antigravity», mientras hay un pedido en curso, salen «📋 Ver pasos y mensaje» y «✕ Cancelar». Cancelar borra el pedido de Descargas y la sala deja de esperarlo (si ya lo pegaste en Antigravity, detén esa conversación allá). Ya no hay una lista aparte de «Pedido de… a Gemini».
 - **«Completar el guion» pregunta antes:** dice cuántas fotos, clips y ánimos va a agregar, con los números que tienes puestos. Y esos números se recuerdan por sesión: al actualizar la sala ya no vuelven al recomendado (así se pidieron 115 fotos de más en P05).
