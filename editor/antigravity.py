@@ -364,10 +364,10 @@ def armar(todas=False, abrir=False):
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
     # Probado el 2026-10-27: lo que funciona es el navegador de Antigravity, que solo se activa cuando una persona
-    # escribe «/browser» en el chat (un mensaje mandado desde afuera no lo activa y Gemini se pone a escribir
-    # programas para manejar Chrome, lento). Por eso la sala abre Antigravity y deja el mensaje copiado con
-    # «/browser» delante, para pegarlo y enviarlo.
-    mensaje = (f"/browser Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo con el navegador. En Google Flow (https://labs.google/flow) "
+    # elige «browser» en la lista que sale al escribir «/» (un mensaje mandado desde afuera no lo activa, ni
+    # «/browser» escrito o pegado como texto: Gemini se pone a escribir programas para manejar Chrome, lento). Por eso
+    # la sala abre Antigravity y deja el mensaje copiado SIN «/browser»: la persona elige «browser» y lo pega detrás.
+    mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo con el navegador. En Google Flow (https://labs.google/flow) "
                f"abre o crea el proyecto {sesion}, en la configuración del agente deja «Confirmar antes de generar» en Nunca, "
                "imágenes 9:16 y x1, y pega TODOS los prompts de "
                f"{carpeta / 'prompts.txt'} juntos en un solo mensaje (cada línea con su código delante, por ejemplo «C1_IMG1: …»). "
@@ -726,8 +726,8 @@ Al terminar, responde en 2 líneas: qué pistas bajaste y cuáles fallaron.
 """
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")
-    # Igual que con las imágenes: el navegador de Antigravity solo se activa si una persona escribe «/browser».
-    mensaje = (f"/browser Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual"
+    # Igual que con las imágenes: el navegador solo se activa si una persona elige «browser» en la lista del «/».
+    mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual"
                + (": primero agrega la música editando el produccion.json de esa carpeta y después genera cada pista"
                   if escribir else f": genera las pistas {n}")
                + " en Google Flow Music (botón «Flow Music» en https://labs.google/flow), instrumental, y baja cada una "

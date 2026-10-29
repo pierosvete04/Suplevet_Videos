@@ -1,3 +1,6 @@
+Versión 1.55.9 (se actualiza desde la app con «Actualizar ahora»):
+- **«🪐 Imágenes con Antigravity» y «🎵 Música con Antigravity» con los pasos correctos:** el navegador de Gemini solo se activa si en el chat escribes «/» y **eliges «browser»** en la lista (escribirlo o pegarlo como texto no sirve). Ahora la ventana lo dice así: primero eliges «browser», después pegas el mensaje detrás y Enter. El mensaje ya no trae «/browser» adelante. También avisa que hay que aceptar la «depuración remota».
+
 Versión 1.55.8 (se actualiza desde la app con «Actualizar ahora»):
 - **«✦ Agregar los prompts» con Antigravity mucho más rápido:** Gemini ya no edita el guion entero (se iba más de 10 minutos explorándolo sin escribir nada). La sala le da hojas cortas (3 cuerpos con sus hooks) con el texto de cada pieza y los códigos que faltan, y Gemini Flash solo escribe una línea por imagen. **Cada hoja va en su propia conversación y todas trabajan a la vez**, con un nombre claro en Antigravity («Prompts P05 · hoja 1 de 8») en vez de «Sala de edición». Cada hoja que termina entra sola a la sesión y la sala avisa cuántos faltan.
 - **Ese botón es solo para imágenes y clips de Flow:** lo dice debajo del botón y en el pedido a Gemini. La música va aparte, con «🎵 Música con Antigravity».

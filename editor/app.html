@@ -3487,7 +3487,7 @@ function pintarTarjetaIA(c) {
   $("clResumen").textContent = E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "sube el guion en la pestaña Guion";
   $("clConfig").hidden = false;
   $("clConfig").innerHTML = `<p style="margin:0 0 8px" class="muted">Déjalo abierto mientras usas la sala. Los botones de imágenes y música (aquí en Inicio y en Faltantes) le pasan el trabajo a Gemini:
-      la sala abre Antigravity y deja copiado el mensaje (empieza con <b>/browser</b>); lo pegas, y lo que Gemini baja a Descargas entra solo a la sesión.
+      la sala abre Antigravity y deja copiado el mensaje; en el chat escribes <b>/</b>, eliges <b>«browser»</b> en la lista y pegas el mensaje detrás. Lo que Gemini baja a Descargas entra solo a la sesión.
       Escribir guiones con IA es con Claude: aquí se sube el guion ya escrito.</p>
     <div class="fila"><button class="btn" data-ir="guion">Ver el guion</button><button class="btn sec" data-ir="faltan">Ir a Faltantes</button></div>`;
   $("clYaHay").hidden = true; $("clListo").hidden = true;
@@ -11024,8 +11024,9 @@ function pasosAg(tipo, r) {
     : `Gemini abre Google Flow, pega todos los prompts juntos, espera a que se generen y baja cada imagen con su nombre (<code>C1_IMG1.jpg</code>…).`;
   return [abrir,
     `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>.`,
-    `Toca <b>«📋 Copiar mensaje»</b> aquí abajo y pégalo en el chat de Antigravity con <b>Ctrl+V</b>. El mensaje empieza con <b>/browser</b>: eso le da a Gemini el navegador.`,
-    `Envíalo con <b>Enter</b>. Si Gemini no abre el navegador: borra lo pegado, escribe <b>/browser</b>, elige «browser» en la lista que aparece, pega el mensaje detrás y envíalo.`,
+    `En el chat escribe <b>/</b> y <b>elige «browser»</b> en la lista que aparece (haz clic en él). Escribirlo o pegarlo como texto no sirve: hay que elegirlo, así Gemini tiene el navegador.`,
+    `Después toca <b>«📋 Copiar mensaje»</b> aquí abajo, pégalo detrás de «browser» con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
+    `Si Antigravity pide <b>permitir la depuración remota</b>, acéptalo: así Gemini maneja el navegador.`,
     `${que} No cierres Antigravity ni la ventana del navegador que abre.`,
     `Si Google pide iniciar sesión, aceptar términos o resolver un captcha, hazlo tú en esa ventana y escríbele a Gemini «listo, sigue».`,
     `En la sala no tienes que hacer nada: lo que Gemini baja a Descargas entra solo y la sala avisa <b>«Llegó de Descargas…»</b>. Si algo no llega, en Faltantes toca <b>«Buscar en Descargas»</b>.`,
@@ -11041,7 +11042,11 @@ async function mostrarPedidoAg(tipo, r, copiarYa = true) {
   $("dlgAgMsg").value = r.mensaje || "";
   $("dlgAgAbrir").hidden = false;  // también si la sala ya lo mandó: es el plan B cuando Antigravity no lo recibió
   if (!$("dlgAg").open) $("dlgAg").showModal();
-  if (copiarYa && !r.enviado) { const ok = await copiar(r.mensaje); if (ok) avisar("El mensaje para Gemini ya está copiado: pégalo en Antigravity (Ctrl+V).", "ok"); }
+  if (copiarYa && !r.enviado) {
+    const ok = await copiar(r.mensaje);
+    if (ok) avisar(tipo === "prompts" ? "El mensaje para Gemini ya está copiado: pégalo en Antigravity (Ctrl+V)."
+      : "Mensaje copiado. En Antigravity escribe / y elige «browser»; después pega el mensaje (Ctrl+V) y Enter.", "ok");
+  }
   pintarPedidosAg();
 }
 $("dlgAgCerrar").onclick = () => $("dlgAg").close();
