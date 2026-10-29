@@ -158,7 +158,7 @@
   },
   "musica": {
     "volumen": 1.0,
-    "objetivo_lufs": -23,
+    "objetivo_lufs": -31,
     "rotar_pistas": true
   },
   "portada": {

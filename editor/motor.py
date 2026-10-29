@@ -1412,7 +1412,8 @@ CORRECCIONES_MARCA = {
     # calostro: Suplevet lleva calostro BOVINO; la voz se oye «ovino», «vino», «de vino», «o vino»
     "calostro ovino": "calostro bovino", "calostro vino": "calostro bovino", "calostro bobino": "calostro bovino",
     "calostro de vino": "calostro bovino", "calostro o vino": "calostro bovino", "calostro y vino": "calostro bovino",
-    "calostro de bovino": "calostro bovino", "calostros ovino": "calostro bovino",
+    "calostro de bovino": "calostro bovino", "calostros ovino": "calostro bovino", "calostro oino": "calostro bovino",
+    "calostro boino": "calostro bovino", "calostro novino": "calostro bovino",
     # lactoferrina
     "lactoferrino": "lactoferrina", "lactoferina": "lactoferrina", "lacto ferrina": "lactoferrina", "lactoferin": "lactoferrina",
     "lactoferrin": "lactoferrina", "lactofermina": "lactoferrina", "lactoferrinas": "lactoferrina",
@@ -1592,15 +1593,25 @@ def corregir_subtitulo(nombre):
     firma = firma_correcciones()
     if d.get("correcciones") == firma or not d.get("automatico", True):
         return False
-    cambio = False
-    for ln in d.get("lineas", []):
-        pal = ln.get("palabras") or []
-        nuevas = corregir_palabras(pal)
-        if [w["w"] for w in nuevas] != [w["w"] for w in pal]:
-            cambio = True
-            ln["palabras"] = nuevas
+    # toda la pieza junta: una corrección puede cruzar de una línea a la siguiente («proteína de» | «suelo de
+    # Suplevet»); antes se revisaba línea por línea y esas quedaban sin corregir
+    lineas = d.get("lineas", [])
+    todas = [w for ln in lineas for w in (ln.get("palabras") or [])]
+    nuevas = corregir_palabras(todas)
+    cambio = [w["w"] for w in nuevas] != [w["w"] for w in todas]
+    if cambio:
+        inicios = [float((ln.get("palabras") or [{"s": ln.get("s", 0)}])[0]["s"]) for ln in lineas]
+        por_linea = [[] for _ in lineas]
+        for w in nuevas:  # cada palabra vuelve a la línea donde empieza
+            k = max([i for i, s0 in enumerate(inicios) if s0 <= float(w["s"]) + 1e-6] or [0])
+            por_linea[k].append(w)
+        for ln, nuevas_ln in zip(lineas, por_linea):
+            pal = ln.get("palabras") or []
+            if [w["w"] for w in nuevas_ln] == [w["w"] for w in pal]:
+                continue
             if ln.get("texto", "") == " ".join(w["w"] for w in pal):  # el texto no se tocó a mano: se rehace con lo corregido
-                ln["texto"] = " ".join(w["w"] for w in nuevas)
+                ln["texto"] = " ".join(w["w"] for w in nuevas_ln)
+            ln["palabras"] = nuevas_ln
     d["correcciones"] = firma
     f.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
     return cambio
@@ -1638,6 +1649,37 @@ def _con_gop(firma):
 # Desde la 2: cada parte guarda el audio sin comprimir (PCM) y al unir se comprime una sola vez, siguiendo la hora de
 # cada parte (aresample async): la voz queda pegada a la imagen. Las piezas unidas antes se rehacen solas.
 UNION_PARTES = 2
+# Volumen de la voz en dos pasadas: primero se mide el clip entero y después se le aplica un solo nivel parejo
+# (loudnorm «linear»), en vez de ir adivinando mientras avanza. Y al armar, antes, un compresor suave empareja lo que
+# viene de la grabación: al empezar cada clip se habla más fuerte (en P05, de 3 a 8 dB más el primer segundo); con el
+# compresor la diferencia baja a la mitad o menos.
+NORMA = 2
+NIVELAR_VOZ = "acompressor=threshold=-24dB:ratio=3:attack=15:release=250:makeup=2"
+_LOUD = "I=-16:TP=-1.5:LRA=11"
+
+
+def filtro_volumen_parejo(entrada, filtros_antes="", ss=None, to=None):
+    """«loudnorm=…:linear=true» con lo medido del audio (una pasada que solo lee el sonido). Si no se puede medir,
+    el loudnorm de siempre."""
+    cmd = [FFMPEG, "-hide_banner", "-nostats"]
+    if ss is not None:
+        cmd += ["-ss", f"{ss:.2f}"]
+    if to is not None:
+        cmd += ["-to", f"{to:.2f}"]
+    cmd += ["-i", str(entrada), "-vn", "-af", (f"{filtros_antes}," if filtros_antes else "") + f"loudnorm={_LOUD}:print_format=json",
+            "-f", "null", "-"]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+        m = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])
+        if float(m["input_i"]) < -60:  # casi silencio: no se mide bien
+            raise ValueError
+        return (f"loudnorm={_LOUD}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
+                f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
+    except (ValueError, KeyError, subprocess.SubprocessError, OSError):
+        return f"loudnorm={_LOUD}"
+
+
+
 
 
 def procesar(forzar_subs=False, avance=print):
@@ -1670,7 +1712,7 @@ def procesar(forzar_subs=False, avance=print):
                 t = dest if sola else S.proc / f"_{p['nombre']}_{k}.mov"  # en partes: audio sin comprimir hasta unir
                 run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
                      "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1",
-                     "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2", "-dn", "-map_chapters", "-1",
+                     "-af", f"{filtro_volumen_parejo(parte, ss=ini, to=fin)},aresample=48000", "-ac", "2", "-dn", "-map_chapters", "-1",
                      "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", *GOP_EDITOR,
                      *(["-c:a", "aac", "-b:a", "192k"] if sola else ["-c:a", "pcm_s16le"]), str(t)])
                 trozos.append(t)
@@ -1683,7 +1725,7 @@ def procesar(forzar_subs=False, avance=print):
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
             firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "cortes": cortes, "formato": formato(),
-                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES}, ensure_ascii=False), encoding="utf-8")
+                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES, "norma": NORMA}, ensure_ascii=False), encoding="utf-8")
             if vieja is not None and (not mismas or desfasada):  # con la voz en su lugar, los tiempos cambian
                 # otra toma: el subtítulo se rehace con lo que se dice ahora, pero las marcas (imágenes, sonidos,
                 # resaltados) se quedan porque van por palabra; el subtítulo viejo se guarda por si se quiere volver
@@ -2739,12 +2781,12 @@ def ganancia_normalizada(f):
 
 
 def ganancia_musica(f, desde=0.0, largo=30.0):
-    """Volumen de una pista de música: todas quedan al mismo nivel (config musica.objetivo_lufs; con la voz a -16 y lo
-    que baja al hablar, queda unos 12 dB debajo de la voz), por más que una venga más fuerte que otra. Se mide solo el
+    """Volumen de una pista de música: todas quedan al mismo nivel (config musica.objetivo_lufs, -31: con la voz a -16
+    queda 15 dB debajo, y al hablar baja un poco más: unos 20 dB, de fondo), por más que una venga más fuerte que otra. Se mide solo el
     pedazo que suena en el video (muchas pistas empiezan suave). musica.volumen sube o baja eso (1 = tal cual)."""
     mu = CONFIG["musica"]
     try:
-        db = float(mu.get("objetivo_lufs", -23)) - sonoridad_tramo(f, desde, largo)
+        db = float(mu.get("objetivo_lufs", -31)) - sonoridad_tramo(f, desde, largo)
     except Exception:  # noqa: BLE001 — si no se puede medir, el nivel de antes
         return 0.3
     return 10 ** (max(-30.0, min(15.0, db)) / 20) * float(mu.get("volumen", 1.0))
@@ -7287,10 +7329,11 @@ def _mezclar_audio(base, salida, tramos, silencios, eventos, total, extras=None,
         i_mus.append(idx)
         idx += 1
     f = []
-    voz_in = "[0:a]"
-    if limpieza:
-        f.append(f"[0:a]{limpieza},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[vlimpia]")
-        voz_in = "[vlimpia]"
+    # la voz: limpieza (si hay), el compresor que empareja lo fuerte y lo suave, y un solo nivel parejo medido en
+    # todo el video (dos pasadas)
+    previos = ",".join(x for x in (limpieza, NIVELAR_VOZ) if x)
+    f.append(f"[0:a]{previos},{filtro_volumen_parejo(base, previos)},aresample=48000[vlimpia]")
+    voz_in = "[vlimpia]"
     salidas_voz = ["[voz]"] + (["[sc]"] if tramos else []) + (["[vozx]"] if extras else [])
     f.append(f"{voz_in}asplit={len(salidas_voz)}{''.join(salidas_voz)}" if len(salidas_voz) > 1 else f"{voz_in}anull[voz]")
     mezcla = ["[voz]"]
@@ -7443,7 +7486,7 @@ def piezas_en_otro_formato(nombres=None):
 # guion de ellas (texto, marcas, ánimo, música), sus recortes y ajustes, las fotos, clips y pistas que usa, la plantilla,
 # el estilo de su edición y los sonidos. «Armar todos los videos» salta los que tienen la huella igual: cambiar una foto
 # o una pista ya no rehace los 232 videos, solo los que la usan. Si cambia cómo se arma, se sube ARMADO.
-ARMADO = 1
+ARMADO = 2  # 2: voz nivelada (compresor + dos pasadas) y música unos 20 dB debajo de la voz
 _HUELLA_SFX = {"t": 0, "v": None}
 
 
@@ -7522,6 +7565,8 @@ def armar(pieza=None, avance=print, codigos=None, solo_cambios=False):
     hechos = []
     todos = [c for c in combinaciones() if (not pieza or pieza in (c["hook"], c["cuerpo"], c["cta"]))
              and (codigos is None or c["codigo"] in codigos)]
+    for n in sorted({x for c in todos for x in (c["hook"], c["cuerpo"], c["cta"])}):
+        corregir_subtitulo(n)  # rápido: solo si cambió la tabla de correcciones; no toca lo corregido a mano
     if solo_cambios:
         avance("Revisando qué videos cambiaron")
         antes = len(todos)

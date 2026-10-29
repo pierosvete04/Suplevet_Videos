@@ -1,3 +1,12 @@
+Versión 1.57.7 (se actualiza desde la app con «Actualizar ahora»):
+- **La vista del editor muestra los subtítulos igual que el video:** dibujaba siempre la segunda línea con otra letra (Anton, más grande) aunque la plantilla la tuviera apagada; el video armado no. Si quieres ese estilo de dos letras, enciéndelo en Plantillas: «La frase va en dos líneas, la de abajo con otra fuente» → «Sí, dos líneas».
+- **Música de fondo:** unos 20 dB debajo de la voz (antes unos 12): se oye, pero no compite con lo que dices.
+- **Voz pareja:** al armar, un compresor suave empareja la voz (al empezar cada clip se habla más fuerte: en P05, de 3 a 8 dB más el primer segundo; ahora la mitad o menos) y el volumen se mide en todo el video antes de igualarlo (dos pasadas).
+- **Las imágenes entran y salen con fundido también en la vista del editor** (0,3 s, como en el video armado).
+- **Piezas y subtítulos → Línea de tiempo:** los clips del cuerpo vuelven a verse todos en su lugar (se apilaban en escalera y solo se veía el primero).
+- **Correcciones de palabras que cruzan de una línea a otra** («proteína de» | «suelo» → «proteína de suero»), también «calostro oino» → «calostro bovino», y ahora se aplican también al armar (antes solo al preparar).
+- Como cambió el sonido, «Armar todos los videos» rehace todos los videos una vez.
+
 Versión 1.57.6 (se actualiza desde la app con «Actualizar ahora»):
 - **Las piezas preparadas viajan por Drive:** «⬆ Subir a Drive» (y «Terminar sesión») también sube las piezas ya preparadas de la sesión (en P05, 3,6 GB; la primera vez tarda, después solo sube lo que cambió). En la PC del editor, «⬇ Bajar de Drive» las trae, así «Armar todos los videos» va directo a armar sin preparar nada. La sala reconoce que son las mismas piezas aunque en la otra PC las carpetas se llamen distinto.
 
