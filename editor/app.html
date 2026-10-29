@@ -11021,7 +11021,7 @@ function pasosAg(tipo, r) {
   const que = tipo === "musica"
     ? (r.escribir ? `Gemini primero escribe la música del guion (sin navegador) y después abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`
       : `Gemini abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`) + ` Cada pista tarda uno o dos minutos.`
-    : `Gemini abre Google Flow, pega todos los prompts juntos, espera a que se generen y baja cada imagen con su nombre (<code>C1_IMG1.jpg</code>…).`;
+    : `Gemini abre Google Flow y pega los prompts <b>de 10 en 10</b> (los clips de 5 en 5): genera una tanda, la baja con su nombre (<code>C1_IMG2.jpg</code>…) y recién ahí sigue con la siguiente. Lo que baja entra a los videos mientras sigue con la otra.`;
   return [abrir,
     `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>.`,
     `En el chat escribe <b>/</b> y <b>elige «browser»</b> en la lista que aparece (haz clic en él). Escribirlo o pegarlo como texto no sirve: hay que elegirlo, así Gemini tiene el navegador.`,

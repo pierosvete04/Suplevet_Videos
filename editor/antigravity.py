@@ -266,9 +266,24 @@ def pendientes(todas=False):
     return out
 
 
-def instrucciones(sesion, carpeta, items):
+TANDA_IMG, TANDA_CLIP = 10, 5  # prompts por mensaje a Flow: imágenes y clips en movimiento (los clips tardan más)
+
+
+def _tandas_flow(orden):
+    """[("TANDA_01", [items])…]: primero las imágenes de 10 en 10, después los clips de 5 en 5."""
+    out = []
+    for tipo, n in (("imagen", TANDA_IMG), ("clip", TANDA_CLIP)):
+        xs = [x for x in orden if x["tipo"] == tipo]
+        out += [xs[i:i + n] for i in range(0, len(xs), n)]
+    return [(f"TANDA_{k:02d}", g) for k, g in enumerate(out, 1)]
+
+
+def instrucciones(sesion, carpeta, items, tandas=None):
     imgs = [x for x in items if x["tipo"] == "imagen"]
     clips = [x for x in items if x["tipo"] == "clip"]
+    tandas = tandas or _tandas_flow(items)
+    t_img = [n for n, g in tandas if g[0]["tipo"] == "imagen"]
+    t_clip = [n for n, g in tandas if g[0]["tipo"] == "clip"]
     return f"""# Paquete para Antigravity · {sesion}
 
 Hay que generar en Google Flow **{len(imgs)} imágenes**{f" y **{len(clips)} clips**" if clips else ""} y bajarlas con su nombre.
@@ -276,24 +291,26 @@ Usa el modelo **Gemini Flash** (no el que piensa más: aquí no hay nada que dec
 Trabaja en una conversación nueva y no revises cada imagen: el equipo las revisa después en la sala.
 
 Archivos de esta carpeta ({carpeta}):
-- `prompts.txt`: un prompt por línea, con su código delante. Se pegan tal cual, en ese orden.
-- `prompts.json`: lo mismo, con el plan B de cada prompt.
-- `bajar_flow.js`: baja todas las imágenes de una vez, con su nombre.
+- `TANDA_01.txt`, `TANDA_02.txt`…: los prompts de a {TANDA_IMG} (los clips de a {TANDA_CLIP}), uno por línea con su código delante.
+  Se pegan tal cual, una tanda por mensaje, en orden.
+- `bajar_tanda_01.js`, `bajar_tanda_02.js`…: bajan las imágenes de esa tanda, con su nombre.
+- `prompts.json`: todos los prompts con el plan B de cada uno (si Google rechaza alguno).
 
 ## Pasos
 
 1. En el navegador, abre https://labs.google/flow (la sesión de Google ya está abierta).
 2. Abre o crea el proyecto **{sesion}**.
 3. En los ajustes del generador (ícono de deslizadores) elige **9:16** y **x1** (una imagen por prompt). Guarda.
-4. En la configuración del agente de Flow deja «Confirmar antes de generar» en **Nunca**. Después pega **todas** las líneas de
-   imagen de `prompts.txt` juntas en un solo mensaje (cada una con su código, por ejemplo `C1_IMG2: …`) y envíalo: Flow
-   las genera todas solo.
-5. Si Google rechaza un prompt, pega en su lugar el `plan_b` de ese código (en `prompts.json`), con el mismo código delante.
-6. Cuando ya no quede ninguna generándose, baja cada imagen a Descargas como `CODIGO.jpg` (puedes usar `bajar_flow.js`).
-   Ojo: la galería de Flow ya no muestra el código de cada imagen; usa la descripción o el orden en que se pegaron los
-   prompts para saber cuál es cuál. Si a alguna le falta, bájala a mano con ese nombre.
-{f'''7. Clips en movimiento ({len(clips)}): cambia el generador a **Video** (9:16), pega cada línea de clip igual que las imágenes
-   y, cuando terminen, baja cada video a Descargas con el nombre `CODIGO.mp4`.
+4. En la configuración del agente de Flow deja «Confirmar antes de generar» en **Nunca**.
+5. **Por tandas, nunca todo junto** ({len(t_img)} tandas de imágenes: {t_img[0] if t_img else ""} … {t_img[-1] if t_img else ""}). Para cada tanda, en orden:
+   a. Pega las líneas de `TANDA_XX.txt` juntas en un solo mensaje (cada una con su código, por ejemplo `C1_IMG2: …`) y envíalo.
+   b. Espera a que terminen de generarse esas imágenes.
+   c. Bájalas a Descargas como `CODIGO.jpg` corriendo `bajar_tanda_XX.js` en la pestaña de Flow (si a alguna le falta,
+      bájala a mano con ese nombre; la galería no muestra el código: usa el orden en que se pegaron).
+   d. Recién ahí sigue con la tanda siguiente. La sala pone sola en los videos lo que va llegando a Descargas.
+6. Si Google rechaza un prompt, pega en su lugar el `plan_b` de ese código (en `prompts.json`), con el mismo código delante.
+{f'''7. Clips en movimiento ({len(clips)}, {", ".join(t_clip)}): cambia el generador a **Video** (9:16) y haz lo mismo, de {TANDA_CLIP} en {TANDA_CLIP}.
+   Cuando terminen, baja cada video a Descargas con el nombre `CODIGO.mp4`.
 ''' if clips else ""}
 Si aparece un inicio de sesión, términos o un captcha: detente y avisa a la persona. No lo hagas tú.
 
@@ -360,7 +377,19 @@ def armar(todas=False, abrir=False):
     (carpeta / "prompts.json").write_text(json.dumps(orden, ensure_ascii=False, indent=1), encoding="utf-8")
     nombres = [x["codigo"] for x in orden if x["tipo"] == "imagen"]
     (carpeta / "bajar_flow.js").write_text(BAJAR.replace("__NOMBRES__", json.dumps(nombres)), encoding="utf-8")
-    texto = instrucciones(sesion, carpeta, orden)
+    # por tandas: Flow no aguanta cientos de prompts de golpe (se traba y no se sabe cuál imagen es cuál). Cada tanda
+    # se pega, se genera y se baja antes de la siguiente; lo bajado entra solo a la sesión mientras sigue la otra.
+    for f in carpeta.glob("TANDA_*"):
+        f.unlink()
+    for f in carpeta.glob("bajar_tanda_*.js"):
+        f.unlink()
+    tandas = _tandas_flow(orden)
+    for nombre, grupo in tandas:
+        (carpeta / f"{nombre}.txt").write_text("\n".join(f"{x['codigo']}: {x['prompt']}" for x in grupo) + "\n", encoding="utf-8")
+        if grupo[0]["tipo"] == "imagen":
+            (carpeta / f"bajar_{nombre.lower()}.js").write_text(BAJAR.replace("__NOMBRES__", json.dumps([x["codigo"] for x in grupo])),
+                                                                encoding="utf-8")
+    texto = instrucciones(sesion, carpeta, orden, tandas)
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")  # Antigravity lee GEMINI.md solo al abrir la carpeta
     # Probado el 2026-10-27: lo que funciona es el navegador de Antigravity, que solo se activa cuando una persona
@@ -369,11 +398,13 @@ def armar(todas=False, abrir=False):
     # la sala abre Antigravity y deja el mensaje copiado SIN «/browser»: la persona elige «browser» y lo pega detrás.
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo con el navegador. En Google Flow (https://labs.google/flow) "
                f"abre o crea el proyecto {sesion}, en la configuración del agente deja «Confirmar antes de generar» en Nunca, "
-               "imágenes 9:16 y x1, y pega TODOS los prompts de "
-               f"{carpeta / 'prompts.txt'} juntos en un solo mensaje (cada línea con su código delante, por ejemplo «C1_IMG1: …»). "
-               f"Son {len(nombres)} imágenes" + (f" y {len(orden) - len(nombres)} clips" if len(orden) > len(nombres) else "")
-               + ". Cuando estén todas generadas, bájalas a Descargas con su nombre (C1_IMG1.jpg…). "
-               "Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
+               f"imágenes 9:16 y x1. Pega los prompts POR TANDAS, nunca todos juntos: los {TANDA_IMG} de TANDA_01.txt en un solo "
+               "mensaje (cada línea con su código delante, por ejemplo «C1_IMG2: …»), espera a que se generen esas, bájalas a "
+               "Descargas con su nombre (C1_IMG2.jpg…) corriendo bajar_tanda_01.js, y recién ahí sigue con TANDA_02.txt, y así. "
+               f"Son {len(nombres)} imágenes en {sum(1 for _, g in tandas if g[0]['tipo'] == 'imagen')} tandas"
+               + (f" y {len(orden) - len(nombres)} clips (con el generador en Video, de {TANDA_CLIP} en {TANDA_CLIP}, se bajan como .mp4)"
+                  if len(orden) > len(nombres) else "")
+               + ". Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala
     abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
     enviado, porque = False, ""
