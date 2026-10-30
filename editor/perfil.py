@@ -31,6 +31,8 @@ NEUTRO = {
     "nombre": "",
     "que_vende": "",
     "publico": "",
+    "publicos": [],              # para elegir al pedir temas o un guion («Médicos veterinarios», «Dueños de mascotas»)
+    "plantilla": "marca",        # la plantilla de subtítulos de la marca (por defecto, la que toma sus colores)
     "tono": "Venta directa, cercana y con ritmo: frases cortas, nada de palabras técnicas sin explicar.",
     "palabras_marca": [],
     "vocabulario": [],
@@ -58,7 +60,7 @@ NEUTRO = {
     "notas": "",
 }
 CAMPOS_TEXTO = ("nombre", "que_vende", "publico", "tono", "notas")
-CAMPOS_LISTA = ("palabras_marca", "vocabulario", "palabras_clave", "cta")
+CAMPOS_LISTA = ("palabras_marca", "vocabulario", "palabras_clave", "cta", "publicos")
 SKILLS = {"guionista": "guionista-marca", "director": "director-marca", "flow": "flow-marca"}  # las generales de la sala
 
 _cerrojo = threading.Lock()
@@ -116,6 +118,8 @@ def _limpio(d):
         if isinstance(v, str):
             v = re.split(r"[,\n]", v)
         out[k] = [str(x).strip()[:120] for x in v if str(x).strip()][:300]
+    if str(d.get("plantilla") or "").strip():
+        out["plantilla"] = str(d["plantilla"]).strip()[:60]
     corr = d.get("correcciones") or {}
     if isinstance(corr, str):  # «mal → bien» una por línea
         corr = dict(x.split("→", 1) if "→" in x else x.split("=", 1) for x in corr.splitlines() if "→" in x or "=" in x)
@@ -161,15 +165,21 @@ def guardar(d, subir=True):
 
 def asegurar(subir=True):
     """La primera vez en un equipo cuya marca se llama como un perfil de ejemplo (marcas/<nombre>.json), ese perfil
-    queda como el del equipo. Devuelve True si lo puso."""
+    queda como el del equipo. Si el equipo ya lo tenía, se le suman solo los campos que el ejemplo trae y el suyo no
+    (los de una versión nueva de la sala); lo que el equipo cambió no se toca. Devuelve True si cambió algo."""
     import marca
-    if propio():
-        return False
     nombre = _norm(marca.datos().get("nombre") or "")
     ejemplo = BASE / f"{re.sub(r'[^a-z0-9]+', '-', nombre).strip('-')}.json" if nombre else None
     if not ejemplo or not ejemplo.exists():
         return False
-    guardar(json.loads(ejemplo.read_text(encoding="utf-8")), subir=subir)
+    base, suyo = json.loads(ejemplo.read_text(encoding="utf-8")), propio()
+    if not suyo:
+        guardar(base, subir=subir)
+        return True
+    faltan = {k: v for k, v in base.items() if k not in suyo}
+    if not faltan:
+        return False
+    guardar({**suyo, **faltan}, subir=subir)
     return True
 
 
@@ -189,8 +199,34 @@ def aplicar():
     if p["nombre"] and not portada.get("marca"):
         portada["marca"] = p["nombre"].upper()
     cfg["portada"] = portada
+    sub = copy.deepcopy(_BASE_CFG.setdefault("subtitulos", copy.deepcopy(cfg.get("subtitulos") or {})))
+    if p.get("plantilla") in motor.plantillas():
+        sub["plantilla"] = p["plantilla"]  # la de la marca, si esta PC no eligió otra (plantilla_activa)
+    cfg["subtitulos"] = sub
+    _colores_de_marca()
     motor.PERFIL = p
     return p
+
+
+def _colores_de_marca():
+    """Las plantillas «colores_de_marca» (como «Colores de tu marca») toman el acento y el principal de la marca."""
+    import marca
+    try:
+        colores = marca.datos().get("colores") or []
+    except Exception:  # noqa: BLE001 — sin marca: quedan los colores de fábrica
+        return
+    uso = lambda *usos: next((c["hex"] for u in usos for c in colores if c.get("uso") == u and c.get("hex")), None)
+    acento, principal = uso("acento", "secundario", "principal"), uso("principal", "texto")
+    if not acento:
+        return
+    h = acento.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    claro = .2126 * r + .7152 * g + .0722 * b > .6
+    for pl in (motor.CONFIG.get("plantillas_sub") or {}).values():
+        if pl.get("colores_de_marca"):
+            res = dict(pl.get("resaltador") or {})
+            res.update(color=acento, texto=(principal if claro and principal else "#111111") if claro else "#FFFFFF")
+            pl.update(resaltador=res, color_resaltado=acento)
 
 
 # ---------- lo que usan las demás partes ----------

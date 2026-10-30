@@ -278,8 +278,31 @@
     ]
   },
   "plantillas_sub": {
+    "marca": {
+      "nombre": "Colores de tu marca",
+      "descripcion": "Montserrat Black. La palabra que se dice va en una caja del color de acento de tu marca; se ajusta sola a tus colores.",
+      "fuente": "Montserrat-Black.ttf",
+      "tamano": 80,
+      "mayusculas": true,
+      "color_texto": "#FFFFFF",
+      "color_borde": "#000000",
+      "borde": 5,
+      "sombra": 2,
+      "color_activo": "#FFFFFF",
+      "escala_activa": 106,
+      "color_resaltado": "#99D3DA",
+      "resaltador": {
+        "modo": "activa",
+        "color": "#99D3DA",
+        "texto": "#253C61",
+        "margen": 0.16,
+        "alto": 0.95,
+        "radio": 0.22
+      },
+      "colores_de_marca": true
+    },
     "suplevet_celeste": {
-      "nombre": "Suplevet celeste",
+      "nombre": "Celeste",
       "descripcion": "Montserrat Black. La palabra que se dice va en una caja celeste con texto azul marino.",
       "fuente": "Montserrat-Black.ttf",
       "tamano": 80,
@@ -301,7 +324,7 @@
       }
     },
     "suplevet_clave": {
-      "nombre": "Suplevet palabra clave",
+      "nombre": "Palabra clave",
       "descripcion": "Poppins Black. Solo las palabras clave llevan caja celeste; la que se dice se agranda.",
       "fuente": "Poppins-Black.ttf",
       "tamano": 82,
@@ -323,8 +346,8 @@
       }
     },
     "suplevet_naranja": {
-      "nombre": "Suplevet naranja",
-      "descripcion": "Poppins ExtraBold. Caja naranja Suplevet sobre la palabra que se dice, texto blanco.",
+      "nombre": "Naranja",
+      "descripcion": "Poppins ExtraBold. Caja naranja sobre la palabra que se dice, texto blanco.",
       "fuente": "Poppins-ExtraBold.ttf",
       "tamano": 80,
       "mayusculas": true,

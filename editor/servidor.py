@@ -190,6 +190,8 @@ def estado():
         p["editada"] = bool({k for k in ajustes_p.get(p["nombre"], {}) if k != "editado"})
     return {"version": motor.VERSION, "red": red(), "drive": dr, "drive_pendientes": drive.pendientes(), "marca": marca.resumen(),
             "antigravity": bool(antigravity.exe()), "ia": motor.CONFIG.get("ia") or "",
+            "perfil": {k: perfil.leer().get(k) for k in ("nombre", "publico", "publicos", "tiene_perfil")},
+            "panel_url": motor.CONFIG.get("panel", {}).get("url") or "",
             "sin_carpeta": bool(cuenta._leer(cuenta.INFO).get("sin_carpeta")), "bajando": TRABAJO["activo"] and TRABAJO["accion"] == "bajar",
             "sesion_bajada": (not dr["activo"]) or all(drive.bajada(S.en_drive(m)) for m in S.miembros),
             "grupo": {"sesiones": S.miembros, "guion": S.drive} if S.es_grupo else None, "grupos": motor.grupos(), "fondo": url_media(fondo) if fondo.exists() else None, "plantillas": {k: ({**v, "escala_activa": 108} if float(v.get("escala_activa") or 108) < 50 else v) for k, v in motor.plantillas().items()}, "plantilla": motor.id_plantilla(),  # las dañadas hasta la 1.47.8 (escala 3) se ven bien
@@ -1416,6 +1418,17 @@ class H(BaseHTTPRequestHandler):
             self._json(TRABAJO)
         elif u.path == "/api/marca":
             self._json(marca.datos())
+        elif u.path == "/api/antigravity_guion":  # ¿ya escribió Gemini el guion? Al llegar, se ordena y se sube a Drive
+            sesion = (parse_qs(u.query).get("sesion") or [motor.S.semana])[0]
+            e = antigravity.estado_guion(sesion)
+            if e.get("listo") and not e.get("subido"):
+                antigravity.marcar_guion_subido(sesion)
+                motor._prod_cache = None
+                if sesion == motor.S.semana:
+                    _sin_falla(motor.guardar_documentos_guion)
+                if drive.estado()["activo"] and (PUERTO == 8765 or os.environ.get("SALA_PROYECTO")):
+                    threading.Thread(target=lambda: _sin_falla(lambda: drive.subir(sesion, ["Guion"])), daemon=True).start()
+            self._json({k: v for k, v in e.items() if k != "meta"})
         elif u.path == "/api/perfil":  # el perfil de la marca para los videos (perfil.py) y lo que haya propuesto Gemini
             self._json({"perfil": perfil.leer(), "propio": bool(perfil.propio()), "propuesta": perfil.propuesta_antigravity()})
         elif u.path.startswith("/marca/"):  # logos, productos y tipografías de la marca del equipo (_MARCA)
@@ -1870,7 +1883,15 @@ class H(BaseHTTPRequestHandler):
                 cola = bool(codigos and self._cuerpo().get("armar") and lanzar("armar_sel", extra={"codigos": codigos}, en_cola=True))
                 self._json({"ok": True, "codigos": codigos, "en_cola": cola})
             elif u.path == "/api/marca":
-                self._json({"ok": True, "marca": marca.guardar(self._cuerpo().get("marca") or {})})
+                m = marca.guardar(self._cuerpo().get("marca") or {})
+                perfil.aplicar()  # los colores nuevos van a la plantilla «Colores de tu marca»
+                self._json({"ok": True, "marca": m})
+            elif u.path == "/api/antigravity_guion":  # «Escribir guion con Gemini»
+                b = self._cuerpo()
+                sesion = b.get("sesion") or motor.S.semana
+                if sesion not in motor.semanas_disponibles():
+                    raise ValueError("Primero crea la sesión")
+                self._json({"ok": True, **antigravity.escribir_guion(sesion, str(b.get("pedido", ""))[:4000])})
             elif u.path == "/api/perfil":
                 b = self._cuerpo()
                 if b.get("accion") == "guardar":
@@ -2382,7 +2403,7 @@ class H(BaseHTTPRequestHandler):
                     lanzar("mas_apoyo", extra={k: max(0, min(tope, int(float(b.get(k) or 0)))) for k, tope in TOPES_APOYO})
                 elif b.get("accion") == "temas":
                     lanzar("temas", extra={"cuerpos": max(1, min(10, int(b.get("cuerpos") or 5))),
-                                           "publico": "dueños de mascotas" if b.get("publico") == "duenos" else "médicos veterinarios",
+                                           "publico": str(b.get("publico") or perfil.leer()["publico"] or "el público de la marca")[:200],
                                            "idea": str(b.get("idea", ""))[:1000]})
                 else:
                     raise ValueError("Acción no válida")

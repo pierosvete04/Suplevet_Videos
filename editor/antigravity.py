@@ -963,3 +963,87 @@ def traer_musica():
     motor._prod_cache = None
     meta_f.unlink()
     return {"pistas": sorted(ids)}
+
+
+# ---------- El guion con Gemini (para los equipos que trabajan sin Claude) ----------
+
+def _carpeta_guion(sesion):
+    casa = Path.home()
+    base = next((d for d in (casa / "Downloads", casa / "Descargas", casa / "Desktop") if d.is_dir()), casa)
+    return base / re.sub(r'[<>:"/\|?*]+', " ", f"Guion Antigravity - {sesion}").strip()
+
+
+def escribir_guion(sesion, pedido, abrir=True):
+    """Lo mismo que «Escribir guion con Claude», con Gemini en Antigravity: escribe guiones.md, hoja_de_grabacion.md y
+    produccion.json en <sesión>/Guion con la skill del guionista y el perfil de la marca. La pantalla espera el
+    produccion.json (estado_guion) y la sala lo sube a Drive."""
+    import asistente
+    try:
+        asistente.actualizar_conocimiento(lambda *_: None)
+    except RuntimeError:
+        asistente.poner_generales()
+    guion = motor.Rutas(sesion).principal / "Guion"
+    guion.mkdir(parents=True, exist_ok=True)
+    prod = guion / "produccion.json"
+    if prod.exists():  # el guion de antes queda como copia
+        shutil.copyfile(prod, guion / f"produccion.antes-{time.strftime('%Y%m%d-%H%M')}.json")
+    carpeta = _carpeta_guion(sesion)
+    if carpeta.exists():
+        shutil.rmtree(carpeta, ignore_errors=True)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    texto = f"""# Escribir el guion · {sesion}
+
+Primero lee completas las reglas del guionista: {asistente.ruta_skill()}
+y el perfil de la marca: {asistente.CONOCIMIENTO / "perfil_marca.md"}
+{perfil.contexto()}
+
+## Pedido del equipo
+{pedido.strip() or "(sin indicaciones: elige tú 1 o 2 ideas y 5 ángulos según el perfil de la marca)"}
+
+Trabajas sola, sin nadie a quien preguntarle: no pidas confirmación, decide con criterio.
+Respeta la estructura del pedido (cuántos cuerpos, hooks por cuerpo y CTAs) y el tema de cada cuerpo.
+En produccion.json deja decidido todo: estilos de subtítulo, imágenes de Flow con su prompt, música con su prompt y sonidos.
+Las sesiones anteriores (para no repetir cuerpos ni hooks) están en {motor.S.base}, cada una con su carpeta Guion.
+
+## Qué escribir
+Los tres archivos, directamente en esta carpeta: {guion}
+  - guiones.md
+  - hoja_de_grabacion.md
+  - produccion.json (JSON válido, con el formato de las reglas; escríbelo al final, cuando los otros dos estén listos)
+PROHIBIDO, para ir rápido: escribir scripts o correr comandos. Usa solo la herramienta de escribir archivos.
+Al terminar responde en 5 líneas: ideas, ángulos y cuántas imágenes y pistas hay que generar.
+"""
+    (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
+    (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")
+    (carpeta / "_sala.json").write_text(json.dumps({"sesion": sesion, "guion": str(guion), "pedido": time.time()},
+                                                   ensure_ascii=False), encoding="utf-8")
+    mensaje = f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual. No escribas scripts ni corras comandos."
+    abierto, enviado, porque = _pasar(carpeta, mensaje, "flash", abrir, titulo=f"Sala · Guion {sesion}")
+    return {"carpeta": str(carpeta), "mensaje": mensaje, "abierto": abierto, "enviado": enviado, "porque": porque,
+            "instalado": bool(exe())}
+
+
+def estado_guion(sesion):
+    """¿Ya escribió Gemini el guion pedido? {"pedido", "listo", "error", "subido"}."""
+    meta_f = _carpeta_guion(sesion) / "_sala.json"
+    try:
+        meta = json.loads(meta_f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"pedido": False}
+    prod = Path(meta["guion"]) / "produccion.json"
+    if not prod.exists() or prod.stat().st_mtime < meta["pedido"]:
+        return {"pedido": True, "listo": False}
+    if time.time() - prod.stat().st_mtime < 3:  # todavía lo está escribiendo
+        return {"pedido": True, "listo": False}
+    try:
+        json.loads(prod.read_text(encoding="utf-8"))
+    except ValueError as e:
+        return {"pedido": True, "listo": False, "error": f"El produccion.json salió con un error de formato ({e}). Pídele a Gemini que lo corrija."}
+    return {"pedido": True, "listo": True, "subido": bool(meta.get("subido")), "meta": str(meta_f)}
+
+
+def marcar_guion_subido(sesion):
+    meta_f = _carpeta_guion(sesion) / "_sala.json"
+    meta = json.loads(meta_f.read_text(encoding="utf-8"))
+    meta["subido"] = time.time()
+    meta_f.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")

@@ -1,3 +1,11 @@
+Versión 1.60.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Primeros pasos** (Inicio, para un equipo nuevo): conectar el Drive, elegir la IA (Claude o Antigravity), contarle a la sala la marca, crear la primera sesión, escribir el guion y subir los clips. Cada paso con su botón; se va solo cuando todo está hecho (o con «Ocultar»).
+- **El guion también con Gemini:** con Antigravity, el formulario de Inicio dice «✦ Escribir guion con Gemini». Gemini escribe el guion con el guionista y el perfil de la marca, y la sala lo trae y lo sube a Drive sola cuando termina.
+- **Plantilla «Colores de tu marca»:** la palabra que se dice va en una caja del color de acento de la marca; si cambias los colores en Marca, cambia sola. Es la que usa un equipo nuevo. Las de fábrica ya no llevan el nombre de Suplevet («Celeste», «Palabra clave», «Naranja»).
+- **El público se escribe** (o se elige de los públicos del perfil de la marca) al pedir temas o un guion; antes solo había «veterinarios» o «dueños de mascotas».
+- La vista del copy usa el nombre de la marca y el panel web el link del equipo. Los ejemplos de la pantalla ya no hablan de Suplevet.
+- Para Suplevet no cambia nada: su perfil suma solo sus públicos (dueños de mascotas, médicos veterinarios) y su plantilla de siempre.
+
 Versión 1.59.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Perfil de la marca para los videos** (Configuración → Marca → «Para los videos»): cómo se escribe la marca, las palabras del producto, lo que la transcripción escribe mal, las palabras que se resaltan, las frases con las que se pide la compra, las reglas de las imágenes de Flow y de la música, y lo demás que la IA debe saber. Vive en Drive (_MARCA/perfil.json): lo comparten todas las PCs del equipo.
 - **«✦ Llenar con IA»:** cuéntale tu marca (o pega el texto de tu web) y Claude o Gemini en Antigravity llenan el perfil; tú lo revisas y tocas «Guardar marca».

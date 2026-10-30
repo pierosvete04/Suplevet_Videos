@@ -170,5 +170,10 @@
   "director": "suplevet-director",
   "flow": "suplevet-flow-chrome"
  },
- "notas": "Siempre «suplemento en polvo que mezclas con su comida»; nunca mencionar el sabor vainilla. Cada video nombra a Suplevet; nada de puentes antes de la marca."
+ "notas": "Siempre «suplemento en polvo que mezclas con su comida»; nunca mencionar el sabor vainilla. Cada video nombra a Suplevet; nada de puentes antes de la marca.",
+ "publicos": [
+  "Dueños de mascotas",
+  "Médicos veterinarios"
+ ],
+ "plantilla": "suplevet_celeste"
 }

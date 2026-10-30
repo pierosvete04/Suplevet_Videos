@@ -182,6 +182,9 @@ section[hidden] { display: none; }
 .pasos li.hecho::before { content: "✓"; background: rgba(74,222,155,.12); color: var(--ok); border-color: rgba(74,222,155,.4); }
 .pasos li.ahora { border-color: rgba(61,139,255,.45); box-shadow: var(--glow); }
 .pasos li.ahora::before { color: var(--accent2); border-color: var(--accent); }
+.primeros { margin-bottom: 14px; border-color: rgba(61,139,255,.45); }
+.primeros .pr-cab { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 10px; }
+.primeros h2 { margin: 0 0 2px; font-size: 17px; }
 .sesiones { display: flex; flex-wrap: wrap; gap: 6px; }
 .sesiones button { font: 600 12px var(--mono); padding: 6px 10px; border-radius: 9px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); cursor: pointer; }
 .sesiones button:hover { border-color: var(--accent); }
@@ -1679,6 +1682,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <p id="aviso" role="status" class="muted" style="margin:0 0 10px"></p>
 
   <section data-panel="inicio">
+    <div class="caja primeros" id="inPrimeros" hidden></div>
     <!-- tres columnas: a la izquierda la sesión y sus números, al medio lo que toca hacer y los videos, a la derecha el avance, los cambios y Claude -->
     <div class="inicio2">
       <div class="in-col in-izq">
@@ -1747,7 +1751,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 <label class="muted" style="display:grid;gap:4px;font-size:12px">Para
                   <select id="clNuevaTipo"><option value="ADS">Ads (anuncios pagados)</option><option value="ORG">Orgánico</option><option value="">Los dos</option></select></label>
                 <label class="muted" style="display:grid;gap:4px;font-size:12px">Tema
-                  <input id="clNuevaNombre" maxlength="45" placeholder="ARTICULACIONES"></label>
+                  <input id="clNuevaNombre" maxlength="45" placeholder="LANZAMIENTO"></label>
               </div>
               <span style="font-size:12.5px">Se va a llamar: <b id="clNuevaVista"></b></span>
               <span class="muted" style="font-size:11.5px">Se crea en Drive con sus carpetas: Guiones (el guion), Clips (solo lo grabado), Flow (imágenes y clips de apoyo), Musica y V.FINALES. Todo lo que se grabe para este guion, el día que sea, va dentro. El día de grabación no hace falta.</span>
@@ -1758,14 +1762,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 <label>Hooks por cuerpo<select id="clHooks"></select></label>
               </div>
               <div class="dos">
-                <label>Público<select id="clPublico"><option value="veterinarios">Médicos veterinarios</option><option value="duenos">Dueños de mascotas</option></select></label>
+                <label>Público<input id="clPublico" list="clPublicos" placeholder="Ej.: mujeres de 20 a 35 años"><datalist id="clPublicos"></datalist></label>
                 <label>CTAs<select id="clCtas"><option value="2">2 (anuncio y orgánico)</option><option value="1">1</option><option value="por_cuerpo">2 por cada cuerpo</option></select></label>
               </div>
-              <label>Idea o enfoque (opcional)<input id="clIdea" placeholder="Ej.: perros mayores; articulaciones y pelaje"></label>
+              <label>Idea o enfoque (opcional)<input id="clIdea" placeholder="Ej.: un problema de tu público y cómo lo resuelves"></label>
               <div class="fila"><button class="btn sec peq" id="clTemas" type="button">Proponer temas con Claude</button>
                 <span class="muted" style="font-size:11.5px">o escribe tú el tema de cada cuerpo</span></div>
               <div id="clListaTemas" style="display:grid;gap:8px"></div>
-              <label>Algo más para Claude (opcional)<textarea id="clPedido" rows="2" placeholder="Tono, producto a destacar, casos reales…"></textarea></label>
+              <label>Algo más para la IA (opcional)<textarea id="clPedido" rows="2" placeholder="Tono, producto a destacar, casos reales…"></textarea></label>
             </div>
             <div class="fila" style="margin-top:10px">
               <button class="btn blanco" id="clGuion">Escribir guion con Claude</button>
@@ -1873,7 +1877,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
       <button data-gvista="video" aria-pressed="false">Hook + cuerpo</button>
     </div>
     <div class="fila" id="gBuscarFila" style="margin-bottom:12px">
-      <input id="gBuscar" type="search" placeholder="Buscar palabras que se dicen: «se rasca», «Suplevet»…" aria-label="Buscar palabras en el guion" style="flex:1;min-width:220px">
+      <input id="gBuscar" type="search" placeholder="Buscar palabras que se dicen: «el problema», «tu marca»…" aria-label="Buscar palabras en el guion" style="flex:1;min-width:220px">
       <span class="muted" id="gBuscarN" style="font-size:12px"></span>
     </div>
     <div id="guionLista" class="grid-assets" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,580px),1fr))"></div>
@@ -2282,7 +2286,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <button class="btn" id="exTodo">Exportar todo</button>
           <button class="btn sec" id="exSel" disabled>Exportar seleccionados</button>
           <button class="btn sec" id="exPartes" disabled title="Cada video en su carpeta (POR_PARTES): hook, cuerpo y CTA sueltos, video sin subtítulos, voz, música y efectos en .wav, subtítulos .srt e imágenes">Exportar por partes</button>
-          <button class="btn sec" id="subirPanel" title="Los manda al panel de videos (edicion.suplevet.pe/videos) para revisarlos y aprobarlos">Subir al panel</button>
+          <button class="btn sec" id="subirPanel" title="Los manda al panel web del equipo para revisarlos y aprobarlos">Subir al panel</button>
           <button class="btn sec peq ancho" id="importarFinales" title="Trae al panel los videos que ya están en V.FINALES de cada sesión de Drive">Subir finales existentes al panel</button>
         </div>
         <div class="ex-destino corto" title="Con su portada (.jpg) y su copy (.txt). Aquí no se publica en redes: se publican con el Publicador o a mano.">
@@ -2362,7 +2366,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           </div>
           <div class="mk">
             <div class="mk-form form-plant" id="mkForm">
-              <label>Nombre de la marca<input id="mkNombre" placeholder="Ej.: Suplevet"></label>
+              <label>Nombre de la marca<input id="mkNombre" placeholder="Ej.: Tu marca"></label>
               <fieldset><legend>Colores</legend>
                 <p class="muted mk-ayuda">Ponle a cada color para qué sirve: el <b>principal</b> y el <b>acento</b> salen primero al elegir colores en las portadas y las plantillas.</p>
                 <div id="mkColores" class="mk-colores"></div>
@@ -2385,8 +2389,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
               <fieldset><legend>Cómo habla la marca</legend>
                 <p class="muted mk-ayuda">Claude lo lee al escribir guiones, copies y carruseles. Una idea por línea.</p>
                 <label>Palabras o frases que nunca se usan<textarea id="mkEvitar" rows="3" placeholder="Ej.: barato&#10;milagroso"></textarea></label>
-                <label>Lo que siempre tiene que ir<textarea id="mkObligatorio" rows="3" placeholder="Ej.: Consulta con tu veterinario"></textarea></label>
-                <label>Frases de cierre<textarea id="mkCierres" rows="3" placeholder="Ej.: Suplevet: salud que se nota"></textarea></label>
+                <label>Lo que siempre tiene que ir<textarea id="mkObligatorio" rows="3" placeholder="Ej.: Envíos a todo el país"></textarea></label>
+                <label>Frases de cierre<textarea id="mkCierres" rows="3" placeholder="Ej.: Tu marca: lo que te hace distinto"></textarea></label>
                 <div class="dos"><label>Llamado a la acción: título<input id="mkCtaTit" placeholder="Ej.: Pide el tuyo"></label><label>Texto del botón<input id="mkCtaBoton" placeholder="Ej.: Escríbenos"></label></div>
                 <label>Llamado a la acción: texto<input id="mkCtaTxt" placeholder="Ej.: Envíos a todo el Perú"></label>
                 <label>Notas para Claude sobre la marca<textarea id="mkNotas" rows="4" placeholder="Tono, público, lo que la hace distinta…"></textarea></label></fieldset>
@@ -2400,13 +2404,14 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                     <span class="muted" id="pfIaEstado" style="font-size:12px"></span></div>
                 </div>
                 <label>Qué vende<input id="pfQueVende" placeholder="Ej.: un suplemento en polvo que se mezcla con la comida"></label>
-                <div class="dos"><label>Para quién<input id="pfPublico" placeholder="Ej.: dueños de perros y gatos en Perú"></label>
-                  <label>Cómo se escribe la marca<input id="pfMarca" placeholder="Ej.: Suplevet" title="Cuando se dice, sale el efecto de brillo. Separa con comas si son varias"></label></div>
+                <div class="dos"><label>Para quién<input id="pfPublico" placeholder="Ej.: mujeres de 20 a 35 años en Lima"></label>
+                  <label>Cómo se escribe la marca<input id="pfMarca" placeholder="Ej.: Tu marca" title="Cuando se dice, sale el efecto de brillo. Separa con comas si son varias"></label></div>
                 <label>Tono<textarea id="pfTono" rows="2" placeholder="Ej.: venta directa, juvenil, palabras simples"></textarea></label>
+                <label>Públicos para elegir al pedir un guion <small class="muted">(uno por línea; el primero sale primero)</small><textarea id="pfPublicos" rows="2" placeholder="Ej.: Clientas nuevas&#10;Clientas que ya compraron"></textarea></label>
                 <div class="dos"><label>Palabras del producto <small class="muted">(la transcripción las escribe bien)</small><textarea id="pfVocabulario" rows="3" placeholder="Una por línea o con comas"></textarea></label>
                   <label>Palabras que se resaltan en los subtítulos<textarea id="pfClave" rows="3" placeholder="Una por línea o con comas"></textarea></label></div>
                 <div class="dos"><label>Frases con las que pides la compra (CTA)<textarea id="pfCta" rows="3" placeholder="Ej.: escríbenos por WhatsApp"></textarea></label>
-                  <label>Lo que la transcripción escribe mal <small class="muted">(mal → bien)</small><textarea id="pfCorrecciones" rows="3" placeholder="Ej.: suplebet → Suplevet"></textarea></label></div>
+                  <label>Lo que la transcripción escribe mal <small class="muted">(mal → bien)</small><textarea id="pfCorrecciones" rows="3" placeholder="Ej.: nombre mal escrito → Nombre bien escrito"></textarea></label></div>
                 <label>Reglas de las imágenes de Flow <small class="muted">(una por línea)</small><textarea id="pfImgReglas" rows="4" placeholder="Ej.: Siempre se ve una persona usando el producto"></textarea></label>
                 <label>Lo que más se puede mostrar<input id="pfImgMostrar" placeholder="Ej.: el problema, el producto en uso, el resultado"></label>
                 <label>Reglas de la música <small class="muted">(una por línea)</small><textarea id="pfMusica" rows="2" placeholder="Ej.: siempre enérgica, con ritmo"></textarea></label>
@@ -2446,7 +2451,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
           <div class="form-plant conf-form">
             <label>Link de la carpeta (EDICIÓN DE VIDEOS)<input id="driveLink" placeholder="https://drive.google.com/drive/folders/…"></label>
             <details class="conf-avanzado"><summary>Credenciales propias de Google Cloud <span class="muted">(recomendado)</span></summary>
-              <p class="muted" style="font-size:12px;margin:6px 0">Del proyecto «Suplevet Sala» en Google Cloud: cliente OAuth tipo «App de escritorio». Sin ellas se usan las de rclone (sirven para probar).</p>
+              <p class="muted" style="font-size:12px;margin:6px 0">De tu proyecto en Google Cloud: cliente OAuth tipo «App de escritorio». Sin ellas se usan las de rclone (sirven para probar).</p>
               <label class="btn sec peq" style="cursor:pointer;justify-self:start">Cargar archivo JSON de Google Cloud<input type="file" id="driveJson" accept=".json,application/json" hidden></label>
               <label>ID de cliente<input id="driveCid" placeholder="…apps.googleusercontent.com"></label>
               <label>Secreto del cliente<input id="driveSecret" type="password" autocomplete="off"></label>
@@ -2604,7 +2609,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formGrupo">
     <h2 id="dlgGrupoTit" style="margin:0">Unir sesiones en un grupo</h2>
     <p class="muted" style="margin:0;font-size:12.5px">Por ejemplo: grabaste los cuerpos un día y los hooks otro, pero es el mismo guion.</p>
-    <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre del grupo<input id="grNombre" placeholder="B2B VETERINARIOS 6x5" required></label>
+    <label class="muted" style="display:grid;gap:4px;font-size:12px">Nombre del grupo<input id="grNombre" placeholder="LANZAMIENTO 6x5" required></label>
     <div style="display:grid;gap:6px"><span class="muted" style="font-size:12px">Sesiones del grupo</span><div id="grSesiones" style="display:grid;gap:4px"></div></div>
     <label class="muted" style="display:grid;gap:4px;font-size:12px">La que tiene el guion (ahí van Flow, música y V.FINALES)<select id="grGuion"></select></label>
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="cancelar" formnovalidate>Cancelar</button><button class="btn" id="grCrear" value="crear">Crear grupo</button></div>
@@ -2632,7 +2637,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
     <div style="display:grid;gap:6px">
       <b style="font-size:14px">2. ¿A qué carpeta de tu PC los exportas?</b>
       <div class="fila"><button type="button" class="btn sec" id="dxElegir">📁 Elegir carpeta…</button>
-        <input id="dxRutaIn" placeholder="o pega aquí la ruta (ej. D:\Videos Suplevet)" aria-label="Ruta de la carpeta" style="flex:1;min-width:200px"></div>
+        <input id="dxRutaIn" placeholder="o pega aquí la ruta (ej. D:\Videos)" aria-label="Ruta de la carpeta" style="flex:1;min-width:200px"></div>
       <span id="dxRutaEstado" style="font-size:12.5px" aria-live="polite"></span>
     </div>
     <div style="display:grid;gap:6px" id="dxYaHoy" hidden>
@@ -3215,8 +3220,37 @@ function pintarDrivePend(lista) {
   el.innerHTML = `☁ <b>${plural(lista.length, "subida", "subidas")} a Drive sin terminar</b> <span class="muted" title="${esc(lista.map(x => `${x.sesion}: ${x.partes.join(", ") || "todo"} — ${x.error}`).join("\n"))}">(sin internet o Drive no dejó)</span> <button class="btn peq" type="button">Reintentar</button>`;
 }
 // ---------- Inicio ----------
+// Primeros pasos: para un equipo nuevo (sin perfil de marca, sin IA elegida o sin sesiones). Se va solo cuando todo
+// está hecho, o con «Ocultar».
+function pintarPrimeros() {
+  const caja = $("inPrimeros"), pf = E.perfil || {}, ia = modoIA();
+  let oculto = false;
+  try { oculto = localStorage.getItem("primerosOcultos") === "1"; } catch (e) { /* sin almacenamiento: se muestra */ }
+  const pasos = [
+    [!!(E.drive || {}).activo, "Conecta el Drive de tu equipo", "La sala guarda ahí las sesiones, los clips y los videos.", `<button class="btn sec peq" data-conf="confDrive">Google Drive</button>`],
+    [!!ia, "Elige tu IA: Claude o Antigravity (Gemini)", "Escribe los guiones y pide las imágenes y la música. Usa tu propia cuenta, sin pagar API.", `<button class="btn sec peq" data-ir="claude">Elegir</button>`],
+    [!!pf.tiene_perfil, "Cuéntale a la sala tu marca", "Tu logo, tus colores y el perfil para los videos. «✦ Llenar con IA» lo hace por ti.", `<button class="btn peq" data-conf="confMarca">Mi marca</button>`],
+    [(E.semanas || []).length > 0, "Crea tu primera sesión", "Una sesión es una tanda de videos que se graba junta.", `<button class="btn sec peq" data-clic-sesiones="1">Crear sesión</button>`],
+    [!!E.hay_produccion, `Escribe el guion con ${ia === "antigravity" ? "Gemini" : "Claude"}`, "Elige cuántos cuerpos y hooks; la IA escribe todo, con las imágenes y la música.", `<button class="btn sec peq" data-ir="claude">Escribir</button>`],
+    [E.piezas.length > 0, "Graba y sube los clips a la carpeta Clips", "La sala los escucha, los ordena y arma los videos solos. Luego toca «Producir».", `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
+  ];
+  const nuevo = !pf.tiene_perfil || !ia || !(E.semanas || []).length;
+  caja.hidden = oculto || !nuevo || pasos.every(p => p[0]);
+  if (caja.hidden) return;
+  const ahora = pasos.findIndex(p => !p[0]);
+  caja.innerHTML = `<div class="pr-cab"><div><h2>Primeros pasos</h2><span class="muted" style="font-size:12.5px">${pasos.filter(p => p[0]).length} de ${pasos.length} listos · después la sala hace casi todo sola</span></div>
+      <button class="btn-link" type="button" id="prOcultar">Ocultar</button></div>
+    <ol class="pasos">${pasos.map(([ok, t, d, b], i) => `<li class="${ok ? "hecho" : i === ahora ? "ahora" : ""}"><span><b>${t}</b><br><span class="muted" style="font-size:12px">${d}</span></span>${ok ? "" : b}</li>`).join("")}</ol>`;
+  $("prOcultar").onclick = () => { try { localStorage.setItem("primerosOcultos", "1"); } catch (e) { /* solo por esta vez */ } caja.hidden = true; };
+}
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-conf]");
+  if (c) return irConf(c.dataset.conf);
+  if (e.target.closest("[data-clic-sesiones]")) { pintarListaSesiones(); $("dlgSesiones").showModal(); }
+});
 function pintarInicio() {
   $("inSesion").textContent = E.semana;
+  pintarPrimeros();
   // la tarjeta de la IA se pinta también al llegar los datos: si Claude se revisó antes, todavía no se sabía si
   // esta PC tiene Antigravity y quedaba diciendo «Claude no está instalado»
   if (typeof infoClaude !== "undefined" && infoClaude) pintarTarjetaIA(infoClaude);
@@ -3231,7 +3265,7 @@ function pintarInicio() {
   $("inStats").innerHTML = stat(vids.filter(s => !s.es_version).length, "Videos posibles", "azul") + stat(armados, "Armados") + stat(listos, "Aprobados", listos ? "ok" : "")
     + stat(viejos, "Por rearmar", viejos ? "warn" : "") + stat(faltan, "Imágenes y música por generar", faltan ? "warn" : "");
   const pasos = [
-    [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : modoIA() === "antigravity" ? `<button class="btn peq blanco" data-clic="prepGuion">Subir el guion</button>` : `<button class="btn peq blanco" data-ir="claude">Escribir con Claude</button>`],
+    [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : `<button class="btn peq blanco" data-ir="claude">Escribir con ${modoIA() === "antigravity" ? "Gemini" : "Claude"}</button>`],
     // antes decía «piezas + clips sueltos» como si fueran clips (un cuerpo de 8 clips contaba 1): ahora son los clips de verdad
     [E.piezas.length > 0 || sinId > 0, "Grabar y subir los clips a Drive", E.piezas.length || sinId ? `<span class="pill" title="${E.piezas.length} piezas armadas con ellos (un cuerpo grabado frase por frase junta varios clips)">${E.n_clips ?? E.piezas.length + sinId} clips</span>` : `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
     [E.piezas.length > 0 && E.piezas.every(p => p.procesada), "Analizar los clips y corroborar con el guion", `<button class="btn sec peq" data-ir="guion">Ir a Guion</button>`],
@@ -3249,7 +3283,7 @@ function pintarInicio() {
   pintarSiguiente(ahora, pasos, { vids, armados, listos, viejos, faltan, sinId });
   pintarRevisar();
   const soloAg = modoIA() === "antigravity";  // esta PC trabaja con Gemini, no con Claude
-  $("clResumen").textContent = soloAg ? (E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "sube el guion en la pestaña Guion")
+  $("clResumen").textContent = soloAg ? (E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "escribe el guion con Gemini aquí abajo")
     : E.hay_produccion ? "guion listo · revisar lo grabado o escribir el de otra sesión" : "esta sesión no tiene guion: escríbelo aquí";
   if (!E.hay_produccion && !pintarInicio.yaAbri) { $("detClaude").open = true; pintarInicio.yaAbri = true; }
   pintarListaSesiones();
@@ -3286,7 +3320,7 @@ function pintarSiguiente(ahora, pasos, n) {
   const botones = [
     // sin guion: si ya hay clips, la sala puede armarlo con lo que se dijo y ordenar todo sola
     (E.piezas.length || n.sinId) ? `<button class="btn sec" type="button" data-clic="prepGuion">⬆ Sube tu guion</button><button class="btn" type="button" id="todoPorMi">✦ Lo analizo y ordeno todo por ti</button>`
-      : modoIA() === "antigravity" ? `<button class="btn" type="button" data-clic="prepGuion">⬆ Subir el guion</button>`
+      : modoIA() === "antigravity" ? `<button class="btn" type="button" data-ir="claude">✦ Escribir el guion con Gemini</button><button class="btn sec" type="button" data-clic="prepGuion">⬆ Subir un guion</button>`
       : `<button class="btn" type="button" data-ir="claude">✳ Escribir el guion con Claude</button><button class="btn sec" type="button" data-clic="prepGuion">⬆ Subir un guion</button>`,
     `<a class="btn" href="/teleprompter" target="_blank">📜 Abrir el teleprompter</a>${n.sinId ? `<button class="btn sec" type="button" data-ir="faltan">Ver los ${n.sinId} clips subidos</button>` : ""}`,
     `<button class="btn" type="button" data-clic="escuchar">🎧 Analizar los clips</button><button class="btn sec" type="button" data-ir="guion">Ver el guion</button>`,
@@ -3391,7 +3425,7 @@ function pintarListaSesiones() {
 }
 $("inBuscar").addEventListener("input", pintarListaSesiones);
 $("inRenombrarGrupo").onclick = async () => {
-  const nuevo = await pedirTexto(`Nuevo nombre para «${E.semana}» (por ejemplo «P01 B2B VETERINARIOS»):`, E.siguiente_produccion ? `${E.siguiente_produccion} ` : "");
+  const nuevo = await pedirTexto(`Nuevo nombre para «${E.semana}» (por ejemplo «P01 LANZAMIENTO»):`, E.siguiente_produccion ? `${E.siguiente_produccion} ` : "");
   if (!nuevo || !nuevo.trim()) return;
   try { const r = await post("/api/renombrar_grupo", { viejo: E.semana, nuevo }); await cargar(); avisar(`El grupo ahora se llama «${r.nuevo}». Los días de grabación y sus carpetas en Drive no cambian.`, "ok"); }
   catch (err) { avisar("Error: " + err.message, "err"); }
@@ -3473,8 +3507,15 @@ function pintarBajada(t) {
 let infoClaude = null;
 // Si la sesión abierta ya tiene guion, no se muestra el formulario: solo el resumen y sus atajos.
 let clMostrarForm = false;
+// La cuenta que sale en la vista del copy: el nombre de la marca, sin espacios
+function cuentaMarca() { return ((E?.marca || {}).nombre || (E?.perfil || {}).nombre || "tumarca").replace(/[^\p{L}\p{N}_.]+/gu, ""); }
 function pintarClaudeForm() {
-  const c = infoClaude || {}, conectado = c.instalado && c.sesion;
+  const c = infoClaude || {}, ag = modoIA() === "antigravity", conectado = ag ? !!E?.antigravity : c.instalado && c.sesion;
+  $("clGuion").textContent = ag ? "✦ Escribir guion con Gemini" : "Escribir guion con Claude";
+  $("clTemas").hidden = ag; $("clRevisar2").hidden = ag;
+  const pf = (E && E.perfil) || {}, publicos = pf.publicos || [];
+  $("clPublicos").innerHTML = publicos.map(x => `<option value="${esc(x)}">`).join("");
+  if (!$("clPublico").value && (publicos[0] || pf.publico)) $("clPublico").value = publicos[0] || pf.publico;
   const yaHay = !!(E && E.hay_produccion) && !clMostrarForm;
   $("clYaHay").hidden = !conectado || !yaHay;
   $("clListo").hidden = !conectado || yaHay;
@@ -3528,13 +3569,13 @@ function pintarTarjetaIA(c) {
   if (!conAg) return;
   $("clEstado").innerHTML = E.antigravity ? `<span class="pill ok">✓ Antigravity listo</span> Gemini escribe los prompts y genera las imágenes en Flow y la música en Flow Music.`
     : `<span class="pill warn">Antigravity no está instalado</span> Instálalo desde antigravity.google y ábrelo una vez con tu cuenta de Google.`;
-  $("clResumen").textContent = E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "sube el guion en la pestaña Guion";
+  $("clResumen").textContent = E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "escribe el guion con Gemini aquí abajo";
   $("clConfig").hidden = false;
   $("clConfig").innerHTML = `<p style="margin:0 0 8px" class="muted">Déjalo abierto mientras usas la sala. Los botones de imágenes y música (aquí en Inicio y en Faltantes) le pasan el trabajo a Gemini:
       la sala abre Antigravity y deja copiado el mensaje; en el chat escribes <b>/</b>, eliges <b>«browser»</b> en la lista y pegas el mensaje detrás. Lo que Gemini baja a Descargas entra solo a la sesión.
-      Escribir guiones con IA es con Claude: aquí se sube el guion ya escrito.</p>
+      El guion también lo escribe Gemini con el formulario de abajo (o súbelo ya escrito en Guion).</p>
     <div class="fila"><button class="btn" data-ir="guion">Ver el guion</button><button class="btn sec" data-ir="faltan">Ir a Faltantes</button></div>`;
-  $("clYaHay").hidden = true; $("clListo").hidden = true;
+  pintarClaudeForm();
 }
 document.addEventListener("click", async e => {
   const t = e.target.closest("button, a"); if (!t) return;
@@ -3543,7 +3584,7 @@ document.addEventListener("click", async e => {
   if (t.dataset.ir) {
     if (t.dataset.ir === "claude") {  // si Claude no está conectado, el formulario está escondido: se lleva a conectarlo
       irTab("inicio"); $("detClaude").open = true;
-      if ($("clListo").hidden) { $("cajaClaude").scrollIntoView({ behavior: "smooth", block: "center" }); avisar("Primero conecta Claude aquí abajo y después escribe el guion.", "muted"); }
+      if ($("clListo").hidden) { $("cajaClaude").scrollIntoView({ behavior: "smooth", block: "center" }); avisar(modoIA() === "antigravity" ? "Primero instala y abre Antigravity, y después escribe el guion." : "Primero conecta Claude aquí abajo y después escribe el guion.", "muted"); }
       else $("clPedido").focus();
       return;
     }
@@ -3564,7 +3605,7 @@ function pintarTemas() {
   $("clListaTemas").innerHTML = Array.from({ length: n }, (_, k) => {
     const ops = propuestas.filter(p => Number(p.cuerpo) === k + 1);
     return `<div class="tema-cuerpo"><label class="muted" style="font-size:12px">Cuerpo ${k + 1} (C${k + 1})
-        <input data-tema-cuerpo="${k}" value="${esc(previos[k] || "")}" placeholder="Tema del cuerpo ${k + 1} (vacío = lo elige Claude)"></label>
+        <input data-tema-cuerpo="${k}" value="${esc(previos[k] || "")}" placeholder="Tema del cuerpo ${k + 1} (vacío = lo elige ${modoIA() === "antigravity" ? "Gemini" : "Claude"})"></label>
       ${ops.length ? `<div class="opciones">${ops.map(p => `<button type="button" data-elegir-tema="${k}" data-texto="${esc(`${p.tema} · ${p.angulo}`)}" title="${esc(p.por_que || "")}">${esc(p.tema)} <span class="muted">· ${esc(p.angulo)}</span></button>`).join("")}</div>` : ""}</div>`;
   }).join("");
 }
@@ -3591,7 +3632,7 @@ function pedidoGuion() {
   const para = { ads: "Producción para ADS (anuncios pagados en Meta/TikTok): hooks que frenen el scroll en pauta y CTA de venta directa.\n",
     organico: "Producción ORGÁNICA (publicaciones de la marca): hooks que inviten a quedarse y comentar, CTA suave.\n" }[tipo] || "";
   return `${para}Estructura: ${n} cuerpos, ${h} hooks por cuerpo (${n * h} videos base), ${ctas}.
-Público: ${$("clPublico").value === "duenos" ? "dueños de mascotas" : "médicos veterinarios"}.
+Público: ${$("clPublico").value.trim() || (E.perfil || {}).publico || "el de la marca"}.
 ${$("clIdea").value.trim() ? "Idea o enfoque: " + $("clIdea").value.trim() + "\n" : ""}Tema de cada cuerpo:
 ${temas.join("\n")}
 ${$("clPedido").value.trim()}`;
@@ -3642,9 +3683,35 @@ $("clGuion").onclick = async () => {
     if (tiene && !await preguntar(`«${sesion}» ya tiene guion. Claude escribe uno nuevo y reemplaza al que hay (el anterior queda guardado como copia). ¿Seguir?`, "Sí, escribir otro")) return;
   }
   $("clSalida").hidden = false; $("clSalida").textContent = "Empezando…";
+  if (modoIA() === "antigravity") return guionConGemini(sesion);
   try { await post("/api/claude", { accion: "guion", sesion, pedido: pedidoGuion() }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (err) { $("clSalida").textContent = "Error: " + err.message; }
 };
+// «Escribir guion con Gemini»: la sala le pasa el pedido a Antigravity y espera el produccion.json en Guion
+async function guionConGemini(sesion) {
+  let r;
+  try { r = await post("/api/antigravity_guion", { sesion, pedido: pedidoGuion() }); }
+  catch (err) { $("clSalida").textContent = "Error: " + err.message; return; }
+  $("clSalida").textContent = r.enviado ? "Gemini está escribiendo el guion en Antigravity (unos minutos). Puedes seguir usando la sala: cuando termine, aparece solo."
+    : `No se pudo mandar solo (${r.porque || "Antigravity cerrado"}). En Antigravity escribe «/», elige «browser» y pega:\n${r.mensaje}`;
+  if (!r.enviado) { try { await navigator.clipboard.writeText(r.mensaje); } catch (e) { /* lo copia la persona */ } }
+  const inicio = Date.now();
+  const mirar = async () => {
+    try {
+      const e = await (await fetch("/api/antigravity_guion?sesion=" + encodeURIComponent(sesion))).json();
+      if (e.error) $("clSalida").textContent = e.error;
+      if (e.listo) {
+        $("clSalida").textContent = "Guion listo: Gemini lo escribió y la sala lo subió a Drive.";
+        avisar(`Guion de «${sesion}» listo.`, "ok");
+        if (sesion === E.semana) await cargar(); else pintarListaSesiones();
+        return;
+      }
+    } catch (e) { /* se reintenta */ }
+    if (Date.now() - inicio < 30 * 60 * 1000) setTimeout(mirar, 5000);
+    else $("clSalida").textContent = "Gemini no terminó en 30 minutos. Revisa la conversación en Antigravity.";
+  };
+  setTimeout(mirar, 5000);
+}
 const revisarConClaude = async () => {
   if (!(infoClaude?.instalado && infoClaude?.sesion)) { irTab("inicio"); return avisar("Primero conecta Claude (Inicio → Claude).", "err"); }
   if (!await preguntar(`Claude va a revisar lo grabado de «${E.semana}», reacomodar sonidos, música, imágenes y estilos, y rearmar los videos. ¿Seguir?`)) return;
@@ -3875,12 +3942,12 @@ function pintarTelefono() {
   $("tel").style.backgroundImage = actual?.portada ? `url('${actual.portada}')` : "none";
   let html = "";
   if (red === "youtube") {
-    html = `<b>${esc($("cYtTitulo").value)}</b><br><span style="opacity:.8">@Suplevet · Suscribirse</span>`;
+    html = `<b>${esc($("cYtTitulo").value)}</b><br><span style="opacity:.8">@${esc(cuentaMarca())} · Suscribirse</span>`;
     $("telArriba").textContent = "Shorts";
   } else {
     const t = red === "instagram" ? $("cInstagram").value : $("cTiktok").value;
     const corto = t.length > LIM[red] ? esc(t.slice(0, LIM[red]).trim()) + `… <span style="opacity:.7">más</span>` : esc(t);
-    html = `<b>${red === "instagram" ? "suplevet.pe" : "@suplevet"}</b><br>${corto.replace(/\n/g, " ")}`;
+    html = `<b>${red === "instagram" ? esc(cuentaMarca().toLowerCase()) : "@" + esc(cuentaMarca().toLowerCase())}</b><br>${corto.replace(/\n/g, " ")}`;
     $("telArriba").textContent = red === "instagram" ? "Reels" : "Para ti";
   }
   $("telTxt").innerHTML = html;
@@ -8960,6 +9027,7 @@ function pintarPerfil(p) {
   if (!p) return;
   const im = p.imagenes || {}, mu = p.musica || {}, sk = p.skills || {};
   $("pfQueVende").value = p.que_vende || ""; $("pfPublico").value = p.publico || ""; $("pfTono").value = p.tono || "";
+  $("pfPublicos").value = (p.publicos || []).join("\n");
   $("pfMarca").value = (p.palabras_marca || []).join(", ");
   $("pfVocabulario").value = (p.vocabulario || []).join("\n"); $("pfClave").value = (p.palabras_clave || []).join("\n");
   $("pfCta").value = (p.cta || []).join("\n");
@@ -8983,7 +9051,7 @@ function leerPerfil() {
   const ej = PF_EJEMPLO || (PF && PF_PROPIO ? (PF.imagenes || {}).ejemplo : null);
   if (ej && ej.prompt) im.ejemplo = ej;
   return { nombre: $("mkNombre").value.trim(), que_vende: $("pfQueVende").value.trim(), publico: $("pfPublico").value.trim(),
-    tono: $("pfTono").value.trim(), palabras_marca: pfLista("pfMarca"), vocabulario: pfLista("pfVocabulario"),
+    tono: $("pfTono").value.trim(), publicos: mkLineas("pfPublicos"), plantilla: (PF && PF.plantilla) || "", palabras_marca: pfLista("pfMarca"), vocabulario: pfLista("pfVocabulario"),
     palabras_clave: pfLista("pfClave"), cta: mkLineas("pfCta"), correcciones, imagenes: im,
     musica: { reglas: mkLineas("pfMusica"), evitar: $("pfMusicaEvitar").value.trim() }, notas: $("pfNotas").value.trim(),
     skills: { guionista: $("pfSkGuion").value.trim(), director: $("pfSkDirector").value.trim(), flow: $("pfSkFlow").value.trim() } };
@@ -9145,6 +9213,7 @@ $("mkGuardar").onclick = async () => {
     const r = await post("/api/marca", { marca: leerMarca() });
     const rp = await post("/api/perfil", { accion: "guardar", perfil: leerPerfil() });
     PF = rp.perfil; PF_PROPIO = true; PF_EJEMPLO = null;
+    if (E) E.perfil = { nombre: PF.nombre, publico: PF.publico, publicos: PF.publicos, tiene_perfil: true };
     MK = r.marca; mkMarcarSucia(false);
     try { pintarMarca(); } finally { pintarPerfil(PF); }
     E.marca = { nombre: MK.nombre, colores: MK.colores, logos: MK.logos, fuentes: MK.fuentes, tiene_marca: MK.tiene_marca };
@@ -9404,7 +9473,7 @@ function pintarImportar() {
       ${IM.ficha ? `<span class="pill ok">✓ Ficha de marca leída</span>` : `<span class="pill">Sin ficha de marca</span>`}</div>
     ${IM.avisos.length ? `<p class="cal-arreglo fila" style="margin:0">${IM.avisos.map(esc).join("<br>")}</p>` : ""}
     <div class="im-marca form-plant">
-      <label>Nombre de la marca<input id="imNombre" value="${esc(m.nombre || (E.marca || {}).nombre || "")}" placeholder="Ej.: Suplevet"></label>
+      <label>Nombre de la marca<input id="imNombre" value="${esc(m.nombre || (E.marca || {}).nombre || "")}" placeholder="Ej.: Tu marca"></label>
       ${(m.colores || []).length ? `<div style="display:grid;gap:6px"><span class="etq">Colores ${IM.colores_de === "logo" ? "(sacados de tu logo)" : IM.colores_de === "ficha y logo" ? "(de la ficha; el principal, de tu logo)" : "(de la ficha)"}</span>
         <div class="im-colores">${m.colores.map((c, k) => `<label title="${esc(c.uso)}"><input type="color" data-imc="${k}" value="${esc(c.hex.toLowerCase())}">${esc(c.nombre)} · ${esc(c.uso)}</label>`).join("")}</div>
         <label class="fila" style="display:flex;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="imUsarColores" ${IM.usarColores ? "checked" : ""}> Usar estos colores${tiene ? " (reemplazan los que tiene ahora la marca)" : ""}</label></div>` : ""}
@@ -9659,9 +9728,9 @@ async function pintarPreparar() {
     { ok: guionOk, t: !E.hay_produccion ? "Falta el guion" : guionOk ? "Guion listo" : "Al guion le faltan piezas",
       d: E.hay_produccion ? (g ? `${plural(n("cuerpo"), "cuerpo")}, ${plural(n("hook"), "hook")} y ${plural(n("cta"), "CTA", "CTA")}.`
           + (faltaPieza.length ? ` Le faltan ${faltaPieza.join(" y ")}: revísalo en Guion o sube otro.` : " La sala ya lo separó por piezas.") : "La sala ya lo separó por piezas.")
-        : "Súbelo y la sala lo lee, lo separa en cuerpos, hooks y CTA y lo ordena." + (ag ? "" : " También lo puede escribir Claude."),
+        : "Súbelo y la sala lo lee, lo separa en cuerpos, hooks y CTA y lo ordena." + (ag ? " También lo puede escribir Gemini." : " También lo puede escribir Claude."),
       b: E.hay_produccion ? `<button class="btn sec peq" type="button" data-ir="guion">Ver el guion</button><button class="btn sec peq" type="button" data-prep="guion">Cambiar el guion</button>`
-        : `<button class="btn" type="button" data-prep="guion">⬆ Subir el guion (PDF, Word, .txt, .md o .json)</button>${ag ? "" : `<button class="btn sec" type="button" data-ir="claude">✳ Escribirlo con Claude</button>`}` },
+        : `<button class="btn" type="button" data-prep="guion">⬆ Subir el guion (PDF, Word, .txt, .md o .json)</button><button class="btn sec" type="button" data-ir="claude">${ag ? "✦ Escribirlo con Gemini" : "✳ Escribirlo con Claude"}</button>` },
     { ok: assets.length > 0 && !faltaA, t: "Imágenes y clips de apoyo",
       d: !assets.length ? `${quien} lee el guion y propone en qué palabras va una imagen o un clip, con su prompt para Google Flow.`
         : `${plural(assets.length - clips, "imagen", "imágenes")} y ${plural(clips, "clip")} en el guion${faltaA ? ` · faltan ${faltaA} por generar` : " · todas listas"}.`,
@@ -11160,7 +11229,7 @@ function pintarConexiones() {
       pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "En la sala, ve a Inicio → «Claude» y toca «Iniciar sesión en Claude». La sala usa esa misma cuenta.", "Si dice «Falta iniciar sesión», vuelve a abrir la app de Claude y toca «Ya entré, revisar»."],
       boton: ["Ir a Claude", () => irTab("inicio")], ico: "✳" },
     { id: "flow", t: "Google Flow (imágenes y clips con IA)", d: usaFlow ? "En uso: esta sesión ya tiene imágenes de Flow." : "Genera las imágenes y los clips de cada guion con su prompt (están en Faltantes).", ok: usaFlow || marcaConexion("flow"), manual: !usaFlow,
-      pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI (Pro).", "Crea un proyecto con el nombre de la producción (por ejemplo «P01 B2B VETERINARIOS»).", "En los ajustes del asistente (ícono de deslizadores) elige <b>9:16</b> y <b>x1</b>, y guarda.", "En Faltantes copia el prompt de cada imagen y pídela con su código delante (por ejemplo «C3_IMG1: …»). Si Google rechaza un prompt, usa «Copiar plan B».", "Descarga cada imagen en <b>1K</b>. Luego, en Faltantes → «Poner en los videos», toca «Usar» en cada una: la sala la guarda con su nombre y la sube a Drive."],
+      pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI (Pro).", "Crea un proyecto con el nombre de la producción (por ejemplo «P01 LANZAMIENTO»).", "En los ajustes del asistente (ícono de deslizadores) elige <b>9:16</b> y <b>x1</b>, y guarda.", "En Faltantes copia el prompt de cada imagen y pídela con su código delante (por ejemplo «C3_IMG1: …»). Si Google rechaza un prompt, usa «Copiar plan B».", "Descarga cada imagen en <b>1K</b>. Luego, en Faltantes → «Poner en los videos», toca «Usar» en cada una: la sala la guarda con su nombre y la sube a Drive."],
       boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")], ico: "🖼" },
     { id: "music", t: "Google Flow Music (música)", d: usaMusica ? "En uso: esta sesión ya tiene música de Flow Music." : "Crea la música de cada cuerpo con el prompt del guion.", ok: usaMusica || marcaConexion("music"), manual: !usaMusica,
       pasos: ["Abre Flow Music con la misma cuenta de Google (también se entra desde Flow, botón «Flow Music»).", "Pega el prompt de la pista (en Faltantes → Música). Empieza con «Instrumental only, no vocals, no lyrics.».", "Cada pedido trae dos versiones: escucha el inicio y quédate con la que no tenga voces.", "Menú «⋯» de la canción → Download → <b>MP3</b>. Luego Faltantes → «Poner en los videos» → «Usar».", "Si Flow Music no está disponible, usa Suno (modo Custom, Instrumental) con el prompt de Suno del guion."],
@@ -11176,9 +11245,9 @@ function pintarConexiones() {
       pasos: ["En Google Chrome, instala la extensión «Claude» desde la Chrome Web Store e inicia sesión con la cuenta de Claude.", "Deja abierto Chrome con la sesión de Google (Flow y Flow Music) iniciada.", "Pídele a Claude: «genera las imágenes y la música de la sesión P01». Si aparece un inicio de sesión, términos o un captcha, lo haces tú."],
       boton: ["Abrir Chrome Web Store", () => abrirAfuera("https://chromewebstore.google.com/search/claude")], ico: "◎", opcional: true },
     // sin dominio, el panel web no se usa: todo va en esta PC y en Drive (aprobar en Videos, teleprompter por WiFi)
-    E.panel ? { id: "panel", t: "Panel web (edicion.suplevet.pe)", d: "Ahí se revisan y aprueban los videos, y está el teleprompter que sigue la voz.", ok: true, auto: true,
-      pasos: ["Pide el link y el código del panel a quien lo administra; se guardan en la configuración de esta PC.", "Entra a edicion.suplevet.pe con tu usuario para revisar y aprobar.", "En la tablet, abre el teleprompter del panel y en el navegador elige «Agregar a pantalla de inicio»: queda como una app."],
-      boton: ["Abrir el panel", () => abrirAfuera("https://edicion.suplevet.pe")], ico: "▦" } : null,
+    E.panel ? { id: "panel", t: "Panel web del equipo", d: "Ahí se revisan y aprueban los videos, y está el teleprompter que sigue la voz.", ok: true, auto: true,
+      pasos: ["Pide el link y el código del panel a quien lo administra; se guardan en la configuración de esta PC.", "Entra al panel con tu usuario para revisar y aprobar.", "En la tablet, abre el teleprompter del panel y en el navegador elige «Agregar a pantalla de inicio»: queda como una app."],
+      boton: ["Abrir el panel", () => abrirAfuera(E.panel_url || "about:blank")], ico: "▦" } : null,
     { id: "tablet", t: "Teleprompter en la tablet (por WiFi)", d: "Sin internet: la tablet lee el guion desde esta PC, con PIN.", ok: !!(E.red || {}).activa, auto: true,
       pasos: ["Conecta la tablet al mismo WiFi que esta PC.", "En Configuración → «Teleprompter», actívalo, cierra y vuelve a abrir la sala, y abre en la tablet la dirección que aparece.", "Escribe el PIN. Usa «Líneas: 2 o 3» y «Tamaño» para leer cómodo frente a la cámara."],
       boton: ["Ir al teleprompter", () => irConf("confTablet")], ico: "📱" },
