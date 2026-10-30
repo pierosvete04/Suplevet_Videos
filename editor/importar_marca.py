@@ -19,6 +19,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import time
 import unicodedata
 import zipfile
 from pathlib import Path
@@ -796,24 +797,42 @@ def aplicar(i, propuesta):
     nueva["logos"] = list(logos.values())
     if hechos["fuentes"]:
         marca.copiar_fuentes()
+    if propuesta.get("perfil"):  # lo de la ficha en Excel para los videos: antes de guardar la marca, así sube junto
+        hechos["perfil"] = _guardar_perfil(propuesta["perfil"])
     datos = marca.guardar(nueva)  # sube todo a Drive de una vez
-    pf = propuesta.get("perfil") or {}
-    if pf:  # lo de la ficha en Excel para los videos (perfil.py, solo en la Sala de edición)
-        try:
-            import perfil
-            actual_pf = perfil.propio()
-            junto = {**actual_pf, **{k: v for k, v in pf.items() if v not in (None, "", [], {})}}
-            for k in ("imagenes", "musica"):  # campo por campo: el Excel no borra lo demás
-                if isinstance(pf.get(k), dict):
-                    junto[k] = {**(actual_pf.get(k) or {}), **pf[k]}
-            if pf.get("correcciones"):
-                junto["correcciones"] = {**(actual_pf.get("correcciones") or {}), **pf["correcciones"]}
-            perfil.guardar(junto)
-            hechos["perfil"] = True
-        except ImportError:
-            pass
     shutil.rmtree(BASE / i, ignore_errors=True)
     return {"hechos": hechos, "marca": datos}
+
+
+def _guardar_perfil(pf):
+    """Suma lo de la ficha al perfil para los videos de _MARCA/perfil.json (no borra lo que la ficha no trae). En la Sala
+    de edición pasa por perfil.py; en la de diseño se escribe tal cual y la Sala de edición lo lee de Drive."""
+    try:
+        import perfil
+        actual = perfil.propio()
+
+        def escribir(d):
+            perfil.guardar(d, subir=False)
+    except ImportError:
+        f = marca.raiz() / "perfil.json"
+        try:
+            actual = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            actual = {}
+
+        def escribir(d):
+            f.parent.mkdir(parents=True, exist_ok=True)
+            tmp = f.with_name(".perfil.json.part")
+            tmp.write_text(json.dumps({**d, "cambio": time.time()}, ensure_ascii=False, indent=1), encoding="utf-8")
+            os.replace(tmp, f)
+    junto = {**actual, **{k: v for k, v in pf.items() if v not in (None, "", [], {})}}
+    for k in ("imagenes", "musica"):  # campo por campo: el Excel no borra lo demás
+        if isinstance(pf.get(k), dict):
+            junto[k] = {**(actual.get(k) or {}), **pf[k]}
+    if pf.get("correcciones"):
+        junto["correcciones"] = {**(actual.get("correcciones") or {}), **pf["correcciones"]}
+    escribir(junto)
+    return True
 
 
 if __name__ == "__main__":

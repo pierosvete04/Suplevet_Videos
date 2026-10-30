@@ -1,3 +1,6 @@
+Versión 1.61.1 (se actualiza desde la app con «Actualizar ahora»):
+- La ficha de marca en Excel también se puede importar desde la Sala de diseño (0.19.0): lo que trae para los videos queda en la carpeta de la marca y esta sala lo usa. Al importar aquí, el perfil sube a Drive junto con la marca, de una vez.
+
 Versión 1.61.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Ficha de marca en Excel:** «Plantilla de marca» (Configuración → Marca) trae ahora un Excel con casillas y listas para elegir: tu marca (qué vendes, a quién, tono, cómo te compran, tipografías), tus colores con su código (#253C61) y para qué se usa cada uno, todas tus palabras (el nombre de la marca, las del producto, las que se resaltan, las frases de compra, lo que nunca se dice y cómo la escribe mal la transcripción), las reglas de las imágenes y de la música, y tus públicos. Llénalo, guárdalo en la carpeta con tus logos y tipografías, y súbela con «Importar mi marca»: la sala arma la marca y el perfil para los videos.
 - **Arma tu perfil con Antigravity, con preguntas:** ¿qué vendes?, ¿a quién?, ¿qué palabras usan más?, ¿cómo te compran?, ¿qué nunca dirías?, ¿cómo quieres que se vean y suenen tus videos? (y el texto de tu web, si quieres). Antigravity llena todas las casillas.
