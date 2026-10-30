@@ -630,6 +630,43 @@ def duracion(p):
     return d
 
 
+_FPS = {}
+
+
+def fps_de(p):
+    """Cuadros por segundo de un video (ffprobe, el «r_frame_rate»), recordados mientras el archivo no cambie.
+    El iPhone graba a 59,94 o 29,97 con cuadros que varían un poco: lo que importa es si es de 30 o de 60."""
+    try:
+        st = os.stat(p)
+        clave = (str(p), st.st_size, st.st_mtime_ns)
+    except OSError:
+        return 30.0
+    if clave not in _FPS:
+        try:
+            r = run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=r_frame_rate,avg_frame_rate",
+                     "-of", "csv=p=0", str(p)]).stdout.strip().splitlines()
+            fr = [x for x in (r[0].split(",") if r else []) if "/" in x]
+            vals = [int(a) / int(b) for a, b in (x.split("/") for x in fr) if int(b)]
+            _FPS[clave] = max(vals) if vals else 30.0
+        except (RuntimeError, ValueError, IndexError):
+            _FPS[clave] = 30.0
+    return _FPS[clave]
+
+
+def fps_redondo(x):
+    """30 o 60: la sala trabaja con esas dos (60 si el video se grabó a 50 o más)."""
+    return 60 if (x or 0) >= 47 else 30
+
+
+def fps_para_piezas(partes):
+    """A cuántos cuadros se prepara una pieza: los de sus clips (60 si alguno es de 60) o lo que diga
+    config «fps_piezas» (30 o 60; «auto» = según los clips, lo de siempre)."""
+    forzado = str(CONFIG.get("fps_piezas") or "auto")
+    if forzado in ("30", "60"):
+        return int(forzado)
+    return max([fps_redondo(fps_de(x)) for x in partes] or [30])
+
+
 def norm(w):
     w = unicodedata.normalize("NFD", w.lower())
     return re.sub(r"[^a-z0-9ñ]", "", "".join(c for c in w if unicodedata.category(c) != "Mn"))
@@ -1761,13 +1798,19 @@ def procesar(forzar_subs=False, avance=print):
             avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
             trozos, cortes = [], []
             W, H = lienzo()
+            fps_p = fps_para_piezas(p["partes"])  # 60 si se grabó a 60 (antes todo bajaba a 30 y se perdía la mitad)
             for k, parte in enumerate(p["partes"]):
                 ini, fin = limites_de_voz(parte)
+                # un número entero de cuadros: así la imagen y la voz de cada parte duran lo mismo (si no, al unir
+                # las partes la voz se iba corriendo un poco en cada una)
+                n_cuadros = max(1, round((fin - ini) * fps_p))
+                fin = ini + n_cuadros / fps_p
                 cortes.append([round(ini, 3), round(fin, 3)])  # para ubicar las palabras del clip en la pieza
                 sola = len(lista) == 1
                 t = dest if sola else S.proc / f"_{p['nombre']}_{k}.mov"  # en partes: audio sin comprimir hasta unir
-                run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.2f}", "-to", f"{fin:.2f}", "-i", str(parte),
-                     "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1",
+                run([FFMPEG, "-hide_banner", "-y", "-ss", f"{ini:.3f}", "-t", f"{n_cuadros / fps_p:.6f}", "-i", str(parte),
+                     "-frames:v", str(n_cuadros),
+                     "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={fps_p},setsar=1",
                      "-af", f"{filtro_volumen_parejo(parte, ss=ini, to=fin)},aresample=48000", "-ac", "2", "-dn", "-map_chapters", "-1",
                      "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", *GOP_EDITOR,
                      *(["-c:a", "aac", "-b:a", "192k"] if sola else ["-c:a", "pcm_s16le"]), str(t)])
@@ -1781,7 +1824,8 @@ def procesar(forzar_subs=False, avance=print):
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
             firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "cortes": cortes, "formato": formato(),
-                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES, "norma": NORMA}, ensure_ascii=False), encoding="utf-8")
+                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES, "norma": NORMA, "fps": fps_p},
+                                        ensure_ascii=False), encoding="utf-8")
             if vieja is not None and (not mismas or desfasada):  # con la voz en su lugar, los tiempos cambian
                 # otra toma: el subtítulo se rehace con lo que se dice ahora, pero las marcas (imágenes, sonidos,
                 # resaltados) se quedan porque van por palabra; el subtítulo viejo se guarda por si se quiere volver
@@ -5682,22 +5726,37 @@ def estructura(codigo, hook=None, cuerpo=None, cta=None):
             "zoom": v.get("zoom", {}), "cortes": v.get("cortes", {}), "quitar_rangos": v.get("quitar_rangos", {}), "capas": v.get("capas", {}),
             "velocidad": v.get("velocidad", {}), "voz_revisada": v.get("voz_revisada") or {},
             "audio_aparte": v.get("audio_aparte") or {}, "duplicados": v.get("duplicados") or {},
+            # cuadros por segundo del video (30 o 60): las flechas del editor avanzan un cuadro de verdad
+            "fps": max([fps_redondo(fps_de(S.proc / f"{c[k]}.mp4")) for k in ("hook", "cuerpo", "cta")
+                        if (S.proc / f"{c[k]}.mp4").exists()] or [30]),
             "opciones": {t: [p["nombre"] for p in ps if p["tipo"] == t] for t in ("hook", "cuerpo", "cta")}}
+
+
+def _dentro_de(rangos, desde, hasta):
+    """Los rangos recortados a [desde, hasta]: un corte guardado nunca se pasa a la pieza de al lado. Si una pieza se
+    vuelve a preparar y queda más corta, sus cortes guardados (en segundos) podían caer en la pieza siguiente: un corte
+    al final del hook se comía el comienzo del cuerpo."""
+    out = []
+    for a, b in rangos:
+        a, b = max(desde, float(a)), min(hasta, float(b))
+        if b - a > 1e-3:
+            out.append((a, b))
+    return out
 
 
 def _rangos_a_quitar(combo, offs, total):
     v = edicion_de(combo)
     rangos = []
+    lim = {"hook": (0.0, offs[1]), "cuerpo": (offs[1], offs[2]), "cta": (offs[2], total)}
     if v.get("quitar"):
         partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
-        rangos += [(offs[1] + partes[i]["ini"], offs[1] + partes[i]["fin"]) for i in v["quitar"] if i in partes]
+        rangos += _dentro_de([(offs[1] + partes[i]["ini"], offs[1] + partes[i]["fin"]) for i in v["quitar"] if i in partes], *lim["cuerpo"])
     r = v.get("recortes") or {}
     durs = [offs[1], offs[2] - offs[1], total - offs[2]]
     for clave, off, dur in (("hook", 0.0, durs[0]), ("cta", offs[2], durs[2])):
         if r.get(clave):
             a, b = r[clave]
-            rangos += [(off, off + a)] if a > 0 else []
-            rangos += [(off + b, off + dur)] if b < dur - 0.02 else []
+            rangos += _dentro_de(([(off, off + a)] if a > 0 else []) + ([(off + b, off + dur)] if b < dur - 0.02 else []), *lim[clave])
     if r.get("partes"):
         partes = {p["i"]: p for p in partes_de(combo["cuerpo"])}
         for i, (a, b) in r["partes"].items():
@@ -5705,12 +5764,11 @@ def _rangos_a_quitar(combo, offs, total):
             if not p or int(i) in v.get("quitar", []):
                 continue
             ini, fin = offs[1] + p["ini"], offs[1] + p["fin"]
-            rangos += [(ini, ini + a)] if a > 0 else []
-            rangos += [(ini + b, fin)] if ini + b < fin - 0.02 else []
-    o = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
+            rangos += _dentro_de(([(ini, ini + a)] if a > 0 else []) + ([(ini + b, fin)] if ini + b < fin - 0.02 else []),
+                                 ini, min(fin, offs[2]))
     for pz, lista in (v.get("quitar_rangos") or {}).items():
-        if pz in o:
-            rangos += [(o[pz] + a, o[pz] + b) for a, b in lista]
+        if pz in lim:
+            rangos += _dentro_de([(lim[pz][0] + a, lim[pz][0] + b) for a, b in lista], *lim[pz])
     if v.get("recorte_inicio"):
         rangos.append((0.0, min(float(v["recorte_inicio"]), total - 1)))
     if v.get("recorte_fin"):
@@ -5731,10 +5789,12 @@ def _rangos_velocidad(combo, offs, total):
         for i, f in vel["partes"].items():
             p = partes.get(int(i))
             if p:
-                out.append((offs[1] + p["ini"], offs[1] + p["fin"], f))
-    o = {"hook": 0.0, "cuerpo": offs[1], "cta": offs[2]}
+                out.append((offs[1] + p["ini"], min(offs[2], offs[1] + p["fin"]), f))
+    lim = {"hook": (0.0, offs[1]), "cuerpo": (offs[1], offs[2]), "cta": (offs[2], total)}
     for clave, lista in (vel.get("tramos") or {}).items():  # frases lentas aceleradas solas (ver _con_ritmo)
-        out += [(o[clave] + a, o[clave] + b, f) for a, b, f in lista if clave in o]
+        if clave in lim:  # sin pasarse a la pieza de al lado (ver _dentro_de)
+            out += [(a2, b2, f) for a, b, f in lista
+                    for a2, b2 in _dentro_de([(lim[clave][0] + a, lim[clave][0] + b)], *lim[clave])]
     return out
 
 
@@ -5742,7 +5802,9 @@ def _trozos(total, rangos, velocidades=(), bordes=()):
     """Lo que queda del video armado sin recortes: [(desde, hasta, factor)], partido donde cambia la velocidad
     y en los bordes pedidos (pedazos con el audio desagrupado o duplicados)."""
     juntos = []
-    for a, b in sorted((max(0.0, a), min(total, b)) for a, b in rangos):
+    # un rango que empieza después del final (o termina antes del comienzo) no se mira: antes, uno que empezaba pasado
+    # el final dejaba un tramo «fuera del video» que se pisaba con el último
+    for a, b in sorted((max(0.0, a), min(total, b)) for a, b in rangos if min(total, b) > max(0.0, a)):
         if juntos and a <= juntos[-1][1] + 0.01:
             juntos[-1] = (juntos[-1][0], max(juntos[-1][1], b))
         else:
@@ -5819,6 +5881,19 @@ def _con_duplicados(trozos, dups):
     return out, True
 
 
+def _a_cuadros(trozos, fps=30):
+    """Los tramos con sus bordes en cuadros enteros. La imagen solo se puede cortar en un cuadro (cada 1/30 o 1/60 s) y
+    el sonido en cualquier punto: con bordes sueltos cada tramo de imagen quedaba hasta un cuadro más corto o más largo
+    que su voz y, en un cuerpo con 15 cortes, la voz se corría hasta 130 ms al final (se nota en los labios). Con los
+    bordes en cuadros, imagen y voz duran lo mismo en cada tramo."""
+    out = []
+    for a, b, fac in trozos:
+        a2, b2 = round(a * fps) / fps, round(b * fps) / fps
+        if b2 - a2 >= 1 / fps - 1e-9:
+            out.append((a2, b2, fac))
+    return out
+
+
 def _mapa_tiempo(trozos):
     """(f, duración): f(t) pasa un segundo del video sin recortes al video editado (con las velocidades).
     Si ese segundo se quitó, devuelve None; con pegar=True, el inicio de lo que sigue (en el video sin recortes).
@@ -5839,7 +5914,7 @@ def _mapa_tiempo(trozos):
     return f, g
 
 
-def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t", aparte=()):
+def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t", aparte=(), fps=30):
     """Filtros que dejan solo los tramos [(desde, hasta, factor)] de [v_in][a_in] y los unen en [v_out][a_out].
     Va dentro del filtro del armado: corta en la misma pasada en que pone los subtítulos (un solo codificado).
     La música y los sonidos se ponen después, sobre el video ya cortado, para que no salten en cada corte.
@@ -5860,6 +5935,7 @@ def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t", aparte=()):
         f.append(f"[{v_in}]split={n}" + "".join(f"[{pref}sv{k}]" for k in range(n)))
     if na > 1:
         f.append(f"[{a_in}]asplit={na}" + "".join(f"[{pref}sa{k}]" for k in range(na)))
+    medio = 0.5 / fps  # la imagen se corta medio cuadro antes de cada borde: entran justo los cuadros del tramo
     for k, (a, b, fac) in enumerate(quedan):
         vel_v = f"/{fac:.4f}" if abs(fac - 1) > 0.001 else ""
         vel_a = f",atempo={fac:.4f}" if abs(fac - 1) > 0.001 else ""
@@ -5868,12 +5944,12 @@ def _filtro_tramos(v_in, a_in, quedan, v_out, a_out, pref="t", aparte=()):
         x = de(a, b) or {}
         if x.get("sin_imagen"):  # su primer cuadro, quieto, todo lo que dura el pedazo
             d = (b - a) / fac
-            f.append(f"[{vi}]trim=start={a:.3f}:end={min(b, a + 0.05):.3f},setpts=PTS-STARTPTS,"
-                     f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=duration={d:.3f},setpts=PTS-STARTPTS[{pref}v{k}]")
+            f.append(f"[{vi}]trim=start={max(0.0, a - medio):.6f}:end={a + medio:.6f},setpts=PTS-STARTPTS,"
+                     f"tpad=stop_mode=clone:stop_duration={d:.6f},trim=duration={d:.6f},setpts=PTS-STARTPTS[{pref}v{k}]")
         else:
-            f.append(f"[{vi}]trim=start={a:.3f}:end={b:.3f},setpts=(PTS-STARTPTS){vel_v}[{pref}v{k}]")
+            f.append(f"[{vi}]trim=start={max(0.0, a - medio):.6f}:end={b - medio:.6f},setpts=(PTS-STARTPTS){vel_v}[{pref}v{k}]")
         mudo = ",volume=0" if x.get("sin_voz") or any(c == k for c, _ in corridos) else ""  # la corrida suena aparte
-        f.append(f"[{ai}]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS{vel_a}{mudo}[{pref}a{k}]")
+        f.append(f"[{ai}]atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS{vel_a}{mudo}[{pref}a{k}]")
     a_concat = f"{pref}acat" if corridos else a_out
     f.append("".join(f"[{pref}v{k}][{pref}a{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=1[{v_out}][{a_concat}]")
     if corridos:
@@ -6948,15 +7024,15 @@ def pistas_musica():
 
 # ---------- Imágenes y clips (b-roll) ----------
 
-def filtro_broll(i, ov):
-    """Cadena de filtro para una imagen/clip que entra en ov['t'] y dura ov['dur']."""
+def filtro_broll(i, ov, fps=30):
+    """Cadena de filtro para una imagen/clip que entra en ov['t'] y dura ov['dur'] (a los cuadros del video: 30 o 60)."""
     dur, t, modo = ov["dur"], ov["t"], ov.get("modo", "completa")
     vx, vy, va = VENTANA_DEFECTO[formato()]
     W, H, x, y = (*lienzo(), 0, 0) if modo == "completa" else (va, va, vx, vy)
     if modo != "completa" and ov.get("ancho"):  # ventana colocada a mano en el editor
         W = H = int(ov["ancho"]) // 2 * 2
         x, y = int(ov.get("x", x)), int(ov.get("y", y))
-    n = max(1, int(dur * 30))
+    n = max(1, int(dur * fps))
     if ov["es_imagen"]:
         mov = ov.get("mov", "zoom_in")
         # estilo «zoom_imagenes»: «subir» (lo de siempre desde la 1.57.8) = toda imagen se acerca despacio de principio a
@@ -6970,9 +7046,9 @@ def filtro_broll(i, ov):
         z = {"zoom_in": f"1+0.10*on/{n}", "zoom_out": f"1.10-0.10*on/{n}"}.get(mov, "1")
         cadena = (f"[{i}:v]scale={W * 3}:{H * 3}:force_original_aspect_ratio=increase,"
                   f"crop={W * 3}:{H * 3},zoompan=z='{z}':x='trunc(iw/2-(iw/zoom/2))':y='trunc(ih/2-(ih/zoom/2))'"
-                  f":d={n}:s={W}x{H}:fps=30,setsar=1")
+                  f":d={n}:s={W}x{H}:fps={fps},setsar=1")
     else:
-        cadena = f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1"
+        cadena = f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={fps},setsar=1"
     if modo != "completa":
         cadena += f",pad={W + 16}:{H + 16}:8:8:white"
         x, y = x - 8, y - 8
@@ -7244,6 +7320,9 @@ def armar_uno(combo, n_musica=None, extras=None):
     if falta:
         raise ValueError(f"{', '.join(falta)} no está preparado en esta PC: toca «Analizar los clips» en Inicio y vuelve a armar.")
     durs = [duracion(a) for a in archivos]
+    # cuadros por segundo del video: 60 si alguna de sus piezas es de 60 (las de 30 se igualan); las tres piezas pasan
+    # por «fps» para que todo el video tenga cuadros parejos y los cortes caigan justo en un cuadro
+    fps_v = max(fps_redondo(fps_de(a)) for a in archivos)
     offs = [0, durs[0], durs[0] + durs[1]]
     total = sum(durs)
     subs = [leer_subs(n)["lineas"] for n in orden]
@@ -7303,11 +7382,14 @@ def armar_uno(combo, n_musica=None, extras=None):
     for a in archivos:
         cmd += ["-i", str(a)]
     idx = 3  # la música y los sonidos entran en el paso 3
-    f = ["[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[vc][ac]"]
+    f = [f"[{k}:v]fps={fps_v}[pv{k}]" for k in range(3)]
+    # después de unir, otra vez «fps»: si la imagen de una pieza es un poco más corta que su sonido, la unión deja un
+    # hueco; así se rellena con su último cuadro (si no, el zoom lo «cerraba» y la voz quedaba corrida el resto del video)
+    f.append(f"[pv0][0:a][pv1][1:a][pv2][2:a]concat=n=3:v=1:a=1[vcu][ac];[vcu]fps={fps_v}[vc]")
     v_prev = "vc"
     zexpr = _expresion_zoom(combo, offs, total)
     if zexpr:  # zoom (antes de imágenes y subtítulos, que no se acercan); el punto de foco queda fijo en pantalla
-        f.append(f"[vc]zoompan=z='{zexpr['z']}':x='{zexpr['x']}':y='{zexpr['y']}':d=1:s={'x'.join(map(str, lienzo()))}:fps=30,setsar=1[vz]")
+        f.append(f"[vc]zoompan=z='{zexpr['z']}':x='{zexpr['x']}':y='{zexpr['y']}':d=1:s={'x'.join(map(str, lienzo()))}:fps={fps_v},setsar=1[vz]")
         v_prev = "vz"
     # color (LUT) y efecto de imagen: solo sobre lo grabado, no sobre las imágenes de Flow ni los subtítulos
     if color := filtros_color(combo, trabajo, v_prev, "vcol"):
@@ -7318,7 +7400,7 @@ def armar_uno(combo, n_musica=None, extras=None):
             cmd += ["-i", str(ov["archivo"])]  # un solo cuadro: filtro_broll lo alarga con zoompan (d=cuadros)
         else:
             cmd += ["-t", f"{ov['dur']:.2f}", "-i", str(ov["archivo"])]
-        cadena, x, y = filtro_broll(idx, ov)
+        cadena, x, y = filtro_broll(idx, ov, fps_v)
         f.append(cadena)
         f.append(f"[{v_prev}][o{idx}]overlay={x}:{y}:eof_action=pass:enable='between(t,{ov['t']:.2f},{ov['t'] + ov['dur']:.2f})'[v{idx}]")
         v_prev = f"v{idx}"
@@ -7331,7 +7413,7 @@ def armar_uno(combo, n_musica=None, extras=None):
         if arch.suffix.lower() == ".gif":
             cmd += ["-ignore_loop", "0", "-t", f"{total:.2f}", "-i", str(arch)]
         else:
-            cmd += ["-loop", "1", "-framerate", "30", "-t", f"{total:.2f}", "-i", str(arch)]
+            cmd += ["-loop", "1", "-framerate", str(fps_v), "-t", f"{total:.2f}", "-i", str(arch)]
         ancho = max(8, int(float(el.get("ancho", 200))))
         opac = max(0.0, min(1.0, float(el.get("opacidad", 100)) / 100))
         f.append(f"[{idx}:v]scale={ancho}:-1,format=rgba,colorchannelmixer=aa={opac:.2f}[e{idx}]")
@@ -7356,10 +7438,11 @@ def armar_uno(combo, n_musica=None, extras=None):
     bordes = [x[k] for x in aparte + dups for k in ("a", "b")]
     trozos, reordenado = _en_su_orden(combo, offs, _trozos(total, rangos, velocidades, bordes))
     trozos, duplicado = _con_duplicados(trozos, dups)
+    trozos = _a_cuadros(trozos, fps_v)  # cada corte justo en un cuadro: la voz no se corre de la imagen
     salidas_v = [("v", "ac1" if extras else "ac")] + ([("vlimpio", "ac2")] if extras else [])
     if (rangos or velocidades or reordenado or aparte or duplicado) and trozos:
         for k, (vl, al) in enumerate(salidas_v):
-            f += _filtro_tramos(vl, al, trozos, f"{vl}_c", f"{al}_c", pref=f"q{k}", aparte=aparte)
+            f += _filtro_tramos(vl, al, trozos, f"{vl}_c", f"{al}_c", pref=f"q{k}", aparte=aparte, fps=fps_v)
         salidas_v = [(f"{vl}_c", f"{al}_c") for vl, al in salidas_v]
     # paso 1: la imagen con la voz, ya cortada (sin música ni sonidos todavía); en .mkv con el audio sin comprimir
     base, limpio = trabajo / "base.mkv", trabajo / "limpio.mkv"
@@ -7400,7 +7483,7 @@ def armar_uno(combo, n_musica=None, extras=None):
     total = duracion(S.salida / f"{combo['archivo']}.mp4")
     hacer_portada(combo)
 
-    receta = {**combo, "duracion": round(total, 2), "cortes": [round(o, 2) for o in offs[1:]],
+    receta = {**combo, "duracion": round(total, 2), "fps": fps_v, "cortes": [round(o, 2) for o in offs[1:]],
               # dónde termina el hook y dónde empieza el CTA en el video editado
               "limites": [round(mapa(offs[1], True), 2), round(mapa(offs[2], True), 2)],
               "musica": " → ".join(f"{t['id'] or t['archivo'].stem} ({t['t0']:.1f} s)" for t in tramos_ed) or None,
@@ -7847,8 +7930,10 @@ def calendario():
     return out
 
 
-AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "codec": "h264", "calidad": "recomendada", "portada_inicio": True, "por_dia": False,
-                    "peso_max": 0}  # MB por video; 0 = sin límite
+# «cuadros»: 0 = los del video (30 o 60). Reemplaza a «fps», que siempre quedaba en 30 (el «recomendado» de antes):
+# un video de 60 se exportaba a 30 y perdía la mitad de sus cuadros
+AJUSTES_EXPORTAR = {"resolucion": "1080", "fps": 30, "cuadros": 0, "codec": "h264", "calidad": "recomendada", "portada_inicio": True,
+                    "por_dia": False, "peso_max": 0}  # MB por video; 0 = sin límite
 RESOLUCIONES = {"720": (720, 1280), "1080": (1080, 1920), "1440": (1440, 2560), "2160": (2160, 3840)}
 CALIDADES = {"ligera": 26, "recomendada": 22, "alta": 19, "maxima": 16}  # CRF: menos = mejor y más pesado
 
@@ -7883,7 +7968,7 @@ def _render_final(video, portada, destino, aj):
     w, h = RESOLUCIONES.get(str(aj["resolucion"]), (1080, 1920))
     if formato() == "horizontal":  # las resoluciones se nombran por el lado corto: 1080p en 16:9 es 1920×1080
         w, h = h, w
-    fps = int(aj.get("fps") or 30)
+    fps = int(aj.get("cuadros") or 0) or fps_redondo(fps_de(video))
     crf = CALIDADES.get(aj.get("calidad"), 19)
     venc = (["-c:v", "libx265", "-tag:v", "hvc1", "-crf", str(crf + 4)] if aj.get("codec") == "hevc"
             else ["-c:v", "libx264", "-crf", str(crf), "-profile:v", "high"])

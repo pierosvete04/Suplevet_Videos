@@ -1,3 +1,12 @@
+Versión 1.66.0 (se actualiza desde la app con «Actualizar ahora»):
+- **La voz ya no se corre con los cortes.** Cada corte cae justo en un cuadro: antes la imagen se cortaba en cuadros enteros y la voz no, y en un cuerpo con 15 cortes la voz quedaba hasta 130 ms corrida al final (se notaba en los labios). Ahora: 1 o 2 ms.
+- **60 fps de verdad.** La sala mira a cuántos cuadros se grabó cada clip: los de 60 se preparan a 60 (antes todo bajaba a 30 y se perdía la mitad de los cuadros). Un video con alguna pieza de 60 sale a 60.
+- Exportar: «Cuadros por segundo» ahora dice «Igual que el video (30 o 60)», y es lo recomendado.
+- En el editor, la flecha ← → avanza un cuadro de verdad (1/30 o 1/60 de segundo).
+- Arreglado: si una pieza se volvía a preparar y quedaba más corta, sus cortes guardados podían comerse el comienzo de la pieza siguiente (por ejemplo, un corte al final del hook cortaba el inicio del cuerpo).
+- Arreglado: si la imagen de una pieza era un poco más corta que su sonido, al unir las piezas la voz quedaba corrida el resto del video.
+- Las piezas ya preparadas siguen como estaban (30 fps); las que se preparen desde ahora usan los cuadros de sus clips.
+
 Versión 1.65.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Un video con error ya no frena todo el lote.** «Armar todos los videos» sigue con los demás y al final dice cuál no se pudo armar y por qué (antes, en P05, un solo video cortó un lote de casi 2 horas con «list index out of range»).
 - Si algo falla, Procesos dice también en qué parte del programa (por ejemplo «motor.py línea 7406»), para arreglarlo rápido.

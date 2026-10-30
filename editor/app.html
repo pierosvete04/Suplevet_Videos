@@ -2372,7 +2372,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
         <div class="form-plant">
           <label>Resolución<select id="exRes"><option value="720">720p (720×1280)</option><option value="1080">1080p (1080×1920) · recomendada</option>
             <option value="1440">2K (1440×2560)</option><option value="2160">4K (2160×3840)</option></select></label>
-          <label>Cuadros por segundo<select id="exFps"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps · recomendado</option><option value="60">60 fps</option></select></label>
+          <label>Cuadros por segundo<select id="exFps" title="Igual que el video: 60 si se grabó a 60, 30 si se grabó a 30"><option value="0">Igual que el video (30 o 60) · recomendado</option><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select></label>
           <label>Codec<select id="exCodec"><option value="h264">H.264 · todas las redes</option><option value="hevc">HEVC (H.265) · pesa menos</option></select></label>
           <label>Peso máximo por video<select id="exPeso" title="Si un video sale más pesado, se vuelve a exportar con la calidad justa para no pasarse">
             <option value="0">Sin límite</option><option value="15">15 MB</option><option value="20">20 MB</option><option value="25">25 MB</option>
@@ -5529,13 +5529,13 @@ let guardarAjExp = null;
   guardarAjExp = setTimeout(() => post("/api/ajustes_exportar", { ajustes: ajustesExport() }).then(() => { if (E) E.exportar = ajustesExport(); }).catch(() => {}), 400);
 }));
 function ajustesExport() {
-  return { resolucion: $("exRes").value, fps: Number($("exFps").value), codec: $("exCodec").value, calidad: $("exCalidad").value,
+  return { resolucion: $("exRes").value, cuadros: Number($("exFps").value), codec: $("exCodec").value, calidad: $("exCalidad").value,
            portada_inicio: $("exPortada").checked, por_dia: $("exPorDia").checked, peso_max: Number($("exPeso").value) };
 }
 function pintarExport() {
   const aj = E.exportar || {};
   if (!pintarExport.listo) {  // los ajustes guardados se cargan una vez
-    $("exRes").value = aj.resolucion || "1080"; $("exFps").value = String(aj.fps || 30); $("exCodec").value = aj.codec || "h264";
+    $("exRes").value = aj.resolucion || "1080"; $("exFps").value = String(aj.cuadros || 0); $("exCodec").value = aj.codec || "h264";
     $("exCalidad").value = aj.calidad || "recomendada"; $("exPortada").checked = aj.portada_inicio !== false; $("exPorDia").checked = !!aj.por_dia;
     $("exPeso").value = String(aj.peso_max || 0);
     pintarExport.listo = true;
@@ -5578,11 +5578,11 @@ function pintarFicha() {
   const aj = ajustesExport(), res = medidasRes(aj.resolucion);
   const lista = exElegidos.size ? E.salidas.filter(s => exElegidos.has(s.codigo)) : E.salidas.filter(s => s.existe);
   const seg = lista.reduce((a, s) => a + (s.receta?.duracion || 35), 0);
-  const factor = ({ "720": .45, "1080": 1, "1440": 1.7, "2160": 3.6 }[aj.resolucion]) * (aj.fps >= 60 ? 1.5 : 1) * (aj.codec === "hevc" ? .55 : 1);
+  const factor = ({ "720": .45, "1080": 1, "1440": 1.7, "2160": 3.6 }[aj.resolucion]) * (aj.cuadros >= 60 ? 1.5 : 1) * (aj.codec === "hevc" ? .55 : 1);
   const porVideo = s => Math.min(aj.peso_max || 1e9, (s.receta?.duracion || 35) * PESO_MBPS[aj.calidad] * factor / 8);
   const mb = lista.reduce((a, s) => a + porVideo(s), 0), max = lista.reduce((a, s) => Math.max(a, porVideo(s)), 0);
   $("exFicha").innerHTML = `<div><span>Formato</span><b>MP4</b></div><div><span>Resolución</span><b>${res}</b></div>
-    <div><span>Velocidad</span><b>${aj.fps} fps</b></div><div><span>Codec de video</span><b>${aj.codec === "hevc" ? "HEVC (H.265)" : "H.264 High"}</b></div>
+    <div><span>Velocidad</span><b>${aj.cuadros ? aj.cuadros + " fps" : "Igual que el video"}</b></div><div><span>Codec de video</span><b>${aj.codec === "hevc" ? "HEVC (H.265)" : "H.264 High"}</b></div>
     <div><span>Audio</span><b>AAC 192 kbps · 48 kHz</b></div><div><span>Primer cuadro</span><b>${aj.portada_inicio ? "Portada" : "Video"}</b></div>
     <div><span>Videos</span><b>${lista.length}</b></div><div><span>Peso aprox.</span><b>${mb >= 1000 ? (mb / 1000).toFixed(1) + " GB" : Math.round(mb) + " MB"}</b></div>
     <div><span>Por video</span><b>${lista.length ? `~${Math.round(mb / lista.length)} MB (máx. ~${Math.round(max)} MB)` : "—"}</b></div>
@@ -8577,7 +8577,7 @@ $("dlgEditor").addEventListener("keydown", e => {
   else if (e.key === "Home") { e.preventDefault(); $("evInicio").click(); }
   else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     e.preventDefault(); pararEditor();
-    irA(ed.t + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 1 : 1 / 30));
+    irA(ed.t + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 1 : 1 / (est?.fps || 30)));  // un cuadro: 1/30 o 1/60
   }
   else if (tecla === "s") { e.preventDefault(); pararEditor(); cortarEnCabezal(); }
   else if (tecla === "k") { e.preventDefault(); $("evPunto").click(); }
