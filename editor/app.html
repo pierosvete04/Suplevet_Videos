@@ -1733,7 +1733,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <div><h2 style="margin:0">Claude</h2><span class="muted" style="font-size:12px" id="clEstado">Revisando…</span></div></div>
           <div class="fila" id="iaElegir" style="margin-top:10px;gap:6px;align-items:center"><span class="muted" style="font-size:12.5px">Trabajar con:</span>
             <button class="btn sec peq" type="button" data-ia="claude" aria-pressed="false">✳ Claude</button>
-            <button class="btn sec peq" type="button" data-ia="antigravity" aria-pressed="false">🪐 Antigravity (Gemini)</button></div>
+            <button class="btn sec peq" type="button" data-ia="antigravity" aria-pressed="false">🪐 Antigravity</button></div>
           <div id="clConfig" hidden style="margin-top:12px;font-size:13px"></div>
           <div id="clYaHay" hidden style="margin-top:12px;display:grid;gap:10px">
             <p style="margin:0;font-size:13.5px" id="clYaHayTxt"></p>
@@ -1964,8 +1964,8 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
             <small>Claude abre tu Chrome, genera en Flow lo que falta y lo deja puesto en los videos.</small>
             <button class="btn fl-btn" id="generarFlow" type="button">✦ Generar lo que falta</button></div>
           <div class="fl-op" id="flOpAg">
-            <div class="fl-op-cab"><b>Con Antigravity (Gemini)</b><span class="pill" id="flEstAg"></span></div>
-            <small>La sala abre Antigravity con todo listo: Gemini pega los prompts en Flow y baja cada imagen con su nombre; la música la hace en Flow Music. Lo que baja entra solo a la sesión.</small>
+            <div class="fl-op-cab"><b>Con Antigravity</b><span class="pill" id="flEstAg"></span></div>
+            <small>La sala abre Antigravity con todo listo: pega los prompts en Flow y baja cada imagen con su nombre; la música la hace en Flow Music. Lo que baja entra solo a la sesión.</small>
             <button class="btn sec fl-btn" id="paqueteAg" type="button">🪐 Imágenes con Antigravity</button>
             <div class="ag-acc" data-ag-acc="imagenes" hidden></div>
             <button class="btn sec fl-btn" id="musicaAg" type="button">🎵 Música con Antigravity</button>
@@ -1984,7 +1984,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
         <div class="fila" style="justify-content:space-between"><b>🪐 Antigravity: paquete listo</b><span class="muted" id="agInfo" style="font-size:12.5px"></span></div>
         <ol class="ag-pasos" id="agPasos"></ol>
         <div class="ag-msg"><code id="agMsg"></code><button class="btn peq" type="button" id="agCopiar">Copiar mensaje</button></div>
-        <div class="fila" id="agTraerFila" hidden><button class="btn" type="button" id="agTraer">✓ Gemini terminó: traer los prompts</button></div>
+        <div class="fila" id="agTraerFila" hidden><button class="btn" type="button" id="agTraer">✓ Antigravity terminó: traer los prompts</button></div>
       </div>
       <div id="listaDescargas" class="grid-assets" style="margin-top:12px"></div>
     </div>
@@ -2395,13 +2395,27 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 <label>Llamado a la acción: texto<input id="mkCtaTxt" placeholder="Ej.: Envíos a todo el Perú"></label>
                 <label>Notas para Claude sobre la marca<textarea id="mkNotas" rows="4" placeholder="Tono, público, lo que la hace distinta…"></textarea></label></fieldset>
               <fieldset id="pfCaja"><legend>Para los videos (perfil de la marca)</legend>
-                <p class="muted mk-ayuda">Lo que la sala y la IA (Claude o Gemini) necesitan saber para editar tus videos: cómo se escribe tu marca, qué palabras
+                <p class="muted mk-ayuda">Lo que la sala y la IA (Claude o Antigravity) necesitan saber para editar tus videos: cómo se escribe tu marca, qué palabras
                   se dicen, cómo pides la compra y qué imágenes y música van. Lo comparten todas las PCs del equipo. <span id="pfEstado"></span></p>
                 <div class="pf-ia">
-                  <label>Cuéntale a la IA tu marca (o pega el texto de tu web o tu Instagram)<textarea id="pfDescripcion" rows="4"
-                    placeholder="Ej.: Vendemos ropa deportiva para mujeres de 20 a 35 años en Lima. Hablamos cercano y con energía. Pedidos por WhatsApp…"></textarea></label>
-                  <div class="fila"><button class="btn" id="pfLlenar" type="button" title="La IA propone todo el perfil; tú lo revisas y tocas «Guardar marca»">✦ Llenar con IA</button>
+                  <b style="font-size:13.5px">✦ Arma tu perfil con <span class="pf-ia-nombre">la IA</span></b>
+                  <span class="muted mk-ayuda">Responde lo que sepas (no hace falta todo). La IA lo ordena y llena las casillas de abajo; tú lo revisas y tocas «Guardar marca».
+                    Si algo no te convence, dile qué cambiar y lo vuelve a armar. También puedes llenar la ficha en Excel («Plantilla de marca», arriba) e importarla.</span>
+                  <div class="dos"><label>¿Qué vendes y qué lo hace distinto?<textarea id="pfQ1" rows="2" data-pregunta="Qué vende y qué lo hace distinto"></textarea></label>
+                    <label>¿A quién le vendes? <small class="muted">(edad, ciudad, qué le preocupa)</small><textarea id="pfQ2" rows="2" data-pregunta="A quién le vende"></textarea></label></div>
+                  <div class="dos"><label>¿Qué palabras usan más tú y tus clientes?<textarea id="pfQ3" rows="2" data-pregunta="Palabras que más usan la marca y sus clientes"></textarea></label>
+                    <label>¿Cómo te compran? <small class="muted">(WhatsApp, web, tienda…)</small><textarea id="pfQ4" rows="2" data-pregunta="Cómo le compran"></textarea></label></div>
+                  <div class="dos"><label>¿Qué nunca dirías o prometerías?<textarea id="pfQ5" rows="2" data-pregunta="Lo que nunca dice ni promete"></textarea></label>
+                    <label>¿Cómo quieres que se vean y suenen tus videos?<textarea id="pfQ6" rows="2" data-pregunta="Cómo deben verse y sonar sus videos"></textarea></label></div>
+                  <label>Texto de tu web o tu Instagram <small class="muted">(opcional: cópialo y pégalo aquí)</small><textarea id="pfDescripcion" rows="3"
+                    placeholder="Ej.: la sección «Nosotros» de tu web o la descripción de tu Instagram"></textarea></label>
+                  <div class="fila"><button class="btn" id="pfLlenar" type="button" title="La IA propone todo el perfil; tú lo revisas y tocas «Guardar marca»">✦ Armar mi perfil</button>
                     <span class="muted" id="pfIaEstado" style="font-size:12px"></span></div>
+                  <div class="pf-ajustar" id="pfAjustarCaja" hidden>
+                    <label>¿Qué le cambio? <small class="muted">(la IA parte del perfil que ves abajo)</small><textarea id="pfComentario" rows="2"
+                      placeholder="Ej.: las frases de compra son por la web, no por WhatsApp; agrega palabras de running; el tono más serio"></textarea></label>
+                    <div class="fila"><button class="btn sec" id="pfAjustar" type="button">✦ Ajustar el perfil</button></div>
+                  </div>
                 </div>
                 <label>Qué vende<input id="pfQueVende" placeholder="Ej.: un suplemento en polvo que se mezcla con la comida"></label>
                 <div class="dos"><label>Para quién<input id="pfPublico" placeholder="Ej.: mujeres de 20 a 35 años en Lima"></label>
@@ -2544,7 +2558,7 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
   <div style="padding:16px;display:grid;gap:12px">
     <p class="muted" id="dlgAgInfo" style="margin:0;font-size:13px"></p>
     <ol class="ag-pasos ag-pasos-grande" id="dlgAgPasos"></ol>
-    <label style="display:grid;gap:6px;font-size:13px"><b>Mensaje para Gemini</b>
+    <label style="display:grid;gap:6px;font-size:13px"><b>Mensaje para Antigravity</b>
       <textarea id="dlgAgMsg" readonly rows="6" style="width:100%;font:12.5px/1.45 ui-monospace,Consolas,monospace;resize:vertical"></textarea></label>
     <div class="fila"><button class="btn" type="button" id="dlgAgCopiar">📋 Copiar mensaje</button>
       <button class="btn sec" type="button" id="dlgAgAbrir">🪐 Abrir Antigravity</button>
@@ -3228,10 +3242,10 @@ function pintarPrimeros() {
   try { oculto = localStorage.getItem("primerosOcultos") === "1"; } catch (e) { /* sin almacenamiento: se muestra */ }
   const pasos = [
     [!!(E.drive || {}).activo, "Conecta el Drive de tu equipo", "La sala guarda ahí las sesiones, los clips y los videos.", `<button class="btn sec peq" data-conf="confDrive">Google Drive</button>`],
-    [!!ia, "Elige tu IA: Claude o Antigravity (Gemini)", "Escribe los guiones y pide las imágenes y la música. Usa tu propia cuenta, sin pagar API.", `<button class="btn sec peq" data-ir="claude">Elegir</button>`],
+    [!!ia, "Elige tu IA: Claude o Antigravity", "Escribe los guiones y pide las imágenes y la música. Usa tu propia cuenta, sin pagar API.", `<button class="btn sec peq" data-ir="claude">Elegir</button>`],
     [!!pf.tiene_perfil, "Cuéntale a la sala tu marca", "Tu logo, tus colores y el perfil para los videos. «✦ Llenar con IA» lo hace por ti.", `<button class="btn peq" data-conf="confMarca">Mi marca</button>`],
     [(E.semanas || []).length > 0, "Crea tu primera sesión", "Una sesión es una tanda de videos que se graba junta.", `<button class="btn sec peq" data-clic-sesiones="1">Crear sesión</button>`],
-    [!!E.hay_produccion, `Escribe el guion con ${ia === "antigravity" ? "Gemini" : "Claude"}`, "Elige cuántos cuerpos y hooks; la IA escribe todo, con las imágenes y la música.", `<button class="btn sec peq" data-ir="claude">Escribir</button>`],
+    [!!E.hay_produccion, `Escribe el guion con ${ia === "antigravity" ? "Antigravity" : "Claude"}`, "Elige cuántos cuerpos y hooks; la IA escribe todo, con las imágenes y la música.", `<button class="btn sec peq" data-ir="claude">Escribir</button>`],
     [E.piezas.length > 0, "Graba y sube los clips a la carpeta Clips", "La sala los escucha, los ordena y arma los videos solos. Luego toca «Producir».", `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
   ];
   const nuevo = !pf.tiene_perfil || !ia || !(E.semanas || []).length;
@@ -3265,7 +3279,7 @@ function pintarInicio() {
   $("inStats").innerHTML = stat(vids.filter(s => !s.es_version).length, "Videos posibles", "azul") + stat(armados, "Armados") + stat(listos, "Aprobados", listos ? "ok" : "")
     + stat(viejos, "Por rearmar", viejos ? "warn" : "") + stat(faltan, "Imágenes y música por generar", faltan ? "warn" : "");
   const pasos = [
-    [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : `<button class="btn peq blanco" data-ir="claude">Escribir con ${modoIA() === "antigravity" ? "Gemini" : "Claude"}</button>`],
+    [E.hay_produccion, "Guion de la sesión", E.hay_produccion ? "" : `<button class="btn peq blanco" data-ir="claude">Escribir con ${modoIA() === "antigravity" ? "Antigravity" : "Claude"}</button>`],
     // antes decía «piezas + clips sueltos» como si fueran clips (un cuerpo de 8 clips contaba 1): ahora son los clips de verdad
     [E.piezas.length > 0 || sinId > 0, "Grabar y subir los clips a Drive", E.piezas.length || sinId ? `<span class="pill" title="${E.piezas.length} piezas armadas con ellos (un cuerpo grabado frase por frase junta varios clips)">${E.n_clips ?? E.piezas.length + sinId} clips</span>` : `<a class="btn sec peq" href="/teleprompter" target="_blank">Teleprompter</a>`],
     [E.piezas.length > 0 && E.piezas.every(p => p.procesada), "Analizar los clips y corroborar con el guion", `<button class="btn sec peq" data-ir="guion">Ir a Guion</button>`],
@@ -3282,8 +3296,8 @@ function pintarInicio() {
   $("inPasosRes").textContent = `${hechos} de ${pasos.length} pasos hechos`;
   pintarSiguiente(ahora, pasos, { vids, armados, listos, viejos, faltan, sinId });
   pintarRevisar();
-  const soloAg = modoIA() === "antigravity";  // esta PC trabaja con Gemini, no con Claude
-  $("clResumen").textContent = soloAg ? (E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "escribe el guion con Gemini aquí abajo")
+  const soloAg = modoIA() === "antigravity";  // esta PC trabaja con Antigravity, no con Claude
+  $("clResumen").textContent = soloAg ? (E.hay_produccion ? "guion listo · imágenes y música con Antigravity" : "escribe el guion con Antigravity aquí abajo")
     : E.hay_produccion ? "guion listo · revisar lo grabado o escribir el de otra sesión" : "esta sesión no tiene guion: escríbelo aquí";
   if (!E.hay_produccion && !pintarInicio.yaAbri) { $("detClaude").open = true; pintarInicio.yaAbri = true; }
   pintarListaSesiones();
@@ -3320,7 +3334,7 @@ function pintarSiguiente(ahora, pasos, n) {
   const botones = [
     // sin guion: si ya hay clips, la sala puede armarlo con lo que se dijo y ordenar todo sola
     (E.piezas.length || n.sinId) ? `<button class="btn sec" type="button" data-clic="prepGuion">⬆ Sube tu guion</button><button class="btn" type="button" id="todoPorMi">✦ Lo analizo y ordeno todo por ti</button>`
-      : modoIA() === "antigravity" ? `<button class="btn" type="button" data-ir="claude">✦ Escribir el guion con Gemini</button><button class="btn sec" type="button" data-clic="prepGuion">⬆ Subir un guion</button>`
+      : modoIA() === "antigravity" ? `<button class="btn" type="button" data-ir="claude">✦ Escribir el guion con Antigravity</button><button class="btn sec" type="button" data-clic="prepGuion">⬆ Subir un guion</button>`
       : `<button class="btn" type="button" data-ir="claude">✳ Escribir el guion con Claude</button><button class="btn sec" type="button" data-clic="prepGuion">⬆ Subir un guion</button>`,
     `<a class="btn" href="/teleprompter" target="_blank">📜 Abrir el teleprompter</a>${n.sinId ? `<button class="btn sec" type="button" data-ir="faltan">Ver los ${n.sinId} clips subidos</button>` : ""}`,
     `<button class="btn" type="button" data-clic="escuchar">🎧 Analizar los clips</button><button class="btn sec" type="button" data-ir="guion">Ver el guion</button>`,
@@ -3511,7 +3525,7 @@ let clMostrarForm = false;
 function cuentaMarca() { return ((E?.marca || {}).nombre || (E?.perfil || {}).nombre || "tumarca").replace(/[^\p{L}\p{N}_.]+/gu, ""); }
 function pintarClaudeForm() {
   const c = infoClaude || {}, ag = modoIA() === "antigravity", conectado = ag ? !!E?.antigravity : c.instalado && c.sesion;
-  $("clGuion").textContent = ag ? "✦ Escribir guion con Gemini" : "Escribir guion con Claude";
+  $("clGuion").textContent = ag ? "✦ Escribir guion con Antigravity" : "Escribir guion con Claude";
   $("clTemas").hidden = ag; $("clRevisar2").hidden = ag;
   const pf = (E && E.perfil) || {}, publicos = pf.publicos || [];
   $("clPublicos").innerHTML = publicos.map(x => `<option value="${esc(x)}">`).join("");
@@ -3545,7 +3559,7 @@ async function revisarClaude(forzar) {
        <div class="fila"><button class="btn blanco" id="clLogin">Iniciar sesión en Claude</button><button class="btn sec peq" id="clRevisarEstado">Ya entré, revisar</button></div>`;
   pintarTarjetaIA(c);
 }
-// Con qué IA trabaja esta PC: todo con Claude o todo con Antigravity (Gemini), nunca mezclado. Se elige en Inicio
+// Con qué IA trabaja esta PC: todo con Claude o todo con Antigravity, nunca mezclado. Se elige en Inicio
 // («Trabajar con»); si nadie eligió, la que esté lista (Claude primero).
 function modoIA() {
   if (E?.ia === "claude" || E?.ia === "antigravity") return E.ia;
@@ -3555,7 +3569,7 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("[data-ia]"); if (!b) return;
   try { const r = await post("/api/ia", { ia: b.dataset.ia }); E.ia = r.ia; }
   catch (err) { return avisar("Error: " + err.message, "err"); }
-  avisar(b.dataset.ia === "antigravity" ? "Listo: esta PC trabaja todo con Antigravity (Gemini): imágenes, prompts y música." : "Listo: esta PC trabaja todo con Claude.", "ok");
+  avisar(b.dataset.ia === "antigravity" ? "Listo: esta PC trabaja todo con Antigravity: imágenes, prompts y música." : "Listo: esta PC trabaja todo con Claude.", "ok");
   await revisarClaude(); pintarInicio(); pintarFaltan();
 });
 // La tarjeta de la IA en Inicio: dice Claude o Antigravity según con cuál trabaja esta PC
@@ -3565,15 +3579,15 @@ function pintarTarjetaIA(c) {
   const det = $("detClaude");
   det.querySelector("summary b").textContent = conAg ? "🪐 Antigravity" : "✳ Claude";
   det.querySelector(".claude-logo").textContent = conAg ? "A" : "C";
-  det.querySelector(".claude-cab h2").textContent = conAg ? "Antigravity (Gemini)" : "Claude";
+  det.querySelector(".claude-cab h2").textContent = conAg ? "Antigravity" : "Claude";
   if (!conAg) return;
-  $("clEstado").innerHTML = E.antigravity ? `<span class="pill ok">✓ Antigravity listo</span> Gemini escribe los prompts y genera las imágenes en Flow y la música en Flow Music.`
+  $("clEstado").innerHTML = E.antigravity ? `<span class="pill ok">✓ Antigravity listo</span> Antigravity escribe los prompts y genera las imágenes en Flow y la música en Flow Music.`
     : `<span class="pill warn">Antigravity no está instalado</span> Instálalo desde antigravity.google y ábrelo una vez con tu cuenta de Google.`;
-  $("clResumen").textContent = E.hay_produccion ? "guion listo · imágenes y música con Gemini" : "escribe el guion con Gemini aquí abajo";
+  $("clResumen").textContent = E.hay_produccion ? "guion listo · imágenes y música con Antigravity" : "escribe el guion con Antigravity aquí abajo";
   $("clConfig").hidden = false;
-  $("clConfig").innerHTML = `<p style="margin:0 0 8px" class="muted">Déjalo abierto mientras usas la sala. Los botones de imágenes y música (aquí en Inicio y en Faltantes) le pasan el trabajo a Gemini:
-      la sala abre Antigravity y deja copiado el mensaje; en el chat escribes <b>/</b>, eliges <b>«browser»</b> en la lista y pegas el mensaje detrás. Lo que Gemini baja a Descargas entra solo a la sesión.
-      El guion también lo escribe Gemini con el formulario de abajo (o súbelo ya escrito en Guion).</p>
+  $("clConfig").innerHTML = `<p style="margin:0 0 8px" class="muted">Déjalo abierto mientras usas la sala. Los botones de imágenes y música (aquí en Inicio y en Faltantes) le pasan el trabajo a Antigravity:
+      la sala abre Antigravity y deja copiado el mensaje; en el chat escribes <b>/</b>, eliges <b>«browser»</b> en la lista y pegas el mensaje detrás. Lo que Antigravity baja a Descargas entra solo a la sesión.
+      El guion también lo escribe Antigravity con el formulario de abajo (o súbelo ya escrito en Guion).</p>
     <div class="fila"><button class="btn" data-ir="guion">Ver el guion</button><button class="btn sec" data-ir="faltan">Ir a Faltantes</button></div>`;
   pintarClaudeForm();
 }
@@ -3605,7 +3619,7 @@ function pintarTemas() {
   $("clListaTemas").innerHTML = Array.from({ length: n }, (_, k) => {
     const ops = propuestas.filter(p => Number(p.cuerpo) === k + 1);
     return `<div class="tema-cuerpo"><label class="muted" style="font-size:12px">Cuerpo ${k + 1} (C${k + 1})
-        <input data-tema-cuerpo="${k}" value="${esc(previos[k] || "")}" placeholder="Tema del cuerpo ${k + 1} (vacío = lo elige ${modoIA() === "antigravity" ? "Gemini" : "Claude"})"></label>
+        <input data-tema-cuerpo="${k}" value="${esc(previos[k] || "")}" placeholder="Tema del cuerpo ${k + 1} (vacío = lo elige ${modoIA() === "antigravity" ? "Antigravity" : "Claude"})"></label>
       ${ops.length ? `<div class="opciones">${ops.map(p => `<button type="button" data-elegir-tema="${k}" data-texto="${esc(`${p.tema} · ${p.angulo}`)}" title="${esc(p.por_que || "")}">${esc(p.tema)} <span class="muted">· ${esc(p.angulo)}</span></button>`).join("")}</div>` : ""}</div>`;
   }).join("");
 }
@@ -3687,12 +3701,12 @@ $("clGuion").onclick = async () => {
   try { await post("/api/claude", { accion: "guion", sesion, pedido: pedidoGuion() }); vigilar(await (await fetch("/api/trabajo")).json()); }
   catch (err) { $("clSalida").textContent = "Error: " + err.message; }
 };
-// «Escribir guion con Gemini»: la sala le pasa el pedido a Antigravity y espera el produccion.json en Guion
+// «Escribir guion con Antigravity»: la sala le pasa el pedido a Antigravity y espera el produccion.json en Guion
 async function guionConGemini(sesion) {
   let r;
   try { r = await post("/api/antigravity_guion", { sesion, pedido: pedidoGuion() }); }
   catch (err) { $("clSalida").textContent = "Error: " + err.message; return; }
-  $("clSalida").textContent = r.enviado ? "Gemini está escribiendo el guion en Antigravity (unos minutos). Puedes seguir usando la sala: cuando termine, aparece solo."
+  $("clSalida").textContent = r.enviado ? "Antigravity está escribiendo el guion (unos minutos). Puedes seguir usando la sala: cuando termine, aparece solo."
     : `No se pudo mandar solo (${r.porque || "Antigravity cerrado"}). En Antigravity escribe «/», elige «browser» y pega:\n${r.mensaje}`;
   if (!r.enviado) { try { await navigator.clipboard.writeText(r.mensaje); } catch (e) { /* lo copia la persona */ } }
   const inicio = Date.now();
@@ -3701,14 +3715,14 @@ async function guionConGemini(sesion) {
       const e = await (await fetch("/api/antigravity_guion?sesion=" + encodeURIComponent(sesion))).json();
       if (e.error) $("clSalida").textContent = e.error;
       if (e.listo) {
-        $("clSalida").textContent = "Guion listo: Gemini lo escribió y la sala lo subió a Drive.";
+        $("clSalida").textContent = "Guion listo: Antigravity lo escribió" + ((E.drive || {}).activo ? " y la sala lo subió a Drive." : " y ya está en la sesión.");
         avisar(`Guion de «${sesion}» listo.`, "ok");
         if (sesion === E.semana) await cargar(); else pintarListaSesiones();
         return;
       }
     } catch (e) { /* se reintenta */ }
     if (Date.now() - inicio < 30 * 60 * 1000) setTimeout(mirar, 5000);
-    else $("clSalida").textContent = "Gemini no terminó en 30 minutos. Revisa la conversación en Antigravity.";
+    else $("clSalida").textContent = "Antigravity no terminó en 30 minutos. Revisa la conversación en Antigravity.";
   };
   setTimeout(mirar, 5000);
 }
@@ -4905,13 +4919,13 @@ function pintarEstadoFlow() {
   // con Claude sigue siendo solo imágenes y clips
   $("masApoyo").textContent = modo === "antigravity" ? "✦ Completar el guion" : "✦ Agregar los prompts";
   $("apQuien").textContent = modo === "antigravity"
-    ? "Gemini completa lo que le falta al guion: las imágenes y clips de Flow, el estado de ánimo de cada hook, cuerpo y CTA (de ahí sale la música: una pista por ánimo, que cambia solo cuando cambia el ánimo) y el golpe de silencio de cada cuerpo. Las pistas se generan después, en el paso 2."
+    ? "Antigravity completa lo que le falta al guion: las imágenes y clips de Flow, el estado de ánimo de cada hook, cuerpo y CTA (de ahí sale la música: una pista por ánimo, que cambia solo cuando cambia el ánimo) y el golpe de silencio de cada cuerpo. Las pistas se generan después, en el paso 2."
     : (modo === "claude" ? (claudeOk ? "Los escribe Claude" : "Los escribe Claude (conéctalo en Inicio → Claude)") : "Conecta Claude (Inicio → Claude) o instala Antigravity")
       + ". Solo las imágenes y los clips de Flow: la música va aparte, en el paso 2.";
   $("apConAg").hidden = true;  // todo con una sola IA: la que se eligió en Inicio
   $("flOpClaude").hidden = modo === "antigravity"; $("flOpAg").hidden = modo === "claude";
   if (modo !== "claude") pintarPedidosAg();
-  $("flQuien").textContent = modo ? `Las hace ${modo === "claude" ? "Claude" : "Gemini en Antigravity"} (se cambia en Inicio → «Trabajar con»). Usan los créditos de tu plan de Google Flow.` : "Elige quién las hace. Las dos usan los créditos de tu plan de Google Flow.";
+  $("flQuien").textContent = modo ? `Las hace ${modo === "claude" ? "Claude" : "Antigravity"} (se cambia en Inicio → «Trabajar con»). Usan los créditos de tu plan de Google Flow.` : "Elige quién las hace. Las dos usan los créditos de tu plan de Google Flow.";
   ["paqueteAg", "musicaAg"].forEach(id => $(id).classList.toggle("sec", modo !== "antigravity"));
 }
 function pintarFaltan() {
@@ -9039,6 +9053,7 @@ function pintarPerfil(p) {
   $("pfSkGuion").value = sk.guionista || ""; $("pfSkDirector").value = sk.director || ""; $("pfSkFlow").value = sk.flow || "";
   if (p.nombre && !$("mkNombre").value.trim()) $("mkNombre").value = p.nombre;
   $("pfEstado").textContent = PF_PROPIO ? "" : "Todavía no tiene perfil propio: la sala usa uno neutro.";
+  pfNombreIA();
 }
 function leerPerfil() {
   const correcciones = {};
@@ -9058,24 +9073,42 @@ function leerPerfil() {
 }
 function ponerPropuesta(p) {
   PF_EJEMPLO = (p.imagenes || {}).ejemplo || null;
+  if (p.nombre && p.nombre !== $("mkNombre").value.trim()) $("mkNombre").value = p.nombre;  // la IA puede corregir el nombre
   const skills = leerPerfil().skills;
   pintarPerfil({ ...p, skills });
-  mkMarcarSucia(); $("pfIaEstado").textContent = "Listo: revisa lo que propuso la IA y toca «Guardar marca».";
+  mkMarcarSucia(); $("pfIaEstado").textContent = "Listo: revisa lo que propuso la IA y toca «Guardar marca». Si algo no va, dile qué cambiar aquí abajo.";
+  $("pfAjustarCaja").hidden = false; $("pfComentario").value = "";
   avisar("La IA llenó el perfil de tu marca: revísalo y toca «Guardar marca».", "ok");
 }
-$("pfLlenar").onclick = async () => {
+// Lo que respondió la persona en las preguntas, en un solo texto para la IA
+function pfRespuestas() {
+  const r = [...document.querySelectorAll("#pfCaja [data-pregunta]")].filter(t => t.value.trim()).map(t => `${t.dataset.pregunta}: ${t.value.trim()}`);
+  if ($("pfDescripcion").value.trim()) r.push("Texto de su web o su Instagram:\n" + $("pfDescripcion").value.trim());
+  return r.join("\n");
+}
+function pfNombreIA() {
+  const ia = modoIA();
+  document.querySelectorAll(".pf-ia-nombre").forEach(x => x.textContent = ia === "antigravity" ? "Antigravity" : ia === "claude" ? "Claude" : "la IA");
+  $("pfAjustarCaja").hidden = !(PF_PROPIO || PF_EJEMPLO || pintarClaudeTrabajo.ultimo);
+}
+$("pfLlenar").onclick = () => pedirPerfilIA({ descripcion: pfRespuestas() });
+$("pfAjustar").onclick = () => {
+  if (!$("pfComentario").value.trim()) { $("pfComentario").focus(); return avisar("Escribe qué le cambio al perfil.", "warn"); }
+  pedirPerfilIA({ descripcion: pfRespuestas(), base: leerPerfil(), comentario: $("pfComentario").value });
+};
+async function pedirPerfilIA(pedido) {
   const ia = modoIA();
   if (!ia) return avisar("Primero conecta Claude o Antigravity (Inicio → «Trabajar con»).", "warn");
   try {
-    const r = await post("/api/perfil", { accion: "ia", descripcion: $("pfDescripcion").value, ia });
+    const r = await post("/api/perfil", { accion: "ia", ...pedido, ia });
     if (r.modo === "antigravity") {
       pfEsperando = Date.now() / 1000 - 5;
-      $("pfIaEstado").textContent = r.enviado ? "Gemini está armando el perfil en Antigravity… (1 a 2 minutos)"
+      $("pfIaEstado").textContent = r.enviado ? "Antigravity está armando el perfil… (1 a 2 minutos)"
         : `No se pudo mandar solo (${r.porque || "Antigravity cerrado"}). En Antigravity escribe «/», elige «browser» y pega: ${r.mensaje}`;
       esperarPropuesta();
     } else $("pfIaEstado").textContent = "Claude está armando el perfil… (1 a 2 minutos)";
   } catch (err) { avisar("Error: " + err.message, "err"); }
-};
+}
 async function esperarPropuesta() {
   if (!pfEsperando) return;
   try {
@@ -9083,7 +9116,7 @@ async function esperarPropuesta() {
     if (r.propuesta && r.propuesta._cuando > pfEsperando) { pfEsperando = 0; return ponerPropuesta(r.propuesta); }
   } catch (e) { /* se reintenta en la próxima vuelta */ }
   if (Date.now() / 1000 - pfEsperando < 600) setTimeout(esperarPropuesta, 4000);
-  else { pfEsperando = 0; $("pfIaEstado").textContent = "Gemini no terminó en 10 minutos. Revisa la conversación en Antigravity."; }
+  else { pfEsperando = 0; $("pfIaEstado").textContent = "Antigravity no terminó en 10 minutos. Revisa la conversación en Antigravity."; }
 }
 function pintarMarca() {
   if (!MK) return;
@@ -9439,7 +9472,7 @@ $("mkPlantilla").onclick = descargarPlantillaMarca;
 const IM_ICONO = { fuentes: "🔤", manual: "📄", ficha: "📝", ignorar: "🚫" };
 const IM_TIPOS = n => /\.(png|webp|jpe?g)$/i.test(n) ? [["logos", "Logo"], ["productos", "Foto de producto"], ["ignorar", "No usar"]]
   : /\.(ttf|otf)$/i.test(n) ? [["fuentes", "Tipografía"], ["ignorar", "No usar"]]
-  : /\.docx$/i.test(n) ? [["ficha", "Ficha de marca"], ["manual", "Guardar como documento"], ["ignorar", "No usar"]]
+  : /\.(docx|xlsx|xlsm)$/i.test(n) ? [["ficha", "Ficha de marca"], ["manual", "Guardar como documento"], ["ignorar", "No usar"]]
   : [["manual", "Guardar como documento"], ["ignorar", "No usar"]];
 async function importarMarca(lista) {
   lista = lista.filter(x => x.file && !/(^|\/)(\.|__MACOSX)/.test(x.ruta));
@@ -9458,6 +9491,14 @@ async function importarMarca(lista) {
     IM = await post("/api/marca_importar?accion=analizar", { id });
     pintarImportar();
   } catch (err) { progreso(`No se pudo: ${esc(err.message)}`); }
+}
+function pfResumenImp(pf) {
+  const n = (k, a, b) => (pf[k] || []).length ? plural(pf[k].length, a, b) : "";
+  const partes = [n("vocabulario", "palabra del producto", "palabras del producto"), n("palabras_clave", "palabra resaltada", "palabras resaltadas"),
+    n("cta", "frase de compra", "frases de compra"), Object.keys(pf.correcciones || {}).length && plural(Object.keys(pf.correcciones).length, "corrección", "correcciones"),
+    ((pf.imagenes || {}).reglas || []).length && plural(pf.imagenes.reglas.length, "regla de imágenes", "reglas de imágenes"),
+    ((pf.musica || {}).reglas || []).length && "música", n("publicos", "público", "públicos"), pf.que_vende && "qué vende", pf.tono && "tono"].filter(Boolean);
+  return partes.length ? `<span style="font-size:13px"><b>Para los videos:</b> ${esc(partes.join(" · "))}</span>` : "";
 }
 function pintarImportar() {
   const m = IM.marca || {}, cuenta = t => IM.archivos.filter(a => a.tipo === t).length;
@@ -9479,6 +9520,7 @@ function pintarImportar() {
         <label class="fila" style="display:flex;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="imUsarColores" ${IM.usarColores ? "checked" : ""}> Usar estos colores${tiene ? " (reemplazan los que tiene ahora la marca)" : ""}</label></div>` : ""}
       ${Object.values(fu).some(Boolean) ? `<span style="font-size:13px"><b>Tipografías:</b> ${[["titulo", "títulos"], ["cuerpo", "texto"], ["subtitulos", "subtítulos"]].filter(([k]) => fu[k]).map(([k, t]) => `${t}: ${esc(fu[k])}`).join(" · ")}</span>` : ""}
       ${reglas.length ? `<span style="font-size:13px"><b>Cómo habla:</b> ${esc(reglas.join(" · "))}</span>` : ""}
+      ${pfResumenImp(IM.perfil || {})}
     </div>
     <div class="mk-grid" id="imArchivos">${IM.archivos.map((x, k) => {
       const img = /\.(png|webp|jpe?g)$/i.test(x.nombre);
@@ -9508,17 +9550,19 @@ $("imCerrar").onclick = () => $("dlgImpMarca").close();
 $("imGuardar").onclick = async () => {
   if (!IM) return;
   IM.marca.nombre = $("imNombre")?.value.trim() || IM.marca.nombre;
-  const propuesta = { archivos: IM.archivos, marca: { ...IM.marca, colores: IM.usarColores ? IM.marca.colores : [] } };
+  const propuesta = { archivos: IM.archivos, marca: { ...IM.marca, colores: IM.usarColores ? IM.marca.colores : [] }, perfil: IM.perfil || {} };
   try {
     const r = await post("/api/marca_importar?accion=aplicar", { id: IM.id, propuesta });
     $("dlgImpMarca").close();
     if (r.hechos.fuentes) { await cargar(); cargarFuentesCSS(); }
-    MK = r.marca; mkMarcarSucia(false); pintarMarca();
+    MK = r.marca; mkMarcarSucia(false);
     E.marca = { nombre: MK.nombre, colores: MK.colores, logos: MK.logos, fuentes: MK.fuentes, tiene_marca: MK.tiene_marca };
+    await cargarMarca();  // también el perfil para los videos, si la ficha traía
+    if (r.hechos.perfil) E.perfil = { nombre: PF.nombre, publico: PF.publico, publicos: PF.publicos, tiene_perfil: true };
     pintarPaletaMarca();
     const h = r.hechos;
     avisar(`Marca importada: ${[h.logos && plural(h.logos, "logo"), h.fuentes && plural(h.fuentes, "tipografía", "tipografías"), h.productos && plural(h.productos, "foto", "fotos"),
-      h.manual && plural(h.manual, "documento")].filter(Boolean).join(", ") || "datos de la ficha"}. ${(E.drive || {}).activo ? "Ya está en el Drive del equipo." : ""}`, "ok");
+      h.manual && plural(h.manual, "documento"), h.perfil && "el perfil para los videos"].filter(Boolean).join(", ") || "datos de la ficha"}. ${(E.drive || {}).activo ? "Ya está en el Drive del equipo." : ""}`, "ok");
     IM = null;
   } catch (err) { avisar("Error: " + err.message, "err"); }
 };
@@ -9718,9 +9762,9 @@ async function pintarPreparar() {
   const assets = ch.assets || [], musica = ch.musica || [];
   const faltaA = assets.filter(a => !a.listo).length, faltaM = musica.filter(m => !m.listo).length;
   const clips = assets.filter(a => a.tipo === "clip").length;
-  const modo = modoIA(), ag = modo === "antigravity", quien = ag ? "Gemini" : "Claude", etiq = ag ? "Antigravity" : "Claude";
+  const modo = modoIA(), ag = modo === "antigravity", quien = ag ? "Antigravity" : "Claude", etiq = ag ? "Antigravity" : "Claude";
   const listo = ag ? !!E.antigravity : !!(infoClaude?.instalado && infoClaude?.sesion);
-  const sinClaude = listo ? "" : `<span class="muted" style="font-size:12px">${ag ? "Instala Antigravity (antigravity.google) para que Gemini lo haga." : "Para que Claude lo proponga, conéctalo en Inicio → Claude (o elige Antigravity)."}</span>`;
+  const sinClaude = listo ? "" : `<span class="muted" style="font-size:12px">${ag ? "Instala Antigravity (antigravity.google) para que lo haga." : "Para que Claude lo proponga, conéctalo en Inicio → Claude (o elige Antigravity)."}</span>`;
   // con el guion ya leído: sin cuerpos o sin CTA no está listo (no sale ningún video)
   const faltaPieza = g ? [!n("cuerpo") && "cuerpos", !n("cta") && "CTA"].filter(Boolean) : [];
   const guionOk = E.hay_produccion && !faltaPieza.length;
@@ -9728,9 +9772,9 @@ async function pintarPreparar() {
     { ok: guionOk, t: !E.hay_produccion ? "Falta el guion" : guionOk ? "Guion listo" : "Al guion le faltan piezas",
       d: E.hay_produccion ? (g ? `${plural(n("cuerpo"), "cuerpo")}, ${plural(n("hook"), "hook")} y ${plural(n("cta"), "CTA", "CTA")}.`
           + (faltaPieza.length ? ` Le faltan ${faltaPieza.join(" y ")}: revísalo en Guion o sube otro.` : " La sala ya lo separó por piezas.") : "La sala ya lo separó por piezas.")
-        : "Súbelo y la sala lo lee, lo separa en cuerpos, hooks y CTA y lo ordena." + (ag ? " También lo puede escribir Gemini." : " También lo puede escribir Claude."),
+        : "Súbelo y la sala lo lee, lo separa en cuerpos, hooks y CTA y lo ordena." + (ag ? " También lo puede escribir Antigravity." : " También lo puede escribir Claude."),
       b: E.hay_produccion ? `<button class="btn sec peq" type="button" data-ir="guion">Ver el guion</button><button class="btn sec peq" type="button" data-prep="guion">Cambiar el guion</button>`
-        : `<button class="btn" type="button" data-prep="guion">⬆ Subir el guion (PDF, Word, .txt, .md o .json)</button><button class="btn sec" type="button" data-ir="claude">${ag ? "✦ Escribirlo con Gemini" : "✳ Escribirlo con Claude"}</button>` },
+        : `<button class="btn" type="button" data-prep="guion">⬆ Subir el guion (PDF, Word, .txt, .md o .json)</button><button class="btn sec" type="button" data-ir="claude">${ag ? "✦ Escribirlo con Antigravity" : "✳ Escribirlo con Claude"}</button>` },
     { ok: assets.length > 0 && !faltaA, t: "Imágenes y clips de apoyo",
       d: !assets.length ? `${quien} lee el guion y propone en qué palabras va una imagen o un clip, con su prompt para Google Flow.`
         : `${plural(assets.length - clips, "imagen", "imágenes")} y ${plural(clips, "clip")} en el guion${faltaA ? ` · faltan ${faltaA} por generar` : " · todas listas"}.`,
@@ -10670,7 +10714,7 @@ async function asignarClip(rel, pieza) {
 }
 
 $("generarFlow").onclick = async () => {
-  if (modoIA() === "antigravity") {  // lo mismo con Gemini: primero las imágenes; la música, con su propio botón
+  if (modoIA() === "antigravity") {  // lo mismo con Antigravity: primero las imágenes; la música, con su propio botón
     const ch = E.checklist || {};
     return (ch.assets || []).some(a => !a.listo) ? $("paqueteAg").click() : musicaConAntigravity();
   }
@@ -11234,11 +11278,11 @@ function pintarConexiones() {
     { id: "music", t: "Google Flow Music (música)", d: usaMusica ? "En uso: esta sesión ya tiene música de Flow Music." : "Crea la música de cada cuerpo con el prompt del guion.", ok: usaMusica || marcaConexion("music"), manual: !usaMusica,
       pasos: ["Abre Flow Music con la misma cuenta de Google (también se entra desde Flow, botón «Flow Music»).", "Pega el prompt de la pista (en Faltantes → Música). Empieza con «Instrumental only, no vocals, no lyrics.».", "Cada pedido trae dos versiones: escucha el inicio y quédate con la que no tenga voces.", "Menú «⋯» de la canción → Download → <b>MP3</b>. Luego Faltantes → «Poner en los videos» → «Usar».", "Si Flow Music no está disponible, usa Suno (modo Custom, Instrumental) con el prompt de Suno del guion."],
       boton: ["Abrir Flow Music", () => abrirAfuera("https://www.flowmusic.app/")], ico: "♫" },
-    { id: "antigravity", t: "Antigravity con Gemini (opcional)", d: E.antigravity ? "Instalado en esta PC: en Faltantes, «Hacerlo con Antigravity» lo abre con todo listo." : "Para generar las imágenes en Flow sin Claude: Gemini Flash pega los prompts y baja todo con su nombre.",
+    { id: "antigravity", t: "Antigravity (opcional)", d: E.antigravity ? "Instalado en esta PC: en Faltantes, «Hacerlo con Antigravity» lo abre con todo listo." : "Para generar las imágenes en Flow sin Claude: Antigravity pega los prompts y baja todo con su nombre.",
       ok: !!E.antigravity, auto: true, opcional: !E.antigravity,
       pasos: ["Instala Antigravity (antigravity.google) y entra con tu cuenta de Google, la misma de Flow.", "En Antigravity, deja abierto su navegador con tu sesión de Google (Flow ya entra solo).",
-        "En la sala, Faltantes → «Hacerlo con Antigravity»: crea el paquete, abre Antigravity y le pasa el mensaje a Gemini Flash solo (usa el proyecto de tu última conversación en Antigravity: empieza una a mano la primera vez).",
-        "Si la sala no pudo pasárselo, te copia el mensaje: en el agente elige <b>Gemini Flash</b> (rápido: unos 5 s por paso), pégalo y deja que trabaje.",
+        "En la sala, Faltantes → «Hacerlo con Antigravity»: crea el paquete, abre Antigravity y le pasa el mensaje solo (usa el proyecto de tu última conversación en Antigravity: empieza una a mano la primera vez).",
+        "Si la sala no pudo pasárselo, te copia el mensaje: en el agente elige <b>Antigravity</b> (rápido: unos 5 s por paso), pégalo y deja que trabaje.",
         "Al terminar, Faltantes → «Poner en los videos»."],
       boton: ["Ir a Faltantes", () => irTab("faltan")], ico: "🪐" },
     { id: "chrome", t: "Claude en Chrome (opcional)", d: "Para que Claude haga solo las imágenes y la música en Flow, en tu navegador.", ok: marcaConexion("chrome"),
@@ -11300,7 +11344,7 @@ async function pintarCalidad() {
       <span>${v.problemas.map(p => `<span class="cal ${p.nivel}">${icono[p.nivel] || ""} ${esc(p.txt)}</span>`).join("")}</span></div>`).join("")}</div>`;
 }
 $("calRevisar").onclick = pintarCalidad;
-// Paquete para Antigravity: sin Claude, Gemini Flash pega los prompts en Flow de corrido y baja todo con su nombre
+// Paquete para Antigravity: sin Claude, Antigravity pega los prompts en Flow de corrido y baja todo con su nombre
 // Antigravity: la sala arma el pedido en Descargas y muestra una ventana con los pasos y el mensaje para copiar.
 // Pensado para quien no conoce la sala: cada paso dice qué tocar.
 const AG_TIT = { imagenes: "🪐 Imágenes con Antigravity", musica: "🎵 Música con Antigravity", prompts: "✦ Completar el guion con Antigravity" };
@@ -11310,34 +11354,34 @@ function pasosAg(tipo, r) {
     : r.abierto ? `Antigravity ya está abierto (si no lo ves, búscalo en la barra de tareas de Windows o toca <b>«Abrir Antigravity»</b> aquí abajo).`
     : `Toca <b>«Abrir Antigravity»</b> aquí abajo.`;
   if (tipo === "prompts") {
-    if (r.enviado) return [`La sala ya le pasó el pedido a Gemini en Antigravity. Mira Antigravity: en el chat de la derecha debe verse este mensaje y a Gemini trabajando.`,
-      `<b>Si no ves eso</b> (Antigravity no se abrió, el chat está vacío o Gemini no hace nada en 1 minuto): toca <b>«🪐 Abrir Antigravity»</b> aquí abajo, empieza una <b>conversación nueva</b> con el botón <b>+</b>, toca <b>«📋 Copiar mensaje»</b>, pégalo en el chat con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
-      `Gemini llena una hoja a la vez. Cada hoja que termina entra sola a la sesión y la sala avisa («Llegó de Descargas…»): no hay que esperar a que acabe todo.`,
+    if (r.enviado) return [`La sala ya le pasó el pedido a Antigravity. Mira Antigravity: en el chat de la derecha debe verse este mensaje y a Antigravity trabajando.`,
+      `<b>Si no ves eso</b> (Antigravity no se abrió, el chat está vacío o no hace nada en 1 minuto): toca <b>«🪐 Abrir Antigravity»</b> aquí abajo, empieza una <b>conversación nueva</b> con el botón <b>+</b>, toca <b>«📋 Copiar mensaje»</b>, pégalo en el chat con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
+      `Antigravity llena una hoja a la vez. Cada hoja que termina entra sola a la sesión y la sala avisa («Llegó de Descargas…»): no hay que esperar a que acabe todo.`,
       `Cuando entren todas, toca <b>«Imágenes con Antigravity»</b> para generarlas en Flow.`];
-    return [abrir, `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>. Elige <b>Gemini Flash</b> (el rápido).`,
+    return [abrir, `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>. Elige <b>Antigravity</b> (el rápido).`,
       `Toca <b>«📋 Copiar mensaje»</b> aquí abajo, pégalo en el chat de Antigravity con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
-      `Gemini llena una hoja a la vez. No hace falta navegador. Cada hoja que termina entra sola a la sesión y la sala avisa («Llegó de Descargas…»).`,
+      `Antigravity llena una hoja a la vez. No hace falta navegador. Cada hoja que termina entra sola a la sesión y la sala avisa («Llegó de Descargas…»).`,
       `Cuando entren todas, toca <b>«Imágenes con Antigravity»</b>.`];
   }
   const que = tipo === "musica"
-    ? (r.escribir ? `Gemini primero escribe la música del guion (sin navegador) y después abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`
-      : `Gemini abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`) + ` Cada pista tarda uno o dos minutos.`
-    : `Gemini abre Google Flow y pega los prompts <b>de 10 en 10</b> (los clips de 5 en 5): genera una tanda, la baja con su nombre (<code>C1_IMG2.jpg</code>…) y recién ahí sigue con la siguiente. Lo que baja entra a los videos mientras sigue con la otra.`;
+    ? (r.escribir ? `Antigravity primero escribe la música del guion (sin navegador) y después abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`
+      : `Antigravity abre Google Flow → <b>Flow Music</b>, genera cada pista y la baja como <code>MUS_A.mp3</code>, <code>MUS_B.mp3</code>…`) + ` Cada pista tarda uno o dos minutos.`
+    : `Antigravity abre Google Flow y pega los prompts <b>de 10 en 10</b> (los clips de 5 en 5): genera una tanda, la baja con su nombre (<code>C1_IMG2.jpg</code>…) y recién ahí sigue con la siguiente. Lo que baja entra a los videos mientras sigue con la otra.`;
   return [abrir,
     `En Antigravity, en el chat del agente (a la derecha), empieza una <b>conversación nueva</b> con el botón <b>+</b>.`,
-    `En el chat escribe <b>/</b> y <b>elige «browser»</b> en la lista que aparece (haz clic en él). Escribirlo o pegarlo como texto no sirve: hay que elegirlo, así Gemini tiene el navegador.`,
+    `En el chat escribe <b>/</b> y <b>elige «browser»</b> en la lista que aparece (haz clic en él). Escribirlo o pegarlo como texto no sirve: hay que elegirlo, así Antigravity tiene el navegador.`,
     `Después toca <b>«📋 Copiar mensaje»</b> aquí abajo, pégalo detrás de «browser» con <b>Ctrl+V</b> y envíalo con <b>Enter</b>.`,
-    `Si Antigravity pide <b>permitir la depuración remota</b>, acéptalo: así Gemini maneja el navegador.`,
+    `Si Antigravity pide <b>permitir la depuración remota</b>, acéptalo: así Antigravity maneja el navegador.`,
     `${que} No cierres Antigravity ni la ventana del navegador que abre.`,
-    `Si Google pide iniciar sesión, aceptar términos o resolver un captcha, hazlo tú en esa ventana y escríbele a Gemini «listo, sigue».`,
-    `En la sala no tienes que hacer nada: lo que Gemini baja a Descargas entra solo y la sala avisa <b>«Llegó de Descargas…»</b>. Si algo no llega, en Faltantes toca <b>«Buscar en Descargas»</b>.`,
+    `Si Google pide iniciar sesión, aceptar términos o resolver un captcha, hazlo tú en esa ventana y escríbele a Antigravity «listo, sigue».`,
+    `En la sala no tienes que hacer nada: lo que Antigravity baja a Descargas entra solo y la sala avisa <b>«Llegó de Descargas…»</b>. Si algo no llega, en Faltantes toca <b>«Buscar en Descargas»</b>.`,
     `Cuando esté todo, toca <b>«Armar todos los videos»</b> (arriba) para rearmar los videos con ${tipo === "musica" ? "la música" : "las imágenes"}.`];
 }
 async function mostrarPedidoAg(tipo, r, copiarYa = true) {
   agActual = { tipo, ...r };
   $("dlgAgTit").textContent = AG_TIT[tipo] || "🪐 Antigravity";
   $("dlgAgInfo").innerHTML = (["imagenes", "prompts"].includes(tipo) && r.imagenes != null ? `${plural(r.imagenes, "imagen", "imágenes")}${r.clips ? ` y ${plural(r.clips, "clip")}` : ""}${r.animos ? ` · ${plural(r.animos, "pieza", "piezas")} por darles ánimo` : ""}${r.hojas ? ` en ${plural(r.hojas, "hoja")}` : ""} · ` : "")
-    + (tipo === "musica" && r.pistas ? (r.escribir ? "Gemini escribe la música y la genera · " : `Pistas: ${esc(r.pistas)} · `) : "")
+    + (tipo === "musica" && r.pistas ? (r.escribir ? "Antigravity escribe la música y la genera · " : `Pistas: ${esc(r.pistas)} · `) : "")
     + `Carpeta del pedido: <code>${esc(r.carpeta)}</code>`;
   $("dlgAgPasos").innerHTML = pasosAg(tipo, r).map(x => `<li>${x}</li>`).join("");
   $("dlgAgMsg").value = r.mensaje || "";
@@ -11345,7 +11389,7 @@ async function mostrarPedidoAg(tipo, r, copiarYa = true) {
   if (!$("dlgAg").open) $("dlgAg").showModal();
   if (copiarYa && !r.enviado) {
     const ok = await copiar(r.mensaje);
-    if (ok) avisar(tipo === "prompts" ? "El mensaje para Gemini ya está copiado: pégalo en Antigravity (Ctrl+V)."
+    if (ok) avisar(tipo === "prompts" ? "El mensaje ya está copiado: pégalo en Antigravity (Ctrl+V)."
       : "Mensaje copiado. En Antigravity escribe / y elige «browser»; después pega el mensaje (Ctrl+V) y Enter.", "ok");
   }
   pintarPedidosAg();
@@ -11357,8 +11401,8 @@ $("dlgAgAbrir").onclick = async () => {
     avisar(r.abierto ? "Abriendo Antigravity… (puede tardar unos segundos)" : "Antigravity no está instalado: se abrió la carpeta del pedido.", r.abierto ? "ok" : "muted"); }
   catch (err) { avisar(err.message, "err"); }
 };
-// lo pedido a Gemini que sigue sin terminar: para volver a ver los pasos y copiar el mensaje
-// lo pedido a Gemini que sigue sin terminar: debajo de SU botón, «Ver pasos y mensaje» y «Cancelar»
+// lo pedido a Antigravity que sigue sin terminar: para volver a ver los pasos y copiar el mensaje
+// lo pedido a Antigravity que sigue sin terminar: debajo de SU botón, «Ver pasos y mensaje» y «Cancelar»
 async function pintarPedidosAg() {
   let ps = [];
   try { ps = (await (await fetch("/api/pedidos_antigravity")).json()).pedidos || []; } catch (e) {}
@@ -11421,7 +11465,7 @@ function resumenApoyo() {
   const animos = modoIA() === "antigravity" ? (AP.sin_animo || 0) : 0;  // solo «Completar el guion» pone los ánimos
   const hay = img + clips + animos;
   $("apResumen").innerHTML = hay ? (img + clips ? `Hoy hay <b>${plural(ya, "imagen o clip", "imágenes o clips")}</b> en ${donde}. Se agregan <b>${plural(img, "imagen", "imágenes")}</b>${clips ? ` y <b>${plural(clips, "clip")}</b>` : ""}; las que ya hay se quedan.` : "Las imágenes ya están.")
-      + (animos ? ` <b>${plural(animos, "pieza", "piezas")} sin estado de ánimo</b>: Gemini se lo pone y la música sale de ahí.` : "")
+      + (animos ? ` <b>${plural(animos, "pieza", "piezas")} sin estado de ánimo</b>: Antigravity se lo pone y la música sale de ahí.` : "")
     : "Cada cuerpo y cada hook ya tienen esa cantidad: sube los números para agregar más.";
   $("masApoyo").dataset.nada = hay ? "" : "1";  // vigilar() también lo mira
   $("masApoyo").disabled = !hay || !!E?.trabajo?.activo;
@@ -11444,14 +11488,14 @@ async function promptsConAntigravity() {
   const animos = AP?.sin_animo || 0;
   const que = [img && plural(img, "foto nueva", "fotos nuevas"), clips && plural(clips, "clip nuevo", "clips nuevos"),
     animos && `el ánimo de ${plural(animos, "pieza", "piezas")}`].filter(Boolean);
-  if (!await preguntar(`Gemini va a completar el guion con: ${que.join(", ") || "los golpes de silencio que falten"}.`
+  if (!await preguntar(`Antigravity va a completar el guion con: ${que.join(", ") || "los golpes de silencio que falten"}.`
     + (img + clips ? `\n\nCon ${c} por cuerpo, ${cl} ${cl === 1 ? "clip" : "clips"} por cuerpo y ${h} por hook. Después hay que generarlas en Flow (gasta créditos).` : "")
     + "\n\n¿Seguir?")) return;
   try { mostrarPedidoAg("prompts", await post("/api/prompts_antigravity", pedidoApoyo())); }
   catch (err) { avisar(err.message, "err"); }
 }
 $("apConAg").onclick = promptsConAntigravity;
-// La música sin Claude: Gemini la escribe en una copia del guion (si falta), la genera en Flow Music y baja cada
+// La música sin Claude: Antigravity la escribe en una copia del guion (si falta), la genera en Flow Music y baja cada
 // pista como MUS_A.mp3. La sala trae sola la música del guion y los MP3 (cada 20 s).
 async function musicaConAntigravity() {
   try { irTab("faltan"); mostrarPedidoAg("musica", await post("/api/musica_antigravity", {})); }

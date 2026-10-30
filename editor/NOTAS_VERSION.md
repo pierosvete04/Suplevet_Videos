@@ -1,3 +1,11 @@
+Versión 1.61.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Ficha de marca en Excel:** «Plantilla de marca» (Configuración → Marca) trae ahora un Excel con casillas y listas para elegir: tu marca (qué vendes, a quién, tono, cómo te compran, tipografías), tus colores con su código (#253C61) y para qué se usa cada uno, todas tus palabras (el nombre de la marca, las del producto, las que se resaltan, las frases de compra, lo que nunca se dice y cómo la escribe mal la transcripción), las reglas de las imágenes y de la música, y tus públicos. Llénalo, guárdalo en la carpeta con tus logos y tipografías, y súbela con «Importar mi marca»: la sala arma la marca y el perfil para los videos.
+- **Arma tu perfil con Antigravity, con preguntas:** ¿qué vendes?, ¿a quién?, ¿qué palabras usan más?, ¿cómo te compran?, ¿qué nunca dirías?, ¿cómo quieres que se vean y suenen tus videos? (y el texto de tu web, si quieres). Antigravity llena todas las casillas.
+- **«¿Qué le cambio?»:** si algo no va, lo escribes («la marca se llama Café Andino», «el tono más cálido») y Antigravity lo ajusta partiendo de lo que ya hay. Probado de verdad con Antigravity: el perfil en unos 100 segundos y cada ajuste en unos 50.
+- **El guion con Antigravity**, probado de verdad: 1 cuerpo, 2 hooks y su CTA, con imágenes y música, en unos 2 minutos.
+- La pantalla dice «Antigravity» (antes decía «Gemini»).
+- Arreglos: si la IA cambia el nombre de la marca, ahora cambia también en «Nombre de la marca»; un color con código malo avisa en vez de perderse; acepta códigos cortos (#F36); una hoja del Excel renombrada se reconoce igual; datos con formas raras ya no hacen caer el guardado del perfil.
+
 Versión 1.60.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Primeros pasos** (Inicio, para un equipo nuevo): conectar el Drive, elegir la IA (Claude o Antigravity), contarle a la sala la marca, crear la primera sesión, escribir el guion y subir los clips. Cada paso con su botón; se va solo cuando todo está hecho (o con «Ocultar»).
 - **El guion también con Gemini:** con Antigravity, el formulario de Inicio dice «✦ Escribir guion con Gemini». Gemini escribe el guion con el guionista y el perfil de la marca, y la sala lo trae y lo sube a Drive sola cuando termina.

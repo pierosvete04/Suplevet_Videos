@@ -1204,7 +1204,8 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     TRABAJO["resultado"] = r
                     avance(f"Prompt nuevo de {extra['id']}: {(r.get('cambio') or 'listo').rstrip('. ')}. Cópialo y genera la pista en Flow Music.")
                 if accion == "perfil_ia":  # «✦ Llenar con IA» en Marca, con Claude: la propuesta vuelve a la pantalla
-                    TRABAJO["resultado"] = perfil.llenar_claude(extra["descripcion"], avance=avance)
+                    TRABAJO["resultado"] = perfil.llenar_claude(extra["descripcion"], avance=avance, base=extra.get("base"),
+                                                               comentario=extra.get("comentario", ""))
                     avance("Perfil propuesto: revísalo y toca «Guardar marca».")
                 if accion == "temas":
                     TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
@@ -1898,12 +1899,14 @@ class H(BaseHTTPRequestHandler):
                     self._json({"ok": True, "perfil": perfil.guardar(b.get("perfil") or {}, subir=PUERTO == 8765 or bool(os.environ.get("SALA_PROYECTO")))})
                 elif b.get("accion") == "ia":
                     descripcion = str(b.get("descripcion") or "").strip()[:8000]
-                    if len(descripcion) < 20:
-                        raise ValueError("Cuéntale a la IA un poco más de tu marca: qué vende, a quién y cómo habla (o pega el texto de tu web)")
+                    comentario = str(b.get("comentario") or "").strip()[:2000]
+                    base = b.get("base") if isinstance(b.get("base"), dict) else None
+                    if len(descripcion) < 20 and not (base and comentario):
+                        raise ValueError("Cuéntale a la IA un poco más de tu marca: responde las preguntas (qué vendes, a quién, cómo te compran…)")
                     if b.get("ia") == "antigravity":
-                        self._json({"ok": True, "modo": "antigravity", **perfil.llenar_antigravity(descripcion)})
+                        self._json({"ok": True, "modo": "antigravity", **perfil.llenar_antigravity(descripcion, base, comentario)})
                     else:
-                        lanzar("perfil_ia", extra={"descripcion": descripcion})
+                        lanzar("perfil_ia", extra={"descripcion": descripcion, "base": base, "comentario": comentario})
                         self._json({"ok": True, "modo": "claude"})
                 else:
                     raise ValueError("Acción no válida")

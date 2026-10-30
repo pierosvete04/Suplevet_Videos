@@ -78,10 +78,7 @@ fuentes/
 productos/
   Fotos de tu producto, mejor sin fondo (PNG).
 
-ficha de marca.docx
-  Llena solo la columna de la derecha. No cambies los títulos de la izquierda.
-  Los colores van con su código, por ejemplo #253C61. Si no lo sabes, déjalo vacío:
-  la sala saca los colores de tu logo.
+{ficha}
 
 CUANDO TERMINES
   Abre la Sala de edición (Configuración → Marca) o la Sala de diseño (pestaña Marca),
@@ -143,13 +140,30 @@ def ficha_docx():
     return b.getvalue()
 
 
+FICHA_EXCEL = Path(__file__).parent / "marcas" / "ficha de marca.xlsx"  # la trae la Sala de edición (marcas/hacer_ficha_excel.py)
+LEEME_EXCEL = """ficha de marca.xlsx
+  Un Excel con casillas: tu marca, tus colores (con su código, ej. #253C61), todas tus palabras
+  (el nombre de la marca, las del producto, las que se resaltan, cómo pides la compra, lo que
+  nunca se dice), cómo deben verse las imágenes y sonar la música, y a quiénes les hablas.
+  Llena las casillas amarillas. Lo que no sepas, déjalo vacío: después lo completa la IA."""
+LEEME_WORD = """ficha de marca.docx
+  Llena solo la columna de la derecha. No cambies los títulos de la izquierda.
+  Los colores van con su código, por ejemplo #253C61. Si no lo sabes, déjalo vacío:
+  la sala saca los colores de tu logo."""
+
+
 def plantilla_zip():
     b = io.BytesIO()
+    excel = FICHA_EXCEL.exists()
     with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
         for d in ("logos", "fuentes", "productos"):
             z.writestr(f"MI MARCA/{d}/", "")
-        z.writestr("MI MARCA/LÉEME.txt", LEEME.replace("\n", "\r\n").encode("utf-8-sig"))
-        z.writestr("MI MARCA/ficha de marca.docx", ficha_docx())
+        leeme = LEEME.replace("{ficha}", LEEME_EXCEL if excel else LEEME_WORD)
+        z.writestr("MI MARCA/LÉEME.txt", leeme.replace("\n", "\r\n").encode("utf-8-sig"))
+        if excel:
+            z.writestr("MI MARCA/ficha de marca.xlsx", FICHA_EXCEL.read_bytes())
+        else:
+            z.writestr("MI MARCA/ficha de marca.docx", ficha_docx())
     return b.getvalue()
 
 
@@ -200,9 +214,186 @@ def leer_ficha(contenido):
 HEX = re.compile(r"#?\b([0-9a-fA-F]{6})\b")
 
 
+# ---------- Leer la ficha en Excel (sin librerías: un .xlsx es un zip con XML) ----------
+
+_XL = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_XR = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+
+
+def _columna(ref):
+    n = 0
+    for ch in re.match(r"[A-Z]+", ref or "A").group(0):
+        n = n * 26 + ord(ch) - 64
+    return n - 1
+
+
+def hojas_excel(contenido):
+    """{nombre de la hoja: [[texto de cada celda de la fila]]}."""
+    import xml.etree.ElementTree as ET
+    try:
+        z = zipfile.ZipFile(io.BytesIO(contenido))
+        libro = ET.fromstring(z.read("xl/workbook.xml"))
+        rels = {r.get("Id"): r.get("Target") for r in ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))}
+    except (zipfile.BadZipFile, KeyError, ET.ParseError):
+        raise ValueError("La ficha no es un Excel (.xlsx) que la sala pueda abrir")
+    compartidos = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall(f"{_XL}si"):
+            compartidos.append("".join(t.text or "" for t in si.iter(f"{_XL}t")))
+    hojas = {}
+    for h in libro.find(f"{_XL}sheets"):
+        destino = rels.get(h.get(f"{_XR}id"), "")
+        ruta = destino.lstrip("/") if destino.startswith("/") else "xl/" + destino
+        try:
+            datos = ET.fromstring(z.read(ruta))
+        except (KeyError, ET.ParseError):
+            continue
+        filas = []
+        for fila in datos.iter(f"{_XL}row"):
+            celdas = {}
+            for c in fila.findall(f"{_XL}c"):
+                t, v = c.get("t"), c.find(f"{_XL}v")
+                if t == "s" and v is not None:
+                    txt = compartidos[int(v.text)] if int(v.text) < len(compartidos) else ""
+                elif t == "inlineStr":
+                    txt = "".join(x.text or "" for x in c.iter(f"{_XL}t"))
+                else:
+                    txt = v.text if v is not None else ""
+                celdas[_columna(c.get("r"))] = str(txt or "").strip()
+            if any(celdas.values()):
+                filas.append([celdas.get(k, "") for k in range(max(celdas) + 1)])
+        hojas[h.get("name")] = filas
+    return hojas
+
+
+# las preguntas de la hoja «Marca» (el principio basta: «Tono (cómo hablas)» → tono)
+PREGUNTAS_EXCEL = [("nombre", "nombre de la marca"), ("que_vende", "que vendes"), ("distinto", "que te hace distinto"),
+                   ("publico", "a quien le vendes"), ("tono", "tono"), ("compra", "como te compran"),
+                   ("cta_titulo", "llamado a la accion titulo"), ("cta_texto", "llamado a la accion texto"),
+                   ("cta_boton", "llamado a la accion boton"), ("fuente_titulo", "tipografia de los titulos"),
+                   ("fuente_cuerpo", "tipografia del texto"), ("fuente_subtitulos", "tipografia de los subtitulos"),
+                   ("no_prometer", "lo que nunca se promete"), ("mas", "mas para la ia")]
+TIPOS_PALABRA = {"nombre de la marca": "marca", "palabra del producto": "producto", "resaltar en subtitulos": "clave",
+                 "frase para pedir la compra": "cta", "nunca se dice": "evitar", "siempre tiene que ir": "obligatorio",
+                 "frase de cierre": "cierre"}
+
+
+def _hoja(hojas, *nombres):
+    """La hoja con ese nombre; si alguien la renombró («Mi marca»), la que lo contiene."""
+    for nombre, filas in hojas.items():
+        if _norm(nombre) in nombres:
+            return filas
+    for nombre, filas in hojas.items():
+        if any(n in _norm(nombre) for n in nombres):
+            return filas
+    return []
+
+
+def _filas_bajo(filas, titulo):
+    """Las filas que vienen después de la fila de títulos (la que empieza con `titulo`), sin los ejemplos."""
+    for k, f in enumerate(filas):
+        if f and _norm(f[0]).startswith(titulo):
+            return [x for x in filas[k + 1:] if x and any(x) and not _norm(x[0]).startswith("ej ")]
+    return []
+
+
+def leer_excel(contenido):
+    """La ficha en Excel → (marca con la forma de marca.json, perfil para los videos con la forma de perfil.json)."""
+    hojas = hojas_excel(contenido)
+    resp = {}
+    for f in _hoja(hojas, "marca"):
+        if len(f) >= 2 and f[1]:
+            q = _norm(f[0])
+            clave = next((k for k, t in PREGUNTAS_EXCEL if q.startswith(t)), None)
+            if clave:
+                resp[clave] = f[1]
+    m, pf = {}, {}
+    if resp.get("nombre"):
+        m["nombre"] = pf["nombre"] = resp["nombre"].splitlines()[0].strip()[:80]
+    colores, usados, avisos = [], set(), []
+    for f in _filas_bajo(_hoja(hojas, "colores"), "nombre del color"):
+        h = _hex(" ".join(f[:2]))
+        if not h:
+            avisos.append(f"El color «{f[0]}» no tiene un código que sirva ({(f[1] if len(f) > 1 else '') or 'vacío'}): "
+                          "va con # y 6 letras o números, ej. #253C61. No se usó.")
+            continue
+        uso = _norm(f[2]) if len(f) > 2 else ""
+        uso = uso if uso in ("principal", "secundario", "acento", "fondo", "texto") and uso not in usados else "otro"
+        usados.add(uso)
+        colores.append({"nombre": (f[0] if not HEX.fullmatch(f[0].strip()) else "")[:40] or _nombre_color(h), "hex": h, "uso": uso})
+    if colores:
+        m["colores"] = colores
+    fu = {k: resp[c].splitlines()[0].strip() for k, c in (("titulo", "fuente_titulo"), ("cuerpo", "fuente_cuerpo"),
+                                                          ("subtitulos", "fuente_subtitulos")) if resp.get(c)}
+    if fu:
+        m["fuentes"] = fu
+    cta = {k: resp[c] for k, c in (("titulo", "cta_titulo"), ("texto", "cta_texto"), ("boton", "cta_boton")) if resp.get(c)}
+    if cta:
+        m["cta"] = cta
+    por_tipo, correcciones = {}, {}
+    for f in _filas_bajo(_hoja(hojas, "palabras"), "palabra o frase"):
+        palabra = f[0].strip()
+        tipo = TIPOS_PALABRA.get(_norm(f[1]) if len(f) > 1 else "", "producto")
+        por_tipo.setdefault(tipo, []).append(palabra)
+        for mal in re.split(r"[,;\n]", f[2] if len(f) > 2 else ""):
+            if mal.strip() and _norm(mal) != _norm(palabra):
+                correcciones[mal.strip().lower()] = palabra
+    for k_marca, tipo in (("evitar", "evitar"), ("obligatorio", "obligatorio"), ("cierres", "cierre")):
+        if por_tipo.get(tipo):
+            m[k_marca] = por_tipo[tipo]
+    if resp.get("no_prometer"):
+        m["evitar"] = m.get("evitar", []) + [x.strip() for x in re.split(r"[,\n]", resp["no_prometer"]) if x.strip()]
+    notas = [resp[k] for k in ("tono", "distinto", "mas") if resp.get(k)]
+    if notas:
+        m["notas_para_claude"] = "\n".join(notas)
+    for k_pf, k_resp in (("que_vende", "que_vende"), ("publico", "publico"), ("tono", "tono")):
+        if resp.get(k_resp):
+            pf[k_pf] = resp[k_resp]
+    if resp.get("distinto"):
+        pf["que_vende"] = (pf.get("que_vende", "") + ". " + resp["distinto"]).strip(". ")
+    extra = [f"Cómo compran: {resp['compra']}" if resp.get("compra") else "", f"Nunca se promete: {resp['no_prometer']}" if resp.get("no_prometer") else "",
+             resp.get("mas", "")]
+    if any(extra):
+        pf["notas"] = "\n".join(x for x in extra if x)
+    if por_tipo.get("marca"):
+        pf["palabras_marca"] = por_tipo["marca"]
+    vocab = por_tipo.get("marca", []) + por_tipo.get("producto", [])
+    if vocab:
+        pf["vocabulario"] = vocab
+    if por_tipo.get("clave"):
+        pf["palabras_clave"] = por_tipo["clave"]
+    if por_tipo.get("cta"):
+        pf["cta"] = por_tipo["cta"]
+    if correcciones:
+        pf["correcciones"] = correcciones
+    img, mus, mostrar = [], [], ""
+    for f in _filas_bajo(_hoja(hojas, "imagenes y musica"), "regla"):
+        para = _norm(f[1]) if len(f) > 1 else ""
+        if para.startswith("musica"):
+            mus.append(f[0])
+        elif para.startswith("lo que mas"):
+            mostrar = f[0]
+        else:
+            img.append(f[0])
+    if img or mostrar:
+        pf["imagenes"] = {**({"reglas": img} if img else {}), **({"que_mostrar": mostrar} if mostrar else {})}
+    if mus:
+        pf["musica"] = {"reglas": mus}
+    publicos = [f[0] for f in _filas_bajo(_hoja(hojas, "publicos"), "publico") if f[0]]
+    if publicos:
+        pf["publicos"] = publicos
+        pf.setdefault("publico", publicos[0])
+    if not resp and not colores and not por_tipo:
+        avisos.append("El Excel no tiene nada lleno: ¿es la ficha de marca de la sala?")
+    return m, pf, avisos
+
+
 def _hex(texto):
     m = HEX.search(texto or "")
-    return "#" + m.group(1).upper() if m else None
+    if m:
+        return "#" + m.group(1).upper()
+    corto = re.search(r"#([0-9a-fA-F]{3})\b", texto or "")  # #F36 = #FF3366
+    return "#" + "".join(c * 2 for c in corto.group(1)).upper() if corto else None
 
 
 def marca_de_ficha(f):
@@ -454,6 +645,7 @@ def analizar(i):
     """La propuesta: qué es cada archivo y la marca que sale de la ficha (o del logo). No guarda nada todavía."""
     d = _carpeta(i)
     archivos, ficha, avisos = [], {}, []
+    excel_marca, excel_perfil = {}, {}
     if not FFMPEG:
         _VISTAS.update(_pixeles_windows([p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in IMAGENES]))
     for f in sorted(p for p in d.rglob("*") if p.is_file()):
@@ -465,6 +657,19 @@ def analizar(i):
             item["tipo"] = "ignorar"  # las instrucciones de la plantilla
         elif ext in FUENTES:
             item["tipo"] = "fuentes"
+        elif ext in (".xlsx", ".xlsm"):
+            try:
+                m_x, pf_x, av_x = leer_excel(f.read_bytes())
+                avisos += [f"«{f.name}»: {x}" for x in av_x]
+            except ValueError as e:
+                m_x, pf_x = {}, {}
+                avisos.append(f"«{f.name}»: {e}")
+            if m_x or pf_x:
+                excel_marca.update(m_x)
+                excel_perfil.update(pf_x)
+                item["tipo"] = "ficha"
+            else:
+                item["tipo"] = "manual"
         elif ext == ".docx":
             try:
                 datos = leer_ficha(f.read_bytes())
@@ -491,7 +696,7 @@ def analizar(i):
         else:
             item["tipo"] = "ignorar"
         archivos.append(item)
-    propuesta = marca_de_ficha(ficha)
+    propuesta = {**marca_de_ficha(ficha), **excel_marca}  # el Excel manda sobre el Word
     colores_de = "ficha" if propuesta.get("colores") else ""
     vistos = []
     for a in archivos:
@@ -516,7 +721,8 @@ def analizar(i):
         propuesta["fuentes"][k] = _buscar_fuente(v, fuentes_sub, d)
     if not archivos:
         avisos.append("No llegó ningún archivo.")
-    return {"id": i, "archivos": archivos, "marca": propuesta, "ficha": bool(ficha), "colores_de": colores_de, "avisos": avisos}
+    return {"id": i, "archivos": archivos, "marca": propuesta, "ficha": bool(ficha or excel_marca or excel_perfil),
+            "perfil": excel_perfil, "colores_de": colores_de, "avisos": avisos}
 
 
 def _buscar_fuente(valor, subidas, d):
@@ -591,6 +797,21 @@ def aplicar(i, propuesta):
     if hechos["fuentes"]:
         marca.copiar_fuentes()
     datos = marca.guardar(nueva)  # sube todo a Drive de una vez
+    pf = propuesta.get("perfil") or {}
+    if pf:  # lo de la ficha en Excel para los videos (perfil.py, solo en la Sala de edición)
+        try:
+            import perfil
+            actual_pf = perfil.propio()
+            junto = {**actual_pf, **{k: v for k, v in pf.items() if v not in (None, "", [], {})}}
+            for k in ("imagenes", "musica"):  # campo por campo: el Excel no borra lo demás
+                if isinstance(pf.get(k), dict):
+                    junto[k] = {**(actual_pf.get(k) or {}), **pf[k]}
+            if pf.get("correcciones"):
+                junto["correcciones"] = {**(actual_pf.get("correcciones") or {}), **pf["correcciones"]}
+            perfil.guardar(junto)
+            hechos["perfil"] = True
+        except ImportError:
+            pass
     shutil.rmtree(BASE / i, ignore_errors=True)
     return {"hechos": hechos, "marca": datos}
 

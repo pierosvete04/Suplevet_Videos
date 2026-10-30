@@ -117,14 +117,21 @@ def _limpio(d):
         v = d.get(k) or []
         if isinstance(v, str):
             v = re.split(r"[,\n]", v)
-        out[k] = [str(x).strip()[:120] for x in v if str(x).strip()][:300]
+        elif not isinstance(v, (list, tuple)):  # un número o algo suelto: una sola palabra
+            v = [v]
+        out[k] = [str(x).strip()[:120] for x in v if x is not None and str(x).strip()][:300]
     if str(d.get("plantilla") or "").strip():
         out["plantilla"] = str(d["plantilla"]).strip()[:60]
     corr = d.get("correcciones") or {}
     if isinstance(corr, str):  # «mal → bien» una por línea
         corr = dict(x.split("→", 1) if "→" in x else x.split("=", 1) for x in corr.splitlines() if "→" in x or "=" in x)
-    out["correcciones"] = {str(k).strip()[:80]: str(v).strip()[:80] for k, v in corr.items() if str(k).strip() and str(v).strip()}
+    if not isinstance(corr, dict):
+        corr = {}
+    out["correcciones"] = {str(k).strip()[:80]: str(v).strip()[:80] for k, v in corr.items()
+                           if str(k).strip() and str(v).strip() and str(k).strip() != str(v).strip()}  # «fos» → «FOS» sí sirve (mayúsculas)
     im = d.get("imagenes") or {}
+    if not isinstance(im, dict):  # solo reglas, como texto o lista
+        im = {"reglas": im}
     reglas = im.get("reglas") or []
     if isinstance(reglas, str):
         reglas = reglas.splitlines()
@@ -135,6 +142,8 @@ def _limpio(d):
     if isinstance(im.get("ejemplo"), dict) and im["ejemplo"].get("prompt"):
         out["imagenes"]["ejemplo"] = {k: str(im["ejemplo"].get(k) or "")[:500] for k in ("palabra", "prompt", "plan_b", "que_muestra")}
     mu = d.get("musica") or {}
+    if not isinstance(mu, dict):
+        mu = {"reglas": mu}
     reglas = mu.get("reglas") or []
     if isinstance(reglas, str):
         reglas = reglas.splitlines()
@@ -142,7 +151,8 @@ def _limpio(d):
                      "evitar": str(mu.get("evitar") or "").strip()[:400]}
     if isinstance(mu.get("animos"), dict):
         out["musica"]["animos"] = {k: str(v)[:400] for k, v in mu["animos"].items() if k in motor.ANIMOS and str(v).strip()}
-    out["skills"] = {k: str(v).strip() for k, v in (d.get("skills") or {}).items() if k in SKILLS and str(v).strip()}
+    sk = d.get("skills") if isinstance(d.get("skills"), dict) else {}
+    out["skills"] = {k: str(v).strip() for k, v in sk.items() if k in SKILLS and str(v).strip()}
     return out
 
 
@@ -308,10 +318,12 @@ def reglas_musica(sangria=""):
     return "\n".join(lineas) + ("\n" if lineas else "")
 
 
-# ---------- llenar el perfil con IA (Claude o Gemini en Antigravity) ----------
+# ---------- llenar el perfil con IA (Claude o Antigravity) ----------
 
-def pedido_ia(descripcion, destino=None):
-    """El pedido para que la IA proponga el perfil a partir de lo que cuenta el equipo (o el texto de su web)."""
+def pedido_ia(descripcion, destino=None, base=None, comentario=""):
+    """El pedido para que la IA proponga el perfil a partir de lo que cuenta el equipo (o el texto de su web). Con `base`
+    (el perfil que ya tiene) y `comentario` («las frases de compra son por web, no WhatsApp»), lo mejora en vez de
+    empezar de cero: así se va afinando de a pocos."""
     import marca
     m = marca.datos()
     ejemplo = json.dumps({k: v for k, v in NEUTRO.items() if k not in ("skills",)}, ensure_ascii=False, indent=1)
@@ -321,8 +333,10 @@ def pedido_ia(descripcion, destino=None):
 Marca: {m.get('nombre') or '(sin nombre todavía)'}
 Lo que cuenta el equipo sobre su marca:
 \"\"\"
-{descripcion.strip()[:6000]}
+{descripcion.strip()[:6000] or '(no contó más: usa el perfil que ya tiene)'}
 \"\"\"
+{('El perfil que ya tiene (consérvalo: mejóralo, complétalo donde esté vacío y cambia solo lo que el equipo pide):' + chr(10) + json.dumps(base, ensure_ascii=False, indent=1)) if base else ''}
+{('Lo que el equipo pide ahora: ' + comentario.strip()[:2000]) if comentario.strip() else ''}
 {('Ya dijeron que evitan: ' + '; '.join(m.get('evitar') or [])) if m.get('evitar') else ''}
 {('Notas que ya tenían: ' + (m.get('notas_para_claude') or '')) if m.get('notas_para_claude') else ''}
 
@@ -350,14 +364,17 @@ def _json_de(texto):
     i, j = texto.find("{"), texto.rfind("}")
     if i < 0 or j <= i:
         raise RuntimeError("La IA no devolvió el perfil. Intenta de nuevo con más detalle de tu marca.")
-    return _limpio(json.loads(texto[i:j + 1]))
+    try:
+        return _limpio(json.loads(texto[i:j + 1]))
+    except ValueError as e:
+        raise RuntimeError(f"La IA devolvió el perfil con un error de formato ({e}). Intenta de nuevo.") from e
 
 
-def llenar_claude(descripcion, avance=print):
+def llenar_claude(descripcion, avance=print, base=None, comentario=""):
     """Claude propone el perfil (no lo guarda: la persona lo revisa y toca «Guardar marca»)."""
     import asistente
     avance("Claude está armando el perfil de tu marca…")
-    return _json_de(asistente.correr(pedido_ia(descripcion), [], avance=avance, max_turnos=8))
+    return _json_de(asistente.correr(pedido_ia(descripcion, base=base, comentario=comentario), [], avance=avance, max_turnos=8))
 
 
 def _carpeta_ia():
@@ -366,7 +383,7 @@ def _carpeta_ia():
     return base / "Perfil de marca - Antigravity"
 
 
-def llenar_antigravity(descripcion):
+def llenar_antigravity(descripcion, base=None, comentario=""):
     """Le pide el perfil a Gemini en Antigravity: lo escribe en Descargas/Perfil de marca - Antigravity/perfil_propuesto.json
     y la pantalla lo trae sola (propuesta_antigravity)."""
     import antigravity
@@ -376,7 +393,7 @@ def llenar_antigravity(descripcion):
         shutil.rmtree(carpeta, ignore_errors=True)
     carpeta.mkdir(parents=True, exist_ok=True)
     destino = carpeta / "perfil_propuesto.json"
-    texto = pedido_ia(descripcion, destino)
+    texto = pedido_ia(descripcion, destino, base=base, comentario=comentario)
     (carpeta / "INSTRUCCIONES.md").write_text(texto, encoding="utf-8")
     (carpeta / "GEMINI.md").write_text(texto, encoding="utf-8")
     mensaje = (f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual: escribe {destino}. No leas nada más, no escribas scripts "
