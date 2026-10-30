@@ -1,3 +1,6 @@
+Versión 1.61.2 (se actualiza desde la app con «Actualizar ahora»):
+- Bordes iguales en las tres apps: las casillas para escribir o elegir y los botones con esquinas de 9 px, las tarjetas de 14 px y las ventanas de 16 px. La muestra del selector de color también se ve redondeada.
+
 Versión 1.61.1 (se actualiza desde la app con «Actualizar ahora»):
 - La ficha de marca en Excel también se puede importar desde la Sala de diseño (0.19.0): lo que trae para los videos queda en la carpeta de la marca y esta sala lo usa. Al importar aquí, el perfil sube a Drive junto con la marca, de una vez.
 

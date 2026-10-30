@@ -1258,12 +1258,12 @@ dialog#dlgEditor::backdrop { background: var(--bg); }
 .ed-panelx[hidden] { display: none; }
 .ed-panelx .caja { margin: 0; border: 0; padding: 0; background: none; box-shadow: none; }
 #dlgEditor .ed-panelx select, #dlgEditor .ed-panelx input:not([type]), #dlgEditor .ed-panelx input[type=text], #dlgEditor .ed-panelx input[type=number] {
-  height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); font: 500 13px var(--f); min-width: 0; }
+  height: 36px; padding: 0 12px; border-radius: var(--r-campo); border: 1px solid var(--line2); background: var(--bg2); color: var(--ink); font: 500 13px var(--f); min-width: 0; }
 #dlgEditor .ed-panelx select:focus-visible, #dlgEditor .ed-panelx input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #dlgEditor .ed-panelx input[type=range] { width: 100%; accent-color: var(--accent); height: 22px; margin: 0; cursor: pointer; }
 #dlgEditor .ed-panelx input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
 #dlgEditor .ed-panelx .ev-campo { display: grid; gap: 6px; font: 600 12px var(--f); color: var(--muted); }
-#dlgEditor .ed-panelx .btn.peq { min-height: 32px; border-radius: 9px; padding: 0 12px; }
+#dlgEditor .ed-panelx .btn.peq { min-height: 32px; border-radius: var(--r-campo); padding: 0 12px; }
 #dlgEditor .ed-panelx h2 { font: 650 15px var(--fd); }
 .ed-tarjeta { border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); padding: 12px 14px; display: grid; gap: 10px; }
 .ed-tarjeta > h4 { margin: 0; font: 650 13px var(--fd); color: var(--ink); display: flex; gap: 8px; align-items: baseline; }
@@ -1634,6 +1634,19 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 @media (min-width: 681px) { body.horizontal .ev-arriba { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); } }
 @media (max-width: 680px) { body.horizontal .visor { max-width: 100%; } }
 #formato { min-width: 0; }
+</style>
+<style id="bordes-comunes">
+/* Bordes: una sola escala, igual en la Sala de edición, la Sala de diseño y el Publicador (si se cambia aquí, se
+   cambia en las tres). 9 px las casillas para escribir o elegir y los botones · 14 px las tarjetas y cuadros ·
+   16 px las ventanas · las píldoras, redondas. */
+:root { --r-campo: 9px; --r-caja: 14px; --r-ventana: 16px; --r-chip: 999px; }
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select:not([hidden]), textarea:not([hidden]) { border-radius: var(--r-campo); }
+input[type=color] { overflow: hidden; }
+input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+input[type=color]::-webkit-color-swatch { border: 0; border-radius: calc(var(--r-campo) - 3px); }
+.btn { border-radius: var(--r-campo); }
+.caja { border-radius: var(--r-caja); }
+dialog:not(#dlgEditor) { border-radius: var(--r-ventana); }
 </style>
 </head>
 <body>
