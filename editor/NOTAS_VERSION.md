@@ -1,3 +1,9 @@
+Versión 1.59.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Perfil de la marca para los videos** (Configuración → Marca → «Para los videos»): cómo se escribe la marca, las palabras del producto, lo que la transcripción escribe mal, las palabras que se resaltan, las frases con las que se pide la compra, las reglas de las imágenes de Flow y de la música, y lo demás que la IA debe saber. Vive en Drive (_MARCA/perfil.json): lo comparten todas las PCs del equipo.
+- **«✦ Llenar con IA»:** cuéntale tu marca (o pega el texto de tu web) y Claude o Gemini en Antigravity llenan el perfil; tú lo revisas y tocas «Guardar marca».
+- **La sala ya no tiene nada de Suplevet adentro:** la transcripción, el brillo cuando se dice la marca, cómo reconoce un CTA, la música y los pedidos a Claude y a Gemini salen del perfil. Una marca nueva empieza con un perfil neutro y con un guionista, un director y una guía de Flow generales.
+- **Para Suplevet no cambia nada:** al abrir la sala, su perfil se crea solo con todo lo de siempre (las 78 correcciones, el vocabulario, las palabras clave, siempre una mascota, la música con adrenalina y sus propias skills). Probado: sale idéntico a lo de antes.
+
 Versión 1.58.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Tus plantillas y tu estilo viajan con la sesión:** «Actualizar proyecto» ya compartía cortes, subtítulos, imágenes y versiones; ahora también las plantillas propias (por ejemplo «Editor (limpio)»), cuál es la activa, el estilo de edición (zoom, fundido, transiciones) y el nivel de sonidos. Así, cuando el editor baja la sesión, sus videos salen con la misma letra y el mismo estilo que los tuyos. Si él cambia algo, te llega a ti igual que un corte.
 - **Los clips que asignaste a mano también viajan:** en la otra PC el análisis ya no los vuelve a mover.

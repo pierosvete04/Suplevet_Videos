@@ -10,27 +10,16 @@
     "plantilla": "suplevet_celeste",
     "ajustes": {}
   },
-  "palabras_clave": [
-    "error",
-    "suplevet",
-    "whatsapp",
-    "muscular",
-    "calostro",
-    "lactoferrina",
-    "senior",
-    "tarde",
-    "flaco",
-    "ficha",
-    "defensas",
-    "músculo",
-    "músculos",
-    "panza",
-    "piel"
-  ],
+  "palabras_clave": [],
   "sonidos": {
     "volumen_sfx": 0.7,
     "graves_maximo": 0.6,
-    "categorias_con_graves": ["impacto", "tension", "drama", "riser_largo"],
+    "categorias_con_graves": [
+      "impacto",
+      "tension",
+      "drama",
+      "riser_largo"
+    ],
     "quitar_silencio_inicial": true,
     "umbral_inicio": 0.05,
     "separacion_minima": 1.5,
@@ -165,7 +154,7 @@
     "segundo": 0.5,
     "oscurecer": 0.35,
     "tamano": 128,
-    "marca": "SUPLEVET",
+    "marca": "",
     "margen_marca": 420,
     "fuente": "Montserrat-Black.ttf",
     "mayusculas": true,
@@ -173,19 +162,8 @@
   },
   "transcripcion": {
     "modelo": "medium",
-    "vocabulario": "Suplevet, WhatsApp, calostro, lactoferrina, FOS, omega 3, zinc, DHA, EPA, una cucharada, escríbenos, te lo llevamos hoy mismo, tu mascota, tu perro, veterinario, paciente senior, pelaje, pelo opaco, picazón, champú, digestión, popos, pastillas.",
-    "correcciones": {
-      "suplebet": "Suplevet",
-      "suplevet": "Suplevet",
-      "suplevé": "Suplevet",
-      "su plebet": "Suplevet",
-      "su plevet": "Suplevet",
-      "suple vet": "Suplevet",
-      "suple bet": "Suplevet",
-      "escriennos": "escríbenos",
-      "majota": "mascota",
-      "ascupe": "escupe"
-    }
+    "vocabulario": "",
+    "correcciones": {}
   },
   "panel": {
     "url": "",

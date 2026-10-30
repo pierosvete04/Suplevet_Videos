@@ -17,5 +17,6 @@
 !/*.bat
 !/biblioteca/
 !/vendor/
+!/marcas/
 !/instalador/
 __pycache__/

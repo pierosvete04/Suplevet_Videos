@@ -1,4 +1,4 @@
-"""Motor de edición de Suplevet: piezas grabadas -> videos terminados con portada y copy.
+"""Motor de edición de la sala: piezas grabadas -> videos terminados con portada y copy.
 
 Flujo:
   1. procesar:  recorta silencios, iguala volumen y formato (1080x1920, o 1920x1080 si la sesión es 16:9)
@@ -1406,37 +1406,10 @@ def transcribir(video):
     return corregir_palabras(out)
 
 
-# Lo que la transcripción escribe mal de los componentes de Suplevet, siempre corregido (además de lo que se agregue en
-# config transcripcion.correcciones). Hasta 5 palabras seguidas; la corrección puede tener varias palabras.
-CORRECCIONES_MARCA = {
-    # calostro: Suplevet lleva calostro BOVINO; la voz se oye «ovino», «vino», «de vino», «o vino»
-    "calostro ovino": "calostro bovino", "calostro vino": "calostro bovino", "calostro bobino": "calostro bovino",
-    "calostro de vino": "calostro bovino", "calostro o vino": "calostro bovino", "calostro y vino": "calostro bovino",
-    "calostro de bovino": "calostro bovino", "calostros ovino": "calostro bovino", "calostro oino": "calostro bovino",
-    "calostro boino": "calostro bovino", "calostro novino": "calostro bovino",
-    # lactoferrina
-    "lactoferrino": "lactoferrina", "lactoferina": "lactoferrina", "lacto ferrina": "lactoferrina", "lactoferin": "lactoferrina",
-    "lactoferrin": "lactoferrina", "lactofermina": "lactoferrina", "lactoferrinas": "lactoferrina",
-    # proteína de suero (Whey)
-    "suelo lacteo": "suero lácteo", "suelo y lacteo": "suero lácteo", "suero y lacteo": "suero lácteo", "suelos lacteo": "suero lácteo",
-    "proteina de suelo": "proteína de suero", "proteinas de suelo": "proteínas de suero", "proteina del suelo": "proteína de suero",
-    "suero lacteo way": "suero lácteo Whey", "suero lacteo wey": "suero lácteo Whey", "suero lacteo guey": "suero lácteo Whey",
-    # leucina, FOS, omegas
-    "laucina": "leucina", "leusina": "leucina", "la usina": "la leucina", "la lucina": "la leucina", "incluida la usina": "incluida la leucina",
-    "fos": "FOS", "foss": "FOS", "phos": "FOS", "los fos": "los FOS", "el fos": "el FOS",
-    "omega tres": "omega 3", "omegas tres": "omegas 3", "omega seis": "omega 6", "omegas seis": "omegas 6",
-    "omega 3 y seis": "omega 3 y 6", "omegas 3 y seis": "omegas 3 y 6", "tres y seis": "3 y 6",
-    "omega tres y seis": "omega 3 y 6", "omegas tres y seis": "omegas 3 y 6",
-    "proteina de suelo y lacteo": "proteína de suero lácteo", "proteinas de suelo y lacteo": "proteínas de suero lácteo",
-    "proteina de suelo lacteo": "proteína de suero lácteo", "proteinas de suelo lacteo": "proteínas de suero lácteo",
-    "proteina de suero y lacteo": "proteína de suero lácteo", "proteinas de suero y lacteo": "proteínas de suero lácteo",
-    # nombres de enfermedades que se oyen mal
-    "osteotritis": "osteoartritis", "osteoarthritis": "osteoartritis", "osteo artritis": "osteoartritis", "osteartritis": "osteoartritis",
-    "parvovidus": "parvovirus", "parvo virus": "parvovirus", "parvobirus": "parvovirus",
-    "inmunoglobolinas": "inmunoglobulinas", "inmunoglobinas": "inmunoglobulinas", "inmuno globulinas": "inmunoglobulinas",
-    # la marca
-    "supevet": "Suplevet", "suplet": "Suplevet", "suplevit": "Suplevet", "supleve": "Suplevet", "suplevete": "Suplevet",
-}
+# Lo que la transcripción escribe mal siempre igual vive en el perfil de la marca (perfil.py: «correcciones», que
+# perfil.aplicar pone en config transcripcion.correcciones). Aquí solo queda lo que sirve para cualquier marca.
+CORRECCIONES_MARCA = {}
+PERFIL = {}  # el perfil de la marca ya aplicado (perfil.aplicar)
 
 
 _TABLA_CORR = {"de": None, "tabla": {}}
@@ -2483,9 +2456,9 @@ def reasignar_por_guion(minimo=0.5, guardar=True):
     libre = lambda j: orden[j][0]["rel"] not in nuevo
     basura = lambda j: largo(orden[j][1]) < 3
     retoma = lambda j: max(orden[j][2].values(), default=0) >= 0.75  # casi igual a otra pieza: es otra toma
-    cta_re = re.compile(r"escr[ií]benos|whats ?app|necesitando (este apoyo|suplevet)|conoce (m[aá]s )?(de |sobre )?suplevet|"
-                        r"comun[ií]cate|solicita(r)? (m[aá]s )?informaci|mayor informaci", re.I)
-    es_cta = lambda j: bool(cta_re.search(orden[j][1])) or max((v for k, v in orden[j][2].items() if tipo_de(k) == "cta"), default=0) >= 0.7
+    import perfil as _perfil  # las frases con las que la marca pide la compra
+    cta_re = re.compile(r"escr[ií]benos|whats ?app|comun[ií]cate|solicita(r)? (m[aá]s )?informaci|mayor informaci", re.I)
+    es_cta = lambda j: bool(cta_re.search(orden[j][1])) or _perfil.dice_cta(orden[j][1]) or max((v for k, v in orden[j][2].items() if tipo_de(k) == "cta"), default=0) >= 0.7
     pedacito = lambda j: largo(orden[j][1]) <= 7 and arranca_unido(orden[j][1])  # «Y recuperación.»: completa la de antes
     mismo_cel = lambda a, b: not (modelo(a) and modelo(b) and modelo(a) != modelo(b))
     arranca_unido = lambda t: bool(re.match(r"^(que|y|e|o|ni|pero|porque|con|para|además|también)\b", t.strip(" ¿¡«\"'"), re.I))
@@ -3019,8 +2992,11 @@ def plan_sonoro(nombre, info):
             fn = [norm(w) for w in f.split()]
             if any(palabras[k:k + len(fn)] == fn for k in range(len(palabras) - len(fn) + 1)):
                 out.append({"momento": f"«{f}»", "efecto": cat, "por": "situación (se dice la palabra)"})
-    if tipo == "cuerpo" and "suplevet" in palabras:
-        out.append({"momento": "«Suplevet»", "efecto": "brillo", "por": "aparece la marca"})
+    import perfil as _perfil
+    ws = info.get("texto", "").split()
+    dicha = next((w for i, w in enumerate(ws) if _perfil.es_marca(w, ws[i + 1:])), None) if tipo == "cuerpo" else None
+    if dicha:
+        out.append({"momento": f"«{dicha.strip('.,;:?!¿¡«»')}»", "efecto": "brillo", "por": "aparece la marca"})
     return out
 
 
@@ -6630,12 +6606,14 @@ def planear_sonidos(combo, offs, total, subs, marcas):
                         add(cat, off + pal[k]["s"], 2, f"situación «{' '.join(p['w'] for p in pal[k:k + len(f)])}»")
     # Automáticos por palabra: producto, números, palabras clave
     marca_vista = False
+    import perfil as _perfil
     for (off, lineas), nombre in zip(zip(offs, subs), (hook, cuerpo, cta)):
         for ln in lineas:
-            for p in ln["palabras"]:
+            ws = [q["w"] for q in ln["palabras"]]
+            for i, p in enumerate(ln["palabras"]):
                 t = off + p["s"]
-                if norm(p["w"]) == "suplevet" and not marca_vista and nombre == cuerpo:
-                    add("brillo", t, 2, "aparece Suplevet")
+                if not marca_vista and nombre == cuerpo and _perfil.es_marca(p["w"], ws[i + 1:]):
+                    add("brillo", t, 2, f"aparece {p['w'].strip('.,;:?!¿¡«»')}")
                     marca_vista = True
                 elif es_numero(p["w"]):
                     add("ding", t, 1, f"número «{p['w']}»")
@@ -6758,7 +6736,7 @@ ANIMOS = {
                 "minor-key synth stabs, suspenseful and driving"),
     "revelacion": ("Revelación (el dato, la ciencia)", "Driving modern electronic groove, 128 BPM, crisp punchy drums, bright "
                    "plucked synth arpeggios, deep bass, curious and intriguing forward momentum"),
-    "solucion": ("Solución (Suplevet)", "Uplifting energetic EDM-pop, 128 BPM, four-on-the-floor kick, bright supersaw chords, "
+    "solucion": ("Solución (el producto)", "Uplifting energetic EDM-pop, 128 BPM, four-on-the-floor kick, bright supersaw chords, "
                  "strong bassline, confident and optimistic, powerful drive"),
     "triunfo": ("Triunfo (el resultado)", "Euphoric high-energy electro house, 130 BPM, big punchy kick, soaring synth lead, "
                 "pumping bass, triumphant and celebratory hype"),
@@ -6784,8 +6762,10 @@ def musica_de_pieza(nombre):
 def pista_para_animo(animo):
     """La entrada de `musica` del guion para un estado de ánimo, lista para generar en Flow Music."""
     nombre, prompt = ANIMOS[animo]
+    mu = PERFIL.get("musica") or {}  # la marca puede cambiar el estilo de un ánimo o lo que se evita
+    prompt = (mu.get("animos") or {}).get(animo) or prompt
     return {"id": f"MUS_{animo.upper()}", "animo": animo, "uso": nombre, "desde": 0,
-            "prompt": {"herramienta": "Google Flow Music", "prompt": f"{prompt}, {_SIEMPRE}.", "evitar": EVITAR_MUSICA,
+            "prompt": {"herramienta": "Google Flow Music", "prompt": f"{prompt}, {_SIEMPRE}.", "evitar": mu.get("evitar") or EVITAR_MUSICA,
                        "duracion": "60 s"}}
 
 

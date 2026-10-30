@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 import motor
+import perfil
 
 BAJAR = r"""// Baja de un golpe las imágenes generadas en Google Flow, en tamaño completo y con su nombre.
 // Se corre en la pestaña de Flow (herramienta para ejecutar JavaScript en la página) después de generar todo.
@@ -475,7 +476,7 @@ def _limpios():
         asistente.actualizar_conocimiento(lambda *_: None)
     except RuntimeError:
         pass
-    origen = asistente.CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    origen = asistente.ruta_skill()
     if not origen.exists():
         raise ValueError("Faltan las reglas para escribir los prompts (las skills de la sala, en Drive _SALA/claude). Conecta Drive y vuelve a intentar.")
     m = re.search(r"^### Prompts limpios.*?(?=^#{1,3} )", origen.read_text(encoding="utf-8"), re.S | re.M)
@@ -531,7 +532,7 @@ def _huecos(por_cuerpo, clips, por_hook):
 def _hoja(n, total, grupo, sesion):
     filas = [f"# Hoja {n} de {total} · {sesion}", "",
              f"Escribe RESPUESTA_{n}.jsonl con UNA línea por cada código de abajo (ni más ni menos). Ejemplos de cada tipo:",
-             "", EJEMPLO_LINEA, EJEMPLO_ANIMO, EJEMPLO_SFX]
+             "", ejemplo_linea(), EJEMPLO_ANIMO, ejemplo_sfx()]
     for p in grupo:
         filas += ["", f"## {p['pieza']} · {p['tipo']}", f"Texto: «{p['texto']}»"]
         if p["animo"]:
@@ -549,12 +550,18 @@ def _hoja(n, total, grupo, sesion):
     return "\n".join(filas) + "\n"
 
 
-EJEMPLO_LINEA = ('{"id": "C1_IMG2", "palabra": "defensas", "prompt": "Photorealistic vertical 9:16 photo of a happy energetic '
-                 'puppy playing with a ball on green grass in a sunny backyard, soft natural light, shallow depth of field.", '
-                 '"plan_b": "Photorealistic vertical 9:16 shot of a playful puppy running on a lawn, warm daylight.", '
-                 '"que_muestra": "Cachorro jugando con energía en el jardín"}')
+def ejemplo_linea():
+    """Una línea de imagen de ejemplo, con la escena de ejemplo del perfil de la marca."""
+    e = perfil.leer()["imagenes"]["ejemplo"]
+    return json.dumps({"id": "C1_IMG2", "palabra": e.get("palabra") or "resultado", "prompt": e.get("prompt", ""),
+                       "plan_b": e.get("plan_b", ""), "que_muestra": e.get("que_muestra", "")}, ensure_ascii=False)
+
+
 EJEMPLO_ANIMO = '{"id": "ANIMO_C1", "animo": "tension"}'
-EJEMPLO_SFX = '{"id": "SFX_C1", "palabra": "suplevet"}'
+
+
+def ejemplo_sfx():
+    return json.dumps({"id": "SFX_C1", "palabra": perfil.ejemplo_marca()}, ensure_ascii=False)
 
 
 def armar_prompts(por_cuerpo=3, clips=1, por_hook=0, abrir=False):
@@ -597,13 +604,13 @@ Todo lo que necesitas está aquí y en la hoja. La sala revisa las respuestas y 
 Un JSON por línea (sin corchetes, sin comas entre líneas, sin ```). Hay tres tipos:
 
 **Imagen o clip** (códigos `…_IMG<n>` y `…_CLIP<n>`):
-{EJEMPLO_LINEA}
+{ejemplo_linea()}
 - `palabra`: 1 a 3 palabras que aparecen tal cual en el texto de ESA pieza, en minúsculas. Ahí aparece la imagen.
   En un hook, en las primeras palabras. En un cuerpo, repartidas al principio, medio y final, en lo que más se puede ver
-  (el problema, la mascota, la comida, el resultado). Nunca dos en la misma frase ni en una palabra que ya tiene imagen.
+  ({perfil.leer()['imagenes']['que_mostrar']}). Nunca dos en la misma frase ni en una palabra que ya tiene imagen.
 - `prompt` y `plan_b`: en inglés, fotorrealistas, «vertical 9:16». El plan B es otra escena parecida por si Flow rechaza la primera.
-  En un clip, un plano corto con un movimiento simple de la mascota o de la cámara (por ejemplo «a happy dog running
-  toward the camera in a sunny garden, slow motion»).
+  En un clip, un plano corto con un movimiento simple de lo que se ve o de la cámara (por ejemplo
+  «{perfil.leer()['imagenes']['ejemplo_clip']}»).
 - `que_muestra`: en español, qué se ve, en pocas palabras.
 
 **Estado de ánimo** (códigos `ANIMO_<pieza>`): de él sale la música. Cada video junta un hook, un cuerpo y un CTA, y la
@@ -614,16 +621,11 @@ Guía: un hook casi siempre es `tension` (un problema) o `revelacion` (un dato, 
 dura en su texto (si cuenta un problema y la mayor parte es la solución, `solucion`); un CTA, `urgencia` o `solucion`.
 
 **Golpe de silencio** (códigos `SFX_<cuerpo>`): la música se corta medio segundo antes de esa palabra y vuelve con un
-golpe. Uno por cuerpo, en la frase clave (normalmente donde entra Suplevet o el resultado). `palabra` va tal cual en el texto.
-{EJEMPLO_SFX}
+golpe. Uno por cuerpo, en la frase clave (normalmente donde entra {perfil.leer()['nombre'] or 'el producto'} o el resultado). `palabra` va tal cual en el texto.
+{ejemplo_sfx()}
 
-## Reglas de las imágenes
-- Siempre hay una mascota: cada imagen o clip muestra a un perro o gato real, nunca solo un objeto o una persona sin animal.
-- La mascota muestra el estado que dice la frase (tranquila y descansando si la frase habla de un problema, activa y
-  contenta si habla del resultado). Lo interno (defensas, digestión, piel, pelo) se muestra en el animal, nunca células,
-  órganos, intestinos ni microscopios.
-{asistente.COMIDA}
-- Sin texto, sin logos ni envases con marca.
+## Reglas de las imágenes (las de la marca)
+{perfil.reglas_imagenes()}
 
 {limpios}
 
@@ -813,14 +815,14 @@ def _traer_prompts_copia(carpeta, meta_f, meta):
 
 
 # ---------- Música con Antigravity: Gemini escribe las pistas (si el guion no las trae) y las genera en Flow Music ----------
-REGLAS_MUSICA = """# Reglas de la música de Suplevet
+def reglas_musica_basicas():
+    """Lo básico de la música cuando el equipo no tiene skills propias en Drive (_SALA/claude)."""
+    return f"""# Reglas de la música
 
 ## Música
 - Una pista por grupo de cuerpos con el mismo tono (2 a 4 pistas por guion). Siempre instrumental: sin voces ni letra.
-- Siempre con adrenalina: enérgica, de 120 a 150 BPM, percusión marcada, bajo fuerte, tensión que empuja
-  (trap, EDM, phonk, drum & bass, hip-hop enérgico). Nunca suave, acústica, cálida, relajada, lo-fi, ambiental ni «corporate».
-- Prompt en inglés, sin nombres de artistas ni de canciones. En «evitar»: soft, acoustic, calm, gentle, warm, lo-fi, ambient.
-
+- Prompt en inglés, sin nombres de artistas ni de canciones.
+{perfil.reglas_musica()}
 ## Prompts limpios
 - Nada de nombres de artistas, canciones, marcas ni personas reales. Nada de palabras de violencia.
 """
@@ -856,13 +858,13 @@ def armar_musica(abrir=False):
             asistente.actualizar_conocimiento(lambda *_: None)
         except RuntimeError:
             pass
-        origen = asistente.CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+        origen = asistente.ruta_skill()
         copia, reglas = carpeta / "produccion.json", carpeta / "REGLAS_MUSICA.md"
         shutil.copyfile(prod, copia)
         if origen.exists():
             shutil.copyfile(origen, reglas)
         else:  # sin las skills de Drive (_SALA/claude): lo básico de la música, que el pedido ya repite
-            reglas.write_text(REGLAS_MUSICA, encoding="utf-8")
+            reglas.write_text(reglas_musica_basicas(), encoding="utf-8")
         (carpeta / "_sala.json").write_text(json.dumps({"semana": motor.S.semana}), encoding="utf-8")
         pedido = asistente.pedido_musica(copia, reglas).replace("Usa Edit.", "Edita solo el produccion.json de esta carpeta.")
         paso1 = f"""## Paso 1 · Escribir la música (sin navegador)

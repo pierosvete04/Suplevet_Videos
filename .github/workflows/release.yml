@@ -76,6 +76,7 @@ jobs:
           Copy-Item biblioteca -Destination $app -Recurse
           Copy-Item fuentes -Destination $app -Recurse
           Copy-Item vendor -Destination $app -Recurse
+          Copy-Item marcas -Destination $app -Recurse
           Remove-Item "$app/lanzador.py"
           Compress-Archive -Path "$app/*" -DestinationPath "app-$tag.zip"
           Compress-Archive -Path dist/SalaSuplevet -DestinationPath "SalaSuplevet-$tag.zip"

@@ -641,6 +641,7 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
 .mk-form fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; display: grid; gap: 10px; margin: 0; min-width: 0; }  /* un fieldset no se achica solo */
 .mk-form legend { font-weight: 700; padding: 0 6px; }
 .mk-ayuda { font-size: 12px; margin: 0; }
+.pf-ia { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(127, 127, 127, .08); }
 .mk-colores { display: grid; gap: 6px; }
 .mk-color { display: grid; grid-template-columns: 46px minmax(0, 1fr) minmax(0, 130px) 30px; gap: 6px; align-items: center; }
 .mk-color input[type=color] { height: 34px; padding: 2px; width: 100%; }
@@ -2389,6 +2390,36 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
                 <div class="dos"><label>Llamado a la acción: título<input id="mkCtaTit" placeholder="Ej.: Pide el tuyo"></label><label>Texto del botón<input id="mkCtaBoton" placeholder="Ej.: Escríbenos"></label></div>
                 <label>Llamado a la acción: texto<input id="mkCtaTxt" placeholder="Ej.: Envíos a todo el Perú"></label>
                 <label>Notas para Claude sobre la marca<textarea id="mkNotas" rows="4" placeholder="Tono, público, lo que la hace distinta…"></textarea></label></fieldset>
+              <fieldset id="pfCaja"><legend>Para los videos (perfil de la marca)</legend>
+                <p class="muted mk-ayuda">Lo que la sala y la IA (Claude o Gemini) necesitan saber para editar tus videos: cómo se escribe tu marca, qué palabras
+                  se dicen, cómo pides la compra y qué imágenes y música van. Lo comparten todas las PCs del equipo. <span id="pfEstado"></span></p>
+                <div class="pf-ia">
+                  <label>Cuéntale a la IA tu marca (o pega el texto de tu web o tu Instagram)<textarea id="pfDescripcion" rows="4"
+                    placeholder="Ej.: Vendemos ropa deportiva para mujeres de 20 a 35 años en Lima. Hablamos cercano y con energía. Pedidos por WhatsApp…"></textarea></label>
+                  <div class="fila"><button class="btn" id="pfLlenar" type="button" title="La IA propone todo el perfil; tú lo revisas y tocas «Guardar marca»">✦ Llenar con IA</button>
+                    <span class="muted" id="pfIaEstado" style="font-size:12px"></span></div>
+                </div>
+                <label>Qué vende<input id="pfQueVende" placeholder="Ej.: un suplemento en polvo que se mezcla con la comida"></label>
+                <div class="dos"><label>Para quién<input id="pfPublico" placeholder="Ej.: dueños de perros y gatos en Perú"></label>
+                  <label>Cómo se escribe la marca<input id="pfMarca" placeholder="Ej.: Suplevet" title="Cuando se dice, sale el efecto de brillo. Separa con comas si son varias"></label></div>
+                <label>Tono<textarea id="pfTono" rows="2" placeholder="Ej.: venta directa, juvenil, palabras simples"></textarea></label>
+                <div class="dos"><label>Palabras del producto <small class="muted">(la transcripción las escribe bien)</small><textarea id="pfVocabulario" rows="3" placeholder="Una por línea o con comas"></textarea></label>
+                  <label>Palabras que se resaltan en los subtítulos<textarea id="pfClave" rows="3" placeholder="Una por línea o con comas"></textarea></label></div>
+                <div class="dos"><label>Frases con las que pides la compra (CTA)<textarea id="pfCta" rows="3" placeholder="Ej.: escríbenos por WhatsApp"></textarea></label>
+                  <label>Lo que la transcripción escribe mal <small class="muted">(mal → bien)</small><textarea id="pfCorrecciones" rows="3" placeholder="Ej.: suplebet → Suplevet"></textarea></label></div>
+                <label>Reglas de las imágenes de Flow <small class="muted">(una por línea)</small><textarea id="pfImgReglas" rows="4" placeholder="Ej.: Siempre se ve una persona usando el producto"></textarea></label>
+                <label>Lo que más se puede mostrar<input id="pfImgMostrar" placeholder="Ej.: el problema, el producto en uso, el resultado"></label>
+                <label>Reglas de la música <small class="muted">(una por línea)</small><textarea id="pfMusica" rows="2" placeholder="Ej.: siempre enérgica, con ritmo"></textarea></label>
+                <label>Más para la IA (lo que nunca se promete, cómo se nombra el producto…)<textarea id="pfNotas" rows="3"></textarea></label>
+                <details class="conf-avanzado"><summary>Avanzado</summary>
+                  <div class="dos"><label>Lo que nunca sale en una imagen <small class="muted">(en inglés)</small><input id="pfImgEvitar"></label>
+                    <label>Lo que nunca tiene la música <small class="muted">(en inglés)</small><input id="pfMusicaEvitar"></label></div>
+                  <label>Clip de ejemplo <small class="muted">(en inglés)</small><input id="pfImgClip"></label>
+                  <div class="dos"><label>Skill del guionista<input id="pfSkGuion" placeholder="guionista-marca"></label>
+                    <label>Skill del director<input id="pfSkDirector" placeholder="director-marca"></label></div>
+                  <label>Skill de Flow<input id="pfSkFlow" placeholder="flow-marca"></label>
+                  <p class="muted mk-ayuda">Si tu equipo tiene sus propias skills (en Drive, _SALA/claude), pon su nombre. Vacío = las generales de la sala.</p>
+                </details></fieldset>
             </div>
             <aside class="mk-vista-caja"><b>Así se ve</b>
               <div class="mk-vista" id="mkVista"></div>
@@ -4987,6 +5018,14 @@ function avisarFin(j) {
   cancelPedido = null;
 }
 function pintarClaudeTrabajo(t) {
+  if (t.accion === "perfil_ia") {  // «✦ Llenar con IA» en Marca, con Claude
+    if (t.activo) $("pfIaEstado").textContent = (t.log || []).at(-1) || "Claude está armando el perfil…";
+    else if (t.error) $("pfIaEstado").textContent = "Error: " + t.error;
+    else if (t.resultado && typeof t.resultado === "object" && JSON.stringify(t.resultado) !== pintarClaudeTrabajo.ultimo) {
+      pintarClaudeTrabajo.ultimo = JSON.stringify(t.resultado); ponerPropuesta(t.resultado);
+    }
+    return;
+  }
   if (t.accion === "temas" && !t.activo && Array.isArray(t.resultado)) {
     if (JSON.stringify(t.resultado) !== JSON.stringify(propuestas)) { propuestas = t.resultado; pintarTemas(); }
     $("clSalida").textContent = "Elige un tema para cada cuerpo (o escríbelo) y toca «Escribir guion con Claude».";
@@ -5391,7 +5430,7 @@ $("subirFuente").onchange = async e => {
 };
 $("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("analizar"); };
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
-const NOMBRE_PROCESO = { todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Rearmar videos de una pieza", uno: "Rearmar un video",
+const NOMBRE_PROCESO = { perfil_ia: "Llenar el perfil de la marca con IA", todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Rearmar videos de una pieza", uno: "Rearmar un video",
   armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", reasignar: "Volver a asignar con el guion", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   terminar: "Terminar sesión (todo a Drive)", reiniciar: "Empezar de cero (clips y análisis)", conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
@@ -8910,7 +8949,73 @@ const mkLineas = id => $(id).value.split("\n").map(x => x.trim()).filter(Boolean
 function mkMarcarSucia(si = true) { mkSucia = si; $("mkSucia").hidden = !si; }
 async function cargarMarca() {
   try { MK = await (await fetch("/api/marca")).json(); } catch (e) { return avisar("No se pudo leer la marca.", "err"); }
-  mkMarcarSucia(false); pintarMarca();
+  try { const r = await (await fetch("/api/perfil")).json(); PF = r.perfil; PF_PROPIO = r.propio; } catch (e) { PF = null; }
+  mkMarcarSucia(false);
+  try { pintarMarca(); } finally { pintarPerfil(PF); }  // el perfil se ve aunque falle algo de la parte visual
+}
+// El perfil de la marca para los videos (perfil.py): palabras, CTA, reglas de imágenes y música, skills
+let PF = null, PF_PROPIO = false, PF_EJEMPLO = null, pfEsperando = 0;
+const pfLista = id => $(id).value.split(/[\n,]/).map(x => x.trim()).filter(Boolean);
+function pintarPerfil(p) {
+  if (!p) return;
+  const im = p.imagenes || {}, mu = p.musica || {}, sk = p.skills || {};
+  $("pfQueVende").value = p.que_vende || ""; $("pfPublico").value = p.publico || ""; $("pfTono").value = p.tono || "";
+  $("pfMarca").value = (p.palabras_marca || []).join(", ");
+  $("pfVocabulario").value = (p.vocabulario || []).join("\n"); $("pfClave").value = (p.palabras_clave || []).join("\n");
+  $("pfCta").value = (p.cta || []).join("\n");
+  $("pfCorrecciones").value = Object.entries(p.correcciones || {}).map(([a, b]) => `${a} → ${b}`).join("\n");
+  $("pfImgReglas").value = (im.reglas || []).join("\n"); $("pfImgMostrar").value = im.que_mostrar || "";
+  $("pfImgEvitar").value = im.evitar || ""; $("pfImgClip").value = im.ejemplo_clip || "";
+  $("pfMusica").value = (mu.reglas || []).join("\n"); $("pfMusicaEvitar").value = mu.evitar || "";
+  $("pfNotas").value = p.notas || "";
+  $("pfSkGuion").value = sk.guionista || ""; $("pfSkDirector").value = sk.director || ""; $("pfSkFlow").value = sk.flow || "";
+  if (p.nombre && !$("mkNombre").value.trim()) $("mkNombre").value = p.nombre;
+  $("pfEstado").textContent = PF_PROPIO ? "" : "Todavía no tiene perfil propio: la sala usa uno neutro.";
+}
+function leerPerfil() {
+  const correcciones = {};
+  $("pfCorrecciones").value.split("\n").forEach(l => {
+    const m = l.split(/→|->|=/);
+    if (m.length >= 2 && m[0].trim() && m[1].trim()) correcciones[m[0].trim()] = m.slice(1).join(" ").trim();
+  });
+  const im = { reglas: mkLineas("pfImgReglas"), que_mostrar: $("pfImgMostrar").value.trim(), evitar: $("pfImgEvitar").value.trim(),
+    ejemplo_clip: $("pfImgClip").value.trim() };
+  const ej = PF_EJEMPLO || (PF && PF_PROPIO ? (PF.imagenes || {}).ejemplo : null);
+  if (ej && ej.prompt) im.ejemplo = ej;
+  return { nombre: $("mkNombre").value.trim(), que_vende: $("pfQueVende").value.trim(), publico: $("pfPublico").value.trim(),
+    tono: $("pfTono").value.trim(), palabras_marca: pfLista("pfMarca"), vocabulario: pfLista("pfVocabulario"),
+    palabras_clave: pfLista("pfClave"), cta: mkLineas("pfCta"), correcciones, imagenes: im,
+    musica: { reglas: mkLineas("pfMusica"), evitar: $("pfMusicaEvitar").value.trim() }, notas: $("pfNotas").value.trim(),
+    skills: { guionista: $("pfSkGuion").value.trim(), director: $("pfSkDirector").value.trim(), flow: $("pfSkFlow").value.trim() } };
+}
+function ponerPropuesta(p) {
+  PF_EJEMPLO = (p.imagenes || {}).ejemplo || null;
+  const skills = leerPerfil().skills;
+  pintarPerfil({ ...p, skills });
+  mkMarcarSucia(); $("pfIaEstado").textContent = "Listo: revisa lo que propuso la IA y toca «Guardar marca».";
+  avisar("La IA llenó el perfil de tu marca: revísalo y toca «Guardar marca».", "ok");
+}
+$("pfLlenar").onclick = async () => {
+  const ia = modoIA();
+  if (!ia) return avisar("Primero conecta Claude o Antigravity (Inicio → «Trabajar con»).", "warn");
+  try {
+    const r = await post("/api/perfil", { accion: "ia", descripcion: $("pfDescripcion").value, ia });
+    if (r.modo === "antigravity") {
+      pfEsperando = Date.now() / 1000 - 5;
+      $("pfIaEstado").textContent = r.enviado ? "Gemini está armando el perfil en Antigravity… (1 a 2 minutos)"
+        : `No se pudo mandar solo (${r.porque || "Antigravity cerrado"}). En Antigravity escribe «/», elige «browser» y pega: ${r.mensaje}`;
+      esperarPropuesta();
+    } else $("pfIaEstado").textContent = "Claude está armando el perfil… (1 a 2 minutos)";
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+async function esperarPropuesta() {
+  if (!pfEsperando) return;
+  try {
+    const r = await (await fetch("/api/perfil")).json();
+    if (r.propuesta && r.propuesta._cuando > pfEsperando) { pfEsperando = 0; return ponerPropuesta(r.propuesta); }
+  } catch (e) { /* se reintenta en la próxima vuelta */ }
+  if (Date.now() / 1000 - pfEsperando < 600) setTimeout(esperarPropuesta, 4000);
+  else { pfEsperando = 0; $("pfIaEstado").textContent = "Gemini no terminó en 10 minutos. Revisa la conversación en Antigravity."; }
 }
 function pintarMarca() {
   if (!MK) return;
@@ -9038,7 +9143,10 @@ $("mkGuardar").onclick = async () => {
   if (!MK) return;
   try {
     const r = await post("/api/marca", { marca: leerMarca() });
-    MK = r.marca; mkMarcarSucia(false); pintarMarca();
+    const rp = await post("/api/perfil", { accion: "guardar", perfil: leerPerfil() });
+    PF = rp.perfil; PF_PROPIO = true; PF_EJEMPLO = null;
+    MK = r.marca; mkMarcarSucia(false);
+    try { pintarMarca(); } finally { pintarPerfil(PF); }
     E.marca = { nombre: MK.nombre, colores: MK.colores, logos: MK.logos, fuentes: MK.fuentes, tiene_marca: MK.tiene_marca };
     pintarPaletaMarca();
     avisar((E.drive || {}).activo ? "Marca guardada: ya está en el Drive del equipo." : "Marca guardada en esta PC.", "ok");

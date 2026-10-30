@@ -26,6 +26,7 @@ import clips_largos
 import guion_word
 import importar_marca
 import marca
+import perfil
 import panel
 import proyecto
 import respaldos
@@ -1200,6 +1201,9 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         drive.subir(motor.S.drive, ["Guion"], avance=avance)
                     TRABAJO["resultado"] = r
                     avance(f"Prompt nuevo de {extra['id']}: {(r.get('cambio') or 'listo').rstrip('. ')}. Cópialo y genera la pista en Flow Music.")
+                if accion == "perfil_ia":  # «✦ Llenar con IA» en Marca, con Claude: la propuesta vuelve a la pantalla
+                    TRABAJO["resultado"] = perfil.llenar_claude(extra["descripcion"], avance=avance)
+                    avance("Perfil propuesto: revísalo y toca «Guardar marca».")
                 if accion == "temas":
                     TRABAJO["resultado"] = asistente.proponer_temas(extra["cuerpos"], extra["publico"], extra.get("idea", ""), avance=avance)
                     avance("Temas propuestos: elige uno por cuerpo.")
@@ -1412,6 +1416,8 @@ class H(BaseHTTPRequestHandler):
             self._json(TRABAJO)
         elif u.path == "/api/marca":
             self._json(marca.datos())
+        elif u.path == "/api/perfil":  # el perfil de la marca para los videos (perfil.py) y lo que haya propuesto Gemini
+            self._json({"perfil": perfil.leer(), "propio": bool(perfil.propio()), "propuesta": perfil.propuesta_antigravity()})
         elif u.path.startswith("/marca/"):  # logos, productos y tipografías de la marca del equipo (_MARCA)
             rel = unquote(u.path[len("/marca/"):])
             if rel.split("/")[0] not in marca.TIPOS:  # los logos que trae la sala (biblioteca/marca), los de siempre
@@ -1865,6 +1871,21 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "codigos": codigos, "en_cola": cola})
             elif u.path == "/api/marca":
                 self._json({"ok": True, "marca": marca.guardar(self._cuerpo().get("marca") or {})})
+            elif u.path == "/api/perfil":
+                b = self._cuerpo()
+                if b.get("accion") == "guardar":
+                    self._json({"ok": True, "perfil": perfil.guardar(b.get("perfil") or {}, subir=PUERTO == 8765 or bool(os.environ.get("SALA_PROYECTO")))})
+                elif b.get("accion") == "ia":
+                    descripcion = str(b.get("descripcion") or "").strip()[:8000]
+                    if len(descripcion) < 20:
+                        raise ValueError("Cuéntale a la IA un poco más de tu marca: qué vende, a quién y cómo habla (o pega el texto de tu web)")
+                    if b.get("ia") == "antigravity":
+                        self._json({"ok": True, "modo": "antigravity", **perfil.llenar_antigravity(descripcion)})
+                    else:
+                        lanzar("perfil_ia", extra={"descripcion": descripcion})
+                        self._json({"ok": True, "modo": "claude"})
+                else:
+                    raise ValueError("Acción no válida")
             elif u.path == "/api/marca_archivo":
                 n = int(self.headers.get("Content-Length") or 0)
                 if n > 30 * 1024 * 1024:
@@ -2479,7 +2500,14 @@ if __name__ == "__main__":
     cuenta.iniciar("Sala de edición", motor.VERSION)
     # (asegurar_config no recibe «avance»: con _sin_error fallaba siempre y no se revisaba la conexión al abrir)
     threading.Thread(target=lambda: _sin_falla(drive.asegurar_config), daemon=True).start()
-    threading.Thread(target=lambda: _sin_falla(marca.bajar), daemon=True).start()  # la marca del equipo (_MARCA en Drive)
+    subir_perfil = PUERTO == 8765 or bool(os.environ.get("SALA_PROYECTO"))  # una sala de prueba no sube nada
+    _sin_falla(lambda: (perfil.asegurar(subir=subir_perfil), perfil.aplicar()))  # el perfil de la marca, con la copia de esta PC
+
+    def marca_y_perfil():  # la marca del equipo (_MARCA en Drive) y su perfil para los videos
+        marca.bajar()
+        perfil.asegurar(subir=subir_perfil)
+        perfil.aplicar()
+    threading.Thread(target=lambda: _sin_falla(marca_y_perfil), daemon=True).start()
     respaldos.vigilar()  # copia de los cambios cada pocos minutos, solo si algo cambió
     if PUERTO == 8765 or os.environ.get("SALA_PROYECTO"):  # una sala de prueba no se lleva los archivos de Descargas
         vigilar_descargas()

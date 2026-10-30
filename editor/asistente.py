@@ -17,9 +17,19 @@ import time
 from pathlib import Path
 
 import motor
+import perfil
 
 CONOCIMIENTO = motor.DATOS / "claude"
 _estado = {"t": 0, "datos": None}
+
+
+def ruta_skill(nombre="guionista"):
+    """La SKILL.md que usa este equipo para «guionista», «director» o «flow» (perfil.skill): la suya, de _SALA/claude,
+    o la general que trae la sala (marcas/skills)."""
+    propia = CONOCIMIENTO / ".claude" / "skills" / perfil.skill(nombre) / "SKILL.md"
+    if propia.exists():
+        return propia
+    return CONOCIMIENTO / ".claude" / "skills" / perfil.SKILLS[nombre] / "SKILL.md"  # la del perfil no está: la general
 
 
 def encontrar():
@@ -73,12 +83,25 @@ def actualizar_conocimiento(avance=print):
         try:
             avance("Bajando lo que Claude necesita saber (skills y contexto)…")
             drive._rc("copy", f"{drive.REMOTO}:_SALA/claude", CONOCIMIENTO, timeout=300)
-        except Exception as e:
-            if not (CONOCIMIENTO / ".claude").is_dir():
-                raise RuntimeError("Faltan las skills de Claude en Drive (carpeta _SALA/claude). Pídele a Claude, en la PC "
-                                   "principal, «sube las skills a la sala».") from e
-    if not (CONOCIMIENTO / ".claude" / "skills").is_dir():
-        raise RuntimeError("Faltan las skills de Claude. Pídele a Claude, en la PC principal, «sube las skills a la sala».")
+        except Exception as e:  # noqa: BLE001 — un equipo nuevo no tiene skills propias: usa las generales de la sala
+            print("Sin skills propias en Drive (_SALA/claude):", str(e)[:120])
+    poner_generales()
+    if not ruta_skill().exists():
+        raise RuntimeError(f"Falta la skill «{perfil.skill('guionista')}» que pide el perfil de la marca (en Drive, _SALA/claude). "
+                           "Pídele a Claude, en la PC principal, «sube las skills a la sala», o borra esa skill del perfil.")
+
+
+def poner_generales():
+    """Las skills generales de la sala (marcas/skills: guionista, director y Flow para cualquier marca) quedan junto a las
+    del equipo sin pisarlas (tienen otros nombres), y el perfil de la marca queda en perfil_marca.md para que Claude o
+    Gemini lo lean."""
+    origen, destino = perfil.BASE / "skills", CONOCIMIENTO / ".claude" / "skills"
+    if origen.is_dir():
+        for d in origen.iterdir():
+            if d.is_dir():
+                shutil.copytree(d, destino / d.name, dirs_exist_ok=True)
+    CONOCIMIENTO.mkdir(parents=True, exist_ok=True)
+    (CONOCIMIENTO / "perfil_marca.md").write_text(perfil.como_markdown(), encoding="utf-8")
 
 
 def correr(prompt, carpetas, avance=print, max_turnos=80, chrome=False):
@@ -145,7 +168,9 @@ def generar_guion(sesion, pedido, avance=print):
     guion = carpeta / "Guion"
     guion.mkdir(parents=True, exist_ok=True)
     anteriores = motor.S.base
-    prompt = f"""Usa la skill suplevet-guionista-modular y escribe el guion de la sesión «{sesion}».
+    prompt = f"""Usa la skill {ruta_skill().parent.name} y escribe el guion de la sesión «{sesion}».
+{perfil.contexto()}
+El perfil de la marca (qué vende, para quién, tono, palabras, reglas de imágenes y música) está en {CONOCIMIENTO / "perfil_marca.md"}: respétalo.
 
 Pedido del equipo:
 {pedido.strip() or "(sin indicaciones: elige tú 1 o 2 ideas y 5 ángulos según el contexto y lo que funcionó antes)"}
@@ -172,9 +197,6 @@ Los prompts de Flow y de música van siempre. Al terminar responde en 5 líneas:
     return texto
 
 
-COMIDA = ("- La comida es la real: si sale un plato o comida, son croquetas o comida simple de mascota con el polvo claro "
-          "del suplemento espolvoreado encima, o una cuchara con polvo sobre el plato. Nunca frutas, arándanos, salmón, pescado, "
-          "verduras ni adornos en el plato: el producto es un polvo que se echa a la comida.")
 
 
 def generar_prompts_flow(avance=print):
@@ -185,7 +207,7 @@ def generar_prompts_flow(avance=print):
     prod = motor.S.guion / "produccion.json"
     if not prod.exists():
         raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
-    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    reglas = ruta_skill()
     prompt = f"""Lee el guion de la sesión «{motor.S.semana}»: {prod}
 Las reglas para escribir prompts de Flow están en la sección «Prompts limpios» de {reglas}. Léela antes de escribir.
 
@@ -193,16 +215,13 @@ Esta sala no tiene imágenes para sus clips todavía. Agrega, sin cambiar nada m
 1. En `assets`, una imagen por cada cuerpo (C1, C2…) y una por cada hook (C1_H1, C1_H2…). Los CTA no llevan imagen.
    Cada asset: {{"id": "<pieza>_IMG1", "tipo": "imagen", "pieza": "<pieza>", "palabra": "<palabra marcada>",
    "flow": {{"herramienta": "Google Flow · Imagen", "formato": "9:16 vertical", "prompt": "…", "plan_b": "…",
-   "que_muestra": "…", "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style"}}}}
+   "que_muestra": "…", "evitar": "{perfil.leer()['imagenes']['evitar']}"}}}}
 2. En cada pieza con imagen, agrega a `marcas` una marca por asset: {{"palabra": "…", "asset": "<id>", "dur": 1.5,
    "modo": "completa", "mov": "zoom_in"}} (alterna zoom_in y zoom_out entre marcas).
 
 Reglas:
-- Siempre hay una mascota de por medio: cada imagen muestra a un perro o gato real, de cuerpo entero o medio cuerpo, nunca solo un objeto o una persona sin animal.
-- La mascota muestra el estado que dice la frase, en su cara y su cuerpo: si habla de una mascota decaída, triste o mal, se ve decaída y triste (cabeza baja, echada, sin energía, con la mirada apagada); si habla de energía, bienestar o un resultado bueno, se ve activa y contenta (jugando, pelo brillante, panza tranquila). Si la frase habla de algo interno (defensas, digestión, piel, pelo), muestra el efecto en el animal, nunca células, órganos, intestinos, bacterias, microscopios ni cuerpos abiertos o en corte.
-- Para los estados malos usa las palabras de reemplazo de «Prompts limpios» (por ejemplo «quiet cat resting on a blanket, relaxed», «tired dog resting with head down»): nada de sick, ill, pain ni similares.
-{COMIDA}
-- Sin texto, sin logos ni envases con marca. La imagen sirve para lo que dice la frase, sin dar datos.
+{perfil.reglas_imagenes()}
+- La imagen sirve para lo que dice la frase, sin dar datos.
 - `palabra` debe aparecer tal cual en el texto de SU pieza (en minúsculas, 1 a 3 palabras). Si no aparece, no pongas la marca.
 - Prompts en inglés, fotorrealistas, sin texto ni logos. Nada de palabras de la lista prohibida de «Prompts limpios».
 - No toques `texto`, `partes`, `dicho`, `origen`, `nota`, ni las marcas que ya existen (`sub`, `sfx`, `musica`).
@@ -258,7 +277,7 @@ def pedido_apoyo_visual(por_cuerpo=3, clips=1, por_hook=0, ruta=None, reglas=Non
     prod = motor.S.guion / "produccion.json"
     if not prod.exists():
         raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
-    reglas = reglas or CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    reglas = reglas or ruta_skill()
     return f"""Lee el guion de la sesión «{motor.S.semana}»: {ruta or prod}
 Las reglas para escribir prompts de Flow están en la sección «Prompts limpios» de {reglas}. Léela antes de escribir.
 
@@ -267,29 +286,25 @@ Los videos necesitan más apoyo visual. Agrega exactamente esto, sin tocar lo qu
 
 1. En `assets`, cada imagen nueva: {{"id": "<pieza>_IMG<n>", "tipo": "imagen", "pieza": "<pieza>", "palabra": "…",
    "flow": {{"herramienta": "Google Flow · Imagen", "formato": "9:16 vertical", "prompt": "…", "plan_b": "…",
-   "que_muestra": "…", "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style"}}}}
+   "que_muestra": "…", "evitar": "{perfil.leer()['imagenes']['evitar']}"}}}}
    (sigue la numeración: si ya existe C1_IMG1, las nuevas son C1_IMG2, C1_IMG3…).
    Cada clip: {{"id": "<pieza>_CLIP<n>", "tipo": "clip", "pieza": "<pieza>", "palabra": "…",
    "flow": {{"herramienta": "Google Flow · Video", "formato": "9:16 vertical, 4 a 6 segundos", "prompt": "…", "plan_b": "…",
-   "que_muestra": "…", "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style, fast cuts"}}}}
-   El prompt del clip describe un plano corto con un movimiento simple de la mascota o de la cámara (por ejemplo «a happy dog
-   running toward the camera in a sunny garden, slow motion»).
+   "que_muestra": "…", "evitar": "{perfil.leer()['imagenes']['evitar']}, fast cuts"}}}}
+   El prompt del clip describe un plano corto con un movimiento simple de lo que se ve o de la cámara (por ejemplo
+   «{perfil.leer()['imagenes']['ejemplo_clip']}»).
 2. En `marcas` de esa pieza, una marca por asset nuevo: imágenes {{"palabra": "…", "asset": "<id>", "dur": 1.5, "modo": "completa",
    "mov": "zoom_in"}} (alterna zoom_in y zoom_out), clips {{"palabra": "…", "asset": "<id>", "dur": 2.5, "modo": "completa", "mov": "fijo"}}.
 
 Dónde ponerlas:
 - En un hook, la imagen va en las primeras palabras (los primeros 2 segundos), para enganchar; su marca dura 1.2 s.
-- En un cuerpo, repártelas a lo largo de todo el cuerpo (principio, medio y final), en las palabras que más se pueden ver: el problema,
-  la mascota, la comida, el resultado. Nunca dos marcas en la misma frase ni en la misma palabra que una que ya existe.
+- En un cuerpo, repártelas a lo largo de todo el cuerpo (principio, medio y final), en las palabras que más se pueden ver:
+  {perfil.leer()['imagenes']['que_mostrar']}. Nunca dos marcas en la misma frase ni en la misma palabra que una que ya existe.
 - `palabra` debe aparecer tal cual en el texto de ESA pieza (en minúsculas, 1 a 3 palabras). Si no aparece, elige otra.
 
-Reglas de las imágenes (las mismas de siempre):
-- Siempre hay una mascota de por medio: cada imagen o clip muestra a un perro o gato real, nunca solo un objeto o una persona sin animal.
-- La mascota muestra el estado que dice la frase (decaída si la frase habla de un problema, activa y contenta si habla del resultado).
-  Lo interno (defensas, digestión, piel, pelo) se muestra en el animal, nunca células, órganos, intestinos ni microscopios.
-- Para los estados malos usa las palabras de reemplazo de «Prompts limpios»: nada de sick, ill, pain ni similares.
-{COMIDA}
-- Sin texto, sin logos ni envases con marca. Prompts en inglés, fotorrealistas. Nada de la lista prohibida de «Prompts limpios».
+Reglas de las imágenes (las de la marca):
+{perfil.reglas_imagenes()}
+- Prompts en inglés, fotorrealistas. Nada de la lista prohibida de «Prompts limpios».
 - No toques `texto`, `partes`, `dicho`, `origen`, `nota`, ni las marcas ni los assets que ya existen.
 - Usa Edit para cambiar el archivo. Al final el archivo debe ser JSON válido.
 
@@ -304,10 +319,7 @@ Este guion no tiene música. Agrega, sin cambiar nada más del archivo:
 1. `musica`: de 2 a 4 pistas según el tono de los cuerpos, con el formato de la skill:
    {{"id": "MUS_A", "uso": "C1 y C3 (…)", "desde": 0, "prompt": {{"herramienta": "Google Flow Music", "prompt": "…", "evitar": "…", "duracion": "60 s"}}}}
    Los id son MUS_A, MUS_B, MUS_C… El prompt en inglés, siempre instrumental, sin nombres de artistas ni canciones.
-   REGLA DE LA MARCA: la música SIEMPRE tiene adrenalina: enérgica, de 120 a 150 BPM, con percusión marcada, bajo fuerte
-   y tensión que empuja (trap, EDM, phonk, drum & bass, hip-hop enérgico). NUNCA suave, acústica, cálida, relajada,
-   lo-fi, ambiental, de piano suave ni «corporate». En «evitar» pon siempre: soft, acoustic, calm, gentle, warm, lo-fi, ambient.
-2. En cada cuerpo (C1, C2…), `"musica": "<id>"` con la pista que le toca. Los hooks y el CTA no llevan, salvo que la skill lo pida.
+{perfil.reglas_musica("   ")}2. En cada cuerpo (C1, C2…), `"musica": "<id>"` con la pista que le toca. Los hooks y el CTA no llevan, salvo que la skill lo pida.
 3. `"musica_por_defecto": "<id de la pista más usada>"`.
 No toques `texto`, `partes`, `dicho`, `marcas`, `assets` ni nada de lo que ya existe. Usa Edit. Al final el archivo debe ser JSON válido.
 Al terminar responde en 2 líneas: cuántas pistas y qué cuerpo usa cada una."""
@@ -321,7 +333,7 @@ def generar_prompts_musica(avance=print):
     prod = motor.S.guion / "produccion.json"
     if not prod.exists():
         raise RuntimeError("Esta sesión no tiene guion: primero arma el guion con lo grabado")
-    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    reglas = ruta_skill()
     prompt = pedido_musica(prod, reglas)
     texto = correr(prompt, [motor.S.guion], avance=avance, max_turnos=25)
     try:
@@ -341,7 +353,7 @@ def generar_en_flow(imagenes, musica, carpeta_descargas, avance=print):
     imagenes: [{id, tipo, prompt, plan_b, formato, que_muestra}] · musica: [{id, prompt, evitar}]
     Devuelve {"archivos": {id: nombre en Descargas}, "urls": {id de pista: URL del audio}, "pendientes": [{id, motivo}]}."""
     actualizar_conocimiento(avance)
-    skill = CONOCIMIENTO / ".claude" / "skills" / "suplevet-flow-chrome" / "SKILL.md"
+    skill = ruta_skill("flow")
     pedido = json.dumps({"imagenes": imagenes, "musica": musica}, ensure_ascii=False, indent=1)
     prompt = f"""Genera en el Chrome de esta PC lo que le falta a la sesión «{motor.S.semana}». Lo que hay que hacer:
 {pedido}
@@ -376,7 +388,7 @@ Al final responde SOLO con JSON, sin texto antes ni después:
 
 def rehacer_musica(mus_id, nota="", avance=print):
     """«⟳ Regenerar prompt» de una pista (MUS_A…): Claude reescribe su prompt de Flow Music con la regla de la marca
-    (adrenalina) y, si hay, la nota del equipo. El prompt anterior queda en las notas de la pista."""
+    (las reglas de música de la marca) y, si hay, la nota del equipo. El prompt anterior queda en las notas de la pista."""
     actualizar_conocimiento(avance)
     motor.usar_semana(motor.S.semana)
     prod = motor.S.guion / "produccion.json"
@@ -387,18 +399,15 @@ def rehacer_musica(mus_id, nota="", avance=print):
     if not m:
         raise RuntimeError(f"No encuentro {mus_id} en el guion")
     pr = m.setdefault("prompt", {})
-    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
-    prompt = f"""Hay que reescribir el prompt de Google Flow Music de la pista «{m['id']}» de unos videos de Suplevet.
+    reglas = ruta_skill()
+    prompt = f"""Hay que reescribir el prompt de Google Flow Music de la pista «{m['id']}» de unos videos{(' de ' + perfil.leer()['nombre']) if perfil.leer()['nombre'] else ''}.
 Para qué se usa: {m.get('uso', '')}
 Prompt actual: {pr.get('prompt') or '(no hay: escríbelo desde cero)'}
 {('Lo que pide el equipo: ' + nota.strip()) if nota.strip() else ''}
 
 Las reglas de la música están en la sección «Música» de {reglas}. Léela antes de escribir. Además:
-- REGLA DE LA MARCA: SIEMPRE con adrenalina: enérgica, de 120 a 150 BPM, percusión marcada, bajo fuerte y tensión que empuja
-  (trap, EDM, phonk, drum & bass, hip-hop enérgico). NUNCA suave, acústica, cálida, relajada, lo-fi, ambiental, de piano suave
-  ni «corporate»: no uses esas palabras en el prompt (soft, gentle, calm, acoustic, warm, chill, mellow, ambient, lo-fi, plucked…).
-- En inglés, instrumental, sin voces, sin nombres de artistas ni canciones, que sirva de fondo para la voz.
-- En «evitar» pon siempre: soft, acoustic, calm, gentle, warm, lo-fi, ambient (y lo que ya estaba que siga valiendo).
+{perfil.reglas_musica()}- En inglés, instrumental, sin voces, sin nombres de artistas ni canciones, que sirva de fondo para la voz.
+- En «evitar» pon lo que la música no debe tener{(' (siempre: ' + perfil.leer()['musica']['evitar'] + ')') if perfil.leer()['musica']['evitar'] else ''} y lo que ya estaba que siga valiendo.
 No edites ningún archivo. Responde SOLO con JSON, sin texto antes ni después:
 {{"prompt": "…", "evitar": "…", "duracion": "{pr.get('duracion') or '60 s'}", "cambio": "qué cambiaste, en una frase en español"}}"""
     respuesta = correr(prompt, [], avance=avance, max_turnos=10)
@@ -406,7 +415,7 @@ No edites ningún archivo. Responde SOLO con JSON, sin texto antes ni después:
     nuevo = json.loads(respuesta[inicio:fin + 1]) if 0 <= inicio < fin else {}
     if not str(nuevo.get("prompt", "")).strip():
         raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
-    m.setdefault("notas", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "nota": nota.strip() or "regenerar con adrenalina",
+    m.setdefault("notas", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "nota": nota.strip() or "regenerar",
                                       "prompt_anterior": pr.get("prompt", "")})
     pr.setdefault("herramienta", "Google Flow Music")
     pr.update({k: nuevo[k] for k in ("prompt", "evitar", "duracion") if nuevo.get(k)})
@@ -429,7 +438,7 @@ def rehacer_imagen(asset_id, nota, avance=print):
     flow = a.setdefault("flow", {})
     pieza = (datos.get("piezas") or {}).get(a.get("pieza"), {})
     antes = [n["nota"] for n in a.get("notas", []) if n.get("nota")]
-    reglas = CONOCIMIENTO / ".claude" / "skills" / "suplevet-guionista-modular" / "SKILL.md"
+    reglas = ruta_skill()
     prompt = f"""Hay que rehacer en Google Flow {'el clip' if a.get('tipo') == 'clip' else 'la imagen'} «{a['id']}» de un video.
 Lo que dice la pieza {a.get('pieza', '')}: «{pieza.get('texto', '') if isinstance(pieza, dict) else ''}»
 La imagen aparece cuando se dice «{a.get('palabra', '')}».
@@ -438,8 +447,7 @@ Lo que está mal, según el equipo: {nota.strip()}
 {('Notas anteriores de esta misma imagen (también valen): ' + ' | '.join(antes)) if antes else ''}
 
 Lee la sección «Prompts limpios» de {reglas} antes de escribir. Además:
-- Siempre hay un perro o un gato real, y muestra el estado que dice la frase.
-{COMIDA}
+{perfil.reglas_imagenes()}
 - Formato {flow.get('formato') or '9:16 vertical'}, fotorrealista, en inglés, sin texto, sin logos ni envases con marca.
 Escribe el prompt nuevo completo (no solo el cambio): corrige lo que dice el equipo y mantén lo que estaba bien.
 No edites ningún archivo. Responde SOLO con JSON, sin texto antes ni después:
@@ -461,10 +469,11 @@ def proponer_temas(cuerpos, publico, idea, avance=print):
     """Claude propone de qué habla cada cuerpo (idea + ángulo), para elegir antes de escribir el guion.
     Devuelve [{"tema", "angulo", "por_que"}] (2 opciones por cuerpo, para que el equipo elija)."""
     actualizar_conocimiento(avance)
-    prompt = f"""Lee el contexto de la marca en contexto/ (marca, productos, guía de hooks y guiones aprobados) y las sesiones anteriores
+    prompt = f"""Lee el perfil de la marca en perfil_marca.md y, si existe, el contexto de la marca en contexto/ (marca, productos, guía de hooks
+y guiones aprobados), y las sesiones anteriores
 en {motor.S.base} (cada una con Guion/), y propone temas para {cuerpos} cuerpos de video para {publico}.
 {('Idea del equipo: ' + idea.strip()) if idea.strip() else 'Elige tú las ideas según lo que más vende y lo que no se ha hecho.'}
-Sigue la skill suplevet-guionista-modular para elegir ideas y ángulos (no repitas temas ya hechos).
+Sigue la skill {ruta_skill().parent.name} para elegir ideas y ángulos (no repitas temas ya hechos).
 Si alguna sesión tiene Guion/resultados.md (vistas y retención reales), prioriza los temas y ángulos que mejor funcionaron.
 Responde SOLO con JSON, sin texto antes ni después: una lista de {cuerpos * 2} objetos, 2 opciones por cuerpo, en orden
 (cuerpo 1 opción A, cuerpo 1 opción B, cuerpo 2 opción A…), cada uno así:
@@ -486,7 +495,7 @@ def revisar_grabacion(sesion, avance=print):
     avance("Preparando lo grabado para Claude (dossier)…")
     (trabajo / "dossier.json").write_text(json.dumps(motor.dossier(), ensure_ascii=False, indent=1), encoding="utf-8")
     (trabajo / "plan.json").unlink(missing_ok=True)
-    prompt = f"""Usa la skill suplevet-director con la sesión «{sesion}».
+    prompt = f"""Usa la skill {ruta_skill('director').parent.name} con la sesión «{sesion}».
 
 Estás dentro de la sala de edición: no corras comandos. La sala ya procesó los clips y te deja el dossier en
 {trabajo / "dossier.json"}
