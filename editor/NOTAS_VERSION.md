@@ -1,3 +1,10 @@
+Versión 1.62.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Piezas y subtítulos: siempre ves el clip.** La línea de tiempo tiene una pista «Video» con los cuadros del clip, también en los hooks y los CTA de un solo clip (antes no salía). Arrastra sobre el video para elegir un tramo y quitarlo; con «Con cortes» el video se junta donde cortaste.
+- La barra de la línea de tiempo está ordenada: elegir el tramo (Inicio aquí, Fin aquí, Repetir), quitarlo, y a la derecha el imán y «↻ Cambiar el clip». Ahora entra entera en una laptop.
+- La lista de piezas dice «2 imágenes · 1 sonido» con palabras (antes salía un símbolo raro).
+- **Editor de video: «No guardar».** Si tocas «← Volver al video» con cambios sin guardar, te pregunta: Guardar, No guardar o Seguir editando. Y arriba aparece «↺ Descartar cambios» para volver a como estaba.
+- **Borrar una sesión:** «🗑 Borrar la sesión…» en Inicio (y en la lista de sesiones). Solo de esta PC (antes sube todo a Drive y lo comprueba) o del todo, también de Drive: la carpeta va a la papelera de Drive (se recupera desde ahí unos 30 días). Para borrar del todo hay que escribir el código de la sesión. Lo editado queda en Copias de seguridad.
+
 Versión 1.61.4 (se actualiza desde la app con «Actualizar ahora»):
 - **Editor de video, más parejo:** todas las herramientas de la barra (Cortar, Quitar, Encuadre, Imagen, Texto, el zoom, Teclas…) miden lo mismo, 36 px, y quedan centradas en su fila; antes iban de 25 a 44 px. Los botones de arriba (Guardar, Más, ← Volver al video) miden 36 px como en el resto de la sala, y los chicos («Aplicar las sugerencias») 30 px.
 - Los segmentos («Sin cortes | Con cortes», «Hooks | Cuerpos | CTAs») abrazan a sus botones con el mismo redondeo.

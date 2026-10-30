@@ -267,7 +267,8 @@ ul.efectos { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--
 .piezas-layout { display: grid; grid-template-columns: 210px minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
 /* Piezas como el editor: todo en una pantalla. Izquierda la lista; al centro el texto arriba y la línea de tiempo abajo;
    a la derecha el video en su panel oscuro, a toda la altura */
-.piezas-layout.pz-pagina { grid-template-columns: 180px minmax(0, 1fr) clamp(280px, 28vw, 540px); grid-template-rows: var(--pz-alto-texto, minmax(0, 1fr)) 10px minmax(150px, 1fr);
+/* la línea de tiempo toma el alto que necesita (sus 5 pistas enteras) y el texto el resto; la barrita lo cambia */
+.piezas-layout.pz-pagina { grid-template-columns: 180px minmax(0, 1fr) clamp(280px, 28vw, 540px); grid-template-rows: var(--pz-alto-texto, minmax(150px, 1fr)) 10px minmax(150px, auto);
   grid-template-areas: "lista texto video" "lista gh video" "lista linea video"; align-items: stretch; gap: 0 12px;
   min-height: 520px; }
 main:has(> section[data-panel="piezas"]:not([hidden])) { padding-bottom: 12px; }  /* en Piezas todo entra en la pantalla */
@@ -356,10 +357,6 @@ body.horizontal .pz-video .visor { width: min(100cqw, 100cqh * 16 / 9); }
 #barraClips .bc-sep { width: 1px; align-self: stretch; background: var(--line2); }
 #barraClips input { min-width: 150px; flex: 1; }
 .asset.elegido { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tl-blq .tl-cambiar { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line2);
-  background: var(--surface); color: var(--ink); font-size: 12px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s; }
-.tl-blq:hover .tl-cambiar, .tl-blq .tl-cambiar:focus-visible { opacity: 1; }
-@media (hover: none) { .tl-blq .tl-cambiar { opacity: 1; } }
 #tmCuerpo .toma.esta { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
 .fl-explica { margin: 2px 0 12px; font-size: 13px; line-height: 1.5; }
 .fl-explica b { white-space: nowrap; }
@@ -1158,26 +1155,47 @@ dialog.galeria { width: min(900px, 96vw); }
 .gal-play.sonando { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gal-play:disabled { opacity: .4; cursor: not-allowed; }
 #visor { cursor: pointer; }
+/* «Borrar la sesión»: dos opciones como tarjetas */
+.bs-opciones { display: grid; gap: 8px; }
+.bs-op { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-caja, 14px); cursor: pointer; background: var(--bg2); }
+.bs-op:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); background: var(--surface); }
+#bsOpTodo:has(input:checked) { border-color: var(--err); box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 16%, transparent); }
+.bs-op input { margin-top: 3px; }
+.bs-op small { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.bs-confirma { display: grid; gap: 6px; font-size: 13px; }
 /* Línea de tiempo de Piezas: clips, texto, imágenes y sonidos de la pieza, con lo quitado y el cabezal */
 .pz-tl { margin-top: 14px; }
-.tl-cab { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; justify-content: space-between; margin-bottom: 10px; }
+.tl-cab { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.tl-titulo { flex: 1 1 260px; min-width: 0; }
 .tl-cab small { display: block; font-size: 12.5px; margin-top: 2px; }
-.tl-botones { display: flex; flex-wrap: wrap; gap: 6px; }
-.tl-quitar { background: var(--err); border-color: var(--err); color: #fff; }
-.tl-quitar.volver { background: var(--accent); border-color: var(--accent); }
+/* la barra del tramo: elegirlo (inicio, fin, repetir), quitarlo; a la derecha el imán y cambiar el clip */
+.tl-botones { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.tl-sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
+.tl-iman { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.tl-cambiar-clip { margin-left: auto; }
+.tl-quitar:not(:disabled) { background: var(--err); border-color: var(--err); color: #fff; }
+.tl-quitar:disabled { background: var(--bg2); border-color: var(--line2); color: var(--muted); opacity: 1; }
+.tl-quitar.volver:not(:disabled) { background: var(--accent); border-color: var(--accent); }
 .tl { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 0 8px; user-select: none; }
-.tl-noms { display: grid; grid-template-rows: 22px 40px 34px 46px 30px; gap: 4px; font: 600 11.5px var(--mono); color: var(--muted); }
+.tl-noms { display: grid; grid-template-rows: 22px 50px 32px 42px 28px; gap: 4px; font: 600 11.5px var(--mono); color: var(--muted); }
 .tl-noms span { display: flex; align-items: center; }
-.tl-zona { position: relative; display: grid; grid-template-rows: 22px 40px 34px 46px 30px; gap: 4px; cursor: text; touch-action: none; }
-.tl.sin-frases .tl-noms, .tl.sin-frases .tl-zona { grid-template-rows: 22px 34px 46px 30px; }
+.tl-zona { position: relative; display: grid; grid-template-rows: 22px 50px 32px 42px 28px; gap: 4px; cursor: text; touch-action: none; }
 .tl-carril { position: relative; border-radius: 8px; background: var(--hondo); border: 1px solid var(--line); overflow: hidden; }
+/* pista Video: los cuadros del clip (una tira de 30) y encima cada clip con su nombre */
+.tl-video { background: #0b0f17; }
+.tl-cuadro { position: absolute; top: 0; bottom: 0; background-size: 3000% 100%; background-repeat: no-repeat; pointer-events: none; }
+.tl-cuadro + .tl-cuadro { box-shadow: inset 1px 0 0 rgba(0,0,0,.35); }
 .tl-regla { position: relative; border-bottom: 1px solid var(--line2); cursor: ew-resize; }
 .tl-regla i { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--line2); }
 .tl-regla i.mayor { height: 11px; background: var(--muted); }
 .tl-regla b { position: absolute; top: 0; transform: translateX(-50%); font: 500 10.5px var(--mono); color: var(--muted); }
 .tl-blq { position: absolute; top: 3px; bottom: 3px; border-radius: 6px; padding: 2px 6px; font-size: 11.5px; line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; border: 1px solid transparent; }
-.tl-blq.clip { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
-.tl-blq.clip b { display: block; font-size: 11px; }
+.tl-blq.clip { top: 0; bottom: 0; padding: 0; border-radius: 7px; background: transparent; border: 2px solid color-mix(in srgb, var(--accent) 75%, transparent); }
+.tl-blq.clip.uno { border-color: transparent; cursor: text; }
+.tl-clip-nom { position: absolute; top: 3px; left: 3px; max-width: calc(100% - 6px); display: inline-flex; align-items: center; gap: 2px; padding: 1px 2px 1px 6px;
+  border-radius: 6px; background: rgba(8, 12, 20, .72); color: #fff; font: 600 10.5px var(--mono); overflow: hidden; white-space: nowrap; }
+.tl-cambiar { border: 0; background: none; color: #fff; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 4px; cursor: pointer; }
+.tl-cambiar:hover, .tl-cambiar:focus-visible { background: var(--accent); }
 .tl-blq.linea { background: var(--surface); border-color: var(--line2); color: var(--ink); }
 .tl-blq.img { padding: 0; background: #000 center/cover; border: 2px solid var(--accent2); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
 .tl-blq.img span { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 4px; background: rgba(0,0,0,.65); color: #fff; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; }
@@ -1745,6 +1763,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
           <button class="btn sec peq" type="button" id="inBajarDrive" style="flex:1" title="Trae de Drive los clips nuevos y lo que hicieron otras PCs, incluidas las piezas que otra PC ya preparó (y saca de esta PC los clips que borraste en Drive)">⬇ Bajar de Drive</button></div>
         <button class="btn sec peq" type="button" id="inDeCero" style="margin-top:6px;width:100%" title="Vuelve a bajar los clips y a analizarlos desde cero. El guion y lo editado se quedan">↺ Empezar de cero</button>
         <button class="btn sec peq" type="button" id="inTerminar" style="margin-top:6px;width:100%" title="Sube a Drive todo lo de la sesión (clips, imágenes, música, guion y videos finales), lo comprueba y, si quieres, la borra de esta PC">☁ Terminar sesión</button>
+        <button class="btn sec peq peligro" type="button" data-borrar-ses style="margin-top:6px;width:100%" title="Borra esta sesión de esta PC, o del todo (también de Drive)">🗑 Borrar la sesión…</button>
       </div>
       </div>
       <div class="in-col in-centro">
@@ -1953,7 +1972,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
       <div class="caja pz-texto">
         <div class="pz-cab"><h2 style="margin:0">Texto</h2>
           <button class="btn sec peq" id="nuevaMarca" type="button" title="Elige la palabra que suena en este momento del video">◎ Palabra que suena ahora</button></div>
-        <p class="muted pz-ayuda"><b>Toca una palabra</b> para quitarla del video, corregir el subtítulo o ponerle una imagen o un sonido. Con <kbd>Shift</kbd> eliges varias seguidas; <kbd>Supr</kbd> las quita.</p>
+        <p class="muted pz-ayuda"><b>Toca una palabra</b> para quitarla, corregirla o ponerle una imagen o un sonido. <kbd>Shift</kbd> elige varias; <kbd>Supr</kbd> las quita.</p>
         <div id="marcas"></div>
         <div class="fila pz-guardar">
           <button class="btn" id="guardarArmar">Guardar y rearmar sus videos</button>
@@ -1963,17 +1982,18 @@ h3 { font: 650 13px/1.35 var(--fd); }
     </div>
     <div class="caja pz-tl" id="pzTl">
       <div class="tl-cab">
-        <div><h2 style="margin:0">Línea de tiempo</h2><small class="muted" id="tlInfo">Arrastra sobre los clips o el texto para elegir un tramo y quitarlo. Toca una imagen o un sonido para cambiarlo.</small></div>
-        <div class="tl-botones">
-          <div class="segmento" id="tlVista" role="group" aria-label="Ver la pieza con o sin los cortes" title="«Sin cortes» muestra y hace sonar todo lo grabado, con lo que se quita rayado">
-            <button type="button" data-tlv="con" aria-pressed="true">Con cortes</button><button type="button" data-tlv="sin" aria-pressed="false">Sin cortes</button></div>
-          <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
-          <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
-          <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
-          <button class="btn sec peq" type="button" id="tlRepetir" aria-pressed="false" title="Repite una y otra vez el tramo elegido mientras lo ajustas (si no eliges uno, la frase donde está la línea roja). Tócalo otra vez para parar">🔁 Repetir</button>
-          <label class="fila muted" style="font-size:12px;gap:4px" title="Con el imán, el tramo se ajusta a palabras enteras (no corta una palabra a la mitad). Sin imán, cortas justo donde marcas: para quitar un silencio o un ruido pegado a una palabra. También: mantén Alt al arrastrar."><input type="checkbox" id="tlIman" checked> Imán a palabras</label>
-          <button class="btn sec peq" type="button" id="tlCambiarClip" title="Cambia un clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar un clip</button>
-        </div>
+        <div class="tl-titulo"><h2 style="margin:0">Línea de tiempo</h2><small class="muted" id="tlInfo" title="Toca una imagen o un sonido para cambiarlo">Arrastra sobre el video o el texto para elegir un tramo.</small></div>
+        <div class="segmento" id="tlVista" role="group" aria-label="Ver la pieza con o sin los cortes" title="«Sin cortes» muestra y hace sonar todo lo grabado, con lo que se quita rayado">
+          <button type="button" data-tlv="con" aria-pressed="true">Con cortes</button><button type="button" data-tlv="sin" aria-pressed="false">Sin cortes</button></div>
+      </div>
+      <div class="tl-botones" role="toolbar" aria-label="El tramo elegido">
+        <button class="btn sec peq" type="button" id="tlIni" title="El tramo elegido empieza donde está la línea roja">⇤ Inicio aquí</button>
+        <button class="btn sec peq" type="button" id="tlFin" title="El tramo elegido termina donde está la línea roja">Fin aquí ⇥</button>
+        <button class="btn sec peq" type="button" id="tlRepetir" aria-pressed="false" title="Repite una y otra vez el tramo elegido mientras lo ajustas (si no eliges uno, la frase donde está la línea roja). Tócalo otra vez para parar">🔁 Repetir</button>
+        <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
+        <span class="tl-sep" aria-hidden="true"></span>
+        <label class="tl-iman" title="Con el imán, el tramo se ajusta a palabras enteras (no corta una palabra a la mitad). Sin imán, cortas justo donde marcas: para quitar un silencio o un ruido pegado a una palabra. También: mantén Alt al arrastrar."><input type="checkbox" role="switch" class="interruptor" id="tlIman" checked> Imán a palabras</label>
+        <button class="btn sec peq tl-cambiar-clip" type="button" id="tlCambiarClip" title="Cambia el clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar el clip</button>
       </div>
       <div class="tl" id="tl"></div>
     </div>
@@ -2596,7 +2616,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
 </dialog>
 <dialog id="dlgPregunta" class="pregunta" aria-labelledby="pqTexto">
   <div class="pq"><p id="pqTexto"></p><input id="pqCampo" hidden autocomplete="off">
-    <div class="fila" style="justify-content:flex-end"><button class="btn sec" type="button" id="pqNo">Cancelar</button><button class="btn" type="button" id="pqSi">Sí, seguir</button></div></div>
+    <div class="fila" style="justify-content:flex-end"><button class="btn sec" type="button" id="pqNo">Cancelar</button><button class="btn sec peligro" type="button" id="pqOtro" hidden></button><button class="btn" type="button" id="pqSi">Sí, seguir</button></div></div>
 </dialog>
 <dialog id="dlgAg" aria-labelledby="dlgAgTit" style="width:min(640px,94vw)">
   <div class="dlg-cab"><h2 id="dlgAgTit" style="margin:0">🪐 Antigravity</h2><button class="btn sec peq" id="dlgAgCerrar" aria-label="Cerrar">✕</button></div>
@@ -2737,7 +2757,8 @@ h3 { font: 650 13px/1.35 var(--fd); }
   <div class="dlg-cab"><div class="fila"><h2 id="edTitulo" style="margin:0">Editar</h2>
       <button class="btn sec peq ed-alcance-btn" id="edAlcanceBtn" type="button" title="A qué videos llega lo que cambias, cambiar la toma o hacer una versión nueva">ⓘ <span id="edAlcanceTxt">A qué videos llega</span> ▾</button>
       <span class="ed-estado" id="edEstado" aria-live="polite"></span></div>
-    <div class="fila"><button class="btn ed-guardar" id="edGuardarTop" type="button" title="Guarda y rearma lo que cambió (Ctrl+S)"><b>Guardar</b><small id="edGuardarSub"></small></button>
+    <div class="fila"><button class="btn sec peq peligro" id="edDescartar" type="button" hidden title="Deja el video como estaba la última vez que guardaste">↺ Descartar cambios</button>
+      <button class="btn ed-guardar" id="edGuardarTop" type="button" title="Guarda y rearma lo que cambió (Ctrl+S)"><b>Guardar</b><small id="edGuardarSub"></small></button>
       <details class="ed-mas" id="edMas"><summary class="btn sec peq">Más ▾</summary><div class="ed-mas-menu" id="edMasMenu" role="menu"></div></details>
       <button class="btn sec peq" id="edCerrar">← Volver al video</button></div></div>
   <div class="cuerpo-editor" id="edCuerpo"></div>
@@ -2811,11 +2832,28 @@ h3 { font: 650 13px/1.35 var(--fd); }
           <div class="sesiones" id="inSesiones"></div>
           <div class="fila" style="margin-top:10px"><button class="btn sec peq" id="inArchivar"></button>
             <button class="btn sec peq" type="button" data-terminar>☁ Terminar sesión y borrarla de esta PC</button>
+            <button class="btn sec peq peligro" type="button" data-borrar-ses>🗑 Borrar la sesión…</button>
             <button class="btn sec peq" id="inRenombrarGrupo" type="button" hidden title="Las carpetas de Drive de sus días no cambian">Cambiar nombre del grupo</button>
             <span class="muted" style="font-size:11.5px">Archiva las que ya terminaste: dejan de salir en las listas y las encuentras buscando.</span></div>
           <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
         </div>
   </div>
+</dialog>
+<dialog id="dlgBorrarSes" aria-labelledby="bsTit" style="width:min(560px,94vw)">
+  <form method="dialog" style="padding:18px;display:grid;gap:12px" id="bsForm">
+    <h2 id="bsTit" style="margin:0">Borrar la sesión</h2>
+    <div class="bs-opciones" role="radiogroup" aria-label="De dónde se borra">
+      <label class="bs-op" id="bsOpPc"><input type="radio" name="bsDonde" value="pc" checked>
+        <span><b>Solo de esta PC</b><small id="bsPcTxt"></small></span></label>
+      <label class="bs-op" id="bsOpTodo"><input type="radio" name="bsDonde" value="todo">
+        <span><b>Del todo: de esta PC y de Drive</b><small id="bsTodoTxt">Para una sesión de prueba o que ya no sirve. La carpeta de Drive va a la papelera de Drive (se puede recuperar desde ahí unos 30 días) y nadie del equipo la ve más en la sala.</small></span></label>
+    </div>
+    <label class="bs-confirma" id="bsConfirma" hidden>Para confirmar, escribe <b id="bsCodigo"></b>
+      <input id="bsEscribe" autocomplete="off" spellcheck="false" aria-describedby="bsCodigo"></label>
+    <p class="muted" id="bsNota" style="margin:0;font-size:12.5px">Lo editado (cortes, subtítulos, imágenes) queda en Configuración → Copias de seguridad.</p>
+    <div class="fila" style="justify-content:flex-end"><button class="btn sec" value="no" formnovalidate>Cancelar</button>
+      <button class="btn peligro-btn" id="bsSi" value="si">Borrar</button></div>
+  </form>
 </dialog>
 <dialog id="dlgLink" aria-labelledby="lkTit" style="width:min(560px,94vw)">
   <form method="dialog" style="padding:18px;display:grid;gap:12px" id="formLink">
@@ -3170,14 +3208,17 @@ document.addEventListener("click", e => {
 // confirm(), prompt() y alert() del navegador no se ven en la ventana del programa: la página quedaba esperando una
 // respuesta invisible (la ✕ del video no cerraba). Estas son ventanas de la sala, y cada decisión queda en Notificaciones.
 // validar(valor): con un campo, devuelve un texto de error para no cerrar la ventana (o nada si está bien)
-function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false, validar = null }) {
+// otro: un tercer botón (p. ej. «No guardar»), que devuelve "otro"
+function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false, validar = null, otro = null }) {
   return new Promise(ok => {
     const d = $("dlgPregunta");
     $("pqTexto").textContent = texto;
     $("pqSi").textContent = si; $("pqNo").textContent = no; $("pqNo").hidden = no === null;
+    $("pqOtro").textContent = otro || ""; $("pqOtro").hidden = !otro;
     $("pqSi").className = "btn" + (peligro ? " peligro-btn" : "");
     $("pqCampo").hidden = campo === null; $("pqCampo").value = campo ?? "";
-    const cerrar = v => { d.close(); $("pqSi").onclick = $("pqNo").onclick = null; d.oncancel = null; $("pqCampo").onkeydown = null; ok(v); };
+    const cerrar = v => { d.close(); $("pqSi").onclick = $("pqNo").onclick = $("pqOtro").onclick = null; d.oncancel = null; $("pqCampo").onkeydown = null; ok(v); };
+    $("pqOtro").onclick = () => cerrar("otro");
     $("pqSi").onclick = () => {
       const mal = campo !== null && validar ? validar($("pqCampo").value) : "";
       if (mal) { avisar(mal, "err"); $("pqCampo").focus(); return; }
@@ -3514,17 +3555,54 @@ En Drive no se borra nada. Si falta algo, no se borra nada de la PC.${ojo}`, `Su
     await post("/api/terminar", { borrar });
     vigilar(await (await fetch("/api/trabajo")).json());
     avisar(borrar ? "Subiendo todo a Drive… cuando esté comprobado, se borra de esta PC." : "Subiendo todo a Drive y comprobándolo…", "muted");
-    if (borrar) {  // al terminar: la sesión ya no está en esta PC, se elige con cuál seguir
-      const reloj = setInterval(async () => {
-        let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
-        if (t.activo) return;
-        clearInterval(reloj);
-        if (!t.error && t.accion === "terminar") { await cargar(); abrirBienvenida(); }
-      }, 3000);
-    }
+    if (borrar) alTerminar("terminar");  // al terminar: la sesión ya no está en esta PC, se elige con cuál seguir
   } catch (e) { avisar("Error: " + e.message, "err"); }
 }
 $("inTerminar").onclick = terminarSesion;
+// «Borrar la sesión»: solo de esta PC (antes se sube todo a Drive y se comprueba, como «Terminar sesión») o del todo
+// (la carpeta de Drive va a su papelera). Al terminar, se elige con qué sesión seguir.
+function alTerminar(accion) {
+  const reloj = setInterval(async () => {
+    let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
+    if (t.activo) return;
+    clearInterval(reloj);
+    if (!t.error && t.accion === accion) { await cargar(); abrirBienvenida(); }
+  }, 3000);
+}
+async function borrarSesion() {
+  let info;
+  try { info = await (await fetch("/api/terminar_info")).json(); } catch (e) { return avisar("No pude revisar la sesión: " + e.message, "err"); }
+  if (E.trabajo?.activo) return avisar("La sala está trabajando (☰). Espera a que termine para borrar la sesión.", "err");
+  const gb = info.peso < 1e8 ? `${Math.max(1, Math.round(info.peso / 1e6))} MB` : `${(info.peso / 1e9).toFixed(1)} GB`;
+  const clave = (info.sesion.match(/^P\d+/i) || [info.sesion])[0].toUpperCase();
+  const conDrive = info.drive && info.en_drive;
+  $("bsTit").textContent = `Borrar «${info.sesion}»`;
+  $("bsPcTxt").textContent = conDrive
+    ? `Libera ${gb}. Antes se sube todo a Drive y se comprueba archivo por archivo: la sesión sigue en Drive para el equipo y, si la vuelves a abrir, se baja.`
+    : `Libera ${gb}. ${info.drive ? "Esta sesión no está en Drive" : "La sala no está conectada a Drive"}: lo que está solo en esta PC (clips, videos) se pierde.`;
+  $("bsOpTodo").hidden = !conDrive || info.grupo_suelto;
+  $("bsCodigo").textContent = clave; $("bsEscribe").value = "";
+  document.querySelector('[name="bsDonde"][value="pc"]').checked = true;
+  const pintar = () => {
+    const todo = document.querySelector('[name="bsDonde"]:checked').value === "todo";
+    $("bsConfirma").hidden = !todo;
+    $("bsSi").textContent = todo ? "Borrar de esta PC y de Drive" : conDrive ? `Subir todo y borrar de esta PC (${gb})` : `Borrar de esta PC (${gb})`;
+    $("bsSi").disabled = todo && norm($("bsEscribe").value) !== norm(clave);
+  };
+  $("bsForm").onchange = $("bsEscribe").oninput = pintar; pintar();
+  $("dlgBorrarSes").returnValue = ""; $("dlgBorrarSes").showModal();
+  const r = await new Promise(ok => $("dlgBorrarSes").addEventListener("close", () => ok($("dlgBorrarSes").returnValue), { once: true }));
+  if (r !== "si") return;
+  const todo = document.querySelector('[name="bsDonde"]:checked').value === "todo";
+  guardarNotif(`Confirmaste: borrar «${info.sesion}» ${todo ? "de esta PC y de Drive" : "de esta PC"}`, "info", true);
+  try {
+    if (!todo && conDrive) { await post("/api/terminar", { borrar: true }); alTerminar("terminar"); }
+    else { await post("/api/borrar_sesion", { sesion: info.sesion, drive: todo }); alTerminar("borrar_sesion"); }
+    vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(todo ? `Borrando «${info.sesion}» de esta PC y de Drive…` : conDrive ? "Subiendo todo a Drive… cuando esté comprobado, se borra de esta PC." : `Borrando «${info.sesion}» de esta PC…`, "muted");
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+}
+document.addEventListener("click", e => { if (!e.target.closest("[data-borrar-ses]")) return; if ($("dlgSesiones").open) $("dlgSesiones").close(); borrarSesion(); });
 $("inSubirDrive").onclick = () => {
   if (!(E.drive || {}).activo) return avisar("Drive no está conectado: conéctalo en Configuración → Cuenta.", "err");
   if (E.trabajo?.activo) return avisar("La sala está trabajando (☰). Espera a que termine: igual se sube solo cada pocos minutos.", "err");
@@ -4039,7 +4117,9 @@ function piezaSel() { return E.piezas.find(x => x.nombre === sel); }
 function estadoPieza(p) {
   const dur = p.lineas.length ? p.lineas[p.lineas.length - 1].e : 0;
   const imgs = p.marcas.filter(m => m.asset).length, sons = p.marcas.filter(m => m.sfx).length;
-  const cosas = [p.quitados?.length ? "✂ con cortes" : p.editada ? "✂ editada" : "", imgs ? `🖼 ${imgs}` : "", sons ? `♪ ${sons}` : ""].filter(Boolean);
+  // en palabras: la letra de la lista (mono) no tiene el dibujo de 🖼 y salía «圀»
+  const cosas = [p.quitados?.length ? "✂ con cortes" : p.editada ? "✂ editada" : "", imgs ? plural(imgs, "imagen", "imágenes") : "",
+    sons ? plural(sons, "sonido") : ""].filter(Boolean);
   return `<small>${dur ? Math.round(dur) + " s" : p.procesada ? "sin voz" : "sin preparar"}</small>${cosas.length
     ? `<small class="cambio" title="${p.editada ? "Tiene cortes, recortes o zoom (de aquí o de «Editar video»): valen para todos sus videos" : ""}">${cosas.join(" · ")}</small>` : ""}`;
 }
@@ -4417,6 +4497,7 @@ $("dlgGaleria").addEventListener("mouseout", e => { const v = e.target.closest("
 }
 // ---------- Línea de tiempo de la pieza ----------
 let tlPartes = { pieza: null, partes: [], clips: false }, tlSel = null, tlArr = null;
+const N_TIRA = 30;  // los cuadros de la tira de cada pieza (motor.TIRA_CUADROS)
 async function cargarPartes(p) {
   if (tlPartes.pieza === p.nombre) return;
   tlPartes = { pieza: p.nombre, partes: [], clips: false };
@@ -4442,9 +4523,19 @@ function pintarTl() {
   const enRegla = t => (t / D * 100).toFixed(3) + "%";  // la regla cuenta el tiempo que se ve (con cortes, el del video)
   for (let t = 0; t <= D; t += paso / 2) { const mayor = Math.abs(t / paso - Math.round(t / paso)) < 1e-6;
     regla += `<i class="${mayor ? "mayor" : ""}" style="left:${enRegla(t)}"></i>${mayor ? `<b style="left:${enRegla(t)}">${Math.round(t)}s</b>` : ""}`; }
-  const nombres = (p.tomas || []).map(x => x.nombre);
-  const clips = tlPartes.partes.map((c, i) => [c, i]).filter(([c]) => !conCortesTl() || tlVer(c.fin) - tlVer(c.ini) > .02).map(([c, i]) => `<div class="tl-blq clip" data-tl-a="${c.ini}" data-tl-b="${c.fin}" style="left:${pc(c.ini)};width:${ancho(c.ini, c.fin)}" title="${esc(c.texto)}">
-      <b>${tlPartes.clips ? `Clip ${i + 1}` : `Frase ${i + 1}`}</b>${esc(c.texto)}${tlPartes.clips ? `<button type="button" class="tl-cambiar" data-cambiar-clip="${i}" title="Cambiar este clip por otro sin asignar">↻</button>` : ""}</div>`).join("") || `<span class="tl-vacio">${p.procesada ? "Un solo clip" : "Sin preparar"}</span>`;
+  // pista «Video»: los cuadros del clip, siempre (también en un hook o un CTA de un solo clip). Lo quitado no ocupa lugar
+  const tira = p.procesada ? `/api/tira?pieza=${encodeURIComponent(p.nombre)}&d=${D0.toFixed(2)}` : "";
+  const cuadros = tira ? Array.from({ length: N_TIRA }, (_, i) => {
+    const a = i * D0 / N_TIRA, b = (i + 1) * D0 / N_TIRA;
+    if (conCortesTl() && tlVer(b) - tlVer(a) < .01) return "";
+    return `<i class="tl-cuadro" style="left:${pc(a)};width:${ancho(a, b)};background-image:url('${tira}');background-position:${(i / (N_TIRA - 1) * 100).toFixed(3)}% 0"></i>`;
+  }).join("") : "";
+  // encima, cada clip de la pieza con su nombre y «↻» para cambiarlo (un solo clip: no se elige entero al tocarlo)
+  const varios = tlPartes.clips && tlPartes.partes.length > 1;
+  const clips = !p.procesada ? `<span class="tl-vacio">Sin preparar: toca «Analizar los clips» en Inicio</span>`
+    : varios ? tlPartes.partes.map((c, i) => [c, i]).filter(([c]) => !conCortesTl() || tlVer(c.fin) - tlVer(c.ini) > .02).map(([c, i]) => `<div class="tl-blq clip" data-tl-a="${c.ini}" data-tl-b="${c.fin}" style="left:${pc(c.ini)};width:${ancho(c.ini, c.fin)}" title="Clip ${i + 1}: ${esc(c.texto)}">
+      <span class="tl-clip-nom">Clip ${i + 1}<button type="button" class="tl-cambiar" data-cambiar-clip="${i}" title="Cambiar este clip por otro sin asignar">↻</button></span></div>`).join("")
+    : `<div class="tl-blq clip uno" style="left:0;width:100%" title="El clip de ${esc(verPieza(p.nombre))}: arrastra sobre él para elegir un tramo"><span class="tl-clip-nom">${esc((p.tomas || [])[0]?.nombre || "Clip")}<button type="button" class="tl-cambiar" data-cambiar-clip="0" title="Cambiar este clip por otro sin asignar">↻</button></span></div>`;
   const queda = (l, i) => {  // con cortes, solo las palabras que siguen sonando (si el texto no se corrigió a mano)
     const txt = lineasTmp[i] ?? l.texto;
     return conCortesTl() && txt === l.texto && l.palabras?.length ? l.palabras.filter(w => !quitadaW(w)).map(w => w.w).join(" ") : txt;
@@ -4464,10 +4555,8 @@ function pintarTl() {
     : quitTmp.map(([a, b]) => `<div class="tl-quit" style="left:${pc(a)};width:${ancho(a, b)}"></div>`).join("");
   const sel = tlSel ? `<div class="tl-sel" style="left:${pc(tlSel.a)};width:${ancho(tlSel.a, tlSel.b)}"></div>` : "";
   document.querySelectorAll("#tlVista [data-tlv]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tlv === (conCortesTl() ? "con" : "sin"))));
-  const conFrases = tlPartes.partes.length > 1;
-  caja.classList.toggle("sin-frases", !conFrases);
-  caja.innerHTML = `<div class="tl-noms"><span>Tiempo</span>${conFrases ? `<span>${tlPartes.clips ? "Clips" : "Frases"}</span>` : ""}<span>Texto</span><span>Imágenes</span><span>Sonidos</span></div>
-    <div class="tl-zona" id="tlZona"><div class="tl-regla">${regla}</div>${conFrases ? `<div class="tl-carril">${clips}</div>` : ""}<div class="tl-carril">${lineas}</div>
+  caja.innerHTML = `<div class="tl-noms"><span>Tiempo</span><span>Video</span><span>Texto</span><span>Imágenes</span><span>Sonidos</span></div>
+    <div class="tl-zona" id="tlZona"><div class="tl-regla">${regla}</div><div class="tl-carril tl-video">${cuadros}${clips}</div><div class="tl-carril">${lineas}</div>
       <div class="tl-carril">${imgs}</div><div class="tl-carril">${sons}</div>${quit}${sel}<div class="tl-cabezal" id="tlCabezal" style="left:${pc($("vPieza").currentTime || 0)}"></div></div>`;
   pintarBotonesTl();
 }
@@ -8863,9 +8952,33 @@ function pintarEstadoEd() {
     $("edGuardarTop").disabled = !sucio;
     $("edGuardarTop").querySelector("b").textContent = sucio ? "Guardar" : "Guardado ✓";
     $("edGuardarSub").textContent = sucio ? edAlcanceTxt : "";
+    $("edDescartar").hidden = !edSinGuardar();
   });
 }
 $("edGuardarTop").onclick = () => $("evArmar").click();
+// «No guardar»: lo cambiado en el editor (cortes, recortes, zoom, imágenes, orden, velocidad…) vuelve a como estaba al
+// abrirlo o al guardar por última vez. Los subtítulos corregidos y los sonidos se guardan al momento: esos se quedan.
+const edSinGuardar = () => !!(firmaGuardada && firmaEd() !== firmaGuardada);
+async function descartarEd() {
+  if (!actual) return;
+  const cod = actual.codigo;
+  await cargarEstructura(cod);
+  if (actual?.codigo === cod) { pintarEditor(); vistaEd(); avisar("Listo: el video quedó como la última vez que guardaste.", "ok"); }
+}
+$("edDescartar").onclick = async () => {
+  if (!await preguntar("¿Descartar los cambios que no guardaste en este video? Vuelve a como estaba la última vez que guardaste.", "Descartar cambios")) return;
+  pararEditor(); await descartarEd();
+};
+$("edCerrar").onclick = async () => {
+  if (edSinGuardar()) {
+    pararEditor();
+    const r = await ventanaPregunta({ texto: "Tienes cambios sin guardar en este video. ¿Qué hago con ellos?", si: "Guardar", otro: "No guardar", no: "Seguir editando" });
+    if (r === true) return $("evArmar").click();  // guarda y rearma (el editor se cierra solo)
+    if (r !== "otro") return;
+    await descartarEd();
+  }
+  $("dlgEditor").close();
+};
 $("evDeshacer").onclick = () => { deshacerEd(); pintarEstadoEd(); };
 $("evRehacer").onclick = () => { rehacerEd(); pintarEstadoEd(); };
 $("evAtajos").onclick = () => $("dlgAtajos").showModal();
@@ -10248,7 +10361,6 @@ function abrirEditor() {
 $("irEditor").onclick = abrirEditor;
 new ResizeObserver(() => $("dlgEditor").style.setProperty("--alto-cab-ed", $("dlgEditor").querySelector(".dlg-cab").offsetHeight + "px"))
   .observe($("dlgEditor").querySelector(".dlg-cab"));
-$("edCerrar").onclick = () => $("dlgEditor").close();
 $("dlgEditor").addEventListener("close", pararEditor);
 $("evConMusica").addEventListener("change", () => { if (!$("evConMusica").checked) evMusica.pause(); });
 $("evExportar").onclick = async () => { if (!actual) return; const cod = actual.codigo; pararEditor(); if (!await cerrarVideo()) return; await exportarVideos([cod]); };

@@ -518,6 +518,18 @@ def mover(sesion, viejo, nuevo):
     _rc("moveto", f"{REMOTO}:{sesion}/{viejo}", f"{REMOTO}:{sesion}/{nuevo}", timeout=300)
 
 
+def borrar_sesion(carpetas, avance=print):
+    """Manda a la papelera de Drive las carpetas de una sesión: desde ahí se recuperan por unos 30 días."""
+    for c in carpetas:
+        avance(f"Mandando «{c}» a la papelera de Drive…")
+        try:
+            _rc("purge", f"{REMOTO}:{c}", "--drive-use-trash=true", timeout=900)
+        except RuntimeError as e:
+            if "not found" not in str(e).lower():  # si ya no estaba en Drive, no pasa nada
+                raise
+    actualizar_lista()
+
+
 def crear_sesion(nombre):
     # Guiones: el guion · Clips: solo lo grabado (C1/, C2/…, CTA/ o sueltos) · Flow: imágenes y clips de apoyo
     for sub in ("Guiones", "Clips", "Flow", "Musica", "V.FINALES"):

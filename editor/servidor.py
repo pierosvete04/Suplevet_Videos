@@ -500,7 +500,7 @@ def apartar_descarga(nombre):
 
 
 AUTO_DESC = []  # lo que llegó solo de Descargas: [{t, archivo, id, codigos}]
-CHOCAN_CON_DESCARGAS = {"bajar", "reiniciar", "terminar", "renombrar", "ordenar_todo", "conectar"}
+CHOCAN_CON_DESCARGAS = {"bajar", "reiniciar", "terminar", "borrar_sesion", "renombrar", "ordenar_todo", "conectar"}
 
 
 def anotar_faltan_gemini(ck, faltan):
@@ -1276,6 +1276,36 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         threading.Thread(target=lambda: _sin_falla(drive.subir_archivadas), daemon=True).start()
                         avance(f"Listo: «{sem}» está entera en Drive y se borró de esta PC ({peso / 1e9:.1f} GB libres). "
                                "Quedó archivada: si la vuelves a abrir, se baja de Drive.")
+                if accion == "borrar_sesion":  # «Borrar la sesión»: de esta PC y (si se pidió) de Drive, a su papelera
+                    sem, en_drive = motor.S.semana, bool((extra or {}).get("drive"))
+                    if (extra or {}).get("sesion") != sem:
+                        raise RuntimeError("La sesión abierta cambió: vuelve a tocar «Borrar la sesión».")
+                    g = motor.grupos().get(sem)
+                    if g and not g.get("carpeta"):
+                        raise RuntimeError("Es un grupo de sesiones sueltas: borra cada una de sus sesiones por separado.")
+                    if en_drive and not drive.estado()["activo"]:
+                        raise RuntimeError("Drive no está conectado: no se puede borrar del Drive.")
+                    avance("Guardando una copia de seguridad de lo editado…")
+                    _sin_falla(lambda: respaldos.hacer(nombre=f"Antes de borrar «{sem}»", auto=False))
+                    raices, _, _ = sesion_en_pc()
+                    if en_drive:
+                        drive.borrar_sesion(raices, avance=avance)
+                    avance("Borrando de esta PC…")
+                    peso = motor.borrar_sesion_local(sem, raices)
+                    if en_drive:  # tampoco queda en las listas del equipo (archivadas, grupos)
+                        if sem in motor.archivadas():
+                            motor.guardar_archivadas([x for x in motor.archivadas() if x != sem])
+                            _sin_falla(drive.subir_archivadas)
+                        if g:
+                            gs = motor.grupos(); gs.pop(sem, None); motor.guardar_grupos(gs)
+                            _sin_falla(drive.subir_grupos)
+                    otras = [x for x in motor.semanas_disponibles() if x != sem]
+                    if otras:  # la sala sigue con la sesión más nueva (después se elige en la pantalla de sesiones)
+                        motor.usar_semana(otras[-1])
+                        motor.guardar_config({"semana": otras[-1]})
+                    donde = "de esta PC y de Drive (está en la papelera de Drive unos 30 días)" if en_drive else "de esta PC"
+                    libre = f"{max(1, round(peso / 1e6))} MB" if peso < 1e8 else f"{peso / 1e9:.1f} GB"
+                    avance(f"Listo: «{sem}» se borró {donde}. Se liberaron {libre}.")
                 if accion == "importar":
                     n = panel.importar_finales(avance=avance)
                     avance(f"Importados {n} videos finales al panel")
@@ -1413,8 +1443,10 @@ class H(BaseHTTPRequestHandler):
             self._json({"pedidos": antigravity.pedidos()})
         elif u.path == "/api/terminar_info":  # antes de «Terminar sesión»: cuánto ocupa y qué videos no se exportaron
             raices, _, peso = sesion_en_pc()
+            g = motor.grupos().get(motor.S.semana)
             self._json({"ok": True, "sesion": motor.S.semana, "peso": peso, "carpetas": raices, "sin_exportar": sin_exportar(),
-                        "drive": bool(drive.estado()["activo"])})
+                        "drive": bool(drive.estado()["activo"]), "grupo_suelto": bool(g and not g.get("carpeta")),
+                        "en_drive": motor.S.drive in drive.sesiones_en_drive() or bool(g)})
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
         elif u.path == "/api/marca":
@@ -1476,6 +1508,15 @@ class H(BaseHTTPRequestHandler):
             try:
                 f = motor.vista_previa_clip(rel) if rel and ".." not in rel else None
             except Exception:  # noqa: BLE001 — sin imagen, el cuadro queda negro como antes
+                f = None
+            if not f:
+                return self.send_error(404)
+            self._archivo(f.parent, f.name)
+        elif u.path == "/api/tira":  # los cuadros de una pieza para la pista «Video» de Piezas y subtítulos
+            n = parse_qs(u.query).get("pieza", [""])[0]
+            try:
+                f = motor.tira_pieza(n) if n and Path(n).name == n else None
+            except Exception:  # noqa: BLE001 — sin cuadros, la pista se ve lisa como antes
                 f = None
             if not f:
                 return self.send_error(404)
@@ -2491,6 +2532,10 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/terminar":
                 lanzar("terminar", extra={"borrar": bool(self._cuerpo().get("borrar"))})
+                self._json({"ok": True})
+            elif u.path == "/api/borrar_sesion":
+                b = self._cuerpo()
+                lanzar("borrar_sesion", extra={"sesion": str(b.get("sesion") or ""), "drive": bool(b.get("drive"))})
                 self._json({"ok": True})
             elif u.path == "/api/trabajo":
                 b = self._cuerpo()

@@ -458,6 +458,67 @@ def vista_previa_clip(rel):
     return None
 
 
+TIRA_CUADROS = 30  # cuántos cuadros lleva la tira de una pieza (la pantalla los reparte a lo largo de la pieza)
+
+
+def tira_pieza(nombre):
+    """Los cuadros de la pieza preparada, uno al lado del otro en una sola imagen, para la pista «Video» de la línea de
+    tiempo de Piezas: así se ve el clip (también el de un hook o un CTA de un solo clip). En caché."""
+    f = S.proc / f"{nombre}.mp4"
+    if not f.is_file():
+        return None
+    st = f.stat()
+    clave = hashlib.md5(f"{nombre}-{st.st_size}-{int(st.st_mtime)}-{TIRA_CUADROS}".encode()).hexdigest()
+    destino = DATOS / "miniaturas" / "tiras" / S.semana / f"{clave}.jpg"
+    if destino.exists():
+        return destino
+    dur = duracion(f) or 0
+    if dur <= 0:
+        return None
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destino.with_suffix(".tmp.jpg")
+    # un cuadro al medio de cada tramo (fps = cuadros / duración), recortado al centro (1:2, sirve en vertical y en
+    # horizontal: en la pista cada cuadro es angosto) y todos en una fila
+    run([FFMPEG, "-hide_banner", "-y", "-i", str(f), "-vf",
+         f"fps={TIRA_CUADROS / dur:.6f}:start_time={dur / TIRA_CUADROS / 2:.3f},crop=w=min(iw\\,ih/2):h=ih,scale=48:96,"
+         f"tile={TIRA_CUADROS}x1",
+         "-frames:v", "1", "-q:v", "6", str(tmp)])
+    if not tmp.exists() or not tmp.stat().st_size:
+        return None
+    os.replace(tmp, destino)
+    return destino
+
+
+def borrar_sesion_local(nombre, carpetas_drive):
+    """Borra de esta PC todo lo de una sesión: su copia de Drive (clips, Flow, música, guion), las piezas preparadas,
+    los videos armados, lo escuchado y lo editado. Las copias de seguridad (datos/respaldos) se quedan. Devuelve bytes."""
+    carpetas_drive = [c for c in carpetas_drive if c and not c.startswith((".", "/")) and ".." not in Path(c).parts]
+    if not nombre_sesion_valido(nombre) or not carpetas_drive:  # con un nombre vacío se borraría la carpeta entera
+        raise ValueError("Nombre de sesión no válido")
+    base = Path(CONFIG.get("carpeta_trabajo") or DATOS / "grabaciones")
+    asig = DATOS / "asignaciones"
+    carpetas = [base / c for c in carpetas_drive] + [asig / c for c in carpetas_drive]
+    carpetas += [DATOS / d / nombre for d in ("procesado", "subtitulos", "salidas", "recetas", "transcripciones", "ondas")]
+    carpetas += [DATOS / "miniaturas" / "clips" / nombre, DATOS / "miniaturas" / "tiras" / nombre]
+    archivos = [DATOS / "miniaturas" / f"{re.sub(r'[^\w.-]+', '_', nombre)}.jpg"]
+    archivos += [asig / f"{c}{x}" for c in carpetas_drive for x in (".json", ".reemplazos.json")]
+
+    def dentro(x):  # nunca algo fuera de los datos de la sala o de la carpeta de trabajo, ni esas carpetas enteras
+        x = x.resolve()
+        return any(x != r.resolve() and r.resolve() in x.parents for r in (DATOS, base))
+
+    peso = 0
+    for d in carpetas:
+        if d.is_dir() and dentro(d):
+            peso += sum(x.stat().st_size for x in d.rglob("*") if x.is_file())
+            shutil.rmtree(d, ignore_errors=True)
+    for f in archivos:
+        if f.is_file() and dentro(f):
+            peso += f.stat().st_size
+            f.unlink(missing_ok=True)
+    return peso
+
+
 def semanas_disponibles():
     def es_sesion(d):
         return d.is_dir() and (es_nombre_sesion(d.name) or (d / "Clips").is_dir())
