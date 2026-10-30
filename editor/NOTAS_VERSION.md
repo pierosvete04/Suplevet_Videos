@@ -1,3 +1,7 @@
+Versión 1.61.4 (se actualiza desde la app con «Actualizar ahora»):
+- **Editor de video, más parejo:** todas las herramientas de la barra (Cortar, Quitar, Encuadre, Imagen, Texto, el zoom, Teclas…) miden lo mismo, 36 px, y quedan centradas en su fila; antes iban de 25 a 44 px. Los botones de arriba (Guardar, Más, ← Volver al video) miden 36 px como en el resto de la sala, y los chicos («Aplicar las sugerencias») 30 px.
+- Los segmentos («Sin cortes | Con cortes», «Hooks | Cuerpos | CTAs») abrazan a sus botones con el mismo redondeo.
+
 Versión 1.61.3 (se actualiza desde la app con «Actualizar ahora»):
 - Las tres apps se ven y se sienten igual: el mismo bloque de estilo en la Sala de edición, la Sala de diseño y el Publicador.
 - Botones del mismo alto en las tres (36 px; los chicos, 30 px), con el texto centrado.
