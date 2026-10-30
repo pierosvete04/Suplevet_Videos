@@ -2883,7 +2883,8 @@ h3 { font: 650 13px/1.35 var(--fd); }
   <div class="pa-cuerpo"><div class="pa-hojas" id="paHojas" role="group" aria-label="Hojas"></div><div class="pa-tabla" id="paTabla"></div></div>
   <div class="fila" style="justify-content:space-between;padding:0 16px 16px;gap:8px">
     <button class="btn sec peq" type="button" id="paCarpeta" title="La carpeta del pedido en Descargas: ahí queda también «Guion en plantilla.xlsx» para corregirlo a mano">Abrir la carpeta</button>
-    <button class="btn" type="button" id="paUsar">Usar esta hoja como guion de la sesión</button></div>
+    <span class="fila" style="gap:8px"><button class="btn sec" type="button" id="paUsarTodas" hidden title="Cada hoja (ronda) con sus cuerpos y sus hooks, en un solo proyecto">Usar todas las hojas en este proyecto</button>
+      <button class="btn" type="button" id="paUsar">Usar esta hoja como guion de la sesión</button></span></div>
 </dialog>
 <dialog id="dlgBorrarSes" aria-labelledby="bsTit" style="width:min(560px,94vw)">
   <form method="dialog" style="padding:18px;display:grid;gap:12px" id="bsForm">
@@ -10063,13 +10064,15 @@ $("prepLista").addEventListener("click", async e => {
 async function subirGuionArchivo(f, hayGuion) {
   let url = `/api/subir_guion?nombre=${encodeURIComponent(f.name)}`;
   let pr = await post(url + "&probar=1", f, true);
-  if (pr.hojas) {  // la plantilla de Excel con varias hojas (una por ronda): cuál va en esta sesión
-    const hoja = await ventanaPregunta({ texto: `«${f.name}» tiene ${plural(pr.hojas.length, "hoja")} de guion. ¿Cuál va en «${E.semana}»?`,
-      si: "Usar esta hoja", opciones: pr.hojas });
+  if (pr.hojas) {  // la plantilla de Excel con varias hojas (una por ronda): todas en este proyecto, o una
+    const TODAS = `Todas las hojas en este proyecto (${pr.hojas.length})`;
+    const hoja = await ventanaPregunta({ texto: `«${f.name}» tiene ${plural(pr.hojas.length, "hoja")} de guion. ¿Qué va en «${E.semana}»?\n\nCon todas, cada hoja (ronda) tiene sus cuerpos y sus hooks: los hooks de una ronda van solo con los cuerpos de esa ronda.`,
+      si: "Usar", opciones: [TODAS, ...pr.hojas] });
     if (!hoja) return null;
-    url += `&hoja=${encodeURIComponent(hoja)}`;
+    url += `&hoja=${encodeURIComponent(hoja === TODAS ? "*" : hoja)}`;
     pr = await post(url + "&probar=1", f, true);
   }
+  if (pr.avisos_hojas?.length) await avisoModal(`Para que no choquen, la sala siguió la numeración de los cuerpos:\n\n${pr.avisos_hojas.join("\n")}\n\nGraba y nombra los clips con esos números (por ejemplo, los hooks de la ronda que empieza en C6 van en Clips/C6/Hooks/H1.MOV).`);
   if (hayGuion) {
     const q = pr.se_quitan || [];
     const trae = `«${f.name}» trae ${plural(pr.cuerpos, "cuerpo")}, ${plural(pr.hooks, "hook")} y ${plural(pr.ctas, "CTA", "CTA")}.`;
@@ -10666,16 +10669,24 @@ function pintarPlantillaAg() {
     + `<table><thead><tr><th>Código</th><th>Lo que se dice</th><th>Nota</th></tr></thead><tbody>${h.filas.map(f =>
       `<tr class="${/^\s*H\s*\d+\s*$/i.test(f[0] || "") ? "todos" : ""}"><td>${esc(f[0] || "")}</td><td>${esc(f[1] || "")}</td><td>${esc(f[2] || "")}</td></tr>`).join("")}</tbody></table>`;
   $("paUsar").disabled = !h || !!h.error;
-  $("paUsar").textContent = hs.length > 1 ? `Usar «${h?.nombre || ""}» como guion de «${E.semana}»` : `Usar como guion de «${E.semana}»`;
+  $("paUsar").textContent = hs.length > 1 ? `Usar solo «${h?.nombre || ""}»` : `Usar como guion de «${E.semana}»`;
+  $("paUsarTodas").hidden = hs.length < 2;
+  $("paUsarTodas").textContent = `Usar las ${hs.length} hojas en «${E.semana}»`;
+  $("paUsarTodas").disabled = hs.some(x => x.error);
+  // con varias hojas, lo más común es todo el proyecto: ese va como botón principal
+  $("paUsarTodas").className = "btn"; $("paUsar").className = hs.length > 1 ? "btn sec" : "btn";
 }
 $("paHojas").addEventListener("click", e => { const b = e.target.closest("[data-pa]"); if (b) { hojaPa = Number(b.dataset.pa); pintarPlantillaAg(); } });
 $("paCerrar").onclick = () => $("dlgPlantillaAg").close();
 $("paCarpeta").onclick = () => post("/api/abrir_antigravity", { tipo: "plantilla" }).catch(err => avisar("Error: " + err.message, "err"));
-$("paUsar").onclick = async () => {
+$("paUsarTodas").onclick = () => usarPlantillaAg(true);
+$("paUsar").onclick = () => usarPlantillaAg(false);
+async function usarPlantillaAg(todas) {
   const h = plantillaAg?.hojas?.[hojaPa]; if (!h) return;
-  if ((ultimoGuion || E.hay_produccion) && !await preguntar(`¿Reemplazo el guion de «${E.semana}» por «${h.nombre}»? (el anterior queda guardado como copia)`, "Sí, usar esta hoja")) return;
+  const que = todas ? `las ${plantillaAg.hojas.length} hojas` : `«${h.nombre}»`;
+  if ((ultimoGuion || E.hay_produccion) && !await preguntar(`¿Reemplazo el guion de «${E.semana}» por ${que}? (el anterior queda guardado como copia)`, "Sí, usarlo")) return;
   try {
-    const r = await post("/api/guion_a_plantilla_usar", { hoja: h.nombre });
+    const r = await post("/api/guion_a_plantilla_usar", { hoja: todas ? "*" : h.nombre });
     $("dlgPlantillaAg").close();
     resumenGuion = { semana: null, datos: null };
     avisar(`Guion listo: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}. La plantilla en Excel quedó en la carpeta Guion de la sesión.`, "ok");
@@ -10763,7 +10774,7 @@ function pintarGuionLista() {
   const lista = filtrar(g.piezas.filter(p => vistaGuion === "todo" || p.tipo === vistaGuion));
   avisoBusqueda(lista.length);
   $("guionLista").innerHTML = lista.map(p => `<div class="caja g-pieza">
-      <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span>${p.todos ? ` <span class="pill ok" title="Se graba una vez y va con cada cuerpo">Para todos los cuerpos</span>` : ""}</h3>${estadoGuion(p)}</div>
+      <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span>${p.todos ? ` <span class="pill ok" title="Se graba una vez y va con cada cuerpo de su ronda">${Array.isArray(p.todos) && p.todos.length > 1 ? `Para ${esc(p.todos[0])}–${esc(p.todos[p.todos.length - 1])}` : "Para todos los cuerpos"}</span>` : ""}</h3>${estadoGuion(p)}</div>
       <div class="g-cuerpo">${videoGuion(p.clips.length && videoDePieza(p.nombre))}
         <div><div class="texto" data-gtexto="${esc(p.nombre)}">${textoGuion(p)}</div>
           <button class="btn sec peq" type="button" data-geditar="${esc(p.nombre)}" style="margin-top:6px" title="Cambia lo que dice esta pieza en el guion: se ve en el teleprompter (sala y tablet)">✎ Editar texto</button>

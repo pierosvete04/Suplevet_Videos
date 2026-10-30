@@ -1963,7 +1963,7 @@ class H(BaseHTTPRequestHandler):
                 hojas = antigravity.plantilla_de_antigravity(motor.S.semana)
                 if not hojas:
                     raise ValueError("Antigravity todavía no terminó la plantilla.")
-                hoja = str(self._cuerpo().get("hoja") or hojas[0][0])
+                hoja = str(self._cuerpo().get("hoja") or hojas[0][0])  # «*» = todas las hojas en este proyecto
                 xlsx = guion_plantilla.escribir_xlsx([(nombre, [guion_plantilla.COLUMNAS] + filas) for nombre, filas in hojas])
                 (antigravity._carpeta_plantilla(motor.S.semana) / "Guion en plantilla.xlsx").write_bytes(xlsx)  # para corregirlo a mano
                 self._json({"ok": True, **guion_subido(motor.subir_guion(f"Guion {motor.S.semana}.xlsx", xlsx, hoja))})
@@ -2108,7 +2108,7 @@ class H(BaseHTTPRequestHandler):
                     if not pz:
                         raise ValueError("Esta sesión todavía no tiene guion: descarga la plantilla vacía.")
                     f = guion_plantilla.guardar_en_descargas(f"Guion {motor.S.semana}.xlsx", guion_plantilla.escribir_xlsx(
-                        [(motor.S.semana, [guion_plantilla.COLUMNAS] + guion_plantilla.filas_de_piezas(pz))]))
+                        guion_plantilla.hojas_de_piezas(pz, motor.S.semana)))  # una hoja por ronda, si hay rondas
                 else:
                     f = guion_plantilla.guardar_en_descargas("Plantilla de guion.xlsx", guion_plantilla.plantilla_vacia())
                 self._json({"ok": True, "ruta": str(f), "nombre": f.name})

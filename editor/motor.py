@@ -2754,7 +2754,7 @@ def revision_guion():
     for g in guion_para_grabar_actual():
         nombre = g["nombre"]
         p = ps.get(nombre)
-        fila = {"nombre": nombre, "tipo": g["tipo"], "tipo_hook": g.get("tipo_hook"), "texto": g["texto"], "partes": g["partes"], "todos": bool(g.get("todos")),
+        fila = {"nombre": nombre, "tipo": g["tipo"], "tipo_hook": g.get("tipo_hook"), "texto": g["texto"], "partes": g["partes"], "todos": g.get("todos") or False,
                 "clips": p["rels"] if p else [], "procesada": bool(p and (S.subs / f"{nombre}.json").exists()),
                 "diff": [], "parecido": None,
                 # clips sin identificar que suenan a esta pieza (para asignarlos desde el guion)
@@ -3620,6 +3620,10 @@ def _leer_guion_archivo(nombre_archivo, datos, hoja=None):
     ext = Path(nombre_archivo).suffix.lower()
     if ext == ".xlsx":  # la plantilla de guion: la columna A dice qué es cada fila, no se adivina nada
         import guion_plantilla
+        if hoja == guion_plantilla.TODAS:  # todas las hojas (una por ronda) en este proyecto
+            piezas_g, avisos = guion_plantilla.juntar_hojas(guion_plantilla.hojas_de_guion(datos))
+            return {"origen": "subido", "archivo": Path(nombre_archivo).name, "hoja": hoja, "piezas": piezas_g,
+                    **({"avisos_hojas": avisos} if avisos else {})}
         nombre_hoja, piezas_g = guion_plantilla.leer(datos, hoja)
         return {"origen": "subido", "archivo": Path(nombre_archivo).name, "hoja": nombre_hoja, "piezas": piezas_g}
     if ext == ".json":
@@ -3700,7 +3704,8 @@ def probar_guion(nombre_archivo, datos, hoja=None):
     viejas = set((base.get("piezas") or {}))
     nuevas = set(_mezclar_guion(base, prod, time.time())["piezas"] if ext != ".json" else prod["piezas"])
     orden = lambda n: ({"cuerpo": 0, "hook": 1, "cta": 2}.get(tipo_de(n), 3), n)
-    return {**_resumen_guion(prod, ext), "habia": len(viejas), "se_quitan": sorted(viejas - nuevas, key=orden)}
+    return {**_resumen_guion(prod, ext), "habia": len(viejas), "se_quitan": sorted(viejas - nuevas, key=orden),
+            "avisos_hojas": prod.get("avisos_hojas") or []}
 
 
 def _mezclar_guion(base, nuevo, cuando):
@@ -3820,9 +3825,10 @@ def guion_para_grabar(semana=None):
         tipo = tipo_de(nombre) if info.get("tipo") not in ("cuerpo",) else "cuerpo"
         partes = info.get("partes") or (re.split(r"(?<=[.!?])\s+", texto.strip()) if tipo == "cuerpo" else [texto])
         out.append({"nombre": nombre, "tipo": tipo, "tipo_hook": info.get("tipo") if tipo == "hook" and info.get("tipo") != "hook" else None,
-                    "texto": texto, "partes": [x for x in partes if x.strip()], **({"todos": True} if info.get("todos") else {})})
+                    "texto": texto, "partes": [x for x in partes if x.strip()], **({"todos": info["todos"]} if info.get("todos") else {})})
     orden = {"cuerpo": 0, "hook": 1, "cta": 2}
-    return sorted(out, key=lambda x: (orden[x["tipo"]], x["nombre"]))
+    natural = lambda n: [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", n)]  # C2 antes que C10
+    return sorted(out, key=lambda x: (orden[x["tipo"]], natural(x["nombre"])))
 
 
 def leer_subs(pieza):
@@ -4204,10 +4210,12 @@ def _combinaciones_sin_memoria():
     vs = leer_versiones()
     plan, eds = _leer_ediciones()["plan"], ediciones()
     # hooks «para todos los cuerpos» (H1 en la plantilla): se graban una vez como hooks del primer cuerpo y van con cada
-    # cuerpo que no tenga su propio hook con ese número
+    # cuerpo de su grupo (su ronda: «todos» = [C6, C7…]; True = todos los de la sesión) que no tenga su propio hook con ese número
     del_guion = produccion().get("piezas", {})
-    comunes = [h for h in hooks if (del_guion.get(sin_angulo(h)[0]) or {}).get("todos")]
+    alcance = {h: (del_guion.get(sin_angulo(h)[0]) or {}).get("todos") for h in hooks}
+    comunes = [h for h in hooks if alcance[h]]
     num_hook = lambda h: sin_angulo(h)[0].split("_")[1]  # «C1_H2~A2» → «H2»
+    llega = lambda h, cuerpo: alcance[h] is True or (isinstance(alcance[h], list) and cuerpo in alcance[h])
     for c in cuerpos:
         cb, ca = sin_angulo(c)
         # Otro ángulo: usa sus propios hooks y CTA si se grabaron así; si no, los de frente (el mismo número de hook),
@@ -4226,7 +4234,7 @@ def _combinaciones_sin_memoria():
             propios = [prestado]
         de_cuerpo = [h for h in hooks if sin_angulo(h)[0].split("_")[0] == cb]
         propios_n = {num_hook(h) for h in de_cuerpo}
-        de_cuerpo += [h for h in comunes if sin_angulo(h)[0].split("_")[0] != cb and num_hook(h) not in propios_n]
+        de_cuerpo += [h for h in comunes if sin_angulo(h)[0].split("_")[0] != cb and num_hook(h) not in propios_n and llega(h, cb)]
         numeros = sorted({sin_angulo(h)[0] for h in de_cuerpo}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)][::-1])
         hooks_c = [next((h for h in de_cuerpo if sin_angulo(h) == (n, ca)), None) or next((h for h in de_cuerpo if sin_angulo(h) == (n, "")), None)
                    or next((h for h in de_cuerpo if sin_angulo(h)[0] == n), None) for n in numeros]

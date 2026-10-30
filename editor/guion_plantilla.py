@@ -95,9 +95,10 @@ def piezas_de_filas(filas):
     if malos:
         raise ValueError("Revisa la columna A (el código): " + "; ".join(malos[:6])
                          + ("…" if len(malos) > 6 else "") + ". Usa H1, C1.1, C1 CTA o CTA (ver la hoja «Léeme»).")
-    # los hooks para todos los cuerpos quedan como hooks del primer cuerpo, con la marca «todos»: se graban una vez
-    # (Hooks/H1.MOV) y la sala los combina con cada cuerpo
-    cuerpos = sorted((k for k in frases if "CTA" not in k), key=lambda x: (x[0], int(re.sub(r"\D", "", x) or 0)))
+    # los hooks para todos los cuerpos de la hoja quedan como hooks de su primer cuerpo, con «todos» = los cuerpos de la
+    # hoja: se graban una vez (Clips/C1/Hooks/H1.MOV) y la sala los combina solo con esos cuerpos (otra ronda del mismo
+    # proyecto tiene los suyos)
+    cuerpos = sorted((k for k in frases if "CTA" not in k), key=_num)
     primero = cuerpos[0] if cuerpos else "C1"
     for n, t in todos.items():
         nombre = f"{primero}_H{n}"
@@ -110,21 +111,71 @@ def piezas_de_filas(filas):
         out[nombre] = {"tipo": "cta" if "CTA" in nombre else "cuerpo", "texto": " ".join(partes),
                        **({"partes": partes} if len(partes) > 1 else {}), **({"nota": notas[nombre]} if nombre in notas else {})}
     for nombre, t in hooks.items():
-        out[nombre] = {"tipo": "hook", "texto": t, **({"todos": True} if int(nombre.split("_H")[1]) in todos
+        out[nombre] = {"tipo": "hook", "texto": t, **({"todos": cuerpos or [primero]} if int(nombre.split("_H")[1]) in todos
                                                        and nombre.startswith(primero + "_") else {})}
     orden = {"cuerpo": 0, "hook": 1, "cta": 2}
-    return dict(sorted(out.items(), key=lambda x: (orden[x[1]["tipo"]], x[0])))
+    return dict(sorted(out.items(), key=lambda x: (orden[x[1]["tipo"]], _num(x[0]), x[0])))
+
+
+def _num(nombre):
+    """«C12_H3» → 12 (para ordenar C2 antes que C10)."""
+    m = re.match(r"[CP](\d+)", nombre)
+    return int(m[1]) if m else 10 ** 6
+
+
+def _renumerar(filas, corrimiento):
+    """Las filas con los cuerpos corridos: C1 → C(1 + corrimiento). Los hooks H1… no cambian (son de su hoja)."""
+    if not corrimiento:
+        return filas
+    out = []
+    for f in filas:
+        r = leer_codigo(f[0] if f else "")
+        if not r or not r[1]:
+            out.append(f)
+            continue
+        tipo, cuerpo, n = r
+        c = f"{cuerpo[0]}{int(cuerpo[1:]) + corrimiento}"
+        cod = {"frase": f"{c}.{n}", "cuerpo": c, "hook": f"{c} H{n}", "cta_cuerpo": f"{c} CTA{n or ''}"}[tipo]
+        out.append([cod, *f[1:]])
+    return out
+
+
+TODAS = "*"  # «todas las hojas en este proyecto»
+
+
+def juntar_hojas(hojas):
+    """Varias hojas (una por ronda) en UN proyecto: los cuerpos siguen la numeración (si la R2 vuelve a empezar en C1,
+    pasa a C6…C10) y los hooks de cada hoja van solo con los cuerpos de su hoja. Devuelve (piezas, avisos)."""
+    todas, usados, avisos = {}, set(), []
+    for i, (nombre, filas) in enumerate(hojas.items(), 1):
+        nums = {int(r[1][1:]) for f in filas if (r := leer_codigo(f[0] if f else "")) and r[1]}
+        corr = max(usados) if usados and nums & usados else 0
+        pz = piezas_de_filas(_renumerar(filas, corr))
+        if corr and nums:
+            avisos.append(f"«{nombre}»: C{min(nums)}–C{max(nums)} pasan a C{min(nums) + corr}–C{max(nums) + corr}")
+        for k, v in pz.items():
+            if k in todas:  # un CTA general («CTA») repetido en otra hoja
+                k = f"{k}-{i}" if k.startswith("CTA") else k
+            if k in todas:
+                raise ValueError(f"«{k}» está en dos hojas. Usa otro número en una de ellas.")
+            todas[k] = v
+        usados |= {n + corr for n in nums}
+    orden = {"cuerpo": 0, "hook": 1, "cta": 2}
+    return dict(sorted(todas.items(), key=lambda x: (orden[x[1]["tipo"]], _num(x[0]), x[0]))), avisos
 
 
 def leer(contenido, hoja=None):
-    """El guion de una plantilla: (nombre de la hoja, piezas). Con varias hojas de guion hay que decir cuál."""
+    """El guion de una plantilla: (nombre de la hoja, piezas). Con varias hojas de guion hay que decir cuál, o TODAS
+    (todas en este proyecto: ver juntar_hojas)."""
     hojas = hojas_de_guion(contenido)
     if not hojas:
         raise ValueError("Ese Excel no trae guion: la columna A tiene que tener los códigos (H1, C1.1, C1 CTA) y la B el texto.")
     if hoja is None and len(hojas) > 1:
-        e = ValueError("Ese Excel tiene varias hojas de guion: elige cuál va en esta sesión.")
+        e = ValueError("Ese Excel tiene varias hojas de guion: elige cuál va en esta sesión (o todas).")
         e.hojas = list(hojas)
         raise e
+    if hoja == TODAS:
+        return TODAS, juntar_hojas(hojas)[0]
     nombre = hoja if hoja is not None else next(iter(hojas))
     if nombre not in hojas:
         raise ValueError(f"Ese Excel no tiene la hoja «{nombre}».")
@@ -132,6 +183,28 @@ def leer(contenido, hoja=None):
     if not piezas:
         raise ValueError(f"La hoja «{nombre}» no trae piezas.")
     return nombre, piezas
+
+
+def hojas_de_piezas(piezas, nombre="Guion"):
+    """El guion de la sala en hojas de la plantilla: una por grupo de cuerpos con sus hooks para todos (una ronda), o
+    una sola si no hay grupos. [(nombre de la hoja, filas con la de títulos)]."""
+    grupos = []  # [cuerpos de cada ronda], en orden
+    for pz in piezas.values():
+        t = pz.get("todos")
+        if isinstance(t, list) and t not in grupos:
+            grupos.append(t)
+    if len(grupos) <= 1:
+        return [(nombre, [COLUMNAS] + filas_de_piezas(piezas))]
+    grupos.sort(key=lambda g: _num(g[0]))
+    hojas, puestos = [], set()
+    for g in grupos:
+        dentro = {k: v for k, v in piezas.items() if k.split("_")[0] in g and k not in puestos}
+        puestos |= set(dentro)
+        hojas.append((f"{g[0]}–{g[-1]}", [COLUMNAS] + filas_de_piezas(dentro)))
+    resto = {k: v for k, v in piezas.items() if k not in puestos}
+    if resto:
+        hojas.append(("Otros", [COLUMNAS] + filas_de_piezas(resto)))
+    return hojas
 
 
 def filas_de_piezas(piezas):
@@ -147,7 +220,7 @@ def filas_de_piezas(piezas):
             ctas += [[cod, t, ""] for t in partes]
         else:
             filas += [("2", nombre, [f"{nombre}.{i}", t, pz.get("nota", "") if i == 1 else ""]) for i, t in enumerate(partes, 1)]
-    filas.sort(key=lambda x: (x[0], int(re.sub(r"\D", "", x[1].split("_")[0]) or 0)))
+    filas.sort(key=lambda x: (x[0], _num(x[1]), x[1]))
     return [f for _, _, f in filas] + ctas
 
 
@@ -197,7 +270,11 @@ LEEME = [
     ["C1 CTA", "El cierre del cuerpo 1."],
     ["CTA", "Un cierre que sirve para todos los cuerpos."],
     [""],
-    ["Al grabar, guarda los clips así: Clips/Hooks/H1.MOV, Clips/C1/Cuerpo/1.MOV, Clips/C1/C1_CTA.MOV (o deja que la sala los reconozca por lo que dicen)."],
+    ["Al grabar, guarda los clips así: Clips/C1/Hooks/H1.MOV, Clips/C1/Cuerpo/1.MOV, Clips/C1/C1_CTA.MOV (o deja que la sala los reconozca por lo que dicen)."],
+    [""],
+    ["Varias rondas en un proyecto: una hoja por ronda. Los hooks H1… de cada hoja van solo con los cuerpos de esa hoja."],
+    ["Numera los cuerpos seguidos (R1: C1–C5, R2: C6–C10…). Si una hoja vuelve a empezar en C1, la sala la corre sola y te avisa."],
+    ["Los hooks de la ronda que empieza en C6 se guardan en Clips/C6/Hooks/H1.MOV."],
     ["Para subirlo: Guion → «Subir guion» → elige este Excel (y la hoja, si hay varias)."],
 ]
 

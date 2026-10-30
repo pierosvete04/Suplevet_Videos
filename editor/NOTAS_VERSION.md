@@ -1,3 +1,10 @@
+Versión 1.65.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Varias rondas en un solo proyecto.** Un Excel con una hoja por ronda se sube entero: «Subir guion» → «Todas las hojas en este proyecto». Cada ronda tiene sus cuerpos (R1: C1–C5, R2: C6–C10…) y sus hooks H1–H5 van solo con los cuerpos de su ronda. Las 10 Rondas arman 250 videos.
+- Si una hoja vuelve a empezar en C1, la sala sigue la numeración sola y te avisa (los hooks de la ronda que empieza en C6 se guardan en Clips/C6/Hooks/H1.MOV).
+- Lo que pasa Antigravity también se puede usar entero: «Usar todas las hojas en este proyecto».
+- En el guion, cada hook dice con qué cuerpos va («Para C6–C10»), y los cuerpos salen en orden (C2 antes que C10).
+- «Este guion en Excel» baja una hoja por ronda.
+
 Versión 1.64.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Plantilla de guion en Excel.** En Guion → «Plantilla de guion (Excel)»: columna A el código (H1, C1.1, C1 CTA), columna B lo que se dice, columna C una nota que no se graba. Una hoja por sesión (por ejemplo, una por ronda). La sala la lee sin adivinar nada: se acabaron los índices y títulos leídos como frases.
 - «Subir guion» acepta el Excel. Si trae varias hojas, pregunta cuál va en la sesión.
