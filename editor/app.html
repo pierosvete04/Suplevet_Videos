@@ -1635,18 +1635,48 @@ body.horizontal .dia .mini { grid-template-columns: repeat(auto-fill, minmax(110
 @media (max-width: 680px) { body.horizontal .visor { max-width: 100%; } }
 #formato { min-width: 0; }
 </style>
-<style id="bordes-comunes">
-/* Bordes: una sola escala, igual en la Sala de edición, la Sala de diseño y el Publicador (si se cambia aquí, se
-   cambia en las tres). 9 px las casillas para escribir o elegir y los botones · 14 px las tarjetas y cuadros ·
-   16 px las ventanas · las píldoras, redondas. */
-:root { --r-campo: 9px; --r-caja: 14px; --r-ventana: 16px; --r-chip: 999px; }
+<style id="estilo-comun">
+/* Lo común de las tres apps (Sala de edición, Sala de diseño y Publicador). Es el mismo bloque en las tres: si se
+   cambia aquí, se cambia en las tres.
+   Bordes: 9 px casillas y botones · 14 px tarjetas y avisos · 16 px ventanas · etiquetas redondas.
+   Letra: títulos 16 / 15 / 13 px · rótulos (.etq) 10.5 px en mayúsculas · etiquetas 11.5 px · botones 13 px.
+   Botones: 36 px de alto (30 px los chicos). Avisos flotantes: abajo al centro, con una franja del color del estado
+   (verde listo · ámbar cuidado · rojo error · azul información). */
+:root { --r-campo: 9px; --r-caja: 14px; --r-ventana: 16px; --r-chip: 999px; --alto-btn: 36px; --alto-btn-chico: 30px; }
+[hidden] { display: none !important; }
+
+/* bordes */
 input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select:not([hidden]), textarea:not([hidden]) { border-radius: var(--r-campo); }
 input[type=color] { overflow: hidden; }
 input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
 input[type=color]::-webkit-color-swatch { border: 0; border-radius: calc(var(--r-campo) - 3px); }
-.btn { border-radius: var(--r-campo); }
 .caja { border-radius: var(--r-caja); }
 dialog:not(#dlgEditor) { border-radius: var(--r-ventana); }
+
+/* títulos, rótulos y etiquetas */
+h1 { font: 700 16px/1.3 var(--fd); }
+h2 { font: 650 15px/1.35 var(--fd); }
+h3 { font: 650 13px/1.35 var(--fd); }
+.etq { font: 600 10.5px/1.4 var(--mono); letter-spacing: .03em; text-transform: uppercase; color: var(--accent2); }
+.pill, .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: var(--r-chip); font: 600 11.5px/1.5 var(--f); letter-spacing: 0; white-space: nowrap; }
+
+/* botones */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--alto-btn); padding: 0 14px;
+  border-radius: var(--r-campo); font: 600 13px/1.2 var(--f); }
+.btn.peq, .btn.chico { min-height: var(--alto-btn-chico); padding: 0 10px; font-size: 12px; }
+
+/* avisos flotantes (Edición: .toast-pag · Diseño: .aviso · Publicador: #toasts .toast) */
+.toast-pag, dialog .toast, body > .aviso, dialog > .aviso, #toasts > .toast {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line2); border-left: 4px solid var(--accent);
+  border-radius: var(--r-caja); padding: 10px 16px; font-size: 13.5px; line-height: 1.45; box-shadow: 0 14px 34px rgba(0,0,0,.4); }
+.toast-pag.ok, dialog .toast.ok, .aviso.ok, #toasts > .toast.ok { border-color: var(--line2); border-left-color: var(--ok); }
+.toast-pag.warn, dialog .toast.warn, .aviso.warn, #toasts > .toast.warn { border-color: var(--line2); border-left-color: var(--warn); }
+.toast-pag.err, dialog .toast.err, .aviso.err, #toasts > .toast.mal { border-color: var(--line2); border-left-color: var(--err); }
+#toasts > .toast.ok svg { color: var(--ok); } #toasts > .toast.mal svg { color: var(--err); }
+#toasts { left: 50%; right: auto; bottom: 22px; transform: translateX(-50%); align-items: center; }
+
+/* cargando: la misma rueda en las tres */
+.rueda { width: 16px; height: 16px; border-width: 2.5px; border-style: solid; border-color: color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent2); }
 </style>
 </head>
 <body>

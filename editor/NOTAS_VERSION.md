@@ -1,3 +1,10 @@
+Versión 1.61.3 (se actualiza desde la app con «Actualizar ahora»):
+- Las tres apps se ven y se sienten igual: el mismo bloque de estilo en la Sala de edición, la Sala de diseño y el Publicador.
+- Botones del mismo alto en las tres (36 px; los chicos, 30 px), con el texto centrado.
+- Avisos flotantes iguales: abajo al centro, con una franja del color del estado (verde listo, ámbar cuidado, rojo error, azul información).
+- Etiquetas (✓ Listo, Por rearmar…) del mismo tamaño y letra; los rótulos de sección en mayúsculas; los títulos con las mismas medidas.
+- La rueda de «cargando» es la misma en todas.
+
 Versión 1.61.2 (se actualiza desde la app con «Actualizar ahora»):
 - Bordes iguales en las tres apps: las casillas para escribir o elegir y los botones con esquinas de 9 px, las tarjetas de 14 px y las ventanas de 16 px. La muestra del selector de color también se ve redondeada.
 
