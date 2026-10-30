@@ -4776,7 +4776,10 @@ def frases_lentas(nombre, desde=6.0, objetivo=6.5, maximo=1.12, pausa=0.3):
         a, b = voz
         quieto = 0.0
         if picos:
-            x, y = int(a * ps), int(b * ps)
+            # sin pasarse del final de la onda: una frase que termina después (el subtítulo llega hasta el último
+            # cuadro, o la pieza se volvió a preparar más corta) hacía fallar «list index out of range» y con eso
+            # todos los videos de ese cuerpo (en P05, 154 de 232)
+            x, y = max(0, int(a * ps)), min(len(picos), int(b * ps))
             while x < y:
                 z = x
                 while z < y and (picos[z] < 0.06) == (picos[x] < 0.06):
@@ -4813,7 +4816,11 @@ def _con_ritmo(combo, v):
     for clave in ("hook", "cuerpo", "cta"):
         if vel.get(clave) or (clave == "cuerpo" and vel.get("partes")):
             continue
-        lista = frases_lentas(combo[clave], float(aj["desde"]), float(aj["objetivo"]), float(aj["maximo"]), pausa)
+        try:
+            lista = frases_lentas(combo[clave], float(aj["desde"]), float(aj["objetivo"]), float(aj["maximo"]), pausa)
+        except Exception as e:  # noqa: BLE001 — acelerar es un detalle: si falla, el video se arma igual sin acelerar
+            print(f"No se pudo medir el ritmo de {combo[clave]}: {e}{donde_fallo(e)}", flush=True)
+            lista = []
         if lista:
             tramos[clave] = [list(x) for x in lista]
     return {**v, "velocidad": {**vel, "tramos": tramos}} if tramos else v

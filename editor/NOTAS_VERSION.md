@@ -1,3 +1,8 @@
+Versión 1.66.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Arreglado «list index out of range» al armar** (en P05, 154 de 232 videos no se armaban). Al medir qué frases se dicen lento, una frase que terminaba justo al final del audio se pasaba del final de la onda de la voz, y fallaban todos los videos de ese cuerpo. Ahora se mide solo hasta donde llega la onda.
+- Y si medir el ritmo vuelve a fallar por algo raro, el video se arma igual (sin acelerar esa frase) en vez de no armarse.
+- Para armar los que faltan: «Armar todos los videos» (solo arma los que no están armados).
+
 Versión 1.66.0 (se actualiza desde la app con «Actualizar ahora»):
 - **La voz ya no se corre con los cortes.** Cada corte cae justo en un cuadro: antes la imagen se cortaba en cuadros enteros y la voz no, y en un cuerpo con 15 cortes la voz quedaba hasta 130 ms corrida al final (se notaba en los labios). Ahora: 1 o 2 ms.
 - **60 fps de verdad.** La sala mira a cuántos cuadros se grabó cada clip: los de 60 se preparan a 60 (antes todo bajaba a 30 y se perdía la mitad de los cuadros). Un video con alguna pieza de 60 sale a 60.
