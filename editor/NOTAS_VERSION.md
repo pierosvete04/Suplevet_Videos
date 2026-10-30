@@ -1,3 +1,8 @@
+Versión 1.58.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Tus plantillas y tu estilo viajan con la sesión:** «Actualizar proyecto» ya compartía cortes, subtítulos, imágenes y versiones; ahora también las plantillas propias (por ejemplo «Editor (limpio)»), cuál es la activa, el estilo de edición (zoom, fundido, transiciones) y el nivel de sonidos. Así, cuando el editor baja la sesión, sus videos salen con la misma letra y el mismo estilo que los tuyos. Si él cambia algo, te llega a ti igual que un corte.
+- **Los clips que asignaste a mano también viajan:** en la otra PC el análisis ya no los vuelve a mover.
+- Las plantillas que solo tiene la otra PC no se borran: se suman.
+
 Versión 1.57.9 (se actualiza desde la app con «Actualizar ahora»):
 - **El editor de video ya no se traba al reproducir:** en cada corte (con los silencios quitados, cada uno o dos segundos) el video tenía que buscar el punto nuevo y la vista daba un tirón. Ahora hay dos videos: mientras uno suena, el otro ya espera listo en el pedazo siguiente, y en el corte solo se cambia de uno a otro.
 - **Barra de segundos en «Editar video»:** al lado de ▶ Reproducir. Arrástrala para ir rápido a cualquier parte del video; mientras la arrastras, la vista te sigue.

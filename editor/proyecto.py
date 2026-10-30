@@ -34,6 +34,58 @@ _NO_VAN = (LOCAL, "_calidad.json")  # lo de esta PC que no se comparte
 _cerrojo = threading.RLock()
 ESTADO = {}  # sesión -> lo último que se sabe del proyecto (lo lee la pantalla)
 
+# Lo que no vive en datos/subtitulos/<sesión> pero cambia cómo sale el video: las plantillas propias, la plantilla
+# activa y el estilo de edición (en config.local.json) y los clips asignados a mano (datos/asignaciones). Viajan en el
+# paquete como dos archivos más; al traerlos se guardan en su lugar. Sin esto, el editor bajaba la sesión y sus videos
+# salían con otra letra, otro zoom y otros clips.
+ESTILO = "_estilo_equipo.json"
+A_MANO = "_a_mano.json"
+_DEL_ESTILO = ("plantillas_propias", "plantilla_activa", "estilo_edicion", "sonidos_nivel")
+_CAMBIO = {"plantillas_propias": "plantilla_activa_cambio", "plantilla_activa": "plantilla_activa_cambio",
+           "estilo_edicion": "estilo_cambio", "sonidos_nivel": "estilo_cambio"}
+
+
+def _virtuales():
+    d = {}
+    estilo = {k: motor.CONFIG[k] for k in _DEL_ESTILO if motor.CONFIG.get(k) and k in _config_local()}
+    if estilo:
+        d[ESTILO] = json.dumps(estilo, ensure_ascii=False, indent=1, sort_keys=True).encode("utf-8")
+    f = motor._asig_mano_archivo(motor.S.semana)
+    if f.exists():
+        try:
+            d[A_MANO] = json.dumps(sorted(json.loads(f.read_text(encoding="utf-8"))), ensure_ascii=False, indent=1).encode("utf-8")
+        except (ValueError, TypeError):
+            pass
+    return d
+
+
+def _config_local():
+    """Solo lo que esta PC eligió (config.local.json), no lo que trae la sala de fábrica."""
+    try:
+        return json.loads(motor.LOCAL_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def _guardar_virtual(rel, datos):
+    """Pone en su lugar lo que llegó del proyecto en los archivos de _virtuales(). Si no llegó nada (una versión
+    vieja, de antes de que viajaran), lo de esta PC queda como está."""
+    if not datos:
+        return
+    if rel == ESTILO:
+        nuevo = json.loads(datos)
+        if "plantillas_propias" in nuevo:  # las plantillas que solo tiene esta PC no se pierden
+            nuevo["plantillas_propias"] = {**(motor.CONFIG.get("plantillas_propias") or {}), **nuevo["plantillas_propias"]}
+        cambio = {k: v for k, v in nuevo.items() if k in _DEL_ESTILO and motor.CONFIG.get(k) != v}
+        for marca in {_CAMBIO[k] for k in cambio}:
+            cambio[marca] = time.time()  # los videos armados con lo de antes quedan por rearmar
+        if cambio:
+            motor.guardar_config(cambio)
+    elif rel == A_MANO:
+        f = motor._asig_mano_archivo(motor.S.semana)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(json.loads(datos), ensure_ascii=False), encoding="utf-8")
+
 
 # ---------- lo de esta PC ----------
 
@@ -41,13 +93,20 @@ def _archivos():
     """{ruta relativa: bytes} de lo que se edita en la sesión abierta."""
     S, d = motor.S, {}
     if not S.subs.exists():
-        return d
+        return _virtuales()
     for f in sorted(S.subs.rglob("*.json")):
         rel = f.relative_to(S.subs)
-        if rel.name in _NO_VAN or any(p.startswith(("_respaldo", "_reemplazados", "_copias")) for p in rel.parts[:-1]):
+        if rel.name in _NO_VAN or rel.as_posix() in (ESTILO, A_MANO) \
+                or any(p.startswith(("_respaldo", "_reemplazados", "_copias")) for p in rel.parts[:-1]):
             continue
         d[rel.as_posix()] = f.read_bytes()
+    d.update(_virtuales())
     return d
+
+
+def _propios(archivos):
+    """Lo editado de la sesión, sin las plantillas ni el estilo (que toda PC tiene aunque nunca haya abierto la sesión)."""
+    return {k: v for k, v in archivos.items() if k not in (ESTILO, A_MANO)}
 
 
 def _firma(archivos):
@@ -89,7 +148,7 @@ def quien():
 
 # ---------- qué cambió (en palabras) ----------
 
-QUE = {"_ajustes_piezas.json": "cortes, zoom e imágenes", "_ajustes_videos.json": "ajustes de videos (plantilla, altura, silencios)",
+QUE = {ESTILO: "plantillas y estilo de edición", A_MANO: "clips asignados a mano", "_ajustes_piezas.json": "cortes, zoom e imágenes", "_ajustes_videos.json": "ajustes de videos (plantilla, altura, silencios)",
        "_versiones.json": "versiones y «solo este video»", "_portadas.json": "portadas", "_copies_editados.json": "copies",
        "_ediciones.json": "ediciones y plan de la sesión", "_plan.json": "plan del director", "_estados.json": "estados de los videos"}
 
@@ -203,7 +262,7 @@ def revisar():
             e["mias"] = sorted(mias)
         else:
             e["choque"], e["mias"] = [], []
-        if e.get("pendiente") and vl is None and not archivos:
+        if e.get("pendiente") and vl is None and not _propios(archivos):
             # primera vez de esta sesión en esta PC (p. ej. el editor abre lo que analizó otra PC): no hay nada que
             # pueda chocar, así que lo del equipo se trae solo, sin esperar a que alguien toque «Actualizar»
             try:
@@ -306,6 +365,9 @@ def traer(version=None):
         S.subs.mkdir(parents=True, exist_ok=True)
         for rel, datos in cambios.items():
             if ".." in Path(rel).parts:
+                continue
+            if rel in (ESTILO, A_MANO):
+                _guardar_virtual(rel, datos)
                 continue
             f = S.subs / rel
             if datos is None:
