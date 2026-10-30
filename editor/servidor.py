@@ -500,7 +500,7 @@ def apartar_descarga(nombre):
 
 
 AUTO_DESC = []  # lo que llegó solo de Descargas: [{t, archivo, id, codigos}]
-CHOCAN_CON_DESCARGAS = {"bajar", "reiniciar", "terminar", "borrar_sesion", "renombrar", "ordenar_todo", "conectar"}
+CHOCAN_CON_DESCARGAS = {"bajar", "reiniciar", "terminar", "borrar_sesion", "subir_clips", "renombrar", "ordenar_todo", "conectar"}
 
 
 def anotar_faltan_gemini(ck, faltan):
@@ -899,6 +899,26 @@ def sesion_en_pc():
     return raices, locales, peso
 
 
+CLIPS_AQUI = {}  # sesión → (cuándo se contó, resultado): contar pregunta a Drive, se recuerda un minuto
+
+
+def clips_aqui(forzar=False):
+    """Los clips de la sesión abierta que están solo en esta PC: {n, peso, ejemplos} (None si no se pudo preguntar)."""
+    sem = motor.S.semana
+    if not forzar and sem in CLIPS_AQUI and time.time() - CLIPS_AQUI[sem][0] < 60:
+        return CLIPS_AQUI[sem][1]
+    if not drive.estado()["activo"]:
+        return None
+    raices, _, _ = sesion_en_pc()
+    try:
+        lista = [x for r in raices for x in drive.clips_sin_subir(r)]
+    except Exception:  # noqa: BLE001 — sin internet
+        return None
+    r = {"n": len(lista), "peso": sum(b for _, b in lista), "ejemplos": [Path(x).name for x, _ in lista[:5]]}
+    CLIPS_AQUI[sem] = (time.time(), r)
+    return r
+
+
 def sin_exportar():
     """Los videos armados que no están en V.FINALES (si se borra la sesión de la PC, habría que volver a armarlos)."""
     S = motor.S
@@ -940,7 +960,10 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
         for n, cb in enumerate(plan, 1):
             motor.revisar_cancelado()
             avance(f"Renombrando {Path(cb['viejo']).name} → {cb['nuevo']} ({n}/{len(plan)})")
-            if drive.estado()["activo"]:
+            # con «Clips solo en esta PC», un clip que no está en Drive se renombra solo aquí
+            en_drive = drive.estado()["activo"] and not (
+                motor.clips_solo_aqui() and drive.existe(motor.S.en_drive(cb["sesion"]), cb["viejo"]) is False)
+            if en_drive:
                 try:
                     drive.mover(motor.S.en_drive(cb["sesion"]), cb["viejo"], cb["nuevo"])  # si Drive no deja, no se toca nada local
                 except RuntimeError as e:
@@ -1093,16 +1116,32 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     # las piezas que otra PC ya preparó: así aquí no hay que prepararlas («Armar» va directo a armar)
                     drive.bajar_piezas(motor.S.drive, motor.S.proc, avance=avance)
                 if accion == "subir_drive":  # «⬆ Subir a Drive»: todo lo de esta PC, ahora
+                    solo_aqui = motor.clips_solo_aqui()  # sin los clips ni las piezas (video pesado): eso va con «Subir mis clips»
                     for m in motor.S.miembros:
-                        drive.subir(motor.S.en_drive(m), avance=avance)
+                        drive.subir(motor.S.en_drive(m), [x for x in drive.SUBIBLES if x != "Clips"] if solo_aqui else None, avance=avance)
                     avance("Subiendo lo que se escuchó de cada clip…")
                     drive.subir_transcripciones(motor.S.drive, motor.S.transcripciones)
-                    drive.subir_piezas(motor.S.drive, motor.S.proc, avance=avance)  # para que otra PC no las prepare
+                    if not solo_aqui:
+                        drive.subir_piezas(motor.S.drive, motor.S.proc, avance=avance)  # para que otra PC no las prepare
                     if proyecto.disponible() and proyecto._cambie_aqui() and not proyecto.revisar().get("pendiente"):
                         avance("Subiendo lo editado (subtítulos, cortes, imágenes)…")
                         proyecto.publicar("subido a mano")
                     _sin_falla(lambda: respaldos.hacer(auto=True))
-                    avance(f"Listo: lo de «{motor.S.semana}» en esta PC está en Drive")
+                    avance(f"Listo: lo de «{motor.S.semana}» en esta PC está en Drive"
+                           + (" (menos los clips: «Clips solo en esta PC» está prendido)" if solo_aqui else ""))
+                if accion == "subir_clips":  # «⬆ Subir mis clips a Drive» (con «Clips solo en esta PC»)
+                    raices, _, _ = sesion_en_pc()
+                    n = sum(drive.subir_clips(r, avance=avance) for r in raices)
+                    avance("Comprobando en Drive, clip por clip…")
+                    faltan = [rel for r in raices for rel, _ in drive.clips_sin_subir(r)]
+                    if faltan:
+                        raise RuntimeError(f"Drive todavía no tiene {len(faltan)} clip{'s' if len(faltan) != 1 else ''} "
+                                           f"({', '.join(Path(x).name for x in faltan[:3])}{'…' if len(faltan) > 3 else ''}). Vuelve a tocar «Subir mis clips».")
+                    drive.subir(motor.S.drive, ["asignaciones.json"], avance=avance)
+                    drive.subir_piezas(motor.S.drive, motor.S.proc, avance=avance)  # así otra PC no las prepara
+                    CLIPS_AQUI.clear()
+                    avance(f"Listo: {n} clip{'s' if n != 1 else ''} subido{'s' if n != 1 else ''} y comprobado{'s' if n != 1 else ''} en Drive."
+                           if n else "Listo: todos tus clips ya estaban en Drive.")
                 if accion == "lista_drive":
                     avance(f"{len(drive.actualizar_lista())} sesiones en Drive")
                 if accion == "escuchar":
@@ -1235,6 +1274,11 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     if not drive.estado()["activo"]:
                         raise RuntimeError("Drive no está conectado: sin Drive no se pueden volver a bajar los clips.")
                     sem = motor.S.semana
+                    if motor.clips_solo_aqui():  # se borran los clips de esta PC: los que no están en Drive se perderían
+                        c = clips_aqui(forzar=True)
+                        if c is None or c["n"]:
+                            raise RuntimeError(f"Tienes {c['n']} clips solo en esta PC: toca «⬆ Subir mis clips a Drive» antes de empezar de cero "
+                                               "(si no, se perderían)." if c else "No pude revisar en Drive qué clips están solo en esta PC.")
                     avance("Guardando una copia de seguridad de cómo estaba…")
                     _sin_falla(lambda: respaldos.hacer(nombre="Antes de empezar de cero", auto=False))
                     for m in motor.S.miembros:  # sin clips identificados, también en Drive (si no, volverían al bajar)
@@ -1292,6 +1336,7 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                         drive.borrar_sesion(raices, avance=avance)
                     avance("Borrando de esta PC…")
                     peso = motor.borrar_sesion_local(sem, raices)
+                    motor.poner_clips_solo_aqui(False, sem)
                     if en_drive:  # tampoco queda en las listas del equipo (archivadas, grupos)
                         if sem in motor.archivadas():
                             motor.guardar_archivadas([x for x in motor.archivadas() if x != sem])
@@ -1446,6 +1491,7 @@ class H(BaseHTTPRequestHandler):
             g = motor.grupos().get(motor.S.semana)
             self._json({"ok": True, "sesion": motor.S.semana, "peso": peso, "carpetas": raices, "sin_exportar": sin_exportar(),
                         "drive": bool(drive.estado()["activo"]), "grupo_suelto": bool(g and not g.get("carpeta")),
+                        "clips_aqui": clips_aqui() if motor.clips_solo_aqui() else None,
                         "en_drive": motor.S.drive in drive.sesiones_en_drive() or bool(g)})
         elif u.path == "/api/trabajo":
             self._json(TRABAJO)
@@ -1512,6 +1558,10 @@ class H(BaseHTTPRequestHandler):
             if not f:
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/clips_aqui":  # «Clips solo en esta PC»: si está prendido y cuántos clips faltan en Drive
+            activo = motor.clips_solo_aqui()
+            self._json({"ok": True, "activo": activo, "drive": bool(drive.estado()["activo"]),
+                        **({"cuenta": clips_aqui("forzar" in u.query)} if activo or "contar" in u.query else {})})
         elif u.path == "/api/tira":  # los cuadros de una pieza para la pista «Video» de Piezas y subtítulos
             n = parse_qs(u.query).get("pieza", [""])[0]
             try:
@@ -1879,7 +1929,9 @@ class H(BaseHTTPRequestHandler):
                 archivo = self._subir(q)
                 carpeta = {"assets": motor.S.assets, "musica": motor.S.musica, "hooks": motor.S.carpeta("hook"),
                            "cuerpos": motor.S.carpeta("cuerpo"), "ctas": motor.S.carpeta("cta")}[q["destino"][0]]
-                drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
+                if not (motor.clips_solo_aqui() and q["destino"][0] in ("hooks", "cuerpos", "ctas")):  # un clip grabado se queda aquí
+                    drive.subir_en_segundo_plano(motor.S.drive, [carpeta.relative_to(motor.S.principal).as_posix()])
+                CLIPS_AQUI.pop(motor.S.semana, None)
                 self._json({"ok": True, "archivo": archivo})
             elif u.path == "/api/subir_guion":  # el guion de la sesión: produccion.json de Claude, PDF, Word, .md o .txt
                 n = int(self.headers.get("Content-Length") or 0)
@@ -2533,6 +2585,16 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/terminar":
                 lanzar("terminar", extra={"borrar": bool(self._cuerpo().get("borrar"))})
                 self._json({"ok": True})
+            elif u.path == "/api/clips_aqui":
+                b = self._cuerpo()
+                if b.get("accion") == "subir":
+                    if not drive.estado()["activo"]:
+                        raise RuntimeError("Drive no está conectado: conéctalo para subir los clips.")
+                    lanzar("subir_clips")
+                else:
+                    motor.poner_clips_solo_aqui(bool(b.get("activo")))
+                    CLIPS_AQUI.pop(motor.S.semana, None)
+                self._json({"ok": True, "activo": motor.clips_solo_aqui()})
             elif u.path == "/api/borrar_sesion":
                 b = self._cuerpo()
                 lanzar("borrar_sesion", extra={"sesion": str(b.get("sesion") or ""), "drive": bool(b.get("drive"))})

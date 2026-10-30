@@ -280,6 +280,17 @@ def guardar_archivadas(lista):
     ARCHIVADAS_PATH.write_text(json.dumps(sorted(set(lista)), ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+# «Clips solo en esta PC» (de cada PC, en config.local): la sala no sube los clips grabados de esa sesión ni los saca
+# de la PC aunque no estén en Drive. Lo editado sí se comparte. Los clips suben cuando se pide («Subir mis clips»).
+def clips_solo_aqui(sesion=None):
+    return (sesion or S.semana) in (CONFIG.get("clips_solo_aqui") or [])
+
+
+def poner_clips_solo_aqui(activo, sesion=None):
+    s = sesion or S.semana
+    guardar_config({"clips_solo_aqui": [x for x in CONFIG.get("clips_solo_aqui") or [] if x != s] + ([s] if activo else [])})
+
+
 # Producciones nuevas: «P07 ARTICULACIONES» (número + tema). Se nombran al escribir el guion,
 # cuando todavía no se sabe qué día se graba; los clips de todos los días de grabación van dentro.
 PRODUCCION = re.compile(r"^P(\d{1,3})\b", re.I)

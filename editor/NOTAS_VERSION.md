@@ -1,3 +1,8 @@
+Versión 1.63.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Clips solo en esta PC.** En Inicio, en la tarjeta de la sesión, hay un interruptor nuevo. Prendido, puedes editar con clips que pusiste en tu PC sin subirlos a Drive: la sala no los sube y tampoco los saca de tu PC al bajar de Drive (antes, un clip que no estaba en Drive se iba a la papelera de la sala). Lo editado (cortes, subtítulos, imágenes) sí se comparte con el equipo.
+- Debajo dice cuántos clips tienes solo en tu PC y cuánto pesan. Cuando quieras, toca «⬆ Subir mis clips a Drive»: los sube, los comprueba uno por uno y sube también las piezas preparadas. Al terminar dice «✓ Todos tus clips están en Drive».
+- Con el interruptor prendido, «⬆ Subir a Drive» sube todo menos los clips. «Empezar de cero» no se deja hacer mientras haya clips sin subir (se perderían), y «Borrar la sesión» avisa si quedan.
+
 Versión 1.62.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Piezas y subtítulos: siempre ves el clip.** La línea de tiempo tiene una pista «Video» con los cuadros del clip, también en los hooks y los CTA de un solo clip (antes no salía). Arrastra sobre el video para elegir un tramo y quitarlo; con «Con cortes» el video se junta donde cortaste.
 - La barra de la línea de tiempo está ordenada: elegir el tramo (Inicio aquí, Fin aquí, Repetir), quitarlo, y a la derecha el imán y «↻ Cambiar el clip». Ahora entra entera en una laptop.

@@ -254,7 +254,8 @@ def bajar_sesion(nombre, avance=print):
         avance(f"Bajando los clips de «{nombre}»…")
         _rc("copy", f"{REMOTO}:{nombre}", CACHE / nombre, *excluir, *RAPIDO, avance=avance, prefijo="Clips: ")
         bajar_biblioteca(avance)
-        quitar_borrados_en_drive(nombre, avance)
+        if not motor.clips_solo_aqui():  # con «Clips solo en esta PC», los clips que no están en Drive son de aquí: se quedan
+            quitar_borrados_en_drive(nombre, avance)
         (CACHE / nombre / ".bajada").write_text(str(time.time()), encoding="utf-8")
         avance(f"«{nombre}» quedó lista en esta PC")
 
@@ -299,6 +300,42 @@ def quitar_borrados_en_drive(nombre, avance=print):
         avance(f"{n} clip{'s' if n != 1 else ''} que ya no {'están' if n != 1 else 'está'} en Drive "
                f"{'salieron' if n != 1 else 'salió'} de esta PC (en la papelera de la sala, por si acaso)")
     return quitados
+
+
+def clips_sin_subir(nombre):
+    """Los clips grabados de esta PC que no están en Drive (o están con otro tamaño): [(ruta, bytes)]."""
+    local = CACHE / nombre
+    if not local.is_dir():
+        return []
+    try:
+        remotos = {x["Path"]: x["Size"] for x in
+                   json.loads(_rc("lsjson", f"{REMOTO}:{nombre}", "-R", "--files-only", "--fast-list", timeout=600) or "[]")}
+    except RuntimeError as e:
+        if "not found" not in str(e).lower():  # sin internet: no se sabe (no se da por subido)
+            raise
+        remotos = {}  # la sesión todavía no está en Drive: todos sus clips son de aquí
+    out = []
+    for f in local.rglob("*"):
+        if not f.is_file() or f.suffix.lower() not in motor.EXT_VID:
+            continue
+        rel = f.relative_to(local).as_posix()
+        if not rel.lower().startswith(_NO_SE_LIMPIA) and remotos.get(rel) != f.stat().st_size:
+            out.append((rel, f.stat().st_size))
+    return out
+
+
+def subir_clips(nombre, avance=print):
+    """Sube los clips grabados de esta PC que faltan en Drive (los de «Clips solo en esta PC»). Devuelve cuántos."""
+    faltan = [rel for rel, _ in clips_sin_subir(nombre)]
+    if not faltan:
+        return 0
+    lista = motor.DATOS / "_trabajo" / "clips_a_subir.txt"
+    lista.parent.mkdir(parents=True, exist_ok=True)
+    lista.write_text("\n".join(faltan), encoding="utf-8")
+    with _candado:
+        avance(f"Subiendo a Drive {len(faltan)} clip{'s' if len(faltan) != 1 else ''} de «{nombre}»…")
+        _rc("copy", CACHE / nombre, f"{REMOTO}:{nombre}", "--files-from-raw", lista, *RAPIDO, avance=avance, prefijo="Clips: ")
+    return len(faltan)
 
 
 def compartir_transcripciones(nombre, local, avance=print):

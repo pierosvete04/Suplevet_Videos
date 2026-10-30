@@ -1155,6 +1155,13 @@ dialog.galeria { width: min(900px, 96vw); }
 .gal-play.sonando { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gal-play:disabled { opacity: .4; cursor: not-allowed; }
 #visor { cursor: pointer; }
+/* «Clips solo en esta PC» en la tarjeta de la sesión */
+.clips-aqui { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-caja, 14px); background: var(--bg2); display: grid; gap: 8px; }
+.ca-fila { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; cursor: pointer; font-size: 13px; }
+.ca-fila small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.ca-estado { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; font-size: 12.5px;
+  padding-top: 8px; border-top: 1px solid var(--line); }
+.ca-ok { color: var(--ok); font-weight: 600; }
 /* «Borrar la sesión»: dos opciones como tarjetas */
 .bs-opciones { display: grid; gap: 8px; }
 .bs-op { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-caja, 14px); cursor: pointer; background: var(--bg2); }
@@ -1761,6 +1768,12 @@ h3 { font: 650 13px/1.35 var(--fd); }
         <div class="fila" style="margin-top:12px;gap:6px;flex-wrap:nowrap">
           <button class="btn sec peq" type="button" id="inSubirDrive" style="flex:1" title="Sube ahora a Drive todo lo de esta PC: guion, imágenes, música, lo escuchado, lo editado, las piezas ya preparadas (así otra PC no tiene que prepararlas) y los videos finales. Lo chico también se sube solo cada pocos minutos">⬆ Subir a Drive</button>
           <button class="btn sec peq" type="button" id="inBajarDrive" style="flex:1" title="Trae de Drive los clips nuevos y lo que hicieron otras PCs, incluidas las piezas que otra PC ya preparó (y saca de esta PC los clips que borraste en Drive)">⬇ Bajar de Drive</button></div>
+        <div class="clips-aqui" id="inClipsAqui" hidden>
+          <label class="ca-fila" title="Para editar con clips que pusiste en esta PC sin esperar a subirlos: la sala no los sube a Drive ni los saca de esta PC. Lo editado (cortes, subtítulos, imágenes) sí se comparte con el equipo.">
+            <input type="checkbox" role="switch" class="interruptor" id="inClipsAquiSw">
+            <span><b>Clips solo en esta PC</b><small>Tus clips no suben a Drive hasta que tú lo pidas.</small></span></label>
+          <div class="ca-estado" id="inClipsAquiEstado" aria-live="polite" hidden></div>
+        </div>
         <button class="btn sec peq" type="button" id="inDeCero" style="margin-top:6px;width:100%" title="Vuelve a bajar los clips y a analizarlos desde cero. El guion y lo editado se quedan">↺ Empezar de cero</button>
         <button class="btn sec peq" type="button" id="inTerminar" style="margin-top:6px;width:100%" title="Sube a Drive todo lo de la sesión (clips, imágenes, música, guion y videos finales), lo comprueba y, si quieres, la borra de esta PC">☁ Terminar sesión</button>
         <button class="btn sec peq peligro" type="button" data-borrar-ses style="margin-top:6px;width:100%" title="Borra esta sesión de esta PC, o del todo (también de Drive)">🗑 Borrar la sesión…</button>
@@ -3348,9 +3361,48 @@ document.addEventListener("click", e => {
   if (c) return irConf(c.dataset.conf);
   if (e.target.closest("[data-clic-sesiones]")) { pintarListaSesiones(); $("dlgSesiones").showModal(); }
 });
+// «Clips solo en esta PC»: el interruptor y cuántos clips faltan en Drive (contar pregunta a Drive: cada 30 s como mucho)
+const tamTxt = b => b < 1e8 ? `${Math.max(1, Math.round(b / 1e6))} MB` : `${(b / 1e9).toFixed(1).replace(".", ",")} GB`;
+let clipsAquiVez = { s: null, t: 0 };
+async function pintarClipsAqui(forzar = false) {
+  const caja = $("inClipsAqui");
+  caja.hidden = !(E.drive || {}).activo;
+  if (caja.hidden || (!forzar && clipsAquiVez.s === E.semana && Date.now() - clipsAquiVez.t < 30000)) return;
+  clipsAquiVez = { s: E.semana, t: Date.now() };
+  let r; try { r = await (await fetch("/api/clips_aqui" + (forzar ? "?forzar" : ""))).json(); } catch (e) { return; }
+  $("inClipsAquiSw").checked = r.activo;
+  const est = $("inClipsAquiEstado"), c = r.cuenta;
+  est.hidden = !r.activo;
+  if (!r.activo) return;
+  est.innerHTML = !c ? `<span class="muted">No pude revisar Drive (¿sin internet?). Tus clips siguen aquí.</span>`
+    : !c.n ? `<span class="ca-ok">✓ Todos tus clips están en Drive</span>`
+    : `<span title="${esc(c.ejemplos.join(", "))}${c.n > c.ejemplos.length ? "…" : ""}"><b>${plural(c.n, "clip")} solo en esta PC</b> · ${tamTxt(c.peso)}</span>
+       <button class="btn peq" type="button" id="inSubirClips" title="Sube a Drive los clips que están solo en esta PC y los comprueba uno por uno">⬆ Subir mis clips a Drive</button>`;
+}
+$("inClipsAquiSw").addEventListener("change", async e => {
+  const activo = e.target.checked;
+  try { await post("/api/clips_aqui", { activo });
+    avisar(activo ? "Listo: tus clips de esta sesión se quedan en esta PC. Lo editado sí se comparte. Cuando quieras, toca «⬆ Subir mis clips a Drive»."
+      : "Los clips vuelven a ir a Drive como siempre. Si hay alguno solo en esta PC, súbelo con «⬆ Subir a Drive».", "ok");
+    pintarClipsAqui(true); }
+  catch (err) { e.target.checked = !activo; avisar("Error: " + err.message, "err"); }
+});
+document.addEventListener("click", async e => {
+  if (!e.target.closest("#inSubirClips")) return;
+  if (E.trabajo?.activo) return avisar("La sala está trabajando (☰). Espera a que termine.", "err");
+  try { await post("/api/clips_aqui", { accion: "subir" }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar("Subiendo tus clips a Drive… al terminar se comprueban uno por uno.", "muted");
+    const reloj = setInterval(async () => {
+      let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (er) { return; }
+      if (t.activo) return;
+      clearInterval(reloj); pintarClipsAqui(true);
+    }, 3000); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+});
 function pintarInicio() {
   $("inSesion").textContent = E.semana;
   pintarPrimeros();
+  pintarClipsAqui();
   // la tarjeta de la IA se pinta también al llegar los datos: si Claude se revisó antes, todavía no se sabía si
   // esta PC tiene Antigravity y quedaba diciendo «Claude no está instalado»
   if (typeof infoClaude !== "undefined" && infoClaude) pintarTarjetaIA(infoClaude);
@@ -3588,6 +3640,10 @@ async function borrarSesion() {
     $("bsConfirma").hidden = !todo;
     $("bsSi").textContent = todo ? "Borrar de esta PC y de Drive" : conDrive ? `Subir todo y borrar de esta PC (${gb})` : `Borrar de esta PC (${gb})`;
     $("bsSi").disabled = todo && norm($("bsEscribe").value) !== norm(clave);
+    const aqui = info.clips_aqui?.n || 0;  // «Clips solo en esta PC»: borrar del todo se los lleva
+    $("bsNota").innerHTML = todo && aqui
+      ? `<b style="color:var(--err)">Ojo: ${plural(aqui, "clip")} (${tamTxt(info.clips_aqui.peso)}) están solo en esta PC y se pierden.</b> Lo editado queda en Configuración → Copias de seguridad.`
+      : "Lo editado (cortes, subtítulos, imágenes) queda en Configuración → Copias de seguridad.";
   };
   $("bsForm").onchange = $("bsEscribe").oninput = pintar; pintar();
   $("dlgBorrarSes").returnValue = ""; $("dlgBorrarSes").showModal();
