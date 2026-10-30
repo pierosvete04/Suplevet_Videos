@@ -1000,6 +1000,11 @@ def nombre_angulo(cod):
     return NOMBRES_ANGULO.get(cod) or (f"Ángulo {cod[1:]}" if cod.startswith("A") else cod.title())
 
 
+def codigo_angulo_en(c):
+    """¿El clip está bajo una carpeta de ángulo (cualquiera menos «frente»)?"""
+    return any(codigo_angulo(p) for p in Path(c["rel"]).parts[:-1])
+
+
 def angulo_de(c):
     """Ángulo de un clip según sus carpetas («C1/IZQUIERDA/C1.1» → «IZQ»); «» si es de frente."""
     for parte in Path(c["rel"]).parts[:-1]:
@@ -1048,9 +1053,15 @@ def nombre_automatico(c):
     C1_H2.mov · Cuerpo/3.MOV -> C1_P3 · Cuerpo/C2/1.MOV -> C2_P1 · CTA/CTA.MOV -> CTA.
     También como los nombra el equipo a mano: C1-H1, C1.1, CTA 1.2 (ver leer_nombre)."""
     stem, tipo = nombre_clip(c["ruta"]), c["tipo_carpeta"]
+    # las carpetas del clip dentro de la sesión, de la más cercana a la más lejana. Una carpeta de ángulo puede ir en
+    # cualquier lugar («Clips/C6/Ángulo 2/Hooks/H1», «Clips/Ángulo 2/C6/Cuerpo/1»): se salta al buscar el cuerpo y el tipo
+    carpetas = [p for p in reversed(Path(c["rel"]).parts[:-1]) if codigo_angulo(p) is None]
+    if tipo is None and codigo_angulo_en(c):  # sin tipo por estar bajo una carpeta de ángulo: lo dice su carpeta
+        tipo = next(({"hook": "hook", "hooks": "hook", "cuerpo": "cuerpo", "cuerpos": "cuerpo", "cta": "cta", "ctas": "cta"}
+                     .get(p.lower()) for p in carpetas if p.lower() in ("hook", "hooks", "cuerpo", "cuerpos", "cta", "ctas")), None)
 
-    def cuerpo_de(ruta):  # Cuerpo/C2/1.MOV o C2/Cuerpo/1.MOV → C2; si no dice, C1
-        for d in (ruta.parent.name, ruta.parent.parent.name):
+    def cuerpo_de(ruta):  # Cuerpo/C2/1.MOV, C2/Cuerpo/1.MOV o C2/Ángulo 2/Hooks/H1.MOV → C2; si no dice, C1
+        for d in carpetas[:4]:
             if re.fullmatch(r"(?:C|P)\d+", d, re.I):
                 return d.upper()
         return "C1"

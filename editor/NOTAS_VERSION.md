@@ -1,3 +1,7 @@
+Versión 1.65.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Segundo ángulo en cualquier carpeta.** Los clips de una carpeta «Ángulo 2» (o «CAM 2», «IZQUIERDA»…) se reconocen pongas donde pongas esa carpeta: Clips/Ángulo 2/C6/Hooks/H1.MOV, Clips/C6/Ángulo 2/Hooks/H1.MOV o Clips/C6/Hooks/Ángulo 2/H1.MOV. Antes, con la carpeta del ángulo en medio, los cuerpos no se reconocían y los hooks caían todos en C1.
+- Con hooks por ronda: cada ronda usa sus hooks también en el ángulo 2. Si los hooks se graban una sola vez, el ángulo 2 usa los de frente de su ronda.
+
 Versión 1.65.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Varias rondas en un solo proyecto.** Un Excel con una hoja por ronda se sube entero: «Subir guion» → «Todas las hojas en este proyecto». Cada ronda tiene sus cuerpos (R1: C1–C5, R2: C6–C10…) y sus hooks H1–H5 van solo con los cuerpos de su ronda. Las 10 Rondas arman 250 videos.
 - Si una hoja vuelve a empezar en C1, la sala sigue la numeración sola y te avisa (los hooks de la ronda que empieza en C6 se guardan en Clips/C6/Hooks/H1.MOV).

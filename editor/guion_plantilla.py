@@ -275,6 +275,9 @@ LEEME = [
     ["Varias rondas en un proyecto: una hoja por ronda. Los hooks H1… de cada hoja van solo con los cuerpos de esa hoja."],
     ["Numera los cuerpos seguidos (R1: C1–C5, R2: C6–C10…). Si una hoja vuelve a empezar en C1, la sala la corre sola y te avisa."],
     ["Los hooks de la ronda que empieza en C6 se guardan en Clips/C6/Hooks/H1.MOV."],
+    [""],
+    ["Segundo ángulo: el mismo guion, sin cambiar nada. Pon esos clips en una carpeta «Ángulo 2» (por ejemplo Clips/Ángulo 2/C6/Hooks/H1.MOV)."],
+    ["Si los hooks se graban una sola vez, los cuerpos del ángulo 2 usan los hooks de frente de su ronda."],
     ["Para subirlo: Guion → «Subir guion» → elige este Excel (y la hoja, si hay varias)."],
 ]
 
