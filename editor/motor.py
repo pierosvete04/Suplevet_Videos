@@ -2754,7 +2754,7 @@ def revision_guion():
     for g in guion_para_grabar_actual():
         nombre = g["nombre"]
         p = ps.get(nombre)
-        fila = {"nombre": nombre, "tipo": g["tipo"], "tipo_hook": g.get("tipo_hook"), "texto": g["texto"], "partes": g["partes"],
+        fila = {"nombre": nombre, "tipo": g["tipo"], "tipo_hook": g.get("tipo_hook"), "texto": g["texto"], "partes": g["partes"], "todos": bool(g.get("todos")),
                 "clips": p["rels"] if p else [], "procesada": bool(p and (S.subs / f"{nombre}.json").exists()),
                 "diff": [], "parecido": None,
                 # clips sin identificar que suenan a esta pieza (para asignarlos desde el guion)
@@ -3341,7 +3341,7 @@ def leer_guion_texto(texto):
     """Saca las piezas de un guion escrito (Word, .md o .txt). Entiende el formato de los guiones de Claude
     («## C1 — Tema», «### Cuerpo» con frases numeradas, «**H1.** …», «## CTA») y líneas sueltas con código
     («C1-H2: texto», «C1.3 texto», «CTA 1: texto»). Devuelve {pieza: {tipo, texto, partes?}}."""
-    frases, hooks = {}, {}
+    frases, hooks, comunes = {}, {}, {}  # comunes: hooks fuera de un cuerpo («## Hooks» arriba): sirven para todos
     cuerpo, seccion, cta_actual = None, None, None
     sep = r"\s*[.:)\-—–]+\s*"
     for crudo in texto.splitlines():
@@ -3366,8 +3366,8 @@ def leer_guion_texto(texto):
             if (m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*(\d+)(?:\s*[—:\-–]\s*.*|\s*\(.*\))?", s, re.I)) \
                     or (titulo and (m := re.fullmatch(r"(\d{1,2})\s*[—:\-–.]\s*\D.*", s))):  # «## 1 — SUPLEVET Y PARVOVIRUS»
                 cuerpo, seccion, cta_actual = f"C{int(m[1])}", "cuerpo", None
-            elif re.fullmatch(r"(?:HOOKS?|GANCHOS?)\s*(?:[:(].*)?", s, re.I):
-                seccion = "hooks"
+            elif re.fullmatch(r"(?:HOOKS?|GANCHOS?)\s*(?:[:(—–·-].*)?", s, re.I):
+                seccion = "hooks"  # antes del primer cuerpo (sin cuerpo arriba): hooks para todos los cuerpos
             elif re.fullmatch(r"CUERPO\s*(?:[:(].*)?", s, re.I):
                 seccion = "cuerpo"
             elif m := re.fullmatch(r"(?:CTAS?|CIERRES?|LLAMADOS? A LA ACCI[OÓ]N)(?:[\s_-]*(\d+|[A-Z]))?\s*(?:[—:\-–(].*)?", s, re.I):
@@ -3386,6 +3386,8 @@ def leer_guion_texto(texto):
                 c = f"{m[1].upper()}{int(m[2])}" if m[1] else cuerpo
                 if c:
                     hooks[f"{c}_H{int(m[3])}"] = m[4].strip()
+                elif seccion == "hooks":  # «H1. …» sin cuerpo arriba: para todos los cuerpos
+                    comunes[int(m[3])] = m[4].strip()
                 return True
             if m := re.match(rf"^([CP])(\d+)[.\s_-]+P?(\d+)(?:{sep}|\s+)(.+)$", s, re.I):
                 frases.setdefault(f"{m[1].upper()}{int(m[2])}", {})[int(m[3])] = m[4].strip()
@@ -3407,7 +3409,8 @@ def leer_guion_texto(texto):
         if (titulo_de_seccion() or con_codigo()) if titulo else (con_codigo() or titulo_de_seccion()):
             # «C1: Mi perro se rasca todo el día»: si después del código viene una oración (no un tema corto),
             # además de abrir el cuerpo es su frase
-            if seccion == "cuerpo" and cuerpo and (m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*\d+\s*[—:\-–]\s*(.+)", s, re.I)):
+            # (un título «## C5 — 4P · imagen, promesa…» es el tema del cuerpo, nunca una frase)
+            if not titulo and seccion == "cuerpo" and cuerpo and (m := re.fullmatch(r"(?:C|CUERPO|VIDEO)\s*\d+\s*[—:\-–]\s*(.+)", s, re.I)):
                 resto = m[1].strip()
                 if len(resto.split()) >= 6 or re.search(r"[.!?…]$|[¿¡]", resto):
                     d = frases.setdefault(cuerpo, {})
@@ -3420,6 +3423,8 @@ def leer_guion_texto(texto):
         if seccion == "cuerpo" and cuerpo:
             d = frases.setdefault(cuerpo, {})
             d[int(num[1]) if num and int(num[1]) not in d else max(d, default=0) + 1] = resto
+        elif seccion == "hooks" and not cuerpo and num:
+            comunes[int(num[1])] = resto
         elif seccion == "hooks" and cuerpo and num:
             hooks[f"{cuerpo}_H{int(num[1])}"] = resto
         elif seccion == "hooks" and cuerpo and len(resto.split()) >= 3:
@@ -3436,6 +3441,11 @@ def leer_guion_texto(texto):
                        **({"partes": partes} if len(partes) > 1 else {})}
     for nombre, t in hooks.items():
         out[nombre] = {"tipo": "hook", "texto": t}
+    # los hooks para todos quedan como hooks del primer cuerpo con la marca «todos» (como en la plantilla de Excel)
+    cuerpos = sorted((k for k in frases if "CTA" not in k), key=lambda x: int(re.sub(r"\D", "", x) or 0))
+    primero = cuerpos[0] if cuerpos else "C1"
+    for n, t in comunes.items():
+        out.setdefault(f"{primero}_H{n}", {"tipo": "hook", "texto": t, "todos": True})
     return dict(sorted(out.items(), key=lambda x: ({"cuerpo": 0, "hook": 1, "cta": 2}[tipo_de(x[0])], x[0])))
 
 
@@ -3604,9 +3614,14 @@ def _juntar_renglones(lineas):
     return "\n".join(out)
 
 
-def _leer_guion_archivo(nombre_archivo, datos):
-    """El guion de un archivo: produccion.json de Claude (completo) o PDF / Word / .md / .txt (solo el texto)."""
+def _leer_guion_archivo(nombre_archivo, datos, hoja=None):
+    """El guion de un archivo: produccion.json de Claude (completo), la plantilla en Excel (una hoja: `hoja`) o
+    PDF / Word / .md / .txt (solo el texto)."""
     ext = Path(nombre_archivo).suffix.lower()
+    if ext == ".xlsx":  # la plantilla de guion: la columna A dice qué es cada fila, no se adivina nada
+        import guion_plantilla
+        nombre_hoja, piezas_g = guion_plantilla.leer(datos, hoja)
+        return {"origen": "subido", "archivo": Path(nombre_archivo).name, "hoja": nombre_hoja, "piezas": piezas_g}
     if ext == ".json":
         try:
             prod = json.loads(datos.decode("utf-8-sig"))
@@ -3637,7 +3652,7 @@ def _leer_guion_archivo(nombre_archivo, datos):
                              "los hooks con «H1», «H2»… (o «C1-H1: texto») y el cierre con «CTA».")
         prod = {"origen": "subido", "archivo": Path(nombre_archivo).name, "piezas": piezas_g}
     else:
-        raise ValueError("Sube el guion en PDF, Word (.docx), texto (.md o .txt) o el produccion.json de Claude.")
+        raise ValueError("Sube el guion en la plantilla de Excel (.xlsx), PDF, Word (.docx), texto (.md o .txt) o el produccion.json de Claude.")
     return prod
 
 
@@ -3652,11 +3667,11 @@ def _firma(f):
     return f"{f.name}|{st.st_size}|{int(st.st_mtime)}"
 
 
-def subir_guion(nombre_archivo, datos):
+def subir_guion(nombre_archivo, datos, hoja=None):
     """Guion que se sube desde la sala (botón «Subir guion»). Reemplaza al que había (queda una copia) y deja el
     archivo en la carpeta del guion, como si el equipo lo hubiera puesto ahí. Devuelve {piezas, cuerpos, hooks, ctas, origen}."""
     ext = Path(nombre_archivo).suffix.lower()
-    prod = _leer_guion_archivo(nombre_archivo, datos)
+    prod = _leer_guion_archivo(nombre_archivo, datos, hoja)
     S.guion.mkdir(parents=True, exist_ok=True)
     limpio = re.sub(r'[\\/:*?"<>|]+', "_", Path(nombre_archivo).name)[:80]
     if limpio.lower() in _NO_SON_GUION:
@@ -3671,10 +3686,16 @@ def subir_guion(nombre_archivo, datos):
     return _resumen_guion(prod, ext)
 
 
-def probar_guion(nombre_archivo, datos):
-    """Lee un guion sin guardar nada: qué trae y qué piezas del guion de ahora se quitarían si se sube."""
+def probar_guion(nombre_archivo, datos, hoja=None):
+    """Lee un guion sin guardar nada: qué trae y qué piezas del guion de ahora se quitarían si se sube.
+    Un Excel con varias hojas de guion devuelve {"hojas": [...]} para elegir una."""
     ext = Path(nombre_archivo).suffix.lower()
-    prod = _leer_guion_archivo(nombre_archivo, datos)
+    try:
+        prod = _leer_guion_archivo(nombre_archivo, datos, hoja)
+    except ValueError as e:
+        if getattr(e, "hojas", None):
+            return {"hojas": e.hojas}
+        raise
     base = _guion_propio() or {}
     viejas = set((base.get("piezas") or {}))
     nuevas = set(_mezclar_guion(base, prod, time.time())["piezas"] if ext != ".json" else prod["piezas"])
@@ -3702,6 +3723,11 @@ def _mezclar_guion(base, nuevo, cuando):
             m = {**v, **{k: pz[k] for k in ("tipo", "texto") if k in pz}}
             if pz.get("tipo") in ("hook", "cta") and v.get("tipo"):
                 m["tipo"] = v["tipo"]  # «hook»/«cta» a secas no pisa el estilo que ya tenía (pregunta, anuncio…)
+            for k in ("todos", "nota"):  # «para todos los cuerpos» y la nota de la plantilla: los manda el archivo nuevo
+                if pz.get(k):
+                    m[k] = pz[k]
+                else:
+                    m.pop(k, None)
             if pz.get("partes"):
                 m["partes"] = pz["partes"]
             elif " ".join(v.get("partes") or []).strip() != str(pz.get("texto") or "").strip():
@@ -3728,7 +3754,7 @@ _GUION_CON_ERROR = {}  # firma → error, para no intentar leer una y otra vez u
 def guion_en_carpeta():
     """El guion más nuevo que el equipo dejó en la carpeta Guion/Guiones (Word, .md, .txt o un .json de Claude)."""
     archivos = [f for d in CARPETAS_GUION if (S.principal / d).is_dir() for f in (S.principal / d).iterdir()
-                if f.is_file() and f.suffix.lower() in (".docx", ".pdf", ".md", ".txt", ".json")
+                if f.is_file() and f.suffix.lower() in (".docx", ".pdf", ".md", ".txt", ".json", ".xlsx")
                 and f.name.lower() not in _NO_SON_GUION and not f.name.startswith(("~$", "."))
                 and not re.search(r"\((?:producci[oó]n|para grabar)\)$", f.stem)]  # los Word que exporta la sala
     con_nombre = [f for f in archivos if "guion" in norm(f.stem) or "script" in norm(f.stem)]
@@ -3756,10 +3782,13 @@ def importar_guion_de_carpeta():
     if firma in _GUION_CON_ERROR:
         return {"archivo": f.name, "error": _GUION_CON_ERROR[firma]}
     try:
-        prod = _leer_guion_archivo(f.name, f.read_bytes())
+        # el mismo Excel corregido: la misma hoja que se eligió al subirlo
+        prod = _leer_guion_archivo(f.name, f.read_bytes(), base.get("hoja") if base.get("archivo") == f.name else None)
     except (ValueError, OSError) as e:
-        _GUION_CON_ERROR[firma] = str(e)
-        return {"archivo": f.name, "error": str(e)}
+        msg = (f"«{f.name}» tiene varias hojas de guion: súbelo con «Subir guion» para elegir cuál va en esta sesión."
+               if getattr(e, "hojas", None) else str(e))
+        _GUION_CON_ERROR[firma] = msg
+        return {"archivo": f.name, "error": msg}
     # un .json de Claude es un guion completo (no lleva «subido»: ese solo trae el texto). Uno de texto se mezcla con
     # el que había: no se pierden las marcas del guion de Claude ni lo corregido en la sala después del archivo
     with GUION_CANDADO:
@@ -3791,7 +3820,7 @@ def guion_para_grabar(semana=None):
         tipo = tipo_de(nombre) if info.get("tipo") not in ("cuerpo",) else "cuerpo"
         partes = info.get("partes") or (re.split(r"(?<=[.!?])\s+", texto.strip()) if tipo == "cuerpo" else [texto])
         out.append({"nombre": nombre, "tipo": tipo, "tipo_hook": info.get("tipo") if tipo == "hook" and info.get("tipo") != "hook" else None,
-                    "texto": texto, "partes": [x for x in partes if x.strip()]})
+                    "texto": texto, "partes": [x for x in partes if x.strip()], **({"todos": True} if info.get("todos") else {})})
     orden = {"cuerpo": 0, "hook": 1, "cta": 2}
     return sorted(out, key=lambda x: (orden[x["tipo"]], x["nombre"]))
 
@@ -4174,6 +4203,11 @@ def _combinaciones_sin_memoria():
     alterna = {p["nombre"]: p.get("alterna") for p in ps}
     vs = leer_versiones()
     plan, eds = _leer_ediciones()["plan"], ediciones()
+    # hooks «para todos los cuerpos» (H1 en la plantilla): se graban una vez como hooks del primer cuerpo y van con cada
+    # cuerpo que no tenga su propio hook con ese número
+    del_guion = produccion().get("piezas", {})
+    comunes = [h for h in hooks if (del_guion.get(sin_angulo(h)[0]) or {}).get("todos")]
+    num_hook = lambda h: sin_angulo(h)[0].split("_")[1]  # «C1_H2~A2» → «H2»
     for c in cuerpos:
         cb, ca = sin_angulo(c)
         # Otro ángulo: usa sus propios hooks y CTA si se grabaron así; si no, los de frente (el mismo número de hook),
@@ -4191,7 +4225,9 @@ def _combinaciones_sin_memoria():
             prestado = min(ctas, key=lambda x: (abs(num(x) - yo), sin_angulo(x)[1] != "", x))
             propios = [prestado]
         de_cuerpo = [h for h in hooks if sin_angulo(h)[0].split("_")[0] == cb]
-        numeros = sorted({sin_angulo(h)[0] for h in de_cuerpo}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)])
+        propios_n = {num_hook(h) for h in de_cuerpo}
+        de_cuerpo += [h for h in comunes if sin_angulo(h)[0].split("_")[0] != cb and num_hook(h) not in propios_n]
+        numeros = sorted({sin_angulo(h)[0] for h in de_cuerpo}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)][::-1])
         hooks_c = [next((h for h in de_cuerpo if sin_angulo(h) == (n, ca)), None) or next((h for h in de_cuerpo if sin_angulo(h) == (n, "")), None)
                    or next((h for h in de_cuerpo if sin_angulo(h)[0] == n), None) for n in numeros]
         for i, h in enumerate([h for h in hooks_c if h]):

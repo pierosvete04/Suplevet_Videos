@@ -899,6 +899,16 @@ def sesion_en_pc():
     return raices, locales, peso
 
 
+def guion_subido(r):
+    """Después de cambiar el guion de la sesión: a Drive, comparar otra vez lo grabado y al panel."""
+    drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
+    if motor.clips():  # con clips ya grabados: se vuelven a comparar con el guion nuevo
+        r["reasignar_en_cola"] = bool(lanzar("reasignar", en_cola=True))
+    if motor.CONFIG.get("panel", {}).get("token"):
+        threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
+    return r
+
+
 CLIPS_AQUI = {}  # sesión → (cuándo se contó, resultado): contar pregunta a Drive, se recuerda un minuto
 
 
@@ -1558,6 +1568,8 @@ class H(BaseHTTPRequestHandler):
             if not f:
                 return self.send_error(404)
             self._archivo(f.parent, f.name)
+        elif u.path == "/api/guion_a_plantilla":  # ¿ya pasó Antigravity el guion a la plantilla? (con la tabla para revisar)
+            self._json({"ok": True, **antigravity.estado_plantilla(motor.S.semana)})
         elif u.path == "/api/clips_aqui":  # «Clips solo en esta PC»: si está prendido y cuántos clips faltan en Drive
             activo = motor.clips_solo_aqui()
             self._json({"ok": True, "activo": activo, "drive": bool(drive.estado()["activo"]),
@@ -1937,15 +1949,24 @@ class H(BaseHTTPRequestHandler):
                 n = int(self.headers.get("Content-Length") or 0)
                 if n > 20 * 1024 * 1024:
                     raise ValueError("El archivo es muy grande para ser un guion")
+                hoja = q.get("hoja", [None])[0]  # un Excel con varias hojas: cuál va en esta sesión
                 if q.get("probar"):  # solo leerlo: qué trae y qué piezas se quitarían (para preguntar antes)
-                    return self._json({"ok": True, **motor.probar_guion(q["nombre"][0], self.rfile.read(n))})
-                r = motor.subir_guion(q["nombre"][0], self.rfile.read(n))
-                drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
-                if motor.clips():  # con clips ya grabados: se vuelven a comparar con el guion nuevo
-                    r["reasignar_en_cola"] = bool(lanzar("reasignar", en_cola=True))
-                if motor.CONFIG.get("panel", {}).get("token"):
-                    threading.Thread(target=lambda: _sin_error(panel.subir_guion), daemon=True).start()
-                self._json({"ok": True, **r})
+                    return self._json({"ok": True, **motor.probar_guion(q["nombre"][0], self.rfile.read(n), hoja)})
+                self._json({"ok": True, **guion_subido(motor.subir_guion(q["nombre"][0], self.rfile.read(n), hoja))})
+            elif u.path == "/api/guion_a_plantilla":  # «✦ Pasar mi guion a la plantilla» con Antigravity
+                n = int(self.headers.get("Content-Length") or 0)
+                if n > 20 * 1024 * 1024:
+                    raise ValueError("El archivo es muy grande para ser un guion")
+                self._json({"ok": True, **antigravity.pasar_a_plantilla(motor.S.semana, q["nombre"][0], self.rfile.read(n))})
+            elif u.path == "/api/guion_a_plantilla_usar":  # la hoja elegida pasa a ser el guion de la sesión
+                import guion_plantilla
+                hojas = antigravity.plantilla_de_antigravity(motor.S.semana)
+                if not hojas:
+                    raise ValueError("Antigravity todavía no terminó la plantilla.")
+                hoja = str(self._cuerpo().get("hoja") or hojas[0][0])
+                xlsx = guion_plantilla.escribir_xlsx([(nombre, [guion_plantilla.COLUMNAS] + filas) for nombre, filas in hojas])
+                (antigravity._carpeta_plantilla(motor.S.semana) / "Guion en plantilla.xlsx").write_bytes(xlsx)  # para corregirlo a mano
+                self._json({"ok": True, **guion_subido(motor.subir_guion(f"Guion {motor.S.semana}.xlsx", xlsx, hoja))})
             elif u.path == "/api/formato":
                 if TRABAJO["activo"]:
                     raise RuntimeError("Hay un trabajo en curso: espera a que termine para cambiar el formato.")
@@ -2080,6 +2101,17 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, **antigravity.armar_musica(abrir=True)})
             elif u.path == "/api/traer_prompts_antigravity":
                 self._json({"ok": True, **antigravity.traer_prompts()})
+            elif u.path == "/api/guion_plantilla":  # la plantilla de guion en Excel: vacía o con el guion de la sesión
+                import guion_plantilla
+                if self._cuerpo().get("con_guion"):
+                    pz = motor.produccion().get("piezas") or {}
+                    if not pz:
+                        raise ValueError("Esta sesión todavía no tiene guion: descarga la plantilla vacía.")
+                    f = guion_plantilla.guardar_en_descargas(f"Guion {motor.S.semana}.xlsx", guion_plantilla.escribir_xlsx(
+                        [(motor.S.semana, [guion_plantilla.COLUMNAS] + guion_plantilla.filas_de_piezas(pz))]))
+                else:
+                    f = guion_plantilla.guardar_en_descargas("Plantilla de guion.xlsx", guion_plantilla.plantilla_vacia())
+                self._json({"ok": True, "ruta": str(f), "nombre": f.name})
             elif u.path == "/api/marca_plantilla":
                 self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
             elif u.path == "/api/marca_importar":

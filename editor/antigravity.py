@@ -106,7 +106,7 @@ def cancelar_pedido(tipo):
 
 def abrir_pedido(tipo):
     """Abre Antigravity con la carpeta del pedido (o la carpeta en el Explorador si no está instalado)."""
-    carpeta = _carpeta(PEDIDOS.get(tipo, "Paquete Antigravity"))[1]
+    carpeta = _carpeta_plantilla() if tipo == "plantilla" else _carpeta(PEDIDOS.get(tipo, "Paquete Antigravity"))[1]
     if not carpeta.is_dir():
         raise ValueError("Ese pedido ya no está en Descargas: vuelve a tocar el botón de Antigravity")
     return _abrir(carpeta, True)
@@ -1040,6 +1040,120 @@ def estado_guion(sesion):
     except ValueError as e:
         return {"pedido": True, "listo": False, "error": f"El produccion.json salió con un error de formato ({e}). Pídele a Gemini que lo corrija."}
     return {"pedido": True, "listo": True, "subido": bool(meta.get("subido")), "meta": str(meta_f)}
+
+
+# ---------- Pasar un guion cualquiera (el PDF para imprimir, un Word…) a la plantilla de la sala ----------
+
+def _carpeta_plantilla(sesion=None):
+    """«Plantilla Antigravity - <producción>» en Descargas (como los otros pedidos: _carpeta)."""
+    return _carpeta("Plantilla Antigravity")[1]
+
+
+INSTRUCCIONES_PLANTILLA = """# Pasar el guion a la plantilla de la sala · {sesion}
+
+El equipo tiene su guion en otro formato ({archivo}). Pásalo a la plantilla que entiende la sala de edición.
+El guion está en: {original}
+(y su texto, ya sacado, en: {texto})
+
+## Qué escribir
+Un solo archivo, en esta carpeta: {salida}
+JSON válido, con esta forma exacta:
+{{"hojas": [{{"nombre": "R1 Se está apagando", "filas": [["H1", "texto del hook", ""], ["C1.1", "frase", "PAS"], ...]}}]}}
+
+Cada fila es [código, lo que se dice, nota]. Los códigos:
+- H1, H2, H3…: hook que sirve para TODOS los cuerpos (por ejemplo, «hooks universales» o «sirven para los 5 cuerpos»).
+- C1 H1, C2 H3…: hook que es solo de ese cuerpo (aparece dentro de ese cuerpo).
+- C1.1, C1.2, C1.3…: las frases del cuerpo 1, en orden, una fila por frase.
+- C1 CTA: el cierre (CTA) del cuerpo 1. Si el cierre tiene varias frases, una fila por frase, todas con «C1 CTA».
+- CTA: un cierre que sirve para todos los cuerpos.
+La nota (tercera columna) es opcional: el nombre de la estructura del cuerpo (PAS, AIDA…) en su primera frase.
+
+## Reglas
+- Copia el texto TAL CUAL está escrito: no lo corrijas, no lo resumas, no inventes frases.
+- Sáltate todo lo que no se dice en cámara: índice, títulos de página, nombres de sección, casillas, notas de grabación, explicaciones.
+- Si el documento trae varias rondas, temas o sesiones (cada una con sus propios hooks y cuerpos), haz una hoja por cada una,
+  con un nombre corto (máximo 30 letras), y empieza los cuerpos de cada hoja en C1.
+- Si trae una sola, una sola hoja llamada «{sesion}».
+PROHIBIDO, para ir rápido: escribir scripts o correr comandos. Usa solo la herramienta de escribir archivos.
+Al terminar responde en una línea: cuántas hojas, cuerpos y hooks pasaste.
+"""
+
+
+def pasar_a_plantilla(sesion, nombre_archivo, datos, abrir=True):
+    """Le pide a Gemini (Antigravity) que pase un guion de cualquier formato a la plantilla: deja plantilla.json en la
+    carpeta del pedido. La pantalla espera (estado_plantilla) y muestra la tabla para revisarla antes de usarla."""
+    ext = Path(nombre_archivo).suffix.lower()
+    if ext not in (".pdf", ".docx", ".md", ".txt"):
+        raise ValueError("Antigravity puede pasar a la plantilla un PDF, un Word (.docx) o un texto (.md o .txt).")
+    try:
+        texto = motor._texto_docx(datos) if ext == ".docx" else motor._texto_pdf(datos) if ext == ".pdf" else motor._texto_plano(datos)
+    except Exception:  # noqa: BLE001 — igual le queda el archivo original
+        texto = ""
+    carpeta = _carpeta_plantilla(sesion)
+    if carpeta.exists():
+        shutil.rmtree(carpeta, ignore_errors=True)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    original = carpeta / ("guion_original" + ext)
+    original.write_bytes(datos)
+    (carpeta / "guion_original_texto.txt").write_text(texto, encoding="utf-8")
+    salida = carpeta / "plantilla.json"
+    instr = INSTRUCCIONES_PLANTILLA.format(sesion=sesion, archivo=Path(nombre_archivo).name, original=original,
+                                           texto=carpeta / "guion_original_texto.txt", salida=salida)
+    (carpeta / "INSTRUCCIONES.md").write_text(instr, encoding="utf-8")
+    (carpeta / "GEMINI.md").write_text(instr, encoding="utf-8")
+    (carpeta / "_sala.json").write_text(json.dumps({"sesion": sesion, "archivo": Path(nombre_archivo).name, "pedido": time.time()},
+                                                   ensure_ascii=False), encoding="utf-8")
+    mensaje = f"Lee {carpeta / 'INSTRUCCIONES.md'} y hazlo tal cual. No escribas scripts ni corras comandos."
+    abierto, enviado, porque = _pasar(carpeta, mensaje, "flash", abrir, titulo=f"Sala · Plantilla {sesion}")
+    return {"carpeta": str(carpeta), "mensaje": mensaje, "abierto": abierto, "enviado": enviado, "porque": porque,
+            "instalado": bool(exe())}
+
+
+def plantilla_de_antigravity(sesion):
+    """Lo que escribió Gemini: [(nombre de la hoja, filas)], o None si todavía no llega. ValueError si salió mal."""
+    meta_f = _carpeta_plantilla(sesion) / "_sala.json"
+    try:
+        meta = json.loads(meta_f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    f = meta_f.parent / "plantilla.json"
+    if not f.exists() or f.stat().st_mtime < meta["pedido"] or time.time() - f.stat().st_mtime < 3:
+        return None
+    try:
+        hojas = json.loads(f.read_text(encoding="utf-8-sig")).get("hojas")
+    except (ValueError, AttributeError) as e:
+        raise ValueError(f"La plantilla salió con un error de formato ({e}). Pídele a Antigravity que la corrija.")
+    if not isinstance(hojas, list) or not hojas:
+        raise ValueError("La plantilla salió sin hojas. Pídele a Antigravity que la corrija.")
+    out = []
+    for h in hojas:
+        filas = [[str(x if x is not None else "") for x in (f or [])][:3] for f in (h or {}).get("filas") or [] if isinstance(f, list)]
+        out.append((str((h or {}).get("nombre") or f"Hoja {len(out) + 1}")[:31], filas))
+    return out
+
+
+def estado_plantilla(sesion):
+    """{"pedido", "listo", "error", "hojas": [{nombre, cuerpos, hooks, para_todos, ctas, filas, error}]}."""
+    import guion_plantilla
+    if not (_carpeta_plantilla(sesion) / "_sala.json").exists():
+        return {"pedido": False}
+    try:
+        hojas = plantilla_de_antigravity(sesion)
+    except ValueError as e:
+        return {"pedido": True, "listo": False, "error": str(e)}
+    if hojas is None:
+        return {"pedido": True, "listo": False}
+    resumen = []
+    for nombre, filas in hojas:
+        r = {"nombre": nombre, "filas": filas[:200]}
+        try:
+            pz = guion_plantilla.piezas_de_filas(filas)
+            r.update(cuerpos=sum(1 for v in pz.values() if v["tipo"] == "cuerpo"), hooks=sum(1 for v in pz.values() if v["tipo"] == "hook"),
+                     para_todos=sum(1 for v in pz.values() if v.get("todos")), ctas=sum(1 for v in pz.values() if v["tipo"] == "cta"))
+        except ValueError as e:
+            r["error"] = str(e)
+        resumen.append(r)
+    return {"pedido": True, "listo": True, "hojas": resumen, "carpeta": str(_carpeta_plantilla(sesion))}
 
 
 def marcar_guion_subido(sesion):

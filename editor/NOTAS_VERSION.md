@@ -1,3 +1,11 @@
+Versión 1.64.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Plantilla de guion en Excel.** En Guion → «Plantilla de guion (Excel)»: columna A el código (H1, C1.1, C1 CTA), columna B lo que se dice, columna C una nota que no se graba. Una hoja por sesión (por ejemplo, una por ronda). La sala la lee sin adivinar nada: se acabaron los índices y títulos leídos como frases.
+- «Subir guion» acepta el Excel. Si trae varias hojas, pregunta cuál va en la sesión.
+- **Hooks para todos los cuerpos:** un hook «H1» (sin cuerpo) se graba una vez y va con cada cuerpo. Una ronda de 5 hooks y 5 cuerpos arma sus 25 videos. En el guion sale «Para todos los cuerpos».
+- **✦ Pasar mi guion con Antigravity:** elige tu guion como lo tengas (el PDF para imprimir, un Word…). Antigravity lo pasa a la plantilla copiando el texto tal cual, tú revisas la tabla y lo usas como guion de la sesión.
+- «Este guion en Excel» baja el guion de la sesión ya en la plantilla, para corregirlo y volver a subirlo.
+- Los títulos de cada cuerpo («## C5 — 4P · imagen, promesa…») ya no se leen como si fueran la primera frase.
+
 Versión 1.63.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Clips solo en esta PC.** En Inicio, en la tarjeta de la sesión, hay un interruptor nuevo. Prendido, puedes editar con clips que pusiste en tu PC sin subirlos a Drive: la sala no los sube y tampoco los saca de tu PC al bajar de Drive (antes, un clip que no estaba en Drive se iba a la papelera de la sala). Lo editado (cortes, subtítulos, imágenes) sí se comparte con el equipo.
 - Debajo dice cuántos clips tienes solo en tu PC y cuánto pesan. Cuando quieras, toca «⬆ Subir mis clips a Drive»: los sube, los comprueba uno por uno y sube también las piezas preparadas. Al terminar dice «✓ Todos tus clips están en Drive».

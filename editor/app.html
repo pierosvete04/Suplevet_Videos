@@ -863,9 +863,26 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
 .g-accion.principal { align-items: center; }  /* «Subir guion»: centrado de arriba a abajo en su tarjeta */
 .g-accion.principal .g-ico { background: rgba(255,255,255,.2); color: #fff; }
 .g-accion.principal.encima { outline: 3px dashed #fff; outline-offset: -8px; }
-.g-accion.imprimir { cursor: default; }
-.g-accion.imprimir:hover { transform: none; }
-@media (max-width: 1000px) { .g-acciones { grid-template-columns: 1fr; } }
+.g-accion.imprimir, .g-accion.plantilla { cursor: default; }
+.g-accion.imprimir:hover, .g-accion.plantilla:hover { transform: none; }
+.g-acciones:has(.plantilla) { grid-template-columns: 1.1fr 1fr 1fr 1.25fr; }
+@media (max-width: 1400px) { .g-acciones:has(.plantilla) { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1000px) { .g-acciones, .g-acciones:has(.plantilla) { grid-template-columns: 1fr; } }
+/* revisar lo que Antigravity pasó a la plantilla: las hojas a la izquierda, la tabla a la derecha */
+.pa-cuerpo { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; padding: 16px; min-height: 0; }
+.pa-hojas { display: grid; gap: 6px; align-content: start; max-height: 60vh; overflow: auto; }
+.pa-hoja { text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-campo, 9px); background: var(--bg2); color: inherit; font: inherit; cursor: pointer; }
+.pa-hoja[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.pa-hoja b { display: block; font-size: 13px; } .pa-hoja small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.pa-hoja.mal small { color: var(--err); }
+.pa-tabla { max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-caja, 14px); }
+.pa-tabla table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pa-tabla th { position: sticky; top: 0; background: var(--surface); text-align: left; font: 600 11px var(--mono); color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.pa-tabla td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pa-tabla td:first-child { font: 600 12px var(--mono); white-space: nowrap; color: var(--accent2); }
+.pa-tabla td:last-child { color: var(--muted); font-size: 12px; }
+.pa-tabla tr.todos td:first-child { color: var(--ok); }
+@media (max-width: 760px) { .pa-cuerpo { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .g-accion { transition: none; } .g-accion:hover { transform: none; } }
 /* Equipo (Configuración) */
 .eq-lista { display: grid; gap: 6px; }
@@ -1785,7 +1802,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
         <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Preparar la sesión</h2><span class="pill" id="prepAvance"></span></div>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">Antes de grabar: el guion, las imágenes, la música y los sonidos. Cuando subas los clips, la sala arma los videos con todo esto.</p>
         <ol class="prep-lista" id="prepLista"></ol>
-        <input type="file" id="prepGuion" accept=".pdf,.docx,.md,.txt,.json" hidden>
+        <input type="file" id="prepGuion" accept=".xlsx,.pdf,.docx,.md,.txt,.json" hidden>
       </div>
       <div class="caja">
         <div class="fila" style="justify-content:space-between"><h2 style="margin:0">Para revisar <span class="pill" id="inNRevisar"></span></h2>
@@ -1893,8 +1910,8 @@ h3 { font: 650 13px/1.35 var(--fd); }
     <div class="g-acciones">
       <label class="g-accion principal" id="gSubirZona" tabindex="0">
         <span class="g-ico" aria-hidden="true">⬆</span>
-        <span><b>Subir guion</b><small>PDF, Word, .txt, .md o el de Claude (.json). Haz clic o arrástralo aquí.</small></span>
-        <input type="file" id="gSubirGuion" accept=".pdf,.docx,.md,.txt,.json" hidden></label>
+        <span><b>Subir guion</b><small>La plantilla de Excel, PDF, Word, .txt, .md o el de Claude (.json). Haz clic o arrástralo aquí.</small></span>
+        <input type="file" id="gSubirGuion" accept=".xlsx,.pdf,.docx,.md,.txt,.json" hidden></label>
       <button class="g-accion" type="button" id="gArmar">
         <span class="g-ico" aria-hidden="true">✦</span>
         <span><b id="gArmarTit">Armar el guion con los clips</b><small id="gArmarTxt">Escucha los clips, saca los subtítulos y arma el guion con lo que se dijo. En esta PC, sin Claude.</small></span></button>
@@ -1903,6 +1920,13 @@ h3 { font: 650 13px/1.35 var(--fd); }
         <span><b>Guion para imprimir</b><small>Una hoja por cuerpo, con todos sus hooks. En letra grande, para leer al grabar.</small>
           <span class="fila" style="margin-top:8px;gap:6px"><button class="btn peq" type="button" id="gWord">Word (.docx)</button>
             <button class="btn sec peq" type="button" id="gPdf">PDF / imprimir</button></span></span></div>
+      <div class="g-accion plantilla">
+        <span class="g-ico" aria-hidden="true">▦</span>
+        <span><b>Plantilla de guion (Excel)</b><small>Columna A el código (H1, C1.1, C1 CTA), columna B lo que se dice. Así la sala lo lee sin errores.</small>
+          <span class="fila" style="margin-top:8px;gap:6px;flex-wrap:wrap"><button class="btn peq" type="button" id="gPlantilla" title="Deja en Descargas la plantilla vacía, con un ejemplo y una hoja «Léeme»">Descargar plantilla</button>
+            <button class="btn sec peq" type="button" id="gPlantillaGuion" title="El guion de esta sesión ya pasado a la plantilla, para corregirlo en Excel y volver a subirlo">Este guion en Excel</button>
+            <button class="btn sec peq" type="button" id="gPlantillaAg" title="Elige tu guion (PDF, Word o texto): Antigravity lo pasa a la plantilla, tú lo revisas y queda como guion de la sesión">✦ Pasar mi guion con Antigravity</button>
+            <input type="file" id="gPlantillaAgArchivo" accept=".pdf,.docx,.md,.txt" hidden></span></span></div>
     </div>
     <div class="caja" style="margin-bottom:14px">
       <div class="fila" style="justify-content:space-between">
@@ -2628,7 +2652,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
   <div class="gal-lista" id="galLista"></div>
 </dialog>
 <dialog id="dlgPregunta" class="pregunta" aria-labelledby="pqTexto">
-  <div class="pq"><p id="pqTexto"></p><input id="pqCampo" hidden autocomplete="off">
+  <div class="pq"><p id="pqTexto"></p><input id="pqCampo" hidden autocomplete="off"><select id="pqElige" hidden aria-label="Elige una"></select>
     <div class="fila" style="justify-content:flex-end"><button class="btn sec" type="button" id="pqNo">Cancelar</button><button class="btn sec peligro" type="button" id="pqOtro" hidden></button><button class="btn" type="button" id="pqSi">Sí, seguir</button></div></div>
 </dialog>
 <dialog id="dlgAg" aria-labelledby="dlgAgTit" style="width:min(640px,94vw)">
@@ -2851,6 +2875,15 @@ h3 { font: 650 13px/1.35 var(--fd); }
           <p class="muted" style="font-size:11.5px;margin:10px 0 0">Un <b>grupo</b> junta varias sesiones de grabación que son una sola producción: un guion, todos sus clips y todos sus videos.</p>
         </div>
   </div>
+</dialog>
+<dialog id="dlgPlantillaAg" aria-labelledby="paTit" style="width:min(1000px,96vw)">
+  <div class="dlg-cab"><div><h2 id="paTit" style="margin:0">Tu guion en la plantilla</h2>
+      <small class="muted" id="paSub">Antigravity lo pasó a la plantilla. Revísalo: la columna A es el código, la B lo que se dice.</small></div>
+    <button class="btn sec peq" type="button" id="paCerrar">Cerrar</button></div>
+  <div class="pa-cuerpo"><div class="pa-hojas" id="paHojas" role="group" aria-label="Hojas"></div><div class="pa-tabla" id="paTabla"></div></div>
+  <div class="fila" style="justify-content:space-between;padding:0 16px 16px;gap:8px">
+    <button class="btn sec peq" type="button" id="paCarpeta" title="La carpeta del pedido en Descargas: ahí queda también «Guion en plantilla.xlsx» para corregirlo a mano">Abrir la carpeta</button>
+    <button class="btn" type="button" id="paUsar">Usar esta hoja como guion de la sesión</button></div>
 </dialog>
 <dialog id="dlgBorrarSes" aria-labelledby="bsTit" style="width:min(560px,94vw)">
   <form method="dialog" style="padding:18px;display:grid;gap:12px" id="bsForm">
@@ -3221,8 +3254,8 @@ document.addEventListener("click", e => {
 // confirm(), prompt() y alert() del navegador no se ven en la ventana del programa: la página quedaba esperando una
 // respuesta invisible (la ✕ del video no cerraba). Estas son ventanas de la sala, y cada decisión queda en Notificaciones.
 // validar(valor): con un campo, devuelve un texto de error para no cerrar la ventana (o nada si está bien)
-// otro: un tercer botón (p. ej. «No guardar»), que devuelve "otro"
-function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false, validar = null, otro = null }) {
+// otro: un tercer botón (p. ej. «No guardar»), que devuelve "otro". opciones: una lista para elegir (devuelve la elegida)
+function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = null, peligro = false, validar = null, otro = null, opciones = null }) {
   return new Promise(ok => {
     const d = $("dlgPregunta");
     $("pqTexto").textContent = texto;
@@ -3230,8 +3263,11 @@ function ventanaPregunta({ texto, si = "Sí, seguir", no = "Cancelar", campo = n
     $("pqOtro").textContent = otro || ""; $("pqOtro").hidden = !otro;
     $("pqSi").className = "btn" + (peligro ? " peligro-btn" : "");
     $("pqCampo").hidden = campo === null; $("pqCampo").value = campo ?? "";
+    $("pqElige").hidden = !opciones; $("pqElige").innerHTML = (opciones || []).map(o => `<option>${esc(o)}</option>`).join("");
     const cerrar = v => { d.close(); $("pqSi").onclick = $("pqNo").onclick = $("pqOtro").onclick = null; d.oncancel = null; $("pqCampo").onkeydown = null; ok(v); };
     $("pqOtro").onclick = () => cerrar("otro");
+    if (opciones) { $("pqSi").onclick = () => cerrar($("pqElige").value); $("pqNo").onclick = () => cerrar(null); d.oncancel = e => { e.preventDefault(); cerrar(null); };
+      d.showModal(); setTimeout(() => $("pqElige").focus(), 30); return; }
     $("pqSi").onclick = () => {
       const mal = campo !== null && validar ? validar($("pqCampo").value) : "";
       if (mal) { avisar(mal, "err"); $("pqCampo").focus(); return; }
@@ -10025,8 +10061,15 @@ $("prepLista").addEventListener("click", async e => {
 });
 // Subir un guion: primero se lee (sin guardar) para avisar qué trae y qué piezas se quitarían; recién ahí se pregunta
 async function subirGuionArchivo(f, hayGuion) {
-  const url = `/api/subir_guion?nombre=${encodeURIComponent(f.name)}`;
-  const pr = await post(url + "&probar=1", f, true);
+  let url = `/api/subir_guion?nombre=${encodeURIComponent(f.name)}`;
+  let pr = await post(url + "&probar=1", f, true);
+  if (pr.hojas) {  // la plantilla de Excel con varias hojas (una por ronda): cuál va en esta sesión
+    const hoja = await ventanaPregunta({ texto: `«${f.name}» tiene ${plural(pr.hojas.length, "hoja")} de guion. ¿Cuál va en «${E.semana}»?`,
+      si: "Usar esta hoja", opciones: pr.hojas });
+    if (!hoja) return null;
+    url += `&hoja=${encodeURIComponent(hoja)}`;
+    pr = await post(url + "&probar=1", f, true);
+  }
   if (hayGuion) {
     const q = pr.se_quitan || [];
     const trae = `«${f.name}» trae ${plural(pr.cuerpos, "cuerpo")}, ${plural(pr.hooks, "hook")} y ${plural(pr.ctas, "CTA", "CTA")}.`;
@@ -10581,6 +10624,65 @@ $("gSubirGuion").onchange = async e => {
     await cargar(); pintarGuion();
   } catch (err) { avisar("No se pudo subir el guion: " + err.message, "err"); }
 };
+// ---------- Plantilla de guion (Excel): descargarla, bajar el guion en ella y pasar uno cualquiera con Antigravity ----------
+async function bajarPlantilla(con_guion) {
+  try { const r = await post("/api/guion_plantilla", { con_guion });
+    avisar(`Listo: «${r.nombre}» quedó en ${r.ruta.replace(/\\[^\\]+$/, "")}. Llénala (columna A el código, B lo que se dice) y súbela con «Subir guion».`, "ok"); }
+  catch (err) { avisar("Error: " + err.message, "err"); }
+}
+$("gPlantilla").onclick = () => bajarPlantilla(false);
+$("gPlantillaGuion").onclick = () => bajarPlantilla(true);
+$("gPlantillaAg").onclick = () => $("gPlantillaAgArchivo").click();
+let relojPlantilla = null, plantillaAg = null, hojaPa = 0;
+$("gPlantillaAgArchivo").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const r = await post(`/api/guion_a_plantilla?nombre=${encodeURIComponent(f.name)}`, f, true);
+    avisar(r.enviado ? `Antigravity está pasando «${f.name}» a la plantilla (1 a 3 minutos). Cuando termine, te muestro la tabla para revisarla.`
+      : r.instalado ? `Abrí Antigravity: si no arranca solo, pega este mensaje en su chat: ${r.mensaje}`
+      : "Antigravity no está instalado en esta PC: instálalo o llena la plantilla a mano («Descargar plantilla»).", r.enviado ? "ok" : "warn");
+    esperarPlantilla();
+  } catch (err) { avisar("Error: " + err.message, "err"); }
+};
+function esperarPlantilla() {
+  clearInterval(relojPlantilla);
+  const desde = Date.now();
+  relojPlantilla = setInterval(async () => {
+    let r; try { r = await (await fetch("/api/guion_a_plantilla")).json(); } catch (e) { return; }
+    if (r.error) { clearInterval(relojPlantilla); return avisar(r.error, "err"); }
+    if (r.listo) { clearInterval(relojPlantilla); plantillaAg = r; hojaPa = 0; pintarPlantillaAg(); $("dlgPlantillaAg").showModal(); }
+    else if (Date.now() - desde > 15 * 60000) { clearInterval(relojPlantilla); avisar("Antigravity tardó demasiado con la plantilla: mira su ventana o vuelve a pedirlo.", "warn"); }
+  }, 5000);
+}
+function pintarPlantillaAg() {
+  const hs = plantillaAg?.hojas || [];
+  $("paSub").textContent = hs.length > 1 ? `Antigravity lo pasó a ${hs.length} hojas. Elige la que va en «${E.semana}» y revísala: la columna A es el código, la B lo que se dice.`
+    : "Antigravity lo pasó a la plantilla. Revísalo: la columna A es el código, la B lo que se dice.";
+  $("paHojas").innerHTML = hs.map((h, i) => `<button type="button" class="pa-hoja ${h.error ? "mal" : ""}" data-pa="${i}" aria-pressed="${i === hojaPa}">
+    <b>${esc(h.nombre)}</b><small>${h.error ? "⚠ Tiene códigos que no se entienden"
+      : `${plural(h.cuerpos, "cuerpo")} · ${plural(h.hooks, "hook")}${h.para_todos ? ` (${h.para_todos} para todos)` : ""} · ${plural(h.ctas, "CTA", "CTA")}`}</small></button>`).join("");
+  const h = hs[hojaPa];
+  $("paTabla").innerHTML = !h ? "" : (h.error ? `<p style="color:var(--err);padding:10px 12px;margin:0">${esc(h.error)}</p>` : "")
+    + `<table><thead><tr><th>Código</th><th>Lo que se dice</th><th>Nota</th></tr></thead><tbody>${h.filas.map(f =>
+      `<tr class="${/^\s*H\s*\d+\s*$/i.test(f[0] || "") ? "todos" : ""}"><td>${esc(f[0] || "")}</td><td>${esc(f[1] || "")}</td><td>${esc(f[2] || "")}</td></tr>`).join("")}</tbody></table>`;
+  $("paUsar").disabled = !h || !!h.error;
+  $("paUsar").textContent = hs.length > 1 ? `Usar «${h?.nombre || ""}» como guion de «${E.semana}»` : `Usar como guion de «${E.semana}»`;
+}
+$("paHojas").addEventListener("click", e => { const b = e.target.closest("[data-pa]"); if (b) { hojaPa = Number(b.dataset.pa); pintarPlantillaAg(); } });
+$("paCerrar").onclick = () => $("dlgPlantillaAg").close();
+$("paCarpeta").onclick = () => post("/api/abrir_antigravity", { tipo: "plantilla" }).catch(err => avisar("Error: " + err.message, "err"));
+$("paUsar").onclick = async () => {
+  const h = plantillaAg?.hojas?.[hojaPa]; if (!h) return;
+  if ((ultimoGuion || E.hay_produccion) && !await preguntar(`¿Reemplazo el guion de «${E.semana}» por «${h.nombre}»? (el anterior queda guardado como copia)`, "Sí, usar esta hoja")) return;
+  try {
+    const r = await post("/api/guion_a_plantilla_usar", { hoja: h.nombre });
+    $("dlgPlantillaAg").close();
+    resumenGuion = { semana: null, datos: null };
+    avisar(`Guion listo: ${plural(r.cuerpos, "cuerpo")}, ${plural(r.hooks, "hook")} y ${plural(r.ctas, "CTA", "CTA")}. La plantilla en Excel quedó en la carpeta Guion de la sesión.`, "ok");
+    if (r.reasignar_en_cola !== undefined) try { vigilar(await (await fetch("/api/trabajo")).json()); } catch (er) {}
+    await cargar(); pintarGuion();
+  } catch (err) { avisar("No se pudo usar la plantilla: " + err.message, "err"); }
+};
 let ultimoGuion = null, vistaGuion = "todo", corroborado = false;
 function textoGuion(p) {
   return corroborado && p.procesada && p.diff.length
@@ -10661,7 +10763,7 @@ function pintarGuionLista() {
   const lista = filtrar(g.piezas.filter(p => vistaGuion === "todo" || p.tipo === vistaGuion));
   avisoBusqueda(lista.length);
   $("guionLista").innerHTML = lista.map(p => `<div class="caja g-pieza">
-      <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span></h3>${estadoGuion(p)}</div>
+      <div class="fila" style="justify-content:space-between"><h3 style="margin:0">${esc(p.nombre)} <span class="muted" style="font-weight:400">· ${etq[p.tipo]}${p.tipo_hook ? " · " + esc(p.tipo_hook) : ""}</span>${p.todos ? ` <span class="pill ok" title="Se graba una vez y va con cada cuerpo">Para todos los cuerpos</span>` : ""}</h3>${estadoGuion(p)}</div>
       <div class="g-cuerpo">${videoGuion(p.clips.length && videoDePieza(p.nombre))}
         <div><div class="texto" data-gtexto="${esc(p.nombre)}">${textoGuion(p)}</div>
           <button class="btn sec peq" type="button" data-geditar="${esc(p.nombre)}" style="margin-top:6px" title="Cambia lo que dice esta pieza en el guion: se ve en el teleprompter (sala y tablet)">✎ Editar texto</button>
