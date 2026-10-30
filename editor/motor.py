@@ -7696,11 +7696,28 @@ def armar(pieza=None, avance=print, codigos=None, solo_cambios=False):
         # una pieza que todavía no se preparó en esta PC (p. ej. sus subtítulos vinieron de otra): se prepara antes
         avance("Preparando las piezas que faltan")
         procesar(avance=avance)
+    # un video que falla no frena a los demás (antes, en P05, uno con error cortó un lote de casi 2 horas): se anota,
+    # se sigue y al final se dice cuál y por qué. «Cancelar» sí para todo.
+    armar.fallidos = []
+
+    def fallo(combo, e):
+        import traceback
+        print(f"No se pudo armar {combo['codigo']}:", flush=True)
+        traceback.print_exception(e)
+        armar.fallidos.append((combo["codigo"], f"{e}{donde_fallo(e)}"))
+        avance(f"⚠ {combo['archivo']} no se pudo armar ({e}{donde_fallo(e)}). Sigo con los demás.")
+
     a_la_vez = min(armados_a_la_vez(), len(todos))
     if a_la_vez <= 1:
         for n, combo in enumerate(todos):
             avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)})")
-            r = armar_uno(combo)
+            try:
+                r = armar_uno(combo)
+            except Cancelado:
+                raise
+            except Exception as e:  # noqa: BLE001
+                fallo(combo, e)
+                continue
             hechos.append(r["codigo"])
         return hechos
     # varios a la vez: el zoom, los subtítulos y las imágenes usan un solo núcleo del procesador por video,
@@ -7721,10 +7738,14 @@ def armar(pieza=None, avance=print, codigos=None, solo_cambios=False):
                     avance(f"Armando {combo['archivo']} ({n + 1}/{len(todos)}) · {a_la_vez} a la vez")
                 try:
                     r = armar_uno(combo)
-                except BaseException as e:  # el primero que falla para a los demás (no empiezan otros)
+                except (Cancelado, KeyboardInterrupt, SystemExit) as e:  # cancelado: paran todos (no empiezan otros)
                     with cerrojo:
                         errores.append(e)
                     return
+                except Exception as e:  # noqa: BLE001 — un video con error: se anota y se sigue con el próximo
+                    with cerrojo:
+                        fallo(combo, e)
+                    continue
                 with cerrojo:
                     listos[n] = r["codigo"]
         finally:
@@ -7738,6 +7759,19 @@ def armar(pieza=None, avance=print, codigos=None, solo_cambios=False):
     if errores:
         raise errores[0]
     return [listos[k] for k in sorted(listos)]
+
+
+def donde_fallo(e):
+    """Para un error del programa (no un aviso para la persona): « · motor.py línea 7406, armar_uno». Así, con solo
+    ver Procesos se sabe dónde arreglarlo (el detalle completo queda en datos/sala.log de esa PC)."""
+    if isinstance(e, (ValueError, RuntimeError, Cancelado, OSError)) and not isinstance(e, (IndexError, KeyError)):
+        return ""
+    import traceback
+    pila = [f for f in traceback.extract_tb(e.__traceback__) if f.filename.endswith(".py")]
+    if not pila:
+        return ""
+    f = pila[-1]
+    return f" · {Path(f.filename).name} línea {f.lineno}, {f.name}"
 
 
 def armados_a_la_vez():

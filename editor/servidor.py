@@ -899,6 +899,15 @@ def sesion_en_pc():
     return raices, locales, peso
 
 
+def fallidos_txt():
+    """Los videos que no se pudieron armar en el último lote (los demás sí se armaron): para el «Listo» de Procesos."""
+    f = getattr(motor.armar, "fallidos", None) or []
+    if not f:
+        return ""
+    return (f". ⚠ {len(f)} no se pudo armar" if len(f) == 1 else f". ⚠ {len(f)} no se pudieron armar") + ": " \
+        + "; ".join(f"{c} ({e[:80]})" for c, e in f[:4]) + ("…" if len(f) > 4 else "")
+
+
 def guion_subido(r):
     """Después de cambiar el guion de la sesión: a Drive, comparar otra vez lo grabado y al panel."""
     drive.subir_en_segundo_plano(motor.S.drive, ["Guion"])
@@ -1035,10 +1044,10 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                     hechos_a = motor.armar(pieza, avance=avance, solo_cambios=accion == "todo")
                     sal = getattr(motor.armar, "saltados", 0)
                     avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}"
-                           + (f" ({sal} ya estaban al día)" if sal else ""))
+                           + (f" ({sal} ya estaban al día)" if sal else "") + fallidos_txt())
                 if accion == "armar_sel":
                     hechos_a = motor.armar(avance=avance, codigos=extra["codigos"])
-                    avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}")
+                    avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}" + fallidos_txt())
                 if accion == "reasignar":  # el guion cambió (o se pidió a mano): todos los clips de nuevo con el guion
                     reasignar_y_preparar()
                 if accion == "ordenar_todo":  # analizar, asignar lo seguro y renombrar, todo de una vez
@@ -1374,8 +1383,8 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
             TRABAJO["log"] = (TRABAJO["log"] + ["Cancelado por ti."])[-200:]
             TRABAJO["cancelado"] = True
         except Exception as e:
-            TRABAJO["error"] = str(e)
-            avance("Error: " + str(e).splitlines()[0])
+            TRABAJO["error"] = (str(e) or type(e).__name__) + motor.donde_fallo(e)  # dónde, para poder arreglarlo
+            avance("Error: " + TRABAJO["error"].splitlines()[0])
             traceback.print_exc()
         finally:
             TRABAJO["activo"] = False

@@ -1,3 +1,8 @@
+Versión 1.65.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Un video con error ya no frena todo el lote.** «Armar todos los videos» sigue con los demás y al final dice cuál no se pudo armar y por qué (antes, en P05, un solo video cortó un lote de casi 2 horas con «list index out of range»).
+- Si algo falla, Procesos dice también en qué parte del programa (por ejemplo «motor.py línea 7406»), para arreglarlo rápido.
+- Lo que ya se armó nunca se pierde: «Armar todos los videos» se salta los que ya están al día.
+
 Versión 1.65.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Segundo ángulo en cualquier carpeta.** Los clips de una carpeta «Ángulo 2» (o «CAM 2», «IZQUIERDA»…) se reconocen pongas donde pongas esa carpeta: Clips/Ángulo 2/C6/Hooks/H1.MOV, Clips/C6/Ángulo 2/Hooks/H1.MOV o Clips/C6/Hooks/Ángulo 2/H1.MOV. Antes, con la carpeta del ángulo en medio, los cuerpos no se reconocían y los hooks caían todos en C1.
 - Con hooks por ronda: cada ronda usa sus hooks también en el ángulo 2. Si los hooks se graban una sola vez, el ángulo 2 usa los de frente de su ronda.
