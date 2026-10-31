@@ -1,3 +1,8 @@
+Versión 1.66.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Entrar con Google ya no se queda trabado.** Si la página de Google no aparece (no se abrió, quedó detrás de la app o se cerró la pestaña), la pantalla de entrar muestra «¿No ves la página de Google?» con el link para copiar y los botones «Abrir Google otra vez» y «Cancelar».
+- Un intento de entrar que quedó esperando se corta al intentar de nuevo (antes ocupaba el puerto de Google y el nuevo se quedaba esperando detrás). Si pasan 10 minutos sin aceptar, se avisa y se puede volver a intentar.
+- Si otra de las tres apps ya está esperando a Google, se avisa con claridad.
+
 Versión 1.66.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Arreglado «list index out of range» al armar** (en P05, 154 de 232 videos no se armaban). Al medir qué frases se dicen lento, una frase que terminaba justo al final del audio se pasaba del final de la onda de la voz, y fallaban todos los videos de ese cuerpo. Ahora se mide solo hasta donde llega la onda.
 - Y si medir el ritmo vuelve a fallar por algo raro, el video se arma igual (sin acelerar esa frase) en vez de no armarse.

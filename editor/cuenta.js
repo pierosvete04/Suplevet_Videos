@@ -180,9 +180,31 @@
             <details style="text-align:left"><summary>Avanzado: credenciales propias de Google Cloud</summary>
               <p class="cta-mut" style="font-size:12px;margin:6px 0">Si tu equipo tiene su propio proyecto en Google Cloud (cliente OAuth «App de escritorio»), pega aquí su ID y secreto. Si no, déjalo vacío.</p>
               <input id="cta-cid" placeholder="ID de cliente (…apps.googleusercontent.com)"><input id="cta-secreto" type="password" autocomplete="off" placeholder="Secreto del cliente"></details>
-            <div class="cta-nota" id="cta-nota"></div></div>`;
-          const esperar = b => { velo.querySelectorAll("button").forEach(x => x.disabled = true); nota("Se abrió Google en tu navegador: elige tu cuenta y acepta. Esta ventana sigue sola."); };
-          const soltar = e => { velo.querySelectorAll("button").forEach(x => x.disabled = false); nota(e.message, true); };
+            <div class="cta-nota" id="cta-nota"></div><div id="cta-google"></div></div>`;
+          // Mientras se espera a Google: si el navegador no se abrió (o quedó detrás), el link para abrirlo otra vez
+          const vigilarGoogle = () => {
+            clearInterval(W.vigia);
+            W.vigia = setInterval(async () => {
+              const g = velo?.querySelector("#cta-google");
+              if (!g) return clearInterval(W.vigia);
+              let link = "";
+              try { link = (await pedir("/api/cuenta/primera", { accion: "google" })).link_google || ""; } catch (e) {}
+              if (!link || g.dataset.link === link) return;
+              g.dataset.link = link;
+              g.innerHTML = `<p class="cta-mut" style="margin:12px 0 8px">¿No ves la página de Google? Ábrela otra vez, o copia este link y pégalo en tu navegador:</p>
+                <input readonly value="${esc(link)}" aria-label="Link para entrar con Google">
+                <div class="cta-fila" style="justify-content:center"><button class="cta-btn pri" id="cta-g-abrir">Abrir Google otra vez</button><button class="cta-btn" id="cta-g-cancelar">Cancelar</button></div>`;
+              g.querySelector("input").onclick = e => e.target.select();
+              g.querySelector("#cta-g-abrir").onclick = () => pedir("/api/cuenta/primera", { accion: "abrir_google" }).catch(e => nota(e.message, true));
+              g.querySelector("#cta-g-cancelar").onclick = () => pedir("/api/cuenta/primera", { accion: "cancelar_google" }).catch(() => {});
+            }, 1500);
+          };
+          const esperar = b => { velo.querySelectorAll("button").forEach(x => x.disabled = true); nota("Se abrió Google en tu navegador: elige tu cuenta y acepta. Esta ventana sigue sola."); vigilarGoogle(); };
+          const soltar = e => {
+            clearInterval(W.vigia);
+            const g = velo.querySelector("#cta-google"); g.innerHTML = ""; delete g.dataset.link;
+            velo.querySelectorAll("button").forEach(x => x.disabled = false); nota(e.message, true);
+          };
           velo.querySelector("#cta-entrar").onclick = async () => {
             esperar();
             try {

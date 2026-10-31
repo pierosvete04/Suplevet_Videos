@@ -70,11 +70,71 @@ def rc(*args, timeout=None, entrada=None):
     PROCESOS.add(p)
     try:
         out, err = p.communicate(entrada, timeout=timeout)
+    except subprocess.TimeoutExpired:  # rclone no se queda vivo esperando (ocuparía el puerto de Google)
+        p.kill()
+        p.communicate()
+        raise RuntimeError(f"Drive no respondió en {timeout} s. Vuelve a intentar.")
     finally:
         PROCESOS.discard(p)
     if p.returncode != 0:
         raise RuntimeError("Drive: " + ((err or "").strip().splitlines() or ["error desconocido"])[-1])
     return out
+
+
+# ---------- Entrar con Google ----------
+# rclone abre Google en el navegador y espera a que se acepte. Si el navegador no se abrió (o se abrió detrás, o se
+# cerró la pestaña), la pantalla de entrar muestra el link que escribió rclone para abrirlo de nuevo. Un ingreso que
+# quedó esperando se corta antes de empezar otro: si no, ocupa el puerto de Google y el nuevo no puede abrirse.
+_google = {"link": "", "proc": None, "cancelado": False}
+
+
+def cancelar_google():
+    p = _google["proc"]
+    if p and p.poll() is None:
+        _google["cancelado"] = True
+        p.kill()
+
+
+def abrir_google():
+    """Vuelve a abrir en el navegador la página de Google del ingreso que está esperando."""
+    if not _google["link"]:
+        raise RuntimeError("Google todavía no está listo. Espera unos segundos.")
+    import webbrowser
+    webbrowser.open(_google["link"])
+
+
+def _rc_google(*args, timeout=600):
+    cancelar_google()
+    cmd = [str(rclone()), *map(str, args), "--config", str(CONF)]
+    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                         errors="replace", creationflags=0x08000000 if os.name == "nt" else 0)
+    _google.update(link="", proc=p, cancelado=False)
+    PROCESOS.add(p)
+    vencido = threading.Event()
+    reloj = threading.Timer(timeout, lambda: (vencido.set(), p.kill()))
+    reloj.start()
+    lineas = []
+    try:
+        for linea in p.stderr:  # «…go to the following link: http://127.0.0.1:53682/auth?state=…» y luego espera
+            m = re.search(r"http://127\.0\.0\.1:\d+/auth\?state=[\w-]+", linea)
+            if m:
+                _google["link"] = m.group(0)
+            lineas.append(linea.strip())
+        p.wait()
+    finally:
+        reloj.cancel()
+        PROCESOS.discard(p)
+        if _google["proc"] is p:
+            _google.update(link="", proc=None)
+    if p.returncode != 0:
+        if _google["cancelado"]:
+            raise RuntimeError("Se canceló la entrada con Google.")
+        if vencido.is_set():
+            raise RuntimeError(f"Pasaron {timeout // 60} minutos sin aceptar en Google. Vuelve a intentar.")
+        if any("bind" in x and "53682" in x for x in lineas):
+            raise RuntimeError("Otra app (Sala de edición, Sala de diseño o Publicador) está esperando a Google. "
+                               "Termina de entrar allí o ciérrala, y vuelve a intentar.")
+        raise RuntimeError("Google: " + ([x for x in lineas if x] or ["error desconocido"])[-1])
 
 
 # ---------- Estado de la sesión ----------
@@ -182,6 +242,7 @@ def _quien():
 def entrar(link):
     """Abre Google en el navegador para entrar (una sola vez por PC) y deja la sesión abierta en las tres apps."""
     cid = carpeta_id(link)
+    cancelar_google()  # antes del candado: un ingreso que quedó esperando lo tiene tomado
     with _candado:
         if CONF.exists():
             try:
@@ -190,7 +251,7 @@ def entrar(link):
                 pass
         cliente = _leer(INFO).get("cliente") or {}
         extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
-        rc("config", "create", REMOTO, "drive", "scope=drive", f"root_folder_id={cid}", *extra, timeout=600)
+        _rc_google("config", "create", REMOTO, "drive", "scope=drive", f"root_folder_id={cid}", *extra)
         try:
             rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)
         except RuntimeError:
@@ -234,6 +295,7 @@ def cerrar_sesion(marcar_en_drive=True):
 
 def entrar_sin_carpeta(client_id="", client_secret=""):
     """Abre Google en el navegador para entrar. client_id/secret: las del proyecto de Google Cloud del equipo (opcional)."""
+    cancelar_google()
     with _candado:
         info = _leer(INFO)
         if client_id.strip():
@@ -245,7 +307,7 @@ def entrar_sin_carpeta(client_id="", client_secret=""):
                 pass
         cliente = info.get("cliente") or {}
         extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
-        rc("config", "create", REMOTO, "drive", "scope=drive", *extra, timeout=600)
+        _rc_google("config", "create", REMOTO, "drive", "scope=drive", *extra)
         if info.get("carpeta_id"):  # la carpeta de antes: se ofrece primero al elegir
             info["anterior"] = {"id": info["carpeta_id"], "nombre": info.get("carpeta_nombre", "")}
         info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", carpeta_nombre="",
@@ -334,8 +396,17 @@ def usar_carpeta(cid, nombre=""):
 
 def primera(b):
     """Lo que piden las pantallas de entrar y elegir carpeta (cuenta.js): {accion: entrar|crear|usar|link, ...}.
-    Con «crear» devuelve también nueva=True y el nombre de la marca, para que cada app prepare lo suyo."""
+    Con «crear» devuelve también nueva=True y el nombre de la marca, para que cada app prepare lo suyo.
+    Mientras se espera a Google: google (el link para abrirlo a mano), abrir_google y cancelar_google."""
     acc = b.get("accion")
+    if acc == "google":
+        return {"link_google": _google["link"]}
+    if acc == "abrir_google":
+        abrir_google()
+        return {}
+    if acc == "cancelar_google":
+        cancelar_google()
+        return {}
     if acc == "entrar":
         return {"cuenta": entrar_sin_carpeta(str(b.get("client_id") or ""), str(b.get("client_secret") or ""))}
     if acc == "crear":
