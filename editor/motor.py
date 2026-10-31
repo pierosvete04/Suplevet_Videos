@@ -597,9 +597,20 @@ def cancelar():
             pass
 
 
+def _prioridad_baja():
+    """Lo que corre el trabajo de fondo (armar, preparar) va con prioridad baja: usa el procesador cuando está libre y
+    cede apenas el editor lo necesita. Antes, armando de a dos, ffmpeg se quedaba con casi todo el procesador y el
+    editor iba muy lento hasta que terminaba."""
+    if os.name != "nt":
+        return 0
+    yo = _hilos.get_ident()
+    return 0x00004000 if yo == HILO_TRABAJO.get("id") or yo in HILO_TRABAJO.get("ayudantes", ()) else 0  # BELOW_NORMAL
+
+
 def run(cmd, cwd=None):
     revisar_cancelado()
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", cwd=cwd)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", cwd=cwd,
+                         creationflags=_prioridad_baja())
     PROCESOS.add(p)
     try:
         out, err = p.communicate()
@@ -1515,7 +1526,7 @@ def transcribir(video):
         if not _modelo_bajado(CONFIG["transcripcion"]["modelo"]):
             _AVANCE_VOZ[0]("Bajando el modelo que entiende la voz (solo la primera vez, ~1,5 GB: puede tardar varios minutos)…")
         _modelo = WhisperModel(CONFIG["transcripcion"]["modelo"], device="cpu", compute_type="int8")
-    pcm = subprocess.run([FFMPEG, "-hide_banner", "-i", str(video), "-vn", "-ac", "1", "-ar", "16000",
+    pcm = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-hide_banner", "-i", str(video), "-vn", "-ac", "1", "-ar", "16000",
                           "-f", "f32le", "-"], capture_output=True).stdout
     segs, _ = _modelo.transcribe(np.frombuffer(pcm, dtype=np.float32), language="es", word_timestamps=True,
                                  vad_filter=True, initial_prompt=CONFIG["transcripcion"]["vocabulario"])
@@ -1595,7 +1606,7 @@ def _tramos_de_voz(video, paso=0.02):
     """[(desde, hasta)] donde suena la voz, con la energía del audio cada 20 ms (umbral según el ruido de fondo y la voz
     de ESTE clip; pausas de menos de 0,12 s no cortan un tramo)."""
     import numpy as np
-    r = subprocess.run([FFMPEG, "-v", "error", "-i", str(video), "-map", "0:a:0", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+    r = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-v", "error", "-i", str(video), "-map", "0:a:0", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
                        capture_output=True)
     a = np.frombuffer(r.stdout, np.int16).astype(np.float32) / 32768
     v = int(16000 * paso)
@@ -1762,7 +1773,7 @@ def filtro_volumen_parejo(entrada, filtros_antes="", ss=None, to=None):
     cmd += ["-i", str(entrada), "-vn", "-af", (f"{filtros_antes}," if filtros_antes else "") + f"loudnorm={_LOUD}:print_format=json",
             "-f", "null", "-"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+        r = subprocess.run(cmd, creationflags=_prioridad_baja(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
         m = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])
         if float(m["input_i"]) < -60:  # casi silencio: no se mide bien
             raise ValueError
@@ -1773,6 +1784,74 @@ def filtro_volumen_parejo(entrada, filtros_antes="", ss=None, to=None):
 
 
 
+
+
+COLCHON_FIN = 0.6  # segundos de más al final de cada frase al preparar (el armado corta el silencio solo)
+REPREPARAR = set()  # piezas que se pidió preparar de nuevo («Traer más del clip»)
+
+# Ediciones de una pieza que van en segundos de la pieza (no de una parte): si las partes cambian de largo, se corren
+_CLAVES_T = ("t", "a", "b")
+_SIN_CORRER = ("recorte", "partes", "zoom_partes", "velocidad_partes", "quitar", "orden", "editado", "voz_revisada")
+
+
+def _correr_tiempos_pieza(nombre, durs_viejas, durs_nuevas):
+    """La pieza se volvió a preparar con partes de otro largo (cada una arranca igual, pero termina después): todo lo
+    que va en segundos de la pieza se corre con su parte. Subtítulos, cortes, tramos quitados, zoom, imágenes,
+    audio desagrupado y duplicados. Lo de dentro de cada parte (recortes de la parte) no cambia."""
+    ini_v, ini_n, a, b = [], [], 0.0, 0.0
+    for dv, dn in zip(durs_viejas, durs_nuevas):
+        ini_v.append(a); ini_n.append(b)
+        a += dv; b += dn
+    if all(abs(x - y) < 1e-3 for x, y in zip(ini_v, ini_n)):
+        return  # solo cambió el final de la última parte: nada se corre
+
+    def f(t):
+        try:
+            t = float(t)
+        except (TypeError, ValueError):
+            return t
+        k = max([i for i, x in enumerate(ini_v) if x <= t + 1e-6] or [0])
+        return round(t + ini_n[k] - ini_v[k], 3)
+
+    def correr(v, clave=None):
+        if isinstance(v, dict):
+            return {k: (f(x) if k in _CLAVES_T and isinstance(x, (int, float)) else x if k in _SIN_CORRER else correr(x, k))
+                    for k, x in v.items()}
+        if isinstance(v, list):
+            if clave == "cortes":  # segundos sueltos
+                return [f(x) if isinstance(x, (int, float)) else x for x in v]
+            if clave in ("quitar_rangos", "duplicados"):  # [[desde, hasta], …]
+                return [[f(x[0]), f(x[1]), *x[2:]] if isinstance(x, list) and len(x) >= 2 else x for x in v]
+            return [correr(x, clave) for x in v]
+        return v
+    sub = S.subs / f"{nombre}.json"
+    if sub.exists():
+        d = json.loads(sub.read_text(encoding="utf-8"))
+        for ln in d.get("lineas") or []:
+            ln["s"], ln["e"] = f(ln.get("s", 0)), f(ln.get("e", 0))
+            for w in ln.get("palabras") or []:
+                w["s"], w["e"] = f(w.get("s", 0)), f(w.get("e", 0))
+        sub.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    todo = ajustes_piezas()
+    cambio = False
+    for clave in [k for k in todo if k == nombre or k.startswith(nombre + "@")]:
+        todo[clave] = correr(todo[clave])
+        cambio = True
+    if cambio:
+        _ajustes_piezas_path().write_text(json.dumps(todo, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def preparar_de_nuevo(nombre, avance=print):
+    """«Traer más del clip»: vuelve a preparar UNA pieza con el colchón al final de cada frase, sin correr nada
+    de lo que ya se editó (cada parte arranca donde arrancaba; lo de después se corre con ella)."""
+    if not any(p["nombre"] == nombre for p in piezas()):
+        raise ValueError(f"No encontré la pieza {nombre}")
+    REPREPARAR.add(nombre)
+    try:
+        procesar(avance=avance)
+    finally:
+        REPREPARAR.discard(nombre)
+    return [c["codigo"] for c in combinaciones() if nombre in (c["hook"], c["cuerpo"], c["cta"])]
 
 
 def procesar(forzar_subs=False, avance=print):
@@ -1786,6 +1865,7 @@ def procesar(forzar_subs=False, avance=print):
         firma = S.proc / f"{p['nombre']}.partes.json"
         lista = [str(x) for x in p["partes"]]
         vieja = json.loads(firma.read_text(encoding="utf-8")) if firma.exists() else None
+        firma_vieja = vieja if isinstance(vieja, dict) else {}
         formato_viejo = vieja.get("formato", "vertical") if isinstance(vieja, dict) else "vertical"
         union_vieja = vieja.get("union") if isinstance(vieja, dict) else None
         if isinstance(vieja, dict):
@@ -1793,14 +1873,21 @@ def procesar(forzar_subs=False, avance=print):
         desfasada = len(lista) > 1 and union_vieja != UNION_PARTES  # unida a la manera vieja: la voz se adelantaba
         # las mismas partes aunque la pieza se haya preparado en otra PC (bajada de Drive, con sus rutas)
         mismas = isinstance(vieja, list) and [_rel_parte(x) for x in vieja] == [_rel_parte(x) for x in lista]
-        if (not dest.exists() or not mismas or formato_viejo != formato() or desfasada
+        if (not dest.exists() or not mismas or formato_viejo != formato() or desfasada or p["nombre"] in REPREPARAR
                 or dest.stat().st_mtime < max(x.stat().st_mtime for x in p["partes"])):
             avance(f"Procesando {p['nombre']} ({n}/{len(ps)})" + (f" · {len(lista)} partes" if len(lista) > 1 else ""))
             trozos, cortes = [], []
             W, H = lienzo()
             fps_p = fps_para_piezas(p["partes"])  # 60 si se grabó a 60 (antes todo bajaba a 30 y se perdía la mitad)
+            cortes_viejos = firma_vieja.get("cortes") if mismas and not desfasada else None
             for k, parte in enumerate(p["partes"]):
                 ini, fin = limites_de_voz(parte)
+                if cortes_viejos and k < len(cortes_viejos):  # se vuelve a preparar: cada parte arranca donde arrancaba
+                    ini = round(cortes_viejos[k][0], 2 if "fps" not in firma_vieja else 3)  # (así nada se corre)
+                # un colchón al final de cada frase: el silencio lo corta solo el armado, y en el editor se puede alargar
+                # el clip hasta ahí (antes la pieza terminaba donde el detector creía que acababa la voz, y si la frase
+                # terminaba suave, se cortaba y no se podía alargar)
+                fin = min(duracion(parte), fin + COLCHON_FIN)
                 # un número entero de cuadros: así la imagen y la voz de cada parte duran lo mismo (si no, al unir
                 # las partes la voz se iba corriendo un poco en cada una)
                 n_cuadros = max(1, round((fin - ini) * fps_p))
@@ -1824,8 +1911,11 @@ def procesar(forzar_subs=False, avance=print):
                 for t in trozos + [lst]:
                     t.unlink(missing_ok=True)
             firma.write_text(json.dumps({"partes": lista, "duraciones": duraciones, "cortes": cortes, "formato": formato(),
-                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES, "norma": NORMA, "fps": fps_p},
-                                        ensure_ascii=False), encoding="utf-8")
+                                         "gop": GOP_EDITOR[1], "union": UNION_PARTES, "norma": NORMA, "fps": fps_p,
+                                         "colchon": COLCHON_FIN}, ensure_ascii=False), encoding="utf-8")
+            if cortes_viejos and firma_vieja.get("duraciones"):  # partes más largas: lo de después se corre con ellas
+                _correr_tiempos_pieza(p["nombre"], firma_vieja["duraciones"], duraciones)
+            REPREPARAR.discard(p["nombre"])
             if vieja is not None and (not mismas or desfasada):  # con la voz en su lugar, los tiempos cambian
                 # otra toma: el subtítulo se rehace con lo que se dice ahora, pero las marcas (imágenes, sonidos,
                 # resaltados) se quedan porque van por palabra; el subtítulo viejo se guarda por si se quiere volver
@@ -2932,7 +3022,7 @@ def parte_grave(f):
     if firma in tabla:
         _GRAVES_MEM[firma] = tabla[firma]
         return tabla[firma]
-    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", "22050",
+    pcm = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", "22050",
                           "-t", "4", "-f", "s16le", "-"], capture_output=True).stdout
     x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
     valor = 0.0
@@ -2972,7 +3062,7 @@ def onda_archivo(f, por_seg=50):
         except ValueError:
             pass
     sr = 8000
-    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
+    pcm = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
                           "-f", "s16le", "-"], capture_output=True).stdout
     x = np.abs(np.frombuffer(pcm, dtype=np.int16).astype(np.float32)) / 32768
     paso = sr // por_seg
@@ -3003,7 +3093,7 @@ def espectro_archivo(f, bandas=72):
     except (FileNotFoundError, ValueError):
         pass
     sr, n = 44100, 4096
-    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
+    pcm = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
                           "-t", "30", "-f", "s16le", "-"], capture_output=True).stdout
     x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768
     if len(x) < n:
@@ -3055,7 +3145,7 @@ def onda(nombre, por_seg=50):
         if d.get("firma") == firma:
             return d
     sr = 8000
-    pcm = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
+    pcm = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", str(sr),
                           "-f", "s16le", "-"], capture_output=True).stdout
     x = np.abs(np.frombuffer(pcm, dtype=np.int16).astype(np.float32)) / 32768
     paso = sr // por_seg
@@ -5331,9 +5421,9 @@ def _caras(nombre, por_seg):
     k = min(320 / W, 240 / H)
     w, h = max(2, int(W * k) // 2 * 2), max(2, int(H * k) // 2 * 2)
     px, py = (320 - w) // 2, (240 - h) // 2
-    proc = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(video), "-an",
+    proc = subprocess.run(args=[FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(video), "-an",
                            "-vf", f"fps={por_seg},scale={w}:{h},pad=320:240:{px}:{py}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-                          capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                          capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) | _prioridad_baja())
     cuadros = np.frombuffer(proc.stdout, np.uint8)
     n = cuadros.size // (320 * 240 * 3)
     crudos = []
@@ -7130,7 +7220,7 @@ def mejor_cuadro(hook):
     except (FileNotFoundError, ValueError):
         pass
     fps, w, h = 6, 90, 160
-    crudo = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vf", f"fps={fps},scale={w}:{h},format=gray",
+    crudo = subprocess.run(creationflags=_prioridad_baja(), args=[FFMPEG, "-hide_banner", "-loglevel", "error", "-i", str(f), "-vf", f"fps={fps},scale={w}:{h},format=gray",
                             "-f", "rawvideo", "-"], capture_output=True).stdout
     n = len(crudo) // (w * h)
     if n < 3:
@@ -7766,6 +7856,9 @@ def armar(pieza=None, avance=print, codigos=None, solo_cambios=False):
     hechos = []
     todos = [c for c in combinaciones() if (not pieza or pieza in (c["hook"], c["cuerpo"], c["cta"]))
              and (codigos is None or c["codigo"] in codigos)]
+    if codigos:  # en el orden pedido (el video que se está editando va primero)
+        orden = {c: k for k, c in enumerate(codigos)}
+        todos.sort(key=lambda c: orden.get(c["codigo"], len(orden)))
     for n in sorted({x for c in todos for x in (c["hook"], c["cuerpo"], c["cta"])}):
         corregir_subtitulo(n)  # rápido: solo si cambió la tabla de correcciones; no toca lo corregido a mano
     if solo_cambios:

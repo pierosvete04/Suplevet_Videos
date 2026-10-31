@@ -2030,7 +2030,8 @@ h3 { font: 650 13px/1.35 var(--fd); }
         <button class="btn peq tl-quitar" type="button" id="tlQuitar" disabled>✂ Quitar el tramo</button>
         <span class="tl-sep" aria-hidden="true"></span>
         <label class="tl-iman" title="Con el imán, el tramo se ajusta a palabras enteras (no corta una palabra a la mitad). Sin imán, cortas justo donde marcas: para quitar un silencio o un ruido pegado a una palabra. También: mantén Alt al arrastrar."><input type="checkbox" role="switch" class="interruptor" id="tlIman" checked> Imán a palabras</label>
-        <button class="btn sec peq tl-cambiar-clip" type="button" id="tlCambiarClip" title="Cambia el clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar el clip</button>
+        <button class="btn sec peq tl-cambiar-clip" type="button" id="tlTraerMas" title="Si una frase se corta antes de terminar: la pieza se vuelve a preparar con medio segundo más al final de cada frase, para poder alargarla. Lo editado se queda">⇥ Traer más del clip</button>
+        <button class="btn sec peq" type="button" id="tlCambiarClip" title="Cambia el clip de esta pieza por otro sin asignar (la sala sugiere cuál)">↻ Cambiar el clip</button>
       </div>
       <div class="tl" id="tl"></div>
     </div>
@@ -4599,6 +4600,7 @@ async function cargarPartes(p) {
 }
 const durTl = p => $("vPieza").duration || (p.lineas.length ? p.lineas[p.lineas.length - 1].e + .3 : 1);
 $("tlCambiarClip").onclick = () => { const p = piezaSel(); if (p) abrirToma(p.nombre); };
+$("tlTraerMas").onclick = () => { const p = piezaSel(); if (p) traerMasDelClip(p.nombre); };
 document.addEventListener("pointerdown", e => { if (e.target.closest("[data-cambiar-clip]")) e.stopPropagation(); }, true);  // no elige tramo
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-cambiar-clip]"); if (!b) return;
@@ -5739,7 +5741,7 @@ $("subirFuente").onchange = async e => {
 $("escuchar").onclick = async () => { if (await confirmarAnalizar()) trabajo("analizar"); };
 // ---------- Procesos: qué está haciendo la sala, y cancelarlo ----------
 const NOMBRE_PROCESO = { perfil_ia: "Llenar el perfil de la marca con IA", todo: "Armar todos los videos", procesar: "Preparar los clips", armar: "Rearmar videos de una pieza", uno: "Rearmar un video",
-  armar_sel: "Armar videos elegidos", exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", reasignar: "Volver a asignar con el guion", exportar: "Exportar por día", portadas: "Rehacer portadas",
+  armar_sel: "Armar videos elegidos", alargar: "Traer más del clip",exportar_sel: "Exportar videos elegidos", partes_sel: "Exportar por partes", producir: "Producir todo", renombrar: "Ordenar y renombrar clips en Drive", ordenar_todo: "Analizar y renombrar todo", reasignar: "Volver a asignar con el guion", exportar: "Exportar por día", portadas: "Rehacer portadas",
   panel: "Subir al panel", importar: "Subir finales existentes al panel", escuchar: "Escuchar clips", analizar: "Analizar clips y compararlos con el guion",
   terminar: "Terminar sesión (todo a Drive)", reiniciar: "Empezar de cero (clips y análisis)", conectar: "Conectar Google Drive", bajar: "Bajar de Drive", subir_drive: "Subir a Drive", lista_drive: "Actualizar sesiones de Drive",
   guion: "Claude escribe el guion", revisar: "Claude revisa lo grabado", temas: "Claude propone temas",
@@ -8176,9 +8178,30 @@ function abrirMenuEd(x, y, items) {
   m.querySelector("button")?.focus();
 }
 function cerrarMenuEd() { $("evMenu").hidden = true; }
+// «⇥ Traer más del clip»: la pieza se vuelve a preparar con margen al final de cada frase (antes quedaba justo donde el
+// detector creía que acababa la voz y, si la frase terminaba suave, se cortaba y no se podía alargar). Lo editado no se pierde.
+async function traerMasDelClip(pieza) {
+  if (E.trabajo?.activo) return avisar("La sala está trabajando (☰). Espera a que termine.", "err");
+  if (!await preguntar(`¿Traer más de los clips de ${verPieza(pieza)}?\n\nLa sala vuelve a preparar esta pieza con medio segundo más al final de cada frase, para que puedas alargarla en el editor. Lo que ya editaste (cortes, subtítulos, imágenes, zoom) se queda donde estaba. Tarda unos segundos por clip.`, "Sí, traer más")) return;
+  try {
+    await post("/api/trabajo", { accion: "alargar", pieza }); vigilar(await (await fetch("/api/trabajo")).json());
+    avisar(`Preparando ${verPieza(pieza)} con más margen… (Procesos ☰)`, "muted");
+    const reloj = setInterval(async () => {
+      let t; try { t = await (await fetch("/api/trabajo")).json(); } catch (e) { return; }
+      if (t.activo) return;
+      clearInterval(reloj);
+      if (t.error || t.accion !== "alargar") return;
+      tlPartes = { pieza: null, partes: [], clips: false };  // la línea de tiempo de Piezas vuelve a leer sus clips
+      await cargar();
+      if ($("dlgEditor").open && actual) { await cargarEstructura(actual.codigo); pintarEditor(); }
+      avisar(`Listo: ${verPieza(pieza)} ya trae lo que se había cortado. Ahora puedes alargar el clip arrastrando su borde.`, "ok");
+    }, 3000);
+  } catch (e) { avisar("Error: " + e.message, "err"); }
+}
 function accionMenuEd(acc) {
   const b = bloqueSel(ed.aSel || ed.sel); if (!b) return;
   if (acc === "toma") return abrirToma(b.pieza.nombre);
+  if (acc === "traer") return traerMasDelClip(b.pieza.nombre);
   if (acc === "dividir") cortarEnCabezal();
   else if (acc === "duplicar") duplicarSel(b.key);
   else if (acc === "grupo") alternarGrupo(b.key);
@@ -8214,7 +8237,8 @@ $("evCarrilV").addEventListener("contextmenu", e => {
                ["grupo", b.aparte ? "⛓ Unir la voz al video" : "⛓‍💥 Separar la voz", "Ctrl+G"]);
     if (b.aparte) items.push(["congelar", b.aparte.sin_imagen ? "🖼 Volver a mostrar la imagen" : "❄ Quitar la imagen (queda congelada)", "Supr"],
                              ["silenciar", b.aparte.sin_voz ? "🔊 Volver a poner la voz" : "🔇 Quitar la voz", ""]);
-    items.push(["toma", `↻ Cambiar la toma de ${esc(verPieza(b.pieza.nombre))}…`, ""]);
+    items.push(["toma", `↻ Cambiar la toma de ${esc(verPieza(b.pieza.nombre))}…`, ""],
+               ["traer", `⇥ Traer más del clip (lo que se cortó al final)`, ""]);
     items.push("-", ["borrar", b.aparte ? "🗑 Quitar el pedazo (imagen y voz)" : "🗑 Quitar", b.aparte ? "" : "Supr", "peligro"]);
   }
   if (b.i !== undefined && !b.dup) items.push(["frase", b.quitada ? "↩ Volver a poner la frase entera" : "🗑 Quitar la frase entera", "Shift+Supr", "peligro"]);
@@ -9150,7 +9174,7 @@ async function guardarEdicion() {
     if (firmaGuardada && firmaEd() !== firmaGuardada) marcarEditando(["listo"]);
     const sonidos = [...new Set(sonPend.flatMap(p => p.codigos || []))];  // los sonidos ya quedaron guardados: falta rearmar
     const subs = subsCambiados() ? (await guardarSubsVideo(false)).codigos || [] : [];
-    const r = await post("/api/edicion", { ...d, armar: true, extra_codigos: [...new Set([...sonidos, ...subs])] });
+    const r = await post("/api/edicion", { ...d, armar: true, extra_codigos: [...new Set([...sonidos, ...subs])], primero: actual?.codigo });
     sonPend = []; pintarPendientes();
     firmaGuardada = firmaEd(); pintarEstadoEd();
     if (!r.codigos.length) return avisar("No había cambios que guardar.", "muted");

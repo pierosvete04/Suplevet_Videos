@@ -1,3 +1,9 @@
+Versión 1.67.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Clips que se cortaban antes de terminar la frase.** Al preparar, la sala cortaba cada clip donde creía que acababa la voz: si la frase terminaba suave, se la comía, y en el editor no se podía alargar porque ese pedazo no estaba. Ahora cada frase se prepara con medio segundo más al final (el armado corta el silencio solo, así que los videos salen igual) y se puede alargar hasta ahí.
+- **«⇥ Traer más del clip»** (en Piezas y subtítulos, y con clic derecho sobre un pedazo en el editor): vuelve a preparar solo esa pieza con ese margen. Lo ya editado (cortes, subtítulos, imágenes, zoom) no se pierde: si una frase del medio se alarga, lo que viene después se corre con ella.
+- **El editor ya no va lento mientras se arma.** Armar y preparar corren con prioridad baja: usan el procesador cuando está libre y le ceden el paso al editor.
+- Al guardar un cambio en el editor, **el video que estás editando se arma primero** (los demás de ese cuerpo, después).
+
 Versión 1.66.3 (se actualiza desde la app con «Actualizar ahora»):
 - **La pantalla de entrar avisa si hay una versión nueva.** Antes el aviso salía solo después de entrar con Google, así que si entrar fallaba no había cómo recibir el arreglo. Ahora aparece «⟳ Hay una versión nueva» con el botón «Actualizar ahora» arriba de «Entrar con Google».
 

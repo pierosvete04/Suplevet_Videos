@@ -1048,6 +1048,12 @@ def lanzar(accion, pieza=None, extra=None, en_cola=False):
                 if accion == "armar_sel":
                     hechos_a = motor.armar(avance=avance, codigos=extra["codigos"])
                     avance(f"Listo: {len(hechos_a)} video{'s' if len(hechos_a) != 1 else ''} armado{'s' if len(hechos_a) != 1 else ''}" + fallidos_txt())
+                if accion == "alargar":  # «Traer más del clip»: la pieza otra vez, con margen al final de cada frase
+                    cods = motor.preparar_de_nuevo(pieza, avance=avance)
+                    if drive.estado()["activo"]:  # así la otra PC baja la misma pieza (sus subtítulos ya vienen corridos)
+                        _sin_falla(lambda: drive.subir_piezas(motor.S.drive, motor.S.proc, avance=avance))
+                    avance(f"Listo: {pieza} ya trae lo que se había cortado al final de cada frase. Ahora puedes alargarlo en el "
+                           f"editor; {len(cods)} video{'s' if len(cods) != 1 else ''} lo usa{'n' if len(cods) != 1 else ''} (se ven al rearmarlos).")
                 if accion == "reasignar":  # el guion cambió (o se pidió a mano): todos los clips de nuevo con el guion
                     reasignar_y_preparar()
                 if accion == "ordenar_todo":  # analizar, asignar lo seguro y renombrar, todo de una vez
@@ -2512,6 +2518,8 @@ class H(BaseHTTPRequestHandler):
                 # solo se rearman los videos que ya estaban armados (los que nunca se armaron se arman desde Videos)
                 armados = {c["codigo"] for c in motor.combinaciones() if (motor.S.salida / f"{c['archivo']}.mp4").exists()}
                 codigos = [c for c in codigos if c in armados]
+                # el video que se está editando, primero: así se ve el cambio en un minuto, sin esperar a los otros 21
+                codigos.sort(key=lambda c: c != b.get("primero"))
                 # un video aprobado que cambió por dentro (comparte el cuerpo o el CTA) vuelve a «Editando» para revisarlo
                 for cod in codigos:
                     if motor.ajustes_video(cod).get("estado") == "listo":
