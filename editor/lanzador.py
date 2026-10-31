@@ -76,8 +76,9 @@ def sin_ventanas_de_consola():
     original = subprocess.Popen.__init__
 
     def init(self, *args, **kwargs):
-        if not kwargs.get("creationflags"):
-            kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
+        flags = kwargs.get("creationflags") or 0
+        if not flags & 0x00000010:  # salvo que pida CREATE_NEW_CONSOLE, va sin ventana aunque pida otra cosa (prioridad)
+            kwargs["creationflags"] = flags | 0x08000000  # CREATE_NO_WINDOW
         original(self, *args, **kwargs)
     subprocess.Popen.__init__ = init
 

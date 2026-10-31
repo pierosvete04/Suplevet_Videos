@@ -600,17 +600,20 @@ def cancelar():
 def _prioridad_baja():
     """Lo que corre el trabajo de fondo (armar, preparar) va con prioridad baja: usa el procesador cuando está libre y
     cede apenas el editor lo necesita. Antes, armando de a dos, ffmpeg se quedaba con casi todo el procesador y el
-    editor iba muy lento hasta que terminaba."""
+    editor iba muy lento hasta que terminaba.
+    Siempre lleva CREATE_NO_WINDOW: el lanzador del .exe solo esconde la ventana de los programas que no piden nada,
+    y en la 1.67/1.68 cada ffmpeg abría su ventana negra (y si se cerraba, el armado fallaba)."""
     if os.name != "nt":
         return 0
     yo = _hilos.get_ident()
-    return 0x00004000 if yo == HILO_TRABAJO.get("id") or yo in HILO_TRABAJO.get("ayudantes", ()) else 0  # BELOW_NORMAL
+    baja = 0x00004000 if yo == HILO_TRABAJO.get("id") or yo in HILO_TRABAJO.get("ayudantes", ()) else 0  # BELOW_NORMAL
+    return baja | 0x08000000  # CREATE_NO_WINDOW
 
 
 def run(cmd, cwd=None):
     revisar_cancelado()
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", cwd=cwd,
-                         creationflags=_prioridad_baja())
+    p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                         errors="replace", cwd=cwd, creationflags=_prioridad_baja())
     PROCESOS.add(p)
     try:
         out, err = p.communicate()

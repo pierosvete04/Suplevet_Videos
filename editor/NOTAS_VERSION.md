@@ -1,3 +1,6 @@
+Versión 1.68.2 (se actualiza desde la app con «Actualizar ahora»):
+- **Ya no se abren ventanas negras al armar.** Desde la 1.67.0, cada paso de ffmpeg abría su propia ventana mientras se armaba o se rearmaba un video. Si se cerraba una de esas ventanas, el armado fallaba («Falló: …\ffmpeg\ffmpeg.exe…»). Ahora todo vuelve a correr escondido y con prioridad baja.
+
 Versión 1.68.1 (se actualiza desde la app con «Actualizar ahora»):
 - **Otra cuenta ya no termina usando la cuenta de antes.** Un proceso de Drive que había empezado antes de entrar podía volver a poner la llave de la cuenta anterior (la pantalla decía la cuenta nueva, pero se trabajaba con la vieja y se veían sus sesiones y su marca). Ahora cada entrada y cada cambio de carpeta guarda la llave aparte, y eso ya no puede pasar.
 - **Cada carpeta tiene su propia copia en esta PC.** Al cambiar de carpeta (otra cuenta u otro proyecto), las sesiones y la marca de la anterior se apartan y no se mezclan; si vuelves a esa carpeta, regresan tal cual, sin bajar todo de nuevo.
