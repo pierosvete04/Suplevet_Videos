@@ -1,3 +1,8 @@
+Versión 1.68.3 (se actualiza desde la app con «Actualizar ahora»):
+- **Menú de tu cuenta más corto:** solo «👤 Cuenta y dispositivos» y «⚙ Configuración». Configuración abre la página con todas las secciones (Actualizaciones incluida) y lleva un punto de aviso cuando hay una versión nueva.
+- Configuración → Marca dice «ficha de marca (Excel)» (antes decía Word).
+- Si falla la consulta de la cuenta a Google, la app igual anota esta PC en «Dispositivos».
+
 Versión 1.68.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Ya no se abren ventanas negras al armar.** Desde la 1.67.0, cada paso de ffmpeg abría su propia ventana mientras se armaba o se rearmaba un video. Si se cerraba una de esas ventanas, el armado fallaba («Falló: …\ffmpeg\ffmpeg.exe…»). Ahora todo vuelve a correr escondido y con prioridad baja.
 

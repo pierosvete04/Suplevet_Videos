@@ -579,7 +579,7 @@ def latido(forzar=False):
 
     def tarea():
         try:
-            _quien()  # la cuenta de verdad de la llave: la pantalla nunca muestra otra
+            _quien_si_se_puede()  # la cuenta de verdad de la llave: la pantalla nunca muestra otra
             if _anotar():
                 cerrar_sesion(marcar_en_drive=True)
                 i = _leer(INFO)

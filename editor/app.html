@@ -2453,7 +2453,7 @@ h3 { font: 650 13px/1.35 var(--fd); }
               <b>Carga tu marca en 3 pasos</b>
               <ol><li><b>Descarga la plantilla de marca.</b> Es una carpeta con todo ordenado.</li>
                 <li><b>Llénala:</b> pon tus logos en <code>logos</code>, tus tipografías en <code>fuentes</code> y las fotos de tu producto en <code>productos</code>.
-                  Después completa la ficha de marca (Word) con tus colores y cómo habla tu marca.</li>
+                  Después completa la ficha de marca (Excel) con tus colores y cómo habla tu marca.</li>
                 <li><b>Súbela aquí</b> tal cual, como carpeta o como .zip. La sala la acomoda y te muestra lo que encontró antes de guardar.</li></ol>
               <small class="muted">¿No tienes todo? Sube lo que tengas: lo demás se completa después. Si no pones los colores, la sala los saca de tu logo.</small>
             </div>
@@ -5963,16 +5963,13 @@ Antes se guarda una copia de cómo está ahora, por si quieres volver. Lo restau
 });
 // El menú de la cuenta (tu foto arriba a la derecha) lleva a cada página de configuración
 // Las opciones del menú de la cuenta: las mismas páginas que el menú de Configuración, con sus mismos puntitos de estado
+// El menú de tu cuenta: solo «Cuenta y dispositivos» y «Configuración» (que abre la página con todas las secciones).
+// Si hay una versión nueva, «Configuración» lleva el punto de aviso.
 function menuCuenta() {
   const enConf = !document.querySelector('[data-panel="notas"]').hidden;
-  const marca = id => { const x = $(id); return x ? `<span class="${x.className}">${esc(x.textContent)}</span>` : ""; };
-  return [...document.querySelectorAll(".conf-menu a[href^='#conf']")].map(a => {
-    const id = a.getAttribute("href").slice(1), txt = a.cloneNode(true);
-    txt.querySelectorAll("span").forEach(x => x.remove());
-    const [icono, ...resto] = txt.textContent.trim().split(" ");
-    const punto = a.querySelector(".punto-estado, .pill");
-    return { icono, texto: resto.join(" "), al: () => irConf(id), actual: enConf && id === confActual, extra: punto?.id ? marca(punto.id) : "" };
-  }).concat("-", { icono: "📜", texto: "Abrir el teleprompter", href: "/teleprompter" });
+  const act = $("confPAct"), aviso = act?.classList.contains("warn") ? `<span class="${act.className}" title="Hay una versión nueva"></span>` : "";
+  return [{ icono: "👤", texto: "Cuenta y dispositivos", al: () => irConf("confCuenta"), actual: enConf && confActual === "confCuenta" },
+    { icono: "⚙", texto: "Configuración", al: () => irConf(confActual !== "confCuenta" ? confActual : "confMarca"), actual: enConf && confActual !== "confCuenta", extra: aviso }];
 }
 $("numerarHooks").onclick = async () => {
   const cuerpos = E.piezas.filter(p => p.tipo === "cuerpo").map(p => p.nombre);
