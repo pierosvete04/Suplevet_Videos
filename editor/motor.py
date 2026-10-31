@@ -8349,11 +8349,18 @@ def checklist():
     falta_piezas = [n for n in p.get("piezas", {}) if n not in hay and n not in omitidas
                     and not ("CTA" in n.upper() and (n.split("_")[0] in con_cta or ("_" not in n and con_cta)))]
     assets = []
+    try:
+        import ingredientes  # las que llevan la foto real del producto: hay que revisar que la bolsa salga fiel
+        hay = ingredientes.disponibles()
+        ings = lambda a: ingredientes.de(a.get("flow"), hay)
+    except Exception:
+        ings = lambda a: []
     for a in p.get("assets", []):
         f = buscar_asset(a["id"])
         # «Rehacer con Claude» le dio un prompt nuevo: la imagen de antes ya no vale hasta que llegue una más nueva
         viejo = bool(f) and float(a.get("prompt_nuevo_t") or 0) > f.stat().st_mtime
-        assets.append({**a, "listo": bool(f) and not viejo, "por_regenerar": viejo, "archivo_actual": f.name if f else None})
+        assets.append({**a, "listo": bool(f) and not viejo, "por_regenerar": viejo, "archivo_actual": f.name if f else None,
+                       "ingredientes": ings(a)})
     musica = [{**m, "listo": bool(buscar_musica(m["id"])), "archivo_actual": (buscar_musica(m["id"]) or Path("")).name or None}
               for m in produccion().get("musica", []) if m.get("id")]
     sug = sugerencias()

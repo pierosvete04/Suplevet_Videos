@@ -264,7 +264,9 @@ def _una_linea(t):
 
 
 def pendientes(todas=False):
-    """Las imágenes y clips de Flow de la sesión (las que faltan, o todas), con su prompt."""
+    """Las imágenes y clips de Flow de la sesión (las que faltan, o todas), con su prompt y sus ingredientes."""
+    import ingredientes
+    hay = ingredientes.disponibles()
     out = []
     for a in motor.checklist()["assets"]:
         if a.get("listo") and not todas:
@@ -274,7 +276,7 @@ def pendientes(todas=False):
             continue
         out.append({"codigo": a["id"], "tipo": "clip" if a.get("tipo") == "clip" else "imagen", "pieza": a.get("pieza", ""),
                     "palabra": a.get("palabra", ""), "prompt": _una_linea(flow["prompt"]), "plan_b": _una_linea(flow.get("plan_b")),
-                    "evitar": _una_linea(flow.get("evitar"))})
+                    "evitar": _una_linea(flow.get("evitar")), "ingredientes": ingredientes.de(flow, hay)})
     return out
 
 
@@ -303,25 +305,63 @@ def anotar_faltan(ids, que="Paquete Antigravity", esperando=""):
 
 
 def _tandas_flow(orden):
-    """[("TANDA_01", [items])…]: primero las imágenes de 10 en 10, después los clips de 5 en 5."""
+    """[("TANDA_01", [items])…]: primero las imágenes de 10 en 10, después los clips de 5 en 5. Cada tanda lleva los
+    mismos ingredientes en todas sus líneas: el adjunto vale para todo el mensaje."""
     out = []
     for tipo, n in (("imagen", TANDA_IMG), ("clip", TANDA_CLIP)):
-        xs = [x for x in orden if x["tipo"] == tipo]
-        out += [xs[i:i + n] for i in range(0, len(xs), n)]
+        grupos = {}
+        for x in orden:
+            if x["tipo"] == tipo:
+                grupos.setdefault(tuple(x.get("ingredientes") or ()), []).append(x)
+        for xs in grupos.values():
+            out += [xs[i:i + n] for i in range(0, len(xs), n)]
     return [(f"TANDA_{k:02d}", g) for k, g in enumerate(out, 1)]
 
 
 def _orden_flow(grupo):
     """La primera línea de cada tanda: la orden para el asistente de Flow. Sin ella, al pegarle solo la lista, Flow
     responde «¿cómo quieres trabajar con esto?» y no genera nada (pasó con P05 el 2026-10-28)."""
+    import ingredientes
     n = len(grupo)
+    con = ingredientes.frase(grupo[0].get("ingredientes"), grupo[0]["tipo"] == "clip")
     if grupo[0]["tipo"] == "clip":
         return (f"Generate these {n} videos now: one video per line, vertical 9:16, 4 to 6 seconds each. Do not ask anything "
                 "and do not suggest options: start generating right away. Each line starts with its code (like C1_CLIP1): "
-                "use that code as the name of its video.")
+                "use that code as the name of its video." + con)
     return (f"Generate these {n} images now: one image per line, vertical 9:16, exactly 1 image per line. Do not ask anything "
             "and do not suggest options: start generating right away. Each line starts with its code (like C1_IMG2): "
-            "use that code as the name of its image.")
+            "use that code as the name of its image." + con)
+
+
+def _texto_ingredientes(carpeta, tandas):
+    """La parte de las instrucciones para las tandas que llevan la foto real del producto o el logo."""
+    import ingredientes
+    con = [(nombre, g[0]["ingredientes"]) for nombre, g in tandas if g[0].get("ingredientes")]
+    if not con:
+        return ""
+    proy = ingredientes.proyecto()
+    lista = "\n".join(f"   - `{nombre}`: adjunta {', '.join(f'`{i}`' for i in ings)}" for nombre, ings in con)
+    return f"""
+## Ingredientes: la foto real del producto
+Algunas tandas muestran el producto o el logo de la marca. Para que Flow los dibuje tal cual (y no invente un envase),
+esas tandas van con la foto real adjunta. Las fotos están en el proyecto **{proy}** de Flow, no en el de esta sesión,
+y se pueden elegir desde cualquier proyecto:
+
+1. Antes de pegar esa tanda, en el cuadro «¿Qué quieres crear?» toca el botón **+** (abajo a la izquierda,
+   «Menú para añadir contenido multimedia»).
+2. En la ventana que se abre, arriba a la izquierda está el nombre del proyecto actual: tócalo y elige **{proy}**.
+3. Toca la imagen con ese nombre (por ejemplo `{con[0][1][0]}`) y luego **«Añadir a petición»**. Su miniatura aparece
+   encima del cuadro de texto. Si la tanda lleva más de una, repite con cada una.
+4. Recién ahí pega la tanda y envíala. Al enviar, el adjunto se va: vuelve a ponerlo en cada tanda que lo lleve.
+5. Las tandas que NO están en esta lista van sin nada adjunto (si quedó una miniatura, quítala con su ✕).
+
+Tandas con ingredientes:
+{lista}
+
+Si **{proy}** no aparece en la lista de proyectos o no tiene esa imagen: detente y avisa a la persona («falta subir los
+ingredientes a Flow: crea el proyecto {proy} y arrastra ahí las fotos de la carpeta `ingredientes`»). No subas archivos tú.
+(Las fotos también están en `{carpeta / "ingredientes"}`.)
+"""
 
 
 def instrucciones(sesion, carpeta, items, tandas=None):
@@ -349,7 +389,8 @@ Archivos de esta carpeta ({carpeta}):
 3. En los ajustes del generador (ícono de deslizadores) elige **9:16** y **x1** (una imagen por prompt). Guarda.
 4. En la configuración del agente de Flow deja «Confirmar antes de generar» en **Nunca**.
 5. **Por tandas, nunca todo junto** ({len(t_img)} tandas de imágenes: {t_img[0] if t_img else ""} … {t_img[-1] if t_img else ""}). Para cada tanda, en orden:
-   a. Pega `TANDA_XX.txt` COMPLETO en un solo mensaje al asistente de Flow y envíalo. Su primera línea es la orden
+   a. Si la tanda lleva ingredientes (ver «Ingredientes» abajo), adjúntalos primero con el **+**.
+      Pega `TANDA_XX.txt` COMPLETO en un solo mensaje al asistente de Flow y envíalo. Su primera línea es la orden
       («Generate these 10 images now…»): nunca la quites. Debajo van los prompts, cada uno con su código (`C1_IMG2: …`).
    b. Comprueba que Flow empezó a generar (aparecen tarjetas cargando). Si el asistente responde con preguntas, un menú de
       opciones («How would you like to work with these?») o «I can help you…», NO elijas opciones: respóndele
@@ -365,6 +406,7 @@ Archivos de esta carpeta ({carpeta}):
 {f'''7. Clips en movimiento ({len(clips)}, {", ".join(t_clip)}): cambia el generador a **Video** (9:16) y haz lo mismo, de {TANDA_CLIP} en {TANDA_CLIP}.
    Cuando terminen, baja cada video a Descargas con el nombre `CODIGO.mp4`.
 ''' if clips else ""}
+{_texto_ingredientes(carpeta, tandas)}
 Si aparece un inicio de sesión, términos o un captcha: detente y avisa a la persona. No lo hagas tú.
 
 Al terminar (cuando `FALTAN.txt` diga «No falta nada»), responde en 2 líneas: cuántas bajaste y cuáles fallaron.
@@ -437,6 +479,14 @@ def armar(todas=False, abrir=False):
     for f in carpeta.glob("bajar_tanda_*.js"):
         f.unlink()
     tandas = _tandas_flow(orden)
+    import ingredientes
+    hay, usados = ingredientes.disponibles(), {i for x in orden for i in x.get("ingredientes") or ()}
+    shutil.rmtree(carpeta / "ingredientes", ignore_errors=True)
+    if usados:  # para subirlas a mano al proyecto de ingredientes de Flow si todavía no están
+        (carpeta / "ingredientes").mkdir()
+        for i in usados:
+            if i in hay:
+                shutil.copy2(hay[i], carpeta / "ingredientes" / i)
     for nombre, grupo in tandas:
         (carpeta / f"{nombre}.txt").write_text(_orden_flow(grupo) + "\n" + "\n".join(f"{x['codigo']}: {x['prompt']}" for x in grupo) + "\n",
                                                encoding="utf-8")
@@ -461,11 +511,15 @@ def armar(todas=False, abrir=False):
                   if len(orden) > len(nombres) else "")
                + ". Para saber qué falta NO mires Descargas (la sala se lleva cada archivo apenas llega): lee FALTAN.txt de "
                "esa carpeta y baja solo esos; cuando diga «No falta nada», terminaste. "
+               + (f"Las tandas {', '.join(n for n, g in tandas if g[0].get('ingredientes'))} llevan la foto real del producto: "
+                  f"antes de pegarlas, adjúntala con el + del cuadro desde el proyecto {ingredientes.proyecto()} (lo explica "
+                  "INSTRUCCIONES.md, en «Ingredientes»). " if usados else "") +
                "Al final responde en 2 líneas cuántas bajaste y cuáles fallaron.")
     (carpeta / MENSAJE).write_text(mensaje, encoding="utf-8")  # para volver a verlo en la sala
     abierto = _abrir(carpeta, True) if abrir and not _servidor() else bool(_servidor())
     enviado, porque = False, ""
     return {"carpeta": str(carpeta), "imagenes": len(nombres), "clips": len(orden) - len(nombres), "mensaje": mensaje,
+            "con_ingredientes": sum(1 for x in orden if x.get("ingredientes")), "proyecto_ingredientes": ingredientes.proyecto(),
             "abierto": abierto, "enviado": enviado, "porque": porque, "instalado": bool(exe())}
 
 
@@ -550,6 +604,22 @@ def _hoja(n, total, grupo, sesion):
     return "\n".join(filas) + "\n"
 
 
+def _regla_ingredientes():
+    """Si la marca tiene fotos de su producto, Gemini puede pedir que una imagen lo muestre (Flow recibe la foto real)."""
+    import ingredientes
+    prods = [n for n, f in ingredientes.disponibles().items() if f.parent.name == "productos"]
+    if not prods:
+        return ""
+    nombre = perfil.leer()["nombre"] or "la marca"
+    return f"""
+## El producto de verdad (excepción a la regla de arriba)
+Flow puede mostrar el producto tal cual porque recibe su foto real ({", ".join(f"`{Path(p).stem}`" for p in prods)}).
+Si una imagen muestra el producto, agrega a su línea `"ingredientes": ["{Path(prods[0]).stem}"]` y en el prompt nómbralo
+«the {nombre} bag from the reference», sin describir su etiqueta ni su texto. Como mucho UNA imagen así por cuerpo, en
+la frase donde se nombra {nombre}; las demás siguen sin producto.
+"""
+
+
 def ejemplo_linea():
     """Una línea de imagen de ejemplo, con la escena de ejemplo del perfil de la marca."""
     e = perfil.leer()["imagenes"]["ejemplo"]
@@ -626,7 +696,7 @@ golpe. Uno por cuerpo, en la frase clave (normalmente donde entra {perfil.leer()
 
 ## Reglas de las imágenes (las de la marca)
 {perfil.reglas_imagenes()}
-
+{_regla_ingredientes()}
 {limpios}
 
 Al terminar responde en 1 línea cuántas líneas escribiste.
@@ -762,7 +832,9 @@ def traer_prompts():
                 "formato": "9:16 vertical, 4 a 6 segundos" if clip else "9:16 vertical",
                 "prompt": str(d.get("prompt") or "").strip(), "plan_b": str(d.get("plan_b") or "").strip(),
                 "que_muestra": str(d.get("que_muestra") or "").strip(),
-                "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style" + (", fast cuts" if clip else "")}})
+                "evitar": "text, logos, watermark, deformed paws, extra legs, cartoon style" + (", fast cuts" if clip else ""),
+                **({"ingredientes": [str(x) for x in d["ingredientes"]]}
+                   if isinstance(d.get("ingredientes"), list) and d["ingredientes"] else {})}})
             marcas = info.setdefault("marcas", [])
             n_img = sum(1 for x in marcas if x.get("asset"))
             marcas.append({"palabra": palabra, "asset": cod, "modo": "completa",

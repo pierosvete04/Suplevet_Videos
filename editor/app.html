@@ -806,6 +806,7 @@ dialog.visor { width: min(980px, 96vw); max-height: 94vh; padding: 0; border-rad
 .as-card.falta .as-foto.soltar span { position: static; background: none; color: var(--warn); font-weight: 700; font-size: 12.5px; padding: 10px; }
 .as-card.listo .as-foto::after { content: "✓"; position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; font-weight: 800; font-size: 12px; }
 .as-card code { font-size: 12px; overflow-wrap: anywhere; } .as-card small { color: var(--muted); font-size: 11.5px; line-height: 1.35; }
+.as-card small.as-ing { color: var(--warn, #f59e0b); }
 .as-card details summary { cursor: pointer; font-size: 12px; color: var(--accent2); font-weight: 600; }
 .as-card details pre { max-height: 160px; }
 .as-acc { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -5206,6 +5207,7 @@ function pintarFaltan() {
         <span>${ya?.url ? (a.por_regenerar ? "⟳ Por regenerar con el prompt nuevo · suelta aquí la nueva" : "Suelta otra para cambiarla") : `⬇ Falta${a.tipo === "clip" ? " el clip" : ""} · suéltala aquí`}</span>
         <input type="file" accept="${a.tipo === "clip" ? "video/*" : "image/*,video/*"}"></label>
       <code>${esc(a.id)}</code><small>${esc(a.tipo)} · ${esc(a.pieza || "")}${a.palabra ? ` en «${esc(a.palabra)}»` : ""}</small>
+      ${a.ingredientes?.length ? `<small class="as-ing" title="En Flow va con la foto real adjunta (del proyecto de ingredientes). Revisa que el producto salga igual: forma, colores, logo y texto.">🛍 Con ${esc(a.ingredientes.join(", "))} · revisa que salga fiel</small>` : ""}
       <div class="as-acc"><button class="btn sec peq" data-copiar="${esc(a.flow?.prompt || "")}">Copiar prompt</button></div>
       <details><summary>Más</summary>
       <div class="prompt-legible">${promptLegible(a.flow)}</div>

@@ -1,3 +1,10 @@
+Versión 1.69.0 (se actualiza desde la app con «Actualizar ahora»):
+- **La bolsa real en las imágenes de Flow («ingredientes»).** Flow ahora puede mostrar la bolsa de verdad, porque recibe su foto como referencia: salen igual el logo, la etiqueta y los perros. Antes inventaba un envase. Las fotos de la bolsa y los logos (las de `_MARCA`) viven en un proyecto fijo de Flow, «INGREDIENTES SUPLEVET».
+  - Una imagen lleva la bolsa cuando su guion lo pide (`"ingredientes": ["bolsa_250g"]`) o cuando su prompt nombra el producto («the Suplevet bag…»).
+  - El paquete de Antigravity junta esas imágenes en sus propias tandas y explica cómo adjuntar la foto con el **+** de Flow, eligiéndola de ese proyecto. Las demás tandas siguen igual.
+  - «Completar el guion» con Antigravity ya puede pedir como mucho una imagen con la bolsa por cuerpo.
+  - En **Faltantes**, cada imagen con la bolsa dice «🛍 Con bolsa_… · revisa que salga fiel».
+
 Versión 1.68.3 (se actualiza desde la app con «Actualizar ahora»):
 - **Menú de tu cuenta más corto:** solo «👤 Cuenta y dispositivos» y «⚙ Configuración». Configuración abre la página con todas las secciones (Actualizaciones incluida) y lleva un punto de aviso cuando hay una versión nueva.
 - Configuración → Marca dice «ficha de marca (Excel)» (antes decía Word).
