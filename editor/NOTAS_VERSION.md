@@ -1,3 +1,10 @@
+Versión 1.71.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Cada cuenta ve solo sus sesiones.** Al entrar con otra cuenta de Google, la sala seguía mostrando las sesiones de la cuenta anterior y a veces creaba sus carpetas en el Drive nuevo.
+  - La causa: la llave de Google seguía apuntando a la carpeta de antes, aunque la pantalla mostraba la nueva. Pasa cuando la cuenta nueva también tiene permiso en la carpeta de antes.
+  - Ahora, al abrir la sala y cada 10 minutos, la llave se corrige sola con la carpeta elegida.
+  - La copia de esta PC sabe de qué carpeta es. Si es de otra cuenta, se aparta, deja de verse y no se sube a la carpeta nueva.
+  - Nada se borra: al volver a la cuenta de antes, sus sesiones vuelven.
+
 Versión 1.70.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Tus productos en Marca, cada uno con su ficha.**
   - En Configuración → Marca → Productos sube todas las fotos que quieras: una por producto o por tamaño.

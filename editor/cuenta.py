@@ -74,6 +74,64 @@ def conf():
     return SUITE / n if n and (SUITE / n).exists() else CONF
 
 
+def _raiz_de(archivo):
+    """La carpeta (root_folder_id) a la que apunta un archivo de llave, o ""."""
+    try:
+        texto = archivo.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
+    r = re.search(r"^root_folder_id\s*=\s*(\S*)\s*$", m.group(1), re.M) if m else None
+    return r.group(1) if r else ""
+
+
+def carpeta_de_la_llave():
+    """La carpeta con la que trabaja rclone de verdad (puede no ser la elegida: ver reparar_llave)."""
+    return _raiz_de(conf())
+
+
+def _llave_con_carpeta(cid):
+    """Escribe una llave nueva igual a la actual pero apuntando a la carpeta cid (con el candado tomado)."""
+    actual = conf()
+    texto = actual.read_text(encoding="utf-8") if actual.exists() else ""
+    m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
+    if not m:
+        raise RuntimeError("Primero entra con tu cuenta de Google")
+    seccion = m.group(1)
+    if re.search(r"^root_folder_id\s*=.*$", seccion, re.M):
+        seccion = re.sub(r"^root_folder_id\s*=.*$", f"root_folder_id = {cid}", seccion, flags=re.M)
+    else:
+        seccion = f"root_folder_id = {cid}\n" + seccion
+    nueva = _nueva_llave()
+    nueva.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
+    info = _leer(INFO)
+    info["llave"] = nueva.name
+    _guardar(INFO, info)
+    _llave_lista(nueva)
+
+
+def reparar_llave():
+    """La carpeta la manda drive.json (la que eligió la persona). Si la llave apunta a otra, se rehace con la elegida.
+    Pasó el 30/10 en la PC de Piero: drive.json decía la carpeta de Mr Peanut, pero rclone.conf (reescrito por un
+    rclone viejo y sin «llave» en drive.json, porque se entró antes de la 1.68.1) seguía en la de Suplevet, a la que
+    Mr Peanut también puede entrar. La sala listaba las sesiones de Suplevet y algunas cosas se subían a Mr Peanut.
+    Devuelve la carpeta a la que apuntaba la llave si era otra, o ""."""
+    with _candado:
+        i = _leer(INFO)
+        cid = i.get("carpeta_id")
+        if not i.get("activo") or not cid or "token" not in _llave():
+            return ""
+        raiz = carpeta_de_la_llave()
+        if raiz == cid and i.get("llave") and (SUITE / i["llave"]).exists():
+            return ""
+        _llave_con_carpeta(cid)
+        if raiz and raiz != cid:  # la Sala de edición lo usa para saber de qué carpeta es su copia local
+            i = _leer(INFO)
+            i["llave_apuntaba"] = raiz
+            _guardar(INFO, i)
+        return raiz if raiz != cid else ""
+
+
 def _nueva_llave():
     return SUITE / f"llave-{time.time_ns()}.conf"
 
@@ -399,22 +457,7 @@ def usar_carpeta(cid, nombre=""):
     with _candado:
         # se cambia solo la línea root_folder_id de la conexión (sin librerías que el .exe podría no traer), en una
         # llave nueva: un rclone que siga corriendo con la carpeta de antes no puede volver a ponerla (ver conf())
-        actual = conf()
-        texto = actual.read_text(encoding="utf-8") if actual.exists() else ""
-        m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
-        if not m:
-            raise RuntimeError("Primero entra con tu cuenta de Google")
-        seccion = m.group(1)
-        if re.search(r"^root_folder_id\s*=.*$", seccion, re.M):
-            seccion = re.sub(r"^root_folder_id\s*=.*$", f"root_folder_id = {cid}", seccion, flags=re.M)
-        else:
-            seccion = f"root_folder_id = {cid}\n" + seccion
-        nueva = _nueva_llave()
-        nueva.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
-        info = _leer(INFO)
-        info["llave"] = nueva.name
-        _guardar(INFO, info)
-        _llave_lista(nueva)
+        _llave_con_carpeta(cid)
     try:
         rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)
     except RuntimeError:
@@ -579,6 +622,7 @@ def latido(forzar=False):
 
     def tarea():
         try:
+            reparar_llave()  # antes que nada: que rclone trabaje con la carpeta elegida
             _quien_si_se_puede()  # la cuenta de verdad de la llave: la pantalla nunca muestra otra
             if _anotar():
                 cerrar_sesion(marcar_en_drive=True)

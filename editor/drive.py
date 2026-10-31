@@ -115,13 +115,57 @@ def conectar(link, client_id="", client_secret="", avance=print):
     avance("Conectado a Google Drive.")
 
 
+DE_QUE_CARPETA = ".sala/carpeta.txt"  # dentro de la copia local: de qué carpeta de Drive es (viaja con ella al apartarla)
+
+
+def _carpeta_de_la_copia():
+    try:
+        return (CACHE / DE_QUE_CARPETA).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _anotar_carpeta_de_la_copia(cid):
+    try:
+        (CACHE / ".sala").mkdir(parents=True, exist_ok=True)
+        (CACHE / DE_QUE_CARPETA).write_text(cid, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def revisar_copia_local():
+    """La llave y la copia local (datos/drive) tienen que ser de la carpeta que eligió la cuenta. Si la copia es de
+    otra (otra cuenta, otro proyecto), se aparta en datos/drive_<id> y deja de verse: sus sesiones no se listan ni se
+    suben a la carpeta nueva. Devuelve True si apartó algo."""
+    c = cuenta.estado()
+    if not c["conectado"] or not c["carpeta_id"]:
+        return False
+    # una copia sin anotar (de antes de la 1.71) es de la carpeta con la que trabajaba rclone, no de la elegida
+    cuenta.reparar_llave()  # si la llave apuntaba a otra carpeta, queda anotada en drive.json → llave_apuntaba
+    de_la_copia = (_carpeta_de_la_copia()
+                   or (cuenta._leer(cuenta.INFO).get("llave_apuntaba") if CACHE.exists() else "") or c["carpeta_id"])
+    if de_la_copia == c["carpeta_id"]:
+        _anotar_carpeta_de_la_copia(c["carpeta_id"])
+        return False
+    cambiar_copia_local(de_la_copia, c["carpeta_id"])
+    _anotar_carpeta_de_la_copia(c["carpeta_id"])
+    motor.guardar_config({"drive": {**motor.CONFIG.get("drive", {}), "activo": True, "carpeta_id": c["carpeta_id"], "link": c["link"]}})
+    if not (CACHE / motor.S.semana).is_dir():  # la sesión abierta era de la otra carpeta: no se abre en esta
+        motor.guardar_config({"semana": ""})
+        motor.usar_semana("")
+    print(f"Drive: la copia local era de otra carpeta ({de_la_copia}): quedó aparte en drive_{de_la_copia}", flush=True)
+    return True
+
+
 def asegurar_config(forzar=False):
     """Con la sesión común abierta (se entró desde cualquiera de las salas), la sala trabaja contra ese proyecto."""
+    apartada = revisar_copia_local()
     c = cuenta.estado()
     cfg = motor.CONFIG.get("drive", {})
-    if not c["conectado"] or (not forzar and cfg.get("activo") and cfg.get("carpeta_id") == c["carpeta_id"]):
+    if not c["conectado"] or (not forzar and not apartada and cfg.get("activo") and cfg.get("carpeta_id") == c["carpeta_id"]):
         return False
     cambiar_copia_local(cfg.get("carpeta_id"), c["carpeta_id"])
+    _anotar_carpeta_de_la_copia(c["carpeta_id"])
     motor.guardar_config({"drive": {"activo": True, "carpeta_id": c["carpeta_id"], "link": c["link"],
                                     "credenciales_propias": bool(cuenta._leer(cuenta.INFO).get("cliente"))},
                           "carpeta_trabajo": str(CACHE), "biblioteca": str(CACHE / "SOUND FX")})
