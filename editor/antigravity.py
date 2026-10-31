@@ -608,15 +608,24 @@ def _regla_ingredientes():
     """Si la marca tiene fotos de su producto, Gemini puede pedir que una imagen lo muestre (Flow recibe la foto real)."""
     import ingredientes
     prods = [n for n, f in ingredientes.disponibles().items() if f.parent.name == "productos"]
-    if not prods:
+    cuantas = ingredientes.en_imagenes()
+    if not prods or cuantas == "nunca":
         return ""
     nombre = perfil.leer()["nombre"] or "la marca"
+    fs = ingredientes.fichas()
+    lista = "\n".join(f"- `{Path(p).stem}`: {fs.get(p, {}).get('nombre') or Path(p).stem}"
+                       + (f". Qué es: {fs[p]['que_es']}" if fs.get(p, {}).get("que_es") else "")
+                       + (f". Beneficio: {fs[p]['beneficio']}" if fs.get(p, {}).get("beneficio") else "") for p in prods)
+    cuando = ("TODAS las imágenes y clips muestran un producto" if cuantas == "todas" else
+              "En cada cuerpo, UNA imagen muestra el producto (en la frase donde se nombra " + nombre + " o su beneficio); "
+              "en el CTA, si tiene imagen, también. Las demás siguen sin producto")
     return f"""
 ## El producto de verdad (excepción a la regla de arriba)
-Flow puede mostrar el producto tal cual porque recibe su foto real ({", ".join(f"`{Path(p).stem}`" for p in prods)}).
-Si una imagen muestra el producto, agrega a su línea `"ingredientes": ["{Path(prods[0]).stem}"]` y en el prompt nómbralo
-«the {nombre} bag from the reference», sin describir su etiqueta ni su texto. Como mucho UNA imagen así por cuerpo, en
-la frase donde se nombra {nombre}; las demás siguen sin producto.
+Flow muestra el producto tal cual porque recibe su foto real. Los productos de la marca:
+{lista}
+{cuando}. En esas, elige el producto que va con lo que dice la frase (por su beneficio), agrega a la línea
+`"ingredientes": ["{Path(prods[0]).stem}"]` con el suyo y en el prompt nómbralo «the {nombre} product from the reference»
+(o bag, bottle, box: lo que sea), sin describir su etiqueta ni su texto.
 """
 
 

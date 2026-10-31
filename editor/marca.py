@@ -24,6 +24,7 @@ TIPOS = {"logos": (".png", ".webp", ".jpg", ".jpeg"), "productos": (".png", ".we
 USOS_COLOR = ("principal", "secundario", "acento", "fondo", "texto", "otro")
 USOS_LOGO = ("principal", "horizontal", "icono", "otro")
 FONDOS_LOGO = ("oscuro", "claro", "cualquiera")  # sobre qué fondo se ve bien
+EN_IMAGENES = ("uno_por_cuerpo", "todas", "nunca")  # cuántas imágenes de Flow muestran un producto (como ingrediente)
 NEUTRA = {
     "nombre": "",
     "colores": [{"nombre": "Tinta", "hex": "#1F2933", "uso": "texto"}, {"nombre": "Claro", "hex": "#F4F4F5", "uso": "fondo"},
@@ -83,9 +84,21 @@ def datos():
         colores[0]["uso"] = "principal"
     out["colores"] = colores
     out["productos"] = _archivos("productos")
+    # la ficha de cada foto de producto (marca.json → fichas_productos): qué es y para qué sirve. La IA elige con ella
+    # el producto que va con cada frase y Flow lo recibe como ingrediente (la foto real)
+    fichas = propia.get("fichas_productos") if isinstance(propia.get("fichas_productos"), dict) else {}
+    out["productos_info"] = [{"archivo": a, "nombre": (fichas.get(a) or {}).get("nombre") or _nombre_de_archivo(a),
+                              "que_es": (fichas.get(a) or {}).get("que_es") or "", "beneficio": (fichas.get(a) or {}).get("beneficio") or ""}
+                             for a in out["productos"]]
+    if out.get("producto_en_imagenes") not in EN_IMAGENES:
+        out["producto_en_imagenes"] = "uno_por_cuerpo"
     out["fuentes_archivos"] = _archivos("fuentes")
     out["tiene_marca"] = bool(propia)
     return out
+
+
+def _nombre_de_archivo(archivo):
+    return " ".join(Path(archivo).stem.replace("_", " ").replace("-", " ").split()).capitalize()
 
 
 def logos_info():
@@ -125,6 +138,14 @@ def _limpio(d):
     cta = d.get("cta") or {}
     out["cta"] = {k: str(cta.get(k) or "")[:200] for k in ("titulo", "texto", "boton")}
     out["notas_para_claude"] = str(d.get("notas_para_claude") or "")[:4000]
+    if isinstance(d.get("productos_info"), list):  # solo si la pantalla la mandó: importar o crear la marca no la pisa
+        hay = set(_archivos("productos"))
+        out["fichas_productos"] = {p["archivo"]: {"nombre": str(p.get("nombre") or "").strip()[:80],
+                                                  "que_es": str(p.get("que_es") or "").strip()[:400],
+                                                  "beneficio": str(p.get("beneficio") or "").strip()[:400]}
+                                   for p in d["productos_info"] if isinstance(p, dict) and p.get("archivo") in hay}
+    if d.get("producto_en_imagenes") in EN_IMAGENES:
+        out["producto_en_imagenes"] = d["producto_en_imagenes"]
     return out
 
 

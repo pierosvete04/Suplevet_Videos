@@ -1,3 +1,11 @@
+Versión 1.70.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Tus productos en Marca, cada uno con su ficha.**
+  - En Configuración → Marca → Productos sube todas las fotos que quieras: una por producto o por tamaño.
+  - Debajo de cada foto escribe su nombre, qué es y su beneficio principal.
+  - Al completar el guion, la IA elige el producto que va con lo que dice cada frase. Google Flow lo pone tal cual en esa imagen, porque le llega la foto real como «ingrediente».
+- **«Producto en las imágenes de Flow»** (en la misma sección): en una imagen de cada cuerpo (y en el CTA), en todas, o nunca.
+- La ficha se guarda en `_MARCA/marca.json`, la misma marca de la Sala de diseño.
+
 Versión 1.69.0 (se actualiza desde la app con «Actualizar ahora»):
 - **La bolsa real en las imágenes de Flow («ingredientes»).** Flow ahora puede mostrar la bolsa de verdad, porque recibe su foto como referencia: salen igual el logo, la etiqueta y los perros. Antes inventaba un envase. Las fotos de la bolsa y los logos (las de `_MARCA`) viven en un proyecto fijo de Flow, «INGREDIENTES SUPLEVET».
   - Una imagen lleva la bolsa cuando su guion lo pide (`"ingredientes": ["bolsa_250g"]`) o cuando su prompt nombra el producto («the Suplevet bag…»).

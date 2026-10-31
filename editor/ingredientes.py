@@ -37,6 +37,16 @@ def disponibles():
     return out
 
 
+def fichas():
+    """{archivo: {nombre, que_es, beneficio}} de las fotos de producto (la ficha que se llena en Marca)."""
+    return {p["archivo"]: p for p in marca.datos().get("productos_info") or []}
+
+
+def en_imagenes():
+    """Cuántas imágenes de Flow muestran un producto: uno_por_cuerpo, todas o nunca (se elige en Marca)."""
+    return marca.datos().get("producto_en_imagenes") or "uno_por_cuerpo"
+
+
 def _pide(regex, prompt):
     return any(not _NEGADO.search(prompt[:m.start()]) for m in regex.finditer(prompt))
 
@@ -60,13 +70,18 @@ def de(flow, hay=None):
     prompt = str(flow.get("prompt") or "")
     productos = [n for n, f in hay.items() if f.parent.name == "productos"]
     out = []
+    if en_imagenes() == "nunca":
+        productos = []
     # solo el producto de la marca: «a bag of kibble» no lleva la bolsa; «the Suplevet bag» o «the bag from the reference» sí
     nombre = str(marca.datos().get("nombre") or "").strip().lower()
     de_marca = bool(nombre and nombre in prompt.lower()) or "reference" in prompt.lower()
     if productos and de_marca and _pide(_PRODUCTO, prompt):
-        # el que nombra el prompt por su tamaño o su nombre («the 250g bag»), o el primero
-        nombrado = [n for n in productos if any(t and t in prompt.lower() for t in re.split(r"[_\-\s]+", Path(n).stem.lower())
-                                                 if any(c.isdigit() for c in t))]
+        # el que nombra el prompt por el nombre de su ficha, por su tamaño («the 250g bag») o por su archivo; si no, el primero
+        bajo, fs = prompt.lower(), fichas()
+        nombrado = ([n for n in productos if len((fs.get(n) or {}).get("nombre", "")) >= 3
+                     and (fs[n]["nombre"].lower() in bajo or Path(n).stem.lower() in bajo) and fs[n]["nombre"].lower() != nombre]
+                    or [n for n in productos if any(t and t in bajo for t in re.split(r"[_\-\s]+", Path(n).stem.lower())
+                                                    if any(c.isdigit() for c in t))])
         out.append((nombrado or productos)[0])
     logos = [n for n, f in hay.items() if f.parent.name == "logos"]
     if logos and _pide(_LOGO, prompt):
@@ -79,6 +94,9 @@ def frase(ingredientes, clip=False):
     if not ingredientes:
         return ""
     cosa = "video" if clip else "image"
+    fs = fichas()
+    que = "; ".join(f"{i} = {fs[i]['nombre']}" + (f" ({fs[i]['que_es']})" if fs[i].get("que_es") else "")
+                    for i in ingredientes if i in fs)
     return (f" Every {cosa} uses the attached reference image{'s' if len(ingredientes) > 1 else ''} "
-            f"({', '.join(ingredientes)}): it is the real brand product or logo. Keep it exactly as in the reference: same "
-            "shape, colors, logo and label text; do not invent or change any text on it.")
+            f"({', '.join(ingredientes)}): it is the real brand product or logo{f' [{que}]' if que else ''}. Keep it exactly as "
+            "in the reference: same shape, colors, logo and label text; do not invent or change any text on it.")

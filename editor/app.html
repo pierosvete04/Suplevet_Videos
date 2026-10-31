@@ -653,7 +653,8 @@ main:has(> section[data-panel="sonidos"]:not([hidden])) > #aviso:empty { display
   background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 50% / 14px 14px; }
 .mk-item .mk-img.oscuro { background: #111827; } .mk-item .mk-img.claro { background: #f4f4f5; }
 .mk-item img { max-width: 92%; max-height: 86px; object-fit: contain; }
-.mk-item input, .mk-item select { font-size: 12px; padding: 4px 6px; }
+.mk-item input, .mk-item select, .mk-item textarea { font-size: 12px; padding: 4px 6px; }
+.mk-item textarea { resize: vertical; min-height: 44px; } .mk-grid-prod { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .mk-quitar { justify-self: end; }
 .mk-subir { cursor: pointer; justify-self: start; }
 .mk-fuente { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; }
@@ -2487,9 +2488,14 @@ h3 { font: 650 13px/1.35 var(--fd); }
                 <div id="mkFuentes" style="display:grid;gap:6px"></div>
                 <label class="btn sec peq mk-subir">Subir tipografía<input type="file" id="mkFuenteArchivo" accept=".ttf,.otf" multiple hidden></label></fieldset>
               <fieldset><legend>Productos</legend>
-                <p class="muted mk-ayuda">Fotos reales del producto, sin fondo (PNG). Las usan la Sala de diseño y Claude para los carruseles.</p>
-                <div id="mkProductos" class="mk-grid"></div>
-                <label class="btn sec peq mk-subir">Subir fotos<input type="file" id="mkProductoArchivo" accept=".png,.webp,.jpg,.jpeg" multiple hidden></label></fieldset>
+                <p class="muted mk-ayuda">Sube todas las que quieras: una foto real por producto (o por tamaño), mejor sin fondo (PNG). Escribe qué es cada uno y su beneficio:
+                  la IA elige el que va con lo que dice cada frase y Google Flow lo pone tal cual en las imágenes (le llega la foto como «ingrediente»). También las usan la Sala de diseño y Claude.</p>
+                <div id="mkProductos" class="mk-grid mk-grid-prod"></div>
+                <label class="btn sec peq mk-subir">Subir fotos<input type="file" id="mkProductoArchivo" accept=".png,.webp,.jpg,.jpeg" multiple hidden></label>
+                <label>Producto en las imágenes de Flow<select id="mkProdImg">
+                  <option value="uno_por_cuerpo">En una imagen de cada cuerpo (y en el CTA)</option>
+                  <option value="todas">En todas las imágenes</option>
+                  <option value="nunca">Nunca</option></select></label></fieldset>
               <fieldset><legend>Cómo habla la marca</legend>
                 <p class="muted mk-ayuda">Claude lo lee al escribir guiones, copies y carruseles. Una idea por línea.</p>
                 <label>Palabras o frases que nunca se usan<textarea id="mkEvitar" rows="3" placeholder="Ej.: barato&#10;milagroso"></textarea></label>
@@ -9401,6 +9407,7 @@ function pintarMarca() {
   const cta = MK.cta || {};
   $("mkCtaTit").value = cta.titulo || ""; $("mkCtaTxt").value = cta.texto || ""; $("mkCtaBoton").value = cta.boton || "";
   $("mkNotas").value = MK.notas_para_claude || "";
+  $("mkProdImg").value = MK.producto_en_imagenes || "uno_por_cuerpo";
   pintarColoresMarca(); pintarArchivosMarca(); pintarVistaMarca();
 }
 function pintarColoresMarca() {
@@ -9420,10 +9427,13 @@ function pintarArchivosMarca() {
       <select data-lc="fondo" aria-label="Sobre qué fondo va">${mkOpc(MK_FONDOS, l.fondo)}</select>
       <button class="btn-link peligro mk-quitar" type="button" data-mkquitar="logos" data-archivo="${esc(l.archivo)}">Quitar</button></div>`).join("")
     || `<p class="muted mk-ayuda">Todavía no hay logos.</p>`;
-  $("mkProductos").innerHTML = (MK.productos || []).map(p => `<div class="mk-item">
-      <div class="mk-img"><img src="/marca/productos/${encodeURIComponent(p)}?v=${v}" alt="${esc(p)}"></div>
-      <span>${esc(p)}</span>
-      <button class="btn-link peligro mk-quitar" type="button" data-mkquitar="productos" data-archivo="${esc(p)}">Quitar</button></div>`).join("")
+  $("mkProductos").innerHTML = (MK.productos_info || []).map((p, i) => `<div class="mk-item" data-p="${i}">
+      <div class="mk-img"><img src="/marca/productos/${encodeURIComponent(p.archivo)}?v=${v}" alt="${esc(p.nombre)}"></div>
+      <input data-pc="nombre" value="${esc(p.nombre)}" placeholder="Nombre del producto" aria-label="Nombre del producto">
+      <textarea data-pc="que_es" rows="2" placeholder="Qué es. Ej.: suplemento en polvo que se mezcla con la comida" aria-label="Qué es">${esc(p.que_es)}</textarea>
+      <textarea data-pc="beneficio" rows="2" placeholder="Su beneficio principal. Ej.: más energía y pelo brillante" aria-label="Su beneficio">${esc(p.beneficio)}</textarea>
+      <small class="muted" style="overflow-wrap:anywhere">${esc(p.archivo)}</small>
+      <button class="btn-link peligro mk-quitar" type="button" data-mkquitar="productos" data-archivo="${esc(p.archivo)}">Quitar</button></div>`).join("")
     || `<p class="muted mk-ayuda">Todavía no hay fotos del producto.</p>`;
   $("mkFuentes").innerHTML = (MK.fuentes_archivos || []).map(f => `<div class="mk-fuente">
       <span style="font-family:'F_${esc(f)}', sans-serif">Aa Bb 123 · ${esc(f)}</span>
@@ -9468,12 +9478,15 @@ function leerMarca() {
     fuentes: { titulo: $("mkFTitulo").value, cuerpo: $("mkFCuerpo").value, subtitulos: $("mkFSubs").value },
     evitar: mkLineas("mkEvitar"), obligatorio: mkLineas("mkObligatorio"), cierres: mkLineas("mkCierres"),
     cta: { titulo: $("mkCtaTit").value.trim(), texto: $("mkCtaTxt").value.trim(), boton: $("mkCtaBoton").value.trim() },
-    notas_para_claude: $("mkNotas").value.trim() };
+    notas_para_claude: $("mkNotas").value.trim(),
+    productos_info: MK.productos_info || [], producto_en_imagenes: $("mkProdImg").value };
 }
 // lo que llega del servidor tras subir o quitar un archivo: se toman las listas sin perder lo que se está editando
 function mkTraerListas(nueva) {
   const antes = Object.fromEntries((MK.logos || []).map(l => [l.archivo, l]));
   MK.logos = nueva.logos.map(l => antes[l.archivo] || l);
+  const antesP = Object.fromEntries((MK.productos_info || []).map(p => [p.archivo, p]));
+  MK.productos_info = (nueva.productos_info || []).map(p => antesP[p.archivo] || p);
   MK.productos = nueva.productos; MK.fuentes_archivos = nueva.fuentes_archivos; MK.cambio = Date.now();
   pintarArchivosMarca(); pintarVistaMarca();
 }
@@ -9481,6 +9494,8 @@ $("mkForm").addEventListener("input", e => {
   const fila = e.target.closest(".mk-color"), item = e.target.closest("[data-l]");
   if (fila && e.target.dataset.c) MK.colores[+fila.dataset.i][e.target.dataset.c] = e.target.value;
   if (item && e.target.dataset.lc) MK.logos[+item.dataset.l][e.target.dataset.lc] = e.target.value;
+  const prod = e.target.closest("[data-p]");
+  if (prod && e.target.dataset.pc) MK.productos_info[+prod.dataset.p][e.target.dataset.pc] = e.target.value;
   if (item && e.target.dataset.lc === "fondo") item.querySelector(".mk-img").className = "mk-img " + e.target.value;
   if (e.target.type === "file") return;
   mkMarcarSucia(); pintarVistaMarca();
