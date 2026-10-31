@@ -7,6 +7,7 @@
    íconos) y pasan menu: () => [{ icono, texto, al, extra, actual, href }, "-", …] para el menú que cuelga de tu cuenta
    (el mismo en las tres), más version: () => "1.2.3" y alCambiarTema: () => {…} (claro/oscuro, al final del menú).
    preguntar/avisar: las ventanas de la app (en la ventana del programa confirm() y alert() no se ven).
+   versionUrl: dónde se pregunta si hay versión nueva (por defecto /api/version): la pantalla de entrar la ofrece.
    Cada servidor atiende GET /api/cuenta/carpetas (cuenta.carpetas_para_elegir) y POST /api/cuenta/primera (cuenta.primera). */
 (() => {
   const css = `
@@ -166,13 +167,28 @@
         } catch (e) { W.error = e.message; }
         pintar();
       };
+      // Las apps buscan versiones nuevas después de entrar: si entrar falla, el arreglo tiene que poder llegar desde aquí
+      const avisoVersion = async () => {
+        const url = opc.versionUrl || "/api/version";
+        let v = W.version;
+        if (!v) { try { v = W.version = await (await fetch(url)).json(); } catch (e) { return; } }
+        const caja = velo?.querySelector("#cta-version");
+        if (!caja || !v?.nueva) return;
+        const completa = v.requiere_completa || v.completa;
+        caja.innerHTML = `<div class="cta-op" style="text-align:left;margin-bottom:12px"><b>⟳ Hay una versión nueva (${esc(v.nueva)})</b>
+          <span class="cta-mut" style="font-size:12.5px">${completa ? "Esta trae cambios grandes: baja el instalador completo de nuevo." : "Instálala antes de entrar: puede traer arreglos para esta pantalla."}</span>
+          ${completa ? "" : `<div><button class="cta-btn pri" id="cta-act">Actualizar ahora</button></div>`}</div>`;
+        const b = caja.querySelector("#cta-act");
+        if (b) b.onclick = () => Actualizar.instalar({ app: opc.app || "la app", nueva: v.nueva, version: url, botones: [b] }).catch(e => nota("No se pudo actualizar: " + e.message, true));
+      };
       function pintar() {
-        const caja = `<div class="cta-caja${W.paso === "entrar" && !W.cambiando ? "" : " ancha"}">`;
+        const caja =`<div class="cta-caja${W.paso === "entrar" && !W.cambiando ? "" : " ancha"}">`;
         if (W.paso === "entrar") {
           velo.innerHTML = `<div class="cta-caja">
             <div class="cta-logo" style="background:${opc.fondo}">${esc(opc.letra)}</div>
             <h1>${esc(opc.app)}</h1>
             <p>${estado.cerrada_desde_otra_pc ? "Tu sesión se cerró desde otro dispositivo. Vuelve a entrar." : "Entra con tu cuenta de Google. Después eliges la carpeta de Drive donde trabaja tu equipo (o creas una)."}</p>
+            <div id="cta-version"></div>
             <button class="cta-google" id="cta-entrar">${G} Entrar con Google</button>
             <details style="text-align:left"><summary>Ya tengo el link de la carpeta del proyecto</summary>
               <input id="cta-link" style="margin-top:8px" placeholder="https://drive.google.com/drive/folders/…" value="${esc(estado.link || "")}">
@@ -205,6 +221,7 @@
             const g = velo.querySelector("#cta-google"); g.innerHTML = ""; delete g.dataset.link;
             velo.querySelectorAll("button").forEach(x => x.disabled = false); nota(e.message, true);
           };
+          avisoVersion();
           velo.querySelector("#cta-entrar").onclick = async () => {
             esperar();
             try {

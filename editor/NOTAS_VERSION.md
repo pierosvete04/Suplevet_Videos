@@ -1,3 +1,6 @@
+Versión 1.66.3 (se actualiza desde la app con «Actualizar ahora»):
+- **La pantalla de entrar avisa si hay una versión nueva.** Antes el aviso salía solo después de entrar con Google, así que si entrar fallaba no había cómo recibir el arreglo. Ahora aparece «⟳ Hay una versión nueva» con el botón «Actualizar ahora» arriba de «Entrar con Google».
+
 Versión 1.66.2 (se actualiza desde la app con «Actualizar ahora»):
 - **Entrar con Google ya no se queda trabado.** Si la página de Google no aparece (no se abrió, quedó detrás de la app o se cerró la pestaña), la pantalla de entrar muestra «¿No ves la página de Google?» con el link para copiar y los botones «Abrir Google otra vez» y «Cancelar».
 - Un intento de entrar que quedó esperando se corta al intentar de nuevo (antes ocupaba el puerto de Google y el nuevo se quedaba esperando detrás). Si pasan 10 minutos sin aceptar, se avisa y se puede volver a intentar.
