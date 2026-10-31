@@ -8,6 +8,8 @@
    (el mismo en las tres), más version: () => "1.2.3" y alCambiarTema: () => {…} (claro/oscuro, al final del menú).
    preguntar/avisar: las ventanas de la app (en la ventana del programa confirm() y alert() no se ven).
    versionUrl: dónde se pregunta si hay versión nueva (por defecto /api/version): la pantalla de entrar la ofrece.
+   importarMarca: true en las salas (tienen importar_marca.py): el paso «Marca» ofrece bajar y subir la plantilla de marca
+   (POST /api/marca_plantilla y /api/marca_importar). Los datos básicos de la marca van por cuenta.primera (común a las tres).
    Cada servidor atiende GET /api/cuenta/carpetas (cuenta.carpetas_para_elegir) y POST /api/cuenta/primera (cuenta.primera). */
 (() => {
   const css = `
@@ -126,7 +128,7 @@
 
   // Entrar y elegir la carpeta del proyecto, paso a paso: entrar con Google → carpeta (propia, compartida, nueva o
   // por link) → invitar al equipo. Lo mismo sirve para cambiar de carpeta después (Cuenta.elegirCarpeta).
-  const PASOS = [["entrar", "Entrar"], ["carpeta", "Carpeta"], ["equipo", "Equipo"]];
+  const PASOS = [["entrar", "Entrar"], ["carpeta", "Carpeta"], ["marca", "Marca"], ["equipo", "Equipo"]];
   function pantallaEntrar(desde) {
     return new Promise(listo => {
       velo?.remove();
@@ -164,8 +166,57 @@
         try {
           W.res = await pedir("/api/cuenta/primera", cuerpo);
           W.paso = W.res.editor ? "equipo" : "solo_lectura";
+          if (W.res.editor) {  // carpeta nueva o sin marca: se pide la marca antes de invitar al equipo
+            try { W.marca = (await pedir("/api/cuenta/primera", { accion: "marca" })).marca; } catch (e) { W.marca = { falta: true }; }
+            if (W.res.nueva || W.marca.falta) W.paso = "marca";
+            if (W.res.nueva && !W.marca.nombre) W.marca.nombre = W.res.marca || "";
+          }
         } catch (e) { W.error = e.message; }
         pintar();
+      };
+      // El paso «Marca»: lo básico en un formulario y, en las salas, la plantilla de marca para bajar y subir llena
+      const subirMarca = async lista => {
+        const caja = velo.querySelector("#cm-imp");
+        lista = lista.filter(x => !/(^|\/)(\.|__MACOSX)/.test(x.ruta));
+        if (!caja || !lista.length) return;
+        const botones = [...velo.querySelectorAll("button, #cm-subir, #cm-carpeta")];
+        botones.forEach(b => b.disabled = true);
+        try {
+          const { id } = await pedir("/api/marca_importar?accion=nuevo", {});
+          for (let k = 0; k < lista.length; k++) {
+            caja.innerHTML = `<p class="cta-mut" style="margin:0">Subiendo ${k + 1} de ${lista.length}: ${esc(lista[k].ruta)}</p>`;
+            const r = await fetch(`/api/marca_importar?accion=subir&id=${encodeURIComponent(id)}&ruta=${encodeURIComponent(lista[k].ruta)}`, { method: "POST", body: lista[k].file });
+            const d = await r.json();
+            if (d.ok === false || d.error) throw new Error(d.error || "No se pudo subir");
+          }
+          caja.innerHTML = `<p class="cta-mut" style="margin:0">Acomodando: mirando cada archivo y leyendo la ficha…</p>`;
+          const im = await pedir("/api/marca_importar?accion=analizar", { id });
+          const n = t => (im.archivos || []).filter(a => a.tipo === t).length;
+          const res = [[n("logos"), "logo", "logos"], [n("fuentes"), "tipografía", "tipografías"], [n("productos"), "foto de producto", "fotos de producto"],
+            [((im.marca || {}).colores || []).length, "color", "colores"], [n("ficha"), "ficha de marca", "fichas de marca"]].filter(x => x[0])
+            .map(([c, a, b]) => `<span class="cta-tag cerrada" style="margin:0 4px 4px 0;font-size:11px">${c} ${c === 1 ? a : b}</span>`).join("");
+          caja.innerHTML = `<p style="margin:0 0 6px"><b>Esto encontré${(im.marca || {}).nombre ? ` de ${esc(im.marca.nombre)}` : ""}:</b></p><div>${res || `<span class="cta-mut">No encontré logos, tipografías ni ficha. Revisa que la plantilla esté llena.</span>`}</div>
+            ${res ? `<div class="cta-fila" style="margin-top:8px"><button type="button" class="cta-btn pri" id="cm-aplicar">Guardar mi marca</button></div>` : ""}`;
+          botones.forEach(b => b.disabled = false);
+          const ap = caja.querySelector("#cm-aplicar");
+          if (ap) ap.onclick = async () => {
+            ap.disabled = true; ap.textContent = "Guardando…";
+            try {
+              await pedir("/api/marca_importar?accion=aplicar", { id, propuesta: { archivos: im.archivos, marca: im.marca, perfil: im.perfil || {} } });
+              const viejo = W.marca || {};
+              try { W.marca = (await pedir("/api/cuenta/primera", { accion: "marca" })).marca; } catch (e) {}
+              ["nombre", "que_vende", "publico", "contacto"].forEach(k => { if (!W.marca[k]) W.marca[k] = leerMarca()[k] || viejo[k] || ""; });
+              W.importada = true; pintar();
+            } catch (e) { ap.disabled = false; ap.textContent = "Guardar mi marca"; nota("No se pudo guardar la marca: " + e.message, true); }
+          };
+        } catch (e) {
+          botones.forEach(b => b.disabled = false);
+          caja.innerHTML = `<p class="cta-nota err" style="margin:0">No se pudo: ${esc(e.message)}</p>`;
+        }
+      };
+      const leerMarca = () => {
+        const v = id => velo.querySelector("#" + id)?.value.trim() || "";
+        return { nombre: v("cm-nombre"), que_vende: v("cm-vende"), publico: v("cm-publico"), contacto: v("cm-contacto"), principal: v("cm-c1"), secundario: v("cm-c2") };
       };
       // Las apps buscan versiones nuevas después de entrar: si entrar falla, el arreglo tiene que poder llegar desde aquí
       const avisoVersion = async () => {
@@ -246,7 +297,7 @@
             ${ant.id ? `<div class="cta-op"><b>↩ La de antes</b><div class="cta-lista"><button type="button" data-usar="${esc(ant.id)}" data-nombre="${esc(ant.nombre || "")}">📁 ${esc(ant.nombre || "La carpeta que usabas")}</button></div></div>` : ""}
             <form class="cta-op" id="cta-crear"><b>✨ Crear mi carpeta</b>
               <div class="cta-dos"><label>Nombre de la carpeta<input id="cta-nombre" value="EDICIÓN DE VIDEOS" required></label>
-                <label>Nombre de tu marca<input id="cta-marca" placeholder="Ej.: Suplevet"></label></div>
+                <label>Nombre de tu marca<input id="cta-marca" placeholder="Ej.: Café Andino"></label></div>
               <span class="cta-mut" style="font-size:12px">Se crea en tu «Mi unidad». Si ya existe una con ese nombre, se usa esa.</span>
               <div><button class="cta-btn pri">Crear y usar esta carpeta</button></div></form>
             <div class="cta-op"><b>📂 Usar una que ya existe</b>
@@ -278,6 +329,50 @@
             <div class="cta-fila"><button class="cta-btn pri" id="cta-otra">Elegir otra carpeta</button><button class="cta-btn" id="cta-igual">Seguir solo mirando</button></div></div>`;
           velo.querySelector("#cta-otra").onclick = () => { W.paso = "carpeta"; cargarCarpetas(); };
           velo.querySelector("#cta-igual").onclick = () => { W.paso = "equipo"; pintar(); };
+          return;
+        }
+        if (W.paso === "marca") {
+          const m = W.marca || {};
+          velo.innerHTML = caja + cabeza + pasos() + `<h1>${W.importada ? "Tu marca quedó guardada" : "Cuéntanos de tu marca"}</h1>
+            <p class="cta-mut">${W.importada ? "Revisa los datos y toca «Guardar y seguir»." : "Con esto las apps arman videos, diseños y textos con tu marca. Es una sola vez para todo el equipo y lo puedes cambiar después en Configuración → Marca."}</p>
+            <form class="cta-op" id="cm-form"><b>✍️ Lo básico</b>
+              <div class="cta-dos"><label>Nombre de la marca<input id="cm-nombre" required maxlength="60" value="${esc(m.nombre || "")}" placeholder="Ej.: Café Andino"></label>
+                <label>¿Cómo te compran?<input id="cm-contacto" maxlength="120" value="${esc(m.contacto || "")}" placeholder="Ej.: WhatsApp 999 888 777 o tu web"></label></div>
+              <label>¿Qué vendes?<input id="cm-vende" maxlength="300" value="${esc(m.que_vende || "")}" placeholder="Ej.: café de altura en grano y molido"></label>
+              <label>¿A quién le vendes?<input id="cm-publico" maxlength="300" value="${esc(m.publico || "")}" placeholder="Ej.: personas de 25 a 45 años que toman café en casa"></label>
+              <div class="cta-dos"><label>Color principal<input type="color" id="cm-c1" value="${esc((m.principal || "#2563EB").toLowerCase())}" style="height:40px;padding:3px 6px"></label>
+                <label>Color secundario<input type="color" id="cm-c2" value="${esc((m.secundario || "#F59E0B").toLowerCase())}" style="height:40px;padding:3px 6px"></label></div></form>
+            ${opc.importarMarca ? `<div class="cta-op"><b>📦 ¿Ya tienes tu marca armada?</b>
+              <span class="cta-mut" style="font-size:12.5px">Descarga la plantilla, pon tus logos, tipografías y fotos del producto, llena la ficha en Excel y súbela: la app la acomoda sola. También sirve una carpeta o un .zip con tus archivos.</span>
+              <div class="cta-fila"><button type="button" class="cta-btn" id="cm-bajar">⬇ Descargar plantilla de marca</button>
+                <button type="button" class="cta-btn" id="cm-subir-b">⬆ Subir la plantilla llena</button><button type="button" class="cta-btn" id="cm-carpeta-b">⬆ Subir una carpeta</button>
+                <input type="file" id="cm-subir" multiple hidden accept=".zip,.xlsx,.xlsm,.docx,.pdf,.png,.jpg,.jpeg,.webp,.ttf,.otf"><input type="file" id="cm-carpeta" webkitdirectory hidden></div>
+              <div id="cm-imp"></div></div>` : ""}
+            <div class="cta-nota" id="cta-nota"></div>
+            <div class="cta-fila" style="justify-content:space-between;margin-top:6px"><button type="button" class="cta-btn" id="cm-luego">Hacerlo después</button>
+              <button class="cta-btn pri" form="cm-form" id="cm-guardar">Guardar y seguir →</button></div></div>`;
+          velo.querySelector("#cm-form").onsubmit = async e => {
+            e.preventDefault();
+            const g = velo.querySelector("#cm-guardar");
+            g.disabled = true; g.textContent = "Guardando…";
+            try {
+              W.marca = (await pedir("/api/cuenta/primera", { accion: "marca_guardar", marca: leerMarca() })).marca;
+              W.paso = "equipo"; pintar();
+            } catch (er) { g.disabled = false; g.textContent = "Guardar y seguir →"; nota(er.message, true); }
+          };
+          velo.querySelector("#cm-luego").onclick = () => { W.paso = "equipo"; pintar(); };
+          if (opc.importarMarca) {
+            velo.querySelector("#cm-bajar").onclick = async e => {
+              const b = e.target; b.disabled = true;
+              try { const r = await pedir("/api/marca_plantilla", {}); nota(`Listo: «Plantilla de marca.zip» quedó en ${String(r.ruta || "").replace(/[\\/][^\\/]+$/, "")}. Ábrela, llénala y súbela aquí.`); }
+              catch (er) { nota("No se pudo descargar: " + er.message, true); }
+              b.disabled = false;
+            };
+            velo.querySelector("#cm-subir-b").onclick = () => velo.querySelector("#cm-subir").click();
+            velo.querySelector("#cm-carpeta-b").onclick = () => velo.querySelector("#cm-carpeta").click();
+            velo.querySelector("#cm-subir").onchange = e => { const l = [...e.target.files].map(f => ({ file: f, ruta: f.name })); e.target.value = ""; subirMarca(l); };
+            velo.querySelector("#cm-carpeta").onchange = e => { const l = [...e.target.files].map(f => ({ file: f, ruta: f.webkitRelativePath || f.name })); e.target.value = ""; subirMarca(l); };
+          }
           return;
         }
         if (W.paso === "equipo") {

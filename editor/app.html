@@ -9871,14 +9871,14 @@ $("mkSoltar").addEventListener("drop", async e => {
 // ---------- Primera vez: después de elegir la carpeta ----------
 // Entrar con Google, elegir (o crear) la carpeta e invitar al equipo es común a las tres apps (cuenta.js).
 // Después, la sala sigue con lo suyo: cargar la marca y crear la primera sesión.
-const PV_PASOS = [["entrar", "Entrar"], ["carpeta", "Carpeta"], ["equipo", "Equipo"], ["marca", "Marca"], ["sesion", "Primera sesión"]];
+const PV_PASOS = [["entrar", "Entrar"], ["carpeta", "Carpeta"], ["marca", "Marca"], ["equipo", "Equipo"], ["sesion", "Primera sesión"]];
 let PV = { paso: "marca" }, PV_LUEGO = false, ARRANCO = false;
 function pintarPasosPv() {
   const i = PV_PASOS.findIndex(p => p[0] === PV.paso);
   $("pvPasos").innerHTML = PV_PASOS.map(([k, t], j) => `<span class="${j < i ? "hecho" : j === i ? "ahora" : ""}">${j < i ? "✓ " : ""}${t}</span>`).join("");
 }
 function abrirPrimera() {
-  PV = { paso: "marca" };
+  PV = { paso: (E.marca || {}).tiene_marca ? "sesion" : "marca" };  // la marca ya se pidió al elegir la carpeta (cuenta.js)
   if (!$("dlgPrimera").open) $("dlgPrimera").showModal();
   pintarPrimera();
 }
@@ -9890,7 +9890,7 @@ function pintarPrimera() {
     c.innerHTML = `<h2 id="pvTit">${tiene ? "Tu marca ya está cargada" : "Carga tu marca"}</h2>
       <p class="muted" style="margin:0">${tiene ? `La carpeta ya tiene la marca${E.marca.nombre ? ` de <b>${esc(E.marca.nombre)}</b>` : ""}: ${plural((E.marca.colores || []).length, "color", "colores")} y ${plural((E.marca.logos || []).length, "logo")}. Puedes revisarla cuando quieras en Configuración → Marca.`
         : "Tus colores, logos y tipografías: así las portadas y los subtítulos salen con tu marca. Se hace una sola vez para todo el equipo."}</p>
-      ${tiene ? "" : `<ol><li><b>Descarga la plantilla de marca</b>: una carpeta con todo ordenado.</li><li><b>Llénala</b> con tus logos, tipografías, fotos del producto y la ficha de marca (Word).</li>
+      ${tiene ? "" : `<ol><li><b>Descarga la plantilla de marca</b>: una carpeta con todo ordenado.</li><li><b>Llénala</b> con tus logos, tipografías, fotos del producto y la ficha de marca (Excel).</li>
         <li><b>Súbela</b> en Configuración → Marca → «Importar mi marca». La sala la acomoda y te muestra lo que encontró antes de guardar.</li></ol>
         <div class="fila"><button class="btn sec" type="button" id="pvPlantilla">⬇ Descargar plantilla de marca</button></div>`}
       <div class="fila"><button class="btn${tiene ? " sec" : ""}" type="button" id="pvMarcaYa">${tiene ? "Revisar la marca" : "Importar mi marca ahora"}</button>
@@ -12015,7 +12015,7 @@ marcarBotonesIA();
   await Cuenta.iniciar({ app: "Sala de edición", letra: "E", fondo: "linear-gradient(135deg,#1d4ed8,#3d8bff 60%,#5ee1ff)",
                          lugar: $("cuentaChip"), alVolver: () => location.reload(),
                          menu: menuCuenta, version: () => E?.version, alCambiarTema: cambiarTema,
-                         preguntar, avisar, alElegirCarpeta });
+                         preguntar, avisar, alElegirCarpeta, importarMarca: true });
   revisarClaude();
   await cargar();
   ARRANCO = true;

@@ -1,3 +1,9 @@
+Versión 1.68.0 (se actualiza desde la app con «Actualizar ahora»):
+- **Cuenta nueva con marca.** Al entrar por primera vez, después de elegir la carpeta, ahora hay un paso «Marca» (Entrar → Carpeta → Marca → Equipo): nombre de la marca, cómo te compran, qué vendes, a quién le vendes y dos colores. Se guarda una sola vez en el Drive del equipo y la ven las tres apps. Si la carpeta ya tiene marca, el paso no sale.
+- En las salas, el mismo paso trae «⬇ Descargar plantilla de marca» y «⬆ Subir la plantilla llena» (o una carpeta o un .zip): la app muestra lo que encontró y lo guarda con «Guardar mi marca».
+- La bienvenida de la sala ya no vuelve a pedir la marca si se cargó al entrar: va directo a «Primera sesión». La ficha de marca dice Excel (antes decía Word).
+- Si Google acepta pero no se puede leer tu correo (internet que se corta), la entrada ya no se pierde.
+
 Versión 1.67.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Clips que se cortaban antes de terminar la frase.** Al preparar, la sala cortaba cada clip donde creía que acababa la voz: si la frase terminaba suave, se la comía, y en el editor no se podía alargar porque ese pedazo no estaba. Ahora cada frase se prepara con medio segundo más al final (el armado corta el silencio solo, así que los videos salen igual) y se puede alargar hasta ahí.
 - **«⇥ Traer más del clip»** (en Piezas y subtítulos, y con clic derecho sobre un pedazo en el editor): vuelve a preparar solo esa pieza con ese margen. Lo ya editado (cortes, subtítulos, imágenes, zoom) no se pierde: si una frase del medio se alarga, lo que viene después se corre con ella.

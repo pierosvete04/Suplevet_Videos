@@ -2154,6 +2154,9 @@ class H(BaseHTTPRequestHandler):
                 r = cuenta.primera(self._cuerpo())
                 if "editor" in r:  # ya eligió carpeta
                     drive.tras_elegir_carpeta(r)
+                if r.get("marca_guardada"):  # la marca de la primera vez quedó en Drive: se trae a la sala
+                    marca.bajar()
+                    perfil.aplicar()
                 self._json({"ok": True, **r})
             elif u.path == "/api/abrir_link":  # trabajar en una carpeta pegando su link de Drive (o su ruta en esta PC)
                 sem = sesion_de_link(str(self._cuerpo().get("link") or ""))

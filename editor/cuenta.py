@@ -260,7 +260,7 @@ def entrar(link):
         for k in ("sin_carpeta", "anterior", "carpeta_nombre"):
             info.pop(k, None)
         _guardar(INFO, info)
-        _quien()
+        _quien_si_se_puede()
     latido(forzar=True)
     return estado()
 
@@ -313,8 +313,16 @@ def entrar_sin_carpeta(client_id="", client_secret=""):
         info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", carpeta_nombre="",
                     entro=time.strftime("%Y-%m-%d %H:%M:%S"))
         _guardar(INFO, info)
-    _quien()
+    _quien_si_se_puede()
     return estado()
+
+
+def _quien_si_se_puede():
+    """Google ya aceptó: si no se puede leer el correo (internet que se corta), la entrada vale igual y el latido lo trae."""
+    try:
+        _quien()
+    except Exception as e:  # noqa: BLE001
+        print("Cuenta: no pude leer quién entró:", e, flush=True)
 
 
 _SIN_RAIZ = f"{REMOTO},root_folder_id='':"  # «Mi unidad» entera, aunque la conexión ya apunte a una carpeta
@@ -394,11 +402,63 @@ def usar_carpeta(cid, nombre=""):
     return {"editor": editor, "link": link, "nombre": nombre}
 
 
+# ---------- La marca, la primera vez ----------
+# Después de elegir la carpeta, si es nueva o todavía no tiene marca, la pantalla pide lo básico de la marca. Se guarda
+# directo en Drive (_MARCA/marca.json y _MARCA/perfil.json, los que leen las tres apps) y cada app lo baja después:
+# el servidor ve marca_guardada=True en la respuesta de primera().
+_MARCA = "_MARCA"
+_HEX = re.compile(r"#[0-9a-fA-F]{6}")
+
+
+def marca_registro():
+    """Lo que ya hay de la marca en la carpeta, para llenar el formulario. falta=True si hay que pedirla."""
+    m, p = _leer_remoto(f"{_MARCA}/marca.json"), _leer_remoto(f"{_MARCA}/perfil.json")
+    colores = {c.get("uso"): c.get("hex") for c in m.get("colores") or [] if isinstance(c, dict)}
+    return {"falta": not m.get("nombre") or not (m.get("logos") or p.get("que_vende")),
+            "nombre": m.get("nombre") or p.get("nombre") or "", "que_vende": p.get("que_vende", ""), "publico": p.get("publico", ""),
+            "principal": colores.get("principal") or colores.get("acento") or "", "secundario": colores.get("secundario") or "",
+            "contacto": (m.get("cta") or {}).get("texto", "")}
+
+
+def registrar_marca(d):
+    """Guarda en Drive lo básico de la marca sin pisar lo demás (logos, tipografías, reglas que ya tenga)."""
+    texto = lambda k, n: " ".join(str(d.get(k) or "").split())[:n]  # noqa: E731
+    nombre = texto("nombre", 60)
+    if not nombre:
+        raise ValueError("Escribe el nombre de tu marca")
+    color = lambda k, sino: d[k].upper() if _HEX.fullmatch(str(d.get(k) or "")) else sino  # noqa: E731
+    m, p = _leer_remoto(f"{_MARCA}/marca.json"), _leer_remoto(f"{_MARCA}/perfil.json")
+    otros = [c for c in m.get("colores") or [] if isinstance(c, dict) and c.get("uso") not in ("principal", "secundario", "acento")]
+    if not any(c.get("uso") == "texto" for c in otros):
+        otros.append({"nombre": "Tinta", "hex": "#1F2933", "uso": "texto"})
+    if not any(c.get("uso") == "fondo" for c in otros):
+        otros.append({"nombre": "Claro", "hex": "#F4F4F5", "uso": "fondo"})
+    m.update(nombre=nombre, colores=[{"nombre": "Principal", "hex": color("principal", "#2563EB"), "uso": "principal"},
+                                     {"nombre": "Secundario", "hex": color("secundario", "#F59E0B"), "uso": "secundario"}, *otros],
+             cambio=time.time())
+    m.setdefault("texto_oscuro", "#1F2933")
+    m.setdefault("texto_claro", "#FFFFFF")
+    if texto("contacto", 120):  # cómo te compran: el cierre de los carruseles y videos
+        cta = m.get("cta") or {}
+        m["cta"] = {"titulo": cta.get("titulo") or "¿Te interesa?", "texto": texto("contacto", 120), "boton": cta.get("boton") or "Escríbenos"}
+    p.update(nombre=nombre, que_vende=texto("que_vende", 300), publico=texto("publico", 300))
+    if p["publico"] and not p.get("publicos"):
+        p["publicos"] = [p["publico"][:80]]
+    _escribir_remoto(f"{_MARCA}/marca.json", m)
+    _escribir_remoto(f"{_MARCA}/perfil.json", p)
+    return marca_registro()
+
+
 def primera(b):
     """Lo que piden las pantallas de entrar y elegir carpeta (cuenta.js): {accion: entrar|crear|usar|link, ...}.
     Con «crear» devuelve también nueva=True y el nombre de la marca, para que cada app prepare lo suyo.
-    Mientras se espera a Google: google (el link para abrirlo a mano), abrir_google y cancelar_google."""
+    Mientras se espera a Google: google (el link para abrirlo a mano), abrir_google y cancelar_google.
+    La marca: marca (lo que ya hay) y marca_guardar (devuelve marca_guardada=True para que la app la baje)."""
     acc = b.get("accion")
+    if acc == "marca":
+        return {"marca": marca_registro()}
+    if acc == "marca_guardar":
+        return {"marca": registrar_marca(b.get("marca") or {}), "marca_guardada": True}
     if acc == "google":
         return {"link_google": _google["link"]}
     if acc == "abrir_google":
