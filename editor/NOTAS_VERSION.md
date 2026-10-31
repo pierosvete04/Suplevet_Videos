@@ -1,3 +1,9 @@
+Versión 1.68.1 (se actualiza desde la app con «Actualizar ahora»):
+- **Otra cuenta ya no termina usando la cuenta de antes.** Un proceso de Drive que había empezado antes de entrar podía volver a poner la llave de la cuenta anterior (la pantalla decía la cuenta nueva, pero se trabajaba con la vieja y se veían sus sesiones y su marca). Ahora cada entrada y cada cambio de carpeta guarda la llave aparte, y eso ya no puede pasar.
+- **Cada carpeta tiene su propia copia en esta PC.** Al cambiar de carpeta (otra cuenta u otro proyecto), las sesiones y la marca de la anterior se apartan y no se mezclan; si vuelves a esa carpeta, regresan tal cual, sin bajar todo de nuevo.
+- Cada 10 minutos la app confirma con Google con qué cuenta está trabajando, y esa es la que muestra.
+- Al entrar con otra cuenta ya no se ofrece «La de antes» (la carpeta de la cuenta anterior).
+
 Versión 1.68.0 (se actualiza desde la app con «Actualizar ahora»):
 - **Cuenta nueva con marca.** Al entrar por primera vez, después de elegir la carpeta, ahora hay un paso «Marca» (Entrar → Carpeta → Marca → Equipo): nombre de la marca, cómo te compran, qué vendes, a quién le vendes y dos colores. Se guarda una sola vez en el Drive del equipo y la ven las tres apps. Si la carpeta ya tiene marca, el paso no sale.
 - En las salas, el mismo paso trae «⬇ Descargar plantilla de marca» y «⬆ Subir la plantilla llena» (o una carpeta o un .zip): la app muestra lo que encontró y lo guarda con «Guardar mi marca».

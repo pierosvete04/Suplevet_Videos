@@ -29,7 +29,7 @@ import cuenta
 import motor
 
 REMOTO = cuenta.REMOTO  # la sesión de Google es la común de las tres salas (cuenta.py)
-CONF = cuenta.CONF
+CONF = cuenta.CONF  # la llave de siempre; la que se usa es cuenta.conf()
 CACHE = motor.DATOS / "drive"
 LISTA = motor.DATOS / "drive_sesiones.json"
 # Bloopers: tomas que el equipo apartó (la sala no las usa; bajarlas solo gasta tiempo y disco)
@@ -58,7 +58,7 @@ def rclone():
 
 
 def _rc(*args, avance=None, timeout=None, prefijo="Drive: "):
-    cmd = [str(rclone()), *map(str, args), "--config", str(CONF)]
+    cmd = [str(rclone()), *map(str, args), "--config", str(cuenta.conf())]
     if not avance:
         r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
         if r.returncode != 0:
@@ -121,6 +121,7 @@ def asegurar_config(forzar=False):
     cfg = motor.CONFIG.get("drive", {})
     if not c["conectado"] or (not forzar and cfg.get("activo") and cfg.get("carpeta_id") == c["carpeta_id"]):
         return False
+    cambiar_copia_local(cfg.get("carpeta_id"), c["carpeta_id"])
     motor.guardar_config({"drive": {"activo": True, "carpeta_id": c["carpeta_id"], "link": c["link"],
                                     "credenciales_propias": bool(cuenta._leer(cuenta.INFO).get("cliente"))},
                           "carpeta_trabajo": str(CACHE), "biblioteca": str(CACHE / "SOUND FX")})
@@ -131,6 +132,40 @@ def asegurar_config(forzar=False):
     except Exception as e:  # sin internet: la lista se trae después
         print("Drive:", e, flush=True)
     return True
+
+
+# Lo que la sala guarda de la carpeta del proyecto, además de las sesiones: la lista de Drive, las producciones, los
+# grupos y las archivadas. Viajan con la copia local al apartarla (en .sala/, que nunca se sube).
+_LISTAS = (LISTA, motor.PRODUCCIONES_PATH, motor.GRUPOS_PATH, motor.ARCHIVADAS_PATH)
+
+
+def cambiar_copia_local(antes, ahora):
+    """Cada carpeta del proyecto tiene su copia en esta PC. Al cambiar de carpeta (otra cuenta, otro proyecto) la de
+    antes se aparta en datos/drive_<id> y vuelve la de la nueva si ya se había usado: así no se mezclan las sesiones
+    ni la marca de dos proyectos (pasó: con la cuenta de Mr Peanut se veían P05 y la marca de Suplevet)."""
+    if not antes or not ahora or antes == ahora:
+        return
+    try:
+        aparte = motor.DATOS / f"drive_{antes}"
+        if CACHE.exists():
+            if aparte.exists():  # una copia vieja de esa carpeta que quedó de antes: se guarda con otro nombre
+                aparte.rename(motor.DATOS / f"drive_{antes}_{int(time.time())}")
+            CACHE.rename(aparte)
+        if aparte.exists():
+            (aparte / ".sala").mkdir(exist_ok=True)
+            for f in _LISTAS:
+                if f.exists():
+                    f.replace(aparte / ".sala" / f.name)
+        vuelve = motor.DATOS / f"drive_{ahora}"
+        if vuelve.exists() and not CACHE.exists():
+            vuelve.rename(CACHE)
+            for f in _LISTAS:
+                g = CACHE / ".sala" / f.name
+                if g.exists():
+                    g.replace(f)
+    except OSError as e:  # un archivo abierto (un video que se está armando): no se sigue, se reintenta al volver a abrir
+        raise RuntimeError("No pude apartar los archivos de la carpeta anterior: hay alguno abierto. Espera a que termine "
+                           "lo que se está armando, cierra la sala y vuelve a abrirla.") from e
 
 
 def desconectar():
@@ -472,7 +507,7 @@ def faltan_en_drive(nombre):
     for f in (falta, distinto):
         f.write_text("", encoding="utf-8")
     r = subprocess.run([str(rclone()), "check", str(local), f"{REMOTO}:{nombre}", "--one-way", "--size-only", *EXCLUIR_TODO,
-                        "--missing-on-dst", str(falta), "--differ", str(distinto), "--config", str(CONF)],
+                        "--missing-on-dst", str(falta), "--differ", str(distinto), "--config", str(cuenta.conf())],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600)
     lista = [x.strip() for f in (falta, distinto) for x in f.read_text(encoding="utf-8").splitlines() if x.strip()]
     if r.returncode != 0 and not lista:  # no pudo comparar (sin internet…): no se da por bueno
@@ -601,7 +636,7 @@ ROLES = {"owner": "Dueño", "organizer": "Dueño", "fileOrganizer": "Editor", "w
 def _token():
     import urllib.request  # noqa: F401
     _rc("lsd", f"{REMOTO}:", "--max-depth", "1", timeout=60)  # si la llave venció, rclone la renueva y la guarda
-    texto = cuenta.CONF.read_text(encoding="utf-8")
+    texto = cuenta.conf().read_text(encoding="utf-8")
     m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
     t = m and re.search(r"^token\s*=\s*(.*)$", m.group(1), re.M)
     if not t:

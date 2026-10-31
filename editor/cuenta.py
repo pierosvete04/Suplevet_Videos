@@ -31,7 +31,7 @@ from pathlib import Path
 SUITE = Path(os.environ.get("SALAS_SUITE") or Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Salas")
 SUITE.mkdir(parents=True, exist_ok=True)
 REMOTO = "proyecto"
-CONF = SUITE / "rclone.conf"
+CONF = SUITE / "rclone.conf"  # la llave de siempre: la siguen leyendo las apps sin actualizar (ver conf())
 INFO = SUITE / "drive.json"
 DISPOSITIVO = SUITE / "dispositivo.json"
 CARPETA = "_SISTEMA/dispositivos"
@@ -63,8 +63,38 @@ def rclone():
     return destino
 
 
-def rc(*args, timeout=None, entrada=None):
-    cmd = [str(rclone()), *map(str, args), "--config", str(CONF)]
+# ---------- La llave de Google ----------
+# Cuando rclone renueva la llave, reescribe el archivo con lo que leyó al arrancar. Un rclone que empezó antes de entrar
+# con otra cuenta (o de cambiar de carpeta) dejaba otra vez la cuenta y la carpeta de antes, sin que la pantalla lo
+# notara (pasó el 30/10: decía Mr Peanut y trabajaba con la cuenta de Suplevet). Por eso cada entrada y cada cambio de
+# carpeta escribe la llave en un archivo nuevo, llave-<n>.conf, el que dice drive.json: un rclone viejo solo puede pisar
+# el suyo. rclone.conf guarda una copia para las apps que todavía no se actualizaron.
+def conf():
+    n = _leer(INFO).get("llave")
+    return SUITE / n if n and (SUITE / n).exists() else CONF
+
+
+def _nueva_llave():
+    return SUITE / f"llave-{time.time_ns()}.conf"
+
+
+def _llave_lista(archivo):
+    """drive.json ya apunta a este archivo: se copia a rclone.conf y se borran las llaves viejas."""
+    _token["hasta"] = 0  # la llave de acceso guardada en memoria era de la cuenta (o carpeta) de antes
+    try:
+        CONF.write_text(archivo.read_text(encoding="utf-8"), encoding="utf-8")
+    except OSError:
+        pass
+    for f in SUITE.glob("llave-*.conf"):
+        if f != archivo:
+            try:
+                f.unlink()
+            except OSError:
+                pass
+
+
+def rc(*args, timeout=None, entrada=None, archivo=None):
+    cmd = [str(rclone()), *map(str, args), "--config", str(archivo or conf())]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE if entrada is not None else None,
                          text=True, encoding="utf-8", errors="replace", creationflags=0x08000000 if os.name == "nt" else 0)
     PROCESOS.add(p)
@@ -103,9 +133,9 @@ def abrir_google():
     webbrowser.open(_google["link"])
 
 
-def _rc_google(*args, timeout=600):
+def _rc_google(*args, archivo, timeout=600):
     cancelar_google()
-    cmd = [str(rclone()), *map(str, args), "--config", str(CONF)]
+    cmd = [str(rclone()), *map(str, args), "--config", str(archivo)]
     p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8",
                          errors="replace", creationflags=0x08000000 if os.name == "nt" else 0)
     _google.update(link="", proc=p, cancelado=False)
@@ -151,7 +181,7 @@ def _guardar(p, datos):
 
 def _llave():
     try:
-        texto = CONF.read_text(encoding="utf-8", errors="ignore")
+        texto = conf().read_text(encoding="utf-8", errors="ignore")
     except FileNotFoundError:
         return ""
     m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
@@ -244,22 +274,20 @@ def entrar(link):
     cid = carpeta_id(link)
     cancelar_google()  # antes del candado: un ingreso que quedó esperando lo tiene tomado
     with _candado:
-        if CONF.exists():
-            try:
-                rc("config", "delete", REMOTO)
-            except RuntimeError:
-                pass
         cliente = _leer(INFO).get("cliente") or {}
         extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
-        _rc_google("config", "create", REMOTO, "drive", "scope=drive", f"root_folder_id={cid}", *extra)
+        nueva = _nueva_llave()
+        _rc_google("config", "create", REMOTO, "drive", "scope=drive", f"root_folder_id={cid}", *extra, archivo=nueva)
         try:
-            rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)
+            rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60, archivo=nueva)
         except RuntimeError:
+            nueva.unlink(missing_ok=True)
             raise RuntimeError("Esa cuenta no tiene acceso a la carpeta del proyecto. Pídele al dueño que la comparta con tu correo.")
-        info = {**_leer(INFO), "activo": True, "link": link, "carpeta_id": cid, "entro": time.strftime("%Y-%m-%d %H:%M:%S")}
-        for k in ("sin_carpeta", "anterior", "carpeta_nombre"):
+        info = {**_leer(INFO), "activo": True, "link": link, "carpeta_id": cid, "llave": nueva.name, "entro": time.strftime("%Y-%m-%d %H:%M:%S")}
+        for k in ("sin_carpeta", "anterior", "carpeta_nombre", "email", "nombre", "foto"):
             info.pop(k, None)
         _guardar(INFO, info)
+        _llave_lista(nueva)
         _quien_si_se_puede()
     latido(forzar=True)
     return estado()
@@ -281,12 +309,16 @@ def cerrar_sesion(marcar_en_drive=True):
         except Exception:
             pass
     with _candado:
-        try:
-            rc("config", "delete", REMOTO)
-        except Exception:
-            pass
+        for f in {conf(), CONF}:
+            try:
+                rc("config", "delete", REMOTO, archivo=f)
+            except Exception:
+                pass
         i = _leer(INFO)
         _guardar(INFO, {k: i[k] for k in ("link", "carpeta_id", "carpeta_nombre", "cliente", "cerrada_desde_otra_pc") if k in i})
+        for f in SUITE.glob("llave-*.conf"):
+            f.unlink(missing_ok=True)
+        _token["hasta"] = 0
 
 
 # ---------- Primera vez: entrar con Google y elegir (o crear) la carpeta del proyecto ----------
@@ -300,20 +332,22 @@ def entrar_sin_carpeta(client_id="", client_secret=""):
         info = _leer(INFO)
         if client_id.strip():
             info["cliente"] = {"id": client_id.strip(), "secreto": client_secret.strip()}
-        if CONF.exists():
-            try:
-                rc("config", "delete", REMOTO)
-            except RuntimeError:
-                pass
         cliente = info.get("cliente") or {}
         extra = [f"client_id={cliente['id']}", f"client_secret={cliente['secreto']}"] if cliente.get("id") else []
-        _rc_google("config", "create", REMOTO, "drive", "scope=drive", *extra)
-        if info.get("carpeta_id"):  # la carpeta de antes: se ofrece primero al elegir
+        nueva = _nueva_llave()
+        _rc_google("config", "create", REMOTO, "drive", "scope=drive", *extra, archivo=nueva)
+        antes = info.get("email", "")
+        if info.get("carpeta_id"):  # la carpeta de antes: se ofrece primero al elegir (si es la misma cuenta)
             info["anterior"] = {"id": info["carpeta_id"], "nombre": info.get("carpeta_nombre", "")}
-        info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", carpeta_nombre="",
-                    entro=time.strftime("%Y-%m-%d %H:%M:%S"))
+        info.update(activo=False, sin_carpeta=True, link="", carpeta_id="", carpeta_nombre="", llave=nueva.name,
+                    email="", nombre="", foto="", entro=time.strftime("%Y-%m-%d %H:%M:%S"))
         _guardar(INFO, info)
+        _llave_lista(nueva)
     _quien_si_se_puede()
+    i = _leer(INFO)
+    if i.get("anterior") and i.get("email") != antes:  # otra cuenta: la carpeta de la cuenta anterior no se ofrece
+        i.pop("anterior")
+        _guardar(INFO, i)
     return estado()
 
 
@@ -363,8 +397,10 @@ def usar_carpeta(cid, nombre=""):
     if not re.fullmatch(r"[\w-]{10,}", cid or ""):
         raise ValueError("Esa carpeta no es válida")
     with _candado:
-        # se cambia solo la línea root_folder_id de la conexión (sin librerías que el .exe podría no traer)
-        texto = CONF.read_text(encoding="utf-8") if CONF.exists() else ""
+        # se cambia solo la línea root_folder_id de la conexión (sin librerías que el .exe podría no traer), en una
+        # llave nueva: un rclone que siga corriendo con la carpeta de antes no puede volver a ponerla (ver conf())
+        actual = conf()
+        texto = actual.read_text(encoding="utf-8") if actual.exists() else ""
         m = re.search(rf"^\[{REMOTO}\]\n(.*?)(?=^\[|\Z)", texto, re.S | re.M)
         if not m:
             raise RuntimeError("Primero entra con tu cuenta de Google")
@@ -373,7 +409,12 @@ def usar_carpeta(cid, nombre=""):
             seccion = re.sub(r"^root_folder_id\s*=.*$", f"root_folder_id = {cid}", seccion, flags=re.M)
         else:
             seccion = f"root_folder_id = {cid}\n" + seccion
-        CONF.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
+        nueva = _nueva_llave()
+        nueva.write_text(texto[:m.start(1)] + seccion + texto[m.end(1):], encoding="utf-8")
+        info = _leer(INFO)
+        info["llave"] = nueva.name
+        _guardar(INFO, info)
+        _llave_lista(nueva)
     try:
         rc("lsjson", f"{REMOTO}:", "--max-depth", "1", timeout=60)
     except RuntimeError:
@@ -538,8 +579,7 @@ def latido(forzar=False):
 
     def tarea():
         try:
-            if not _leer(INFO).get("email"):
-                _quien()
+            _quien()  # la cuenta de verdad de la llave: la pantalla nunca muestra otra
             if _anotar():
                 cerrar_sesion(marcar_en_drive=True)
                 i = _leer(INFO)
